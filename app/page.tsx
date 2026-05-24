@@ -1,28 +1,10 @@
 import Ticket from "./components/Ticket";
+import { getUpcomingTickets } from "@/lib/airtable";
 
-// Hardcoded upcoming events
-const events = [
-  {
-    emoji: "🎤",
-    title: "Concerto Vasco",
-    datetime: "25 maggio 2026, 21:00",
-    location: "San Siro, Milano",
-  },
-  {
-    emoji: "🚆",
-    title: "Milano → Roma",
-    datetime: "28 maggio 2026, 08:15",
-    location: "Stazione Centrale",
-  },
-  {
-    emoji: "🏨",
-    title: "Hotel Hassler",
-    datetime: "28 maggio 2026, check-in 14:00",
-    location: "Roma",
-  },
-];
+// Async Server Component — data is fetched at request time (ISR, 60 s revalidation).
+export default async function Home() {
+  const events = await getUpcomingTickets();
 
-export default function Home() {
   return (
     // Full-page dark background
     <div className="min-h-screen bg-[#0a0a0a] font-sans text-white">
@@ -44,12 +26,16 @@ export default function Home() {
             Prossimi eventi
           </h2>
 
-          {/* Ticket list */}
-          <div className="flex flex-col gap-4">
-            {events.map((event) => (
-              <Ticket key={event.title} {...event} />
-            ))}
-          </div>
+          {/* Ticket list — or a soft empty state when nothing is coming up */}
+          {events.length === 0 ? (
+            <p className="text-sm text-white/30">Nessun evento in programma.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {events.map((event) => (
+                <Ticket key={`${event.title}-${event.datetime}`} {...event} />
+              ))}
+            </div>
+          )}
         </section>
 
       </main>
