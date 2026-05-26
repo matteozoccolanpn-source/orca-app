@@ -3,8 +3,9 @@
 export interface Ticket {
   emoji: string;
   title: string;
-  datetime: string;
+  datetime: string; // ISO 8601 string from Airtable
   location: string;
+  type: string;     // raw Airtable Type value (train, flight, restaurant, hotel, …)
 }
 
 /** Maps the Airtable "Type" field value to an emoji. */
@@ -69,6 +70,7 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
         title:    f.Title ?? f.Name ?? "Untitled",
         datetime: f.Datetime ?? "",
         location: f.Location ?? "",
+        type:     (f.Type ?? "").toLowerCase(),
       };
     });
   } catch (err) {

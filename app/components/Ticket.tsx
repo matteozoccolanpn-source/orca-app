@@ -1,9 +1,10 @@
-// Reusable event ticket card component
+// Compact event card for non-hero upcoming events
 interface TicketProps {
   emoji: string;
   title: string;
   datetime: string;
   location: string;
+  type?: string; // accepted but not used in the compact view
 }
 
 export default function Ticket({ emoji, title, datetime, location }: TicketProps) {
