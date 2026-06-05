@@ -1,6 +1,9 @@
 // HeroCard — dominant card for the single nearest upcoming event.
 // Displays temporal status, event details, and contextual action buttons.
 
+import { formatDatetime } from "@/lib/format";
+import { ActionBar } from "./actions";
+
 interface HeroCardProps {
   emoji: string;
   title: string;
@@ -8,87 +11,6 @@ interface HeroCardProps {
   location: string;
   type: string;       // raw type: train | flight | restaurant | hotel | …
   temporalStatus: string; // pre-computed label: "Tra 2 giorni", "Domani", "Ora", …
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Builds a Google Maps search URL for a given location string. */
-function mapsUrl(location: string): string {
-  if (!location) return "https://www.google.com/maps";
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
-}
-
-/** Formats an ISO datetime string into separate Italian date and time strings. */
-function formatDatetime(iso: string): { date: string; time: string } {
-  if (!iso) return { date: "", time: "" };
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return { date: iso, time: "" };
-
-  const date = new Intl.DateTimeFormat("it-IT", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-
-  const time = new Intl.DateTimeFormat("it-IT", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(d);
-
-  return { date, time };
-}
-
-// ─── Contextual action bar ────────────────────────────────────────────────────
-
-interface ActionButton {
-  label: string;
-  href: string;
-  icon: string;
-}
-
-/** Returns the set of action buttons appropriate for this event type. */
-function actionsForType(type: string, location: string): ActionButton[] {
-  const maps:      ActionButton = { label: "Mappa",       icon: "🗺",  href: mapsUrl(location) };
-  const ticket:    ActionButton = { label: "Biglietto",   icon: "🎫",  href: "#" };
-  const call:      ActionButton = { label: "Chiama",      icon: "📞",  href: "tel:" };
-  const booking:   ActionButton = { label: "Prenotazione", icon: "🔖", href: "#" };
-
-  switch (type) {
-    case "train":
-    case "flight":
-      return [maps, ticket];
-    case "restaurant":
-      return [call, maps];
-    case "hotel":
-      return [maps, booking];
-    default:
-      return [maps];
-  }
-}
-
-function ActionBar({ type, location }: { type: string; location: string }) {
-  const buttons = actionsForType(type, location);
-  return (
-    <div className="flex gap-3">
-      {buttons.map((btn) => (
-        <a
-          key={btn.label}
-          href={btn.href}
-          /* Primary button (first) gets the amber accent; others are ghost glass */
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all
-            ${buttons.indexOf(btn) === 0
-              ? "bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 border border-amber-400/20"
-              : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
-        >
-          <span>{btn.icon}</span>
-          <span>{btn.label}</span>
-        </a>
-      ))}
-    </div>
-  );
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
