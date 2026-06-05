@@ -1,6 +1,7 @@
 import Ticket from "./components/Ticket";
 import HeroCard from "./components/HeroCard";
 import { getUpcomingTickets } from "@/lib/airtable";
+import { signOut } from "@/auth";
 
 // ─── Temporal status ──────────────────────────────────────────────────────────
 
@@ -41,6 +42,20 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] font-sans text-white">
+      <form
+        className="fixed top-4 right-4 z-50"
+        action={async () => {
+          "use server"
+          await signOut({ redirectTo: "/login" })
+        }}
+      >
+        <button
+          type="submit"
+          className="text-xs text-white/30 hover:text-white/60 transition-colors"
+        >
+          Logout
+        </button>
+      </form>
       <main className="mx-auto max-w-lg px-5 py-14">
 
         {/* Header */}
