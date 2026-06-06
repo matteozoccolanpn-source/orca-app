@@ -17,16 +17,29 @@ interface TicketProps {
 const DELETE_WIDTH = 72;
 
 const TYPE_EMOJI: Record<string, string> = {
-  train: "🚆",
-  flight: "✈️",
-  concert: "🎵",
-  hotel: "🏨",
-  museum: "🎨",
+  train:      "🚆",
+  flight:     "✈️",
+  concert:    "🎵",
+  hotel:      "🏨",
+  museum:     "🎨",
   restaurant: "🍽️",
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  train:      "Treno",
+  flight:     "Volo",
+  concert:    "Concerto",
+  hotel:      "Hotel",
+  museum:     "Museo",
+  restaurant: "Ristorante",
 };
 
 function resolveEmoji(type: string, fallback: string): string {
   return TYPE_EMOJI[type?.toLowerCase()] ?? fallback ?? "📌";
+}
+
+function resolveLabel(type: string): string {
+  return TYPE_LABEL[type?.toLowerCase()] ?? "Evento";
 }
 
 function formatCompact(iso: string): string {
@@ -87,17 +100,20 @@ export default function Ticket({
   type = "",
 }: TicketProps) {
   const router = useRouter();
-  const [offset, setOffset] = useState(0);
-  const [showMenu, setShowMenu] = useState(false);
+  const [offset, setOffset]           = useState(0);
+  const [showMenu, setShowMenu]       = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [removed, setRemoved] = useState(false);
-  const startX = useRef(0);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const [removed, setRemoved]         = useState(false);
+  const startX      = useRef(0);
   const startOffset = useRef(0);
 
   const displayEmoji = resolveEmoji(type, emoji);
+  const typeLabel    = resolveLabel(type);
   const formattedDate = formatCompact(datetime);
+
+  const typeRow = [typeLabel, location].filter(Boolean).join(" · ").toUpperCase();
 
   function openSwipeDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -117,11 +133,8 @@ export default function Ticket({
   }
 
   function onTouchEnd() {
-    if (offset < -DELETE_WIDTH / 2) {
-      setOffset(-DELETE_WIDTH);
-    } else {
-      setOffset(0);
-    }
+    if (offset < -DELETE_WIDTH / 2) setOffset(-DELETE_WIDTH);
+    else setOffset(0);
   }
 
   async function handleDelete() {
@@ -130,16 +143,14 @@ export default function Ticket({
     setShowMenu(false);
 
     try {
-      const res = await fetch("/api/delete", {
+      const res  = await fetch("/api/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
 
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error ?? "Eliminazione fallita");
-      }
+      if (!res.ok || !data.ok) throw new Error(data.error ?? "Eliminazione fallita");
 
       setRemoved(true);
       router.refresh();
@@ -156,7 +167,7 @@ export default function Ticket({
 
   return (
     <>
-      {/* Swipe-to-delete container — unchanged */}
+      {/* Swipe-to-delete outer shell — unchanged */}
       <div className="relative overflow-hidden rounded-2xl">
         <div className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-red-600 md:hidden">
           <button
@@ -178,29 +189,40 @@ export default function Ticket({
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <Card className="flex items-center gap-3 rounded-2xl border-border bg-card px-4 py-3.5 transition-colors hover:border-white/20">
-            {/* Emoji */}
-            <span className="flex-shrink-0 text-2xl leading-none">{displayEmoji}</span>
+          <Card className="flex gap-3 rounded-2xl border-border/40 bg-card px-4 py-3 transition-all duration-200 hover:border-primary/30 hover:bg-white/[0.03]">
+            {/* Emoji — anchored left, spans all rows */}
+            <span className="flex-shrink-0 self-start pt-[3px] text-[18px] leading-none">
+              {displayEmoji}
+            </span>
 
-            {/* Title + location */}
+            {/* Content column */}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground">{title}</p>
-              {location && (
-                <p className="truncate text-xs text-muted-foreground">{location}</p>
-              )}
-            </div>
+              {/* Row 1: TYPE · LOCATION | menu */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                  {typeRow}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setShowMenu(true); }}
+                  aria-label="Opzioni"
+                  className="-mr-1 flex-shrink-0 rounded-md px-1.5 py-0.5 text-sm leading-none text-muted-foreground/50 transition-colors hover:bg-white/10 hover:text-foreground"
+                >
+                  ···
+                </button>
+              </div>
 
-            {/* Date + menu */}
-            <div className="flex flex-shrink-0 items-center gap-2">
-              <span className="text-right text-xs text-muted-foreground">{formattedDate}</span>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setShowMenu(true); }}
-                aria-label="Opzioni"
-                className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
-              >
-                ···
-              </button>
+              {/* Row 2: title — display font */}
+              <p className="mt-0.5 truncate font-display text-[15px] font-bold leading-snug text-foreground">
+                {title}
+              </p>
+
+              {/* Row 3: date — mono, accent */}
+              {formattedDate && (
+                <p className="mt-1 font-mono text-[11px] text-primary/70">
+                  {formattedDate}
+                </p>
+              )}
             </div>
           </Card>
         </div>
@@ -214,9 +236,15 @@ export default function Ticket({
 
       {/* Options sheet */}
       <Sheet open={showMenu} onOpenChange={setShowMenu}>
-        <SheetContent side="bottom" className="rounded-t-2xl border-border bg-card" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+        <SheetContent
+          side="bottom"
+          className="rounded-t-2xl border-border bg-card"
+          style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+        >
           <SheetHeader className="mb-4">
-            <SheetTitle className="text-left text-sm font-semibold text-foreground">{title}</SheetTitle>
+            <SheetTitle className="text-left font-display text-base font-bold text-foreground">
+              {title}
+            </SheetTitle>
           </SheetHeader>
           <div className="flex flex-col gap-1">
             <a
@@ -250,7 +278,10 @@ export default function Ticket({
           aria-labelledby="delete-dialog-title"
         >
           <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
-            <h4 id="delete-dialog-title" className="text-base font-semibold text-foreground">
+            <h4
+              id="delete-dialog-title"
+              className="font-display text-base font-bold text-foreground"
+            >
               Eliminare questo evento?
             </h4>
             <p className="mt-2 text-sm text-muted-foreground">{title}</p>
@@ -259,7 +290,7 @@ export default function Ticket({
                 type="button"
                 onClick={() => setShowConfirm(false)}
                 disabled={loading}
-                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-white/5 disabled:opacity-50"
+                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/5 disabled:opacity-50"
               >
                 Annulla
               </button>

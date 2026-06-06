@@ -28,38 +28,44 @@ export default async function Home() {
   const [hero, ...upcoming] = events;
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Top controls */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-4">
         <RefreshButton />
         <form
           action={async () => {
-            "use server"
-            await signOut({ redirectTo: "/login" })
+            "use server";
+            await signOut({ redirectTo: "/login" });
           }}
         >
           <button
             type="submit"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
           >
             Logout
           </button>
         </form>
       </div>
 
-      <main className="mx-auto max-w-lg px-5 py-14">
-        <header className="mb-10">
-          <h1 className="text-4xl font-bold tracking-tight">OrCa 🐳</h1>
-          <div className="mt-3 mb-4 h-[1px] w-12 bg-foreground/30" />
-          <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
+      <main className="mx-auto max-w-lg px-4 py-12">
+        {/* Header */}
+        <header className="mb-8">
+          <h1 className="font-display text-4xl font-bold tracking-tight">OrCa 🐳</h1>
+          <div className="mt-2 mb-3 h-px w-10 bg-foreground/20" />
+          <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
             Organize your Calendar
           </p>
         </header>
 
         {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nessun evento in programma ✈️</p>
+          <div className="flex flex-col items-center gap-2 py-20 text-center">
+            <span className="text-4xl">✈️</span>
+            <p className="text-sm font-medium text-foreground">Nessun evento</p>
+            <p className="text-xs text-muted-foreground">Il calendario è vuoto per ora</p>
+          </div>
         ) : (
           <>
-            <section className="mb-10">
+            <section className="mb-6">
               <HeroCard
                 {...hero}
                 temporalStatus={getTemporalStatus(hero.datetime)}
