@@ -47,7 +47,7 @@ export default function EventsSection({ events }: EventsSectionProps) {
       </div>
 
       {filtered.length > 0 ? (
-        <div className="flex flex-col gap-2.5">
+        <div key={activeCategory} className="flex flex-col gap-2.5">
           {filtered.map((event, index) => (
             <motion.div
               key={event.id}

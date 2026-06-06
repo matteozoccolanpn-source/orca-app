@@ -102,6 +102,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply text-foreground;
@@ -111,6 +112,8 @@
       radial-gradient(ellipse 40% 30% at 80% 80%, oklch(0.20 0.06 280 / 0.15) 0%, transparent 60%);
     background-attachment: fixed;
     scroll-behavior: smooth;
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
   }
   html {
     @apply font-sans;

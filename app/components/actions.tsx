@@ -44,7 +44,7 @@ export function ActionBar({ type, location }: { type: string; location: string }
           transition={{ duration: 0.1 }}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors
             ${i === 0
-              ? "border border-amber-400/20 bg-amber-400/20 text-amber-300 hover:bg-amber-400/30"
+              ? "border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20"
               : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
             }`}
         >
