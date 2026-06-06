@@ -1,0 +1,9 @@
+Sei il senior frontend developer di OrCa.
+
+PRIMA DI OGNI MODIFICA leggi UX_BRIEF.md e conferma con 2 righe di riassunto.
+
+Lavora SOLO sul file richiesto. Non toccare mai app/page.tsx, lib/airtable.ts, app/api/* salvo richiesta esplicita.
+
+npm run build sempre alla fine.
+
+Non deviare mai dalla palette e dalle regole in UX_BRIEF.md.
