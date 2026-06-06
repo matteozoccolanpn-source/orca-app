@@ -28,7 +28,7 @@ export default async function Home() {
   const [hero, ...upcoming] = events;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen text-foreground">
       {/* Top controls */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-4">
         <RefreshButton />
@@ -50,11 +50,12 @@ export default async function Home() {
       <main className="mx-auto max-w-lg px-4 py-12">
         {/* Header */}
         <header className="mb-8">
-          <h1 className="font-display text-4xl font-bold tracking-tight">OrCa 🐳</h1>
-          <div className="mt-2 mb-3 h-px w-10 bg-foreground/20" />
-          <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
-            Organize your Calendar
-          </p>
+          <div className="flex flex-col">
+            <h1 className="font-display text-xl font-bold tracking-tight">OrCa 🐳</h1>
+            <p className="-mt-0.5 text-[10px] uppercase tracking-widest text-muted-foreground/40">
+              organize your calendar
+            </p>
+          </div>
         </header>
 
         {events.length === 0 ? (

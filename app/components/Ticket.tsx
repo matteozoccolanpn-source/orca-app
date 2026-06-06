@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { formatEventDate } from "@/lib/format";
 
 interface TicketProps {
   id: string;
@@ -13,8 +14,6 @@ interface TicketProps {
   location: string;
   type?: string;
 }
-
-const DELETE_WIDTH = 72;
 
 const TYPE_EMOJI: Record<string, string> = {
   train:      "🚆",
@@ -42,31 +41,29 @@ function resolveLabel(type: string): string {
   return TYPE_LABEL[type?.toLowerCase()] ?? "Evento";
 }
 
-function formatCompact(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-
-  const datePart = new Intl.DateTimeFormat("it-IT", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "Europe/Rome",
-  }).format(d);
-
-  const timePart = new Intl.DateTimeFormat("it-IT", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Europe/Rome",
-  }).format(d);
-
-  return `${datePart} · ${timePart}`;
-}
-
 function mapsUrl(location: string): string {
   if (!location) return "https://www.google.com/maps";
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
+interface SecondaryAction {
+  label: string;
+  icon: string;
+  href: string;
+}
+
+function getSecondaryAction(type: string): SecondaryAction | null {
+  switch (type?.toLowerCase()) {
+    case "train":
+    case "flight":
+      return { label: "Biglietto", icon: "🎫", href: "#" };
+    case "restaurant":
+      return { label: "Chiama", icon: "📞", href: "tel:" };
+    case "hotel":
+      return { label: "Prenotazione", icon: "🔖", href: "#" };
+    default:
+      return null;
+  }
 }
 
 function TrashIcon({ className }: { className?: string }) {
@@ -91,6 +88,8 @@ function TrashIcon({ className }: { className?: string }) {
   );
 }
 
+const EXPAND_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
 export default function Ticket({
   id,
   emoji,
@@ -100,47 +99,21 @@ export default function Ticket({
   type = "",
 }: TicketProps) {
   const router = useRouter();
-  const [offset, setOffset]           = useState(0);
-  const [showMenu, setShowMenu]       = useState(false);
+  const [expanded, setExpanded]       = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const [removed, setRemoved]         = useState(false);
-  const startX      = useRef(0);
-  const startOffset = useRef(0);
 
-  const displayEmoji = resolveEmoji(type, emoji);
-  const typeLabel    = resolveLabel(type);
-  const formattedDate = formatCompact(datetime);
-
-  const typeRow = [typeLabel, location].filter(Boolean).join(" · ").toUpperCase();
-
-  function openSwipeDelete(e: React.MouseEvent) {
-    e.stopPropagation();
-    setShowConfirm(true);
-    setError(null);
-  }
-
-  function onTouchStart(e: React.TouchEvent) {
-    startX.current = e.touches[0].clientX;
-    startOffset.current = offset;
-  }
-
-  function onTouchMove(e: React.TouchEvent) {
-    const delta = e.touches[0].clientX - startX.current;
-    const next = Math.min(0, Math.max(-DELETE_WIDTH, startOffset.current + delta));
-    setOffset(next);
-  }
-
-  function onTouchEnd() {
-    if (offset < -DELETE_WIDTH / 2) setOffset(-DELETE_WIDTH);
-    else setOffset(0);
-  }
+  const displayEmoji  = resolveEmoji(type, emoji);
+  const typeLabel     = resolveLabel(type);
+  const formattedDate = formatEventDate(datetime);
+  const typeRow       = [typeLabel, location].filter(Boolean).join(" · ").toUpperCase();
+  const secondary     = getSecondaryAction(type);
 
   async function handleDelete() {
     setLoading(true);
     setError(null);
-    setShowMenu(false);
 
     try {
       const res  = await fetch("/api/delete", {
@@ -157,7 +130,6 @@ export default function Ticket({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eliminazione fallita");
       setShowConfirm(false);
-      setOffset(0);
     } finally {
       setLoading(false);
     }
@@ -167,107 +139,99 @@ export default function Ticket({
 
   return (
     <>
-      {/* Swipe-to-delete outer shell — unchanged */}
-      <div className="relative overflow-hidden rounded-2xl">
-        <div className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-red-600 md:hidden">
-          <button
-            type="button"
-            onClick={openSwipeDelete}
-            disabled={loading}
-            aria-label="Elimina evento"
-            className="flex h-full w-full items-center justify-center text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+      <Card
+        onClick={() => !loading && setExpanded((prev) => !prev)}
+        className={`cursor-pointer rounded-2xl border-border/40 bg-card transition-all duration-200 hover:border-primary/30 hover:bg-white/[0.03] ${loading ? "pointer-events-none opacity-50" : ""}`}
+      >
+        {/* Always-visible summary row */}
+        <div className="flex gap-3 px-4 py-3">
+          {/* Emoji */}
+          <span className="flex-shrink-0 self-start pt-[3px] text-[18px] leading-none">
+            {displayEmoji}
+          </span>
+
+          {/* Content */}
+          <div className="min-w-0 flex-1">
+            <span className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              {typeRow}
+            </span>
+            <p className="mt-0.5 truncate font-display text-[15px] font-bold leading-snug text-foreground">
+              {title}
+            </p>
+            {formattedDate && (
+              <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-primary/60">
+                {formattedDate}
+              </p>
+            )}
+          </div>
+
+          {/* Expand chevron */}
+          <span
+            className={`flex-shrink-0 self-center text-xs text-muted-foreground/40 transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
           >
-            <TrashIcon className="h-5 w-5" />
-          </button>
+            ▾
+          </span>
         </div>
 
-        {/* Sliding card surface */}
-        <div
-          className={loading ? "pointer-events-none opacity-50" : ""}
-          style={{ transform: `translateX(${offset}px)` }}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
-          <Card className="flex gap-3 rounded-2xl border-border/40 bg-card px-4 py-3 transition-all duration-200 hover:border-primary/30 hover:bg-white/[0.03]">
-            {/* Emoji — anchored left, spans all rows */}
-            <span className="flex-shrink-0 self-start pt-[3px] text-[18px] leading-none">
-              {displayEmoji}
-            </span>
+        {/* Expandable detail panel */}
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: EXPAND_EASE }}
+              className="overflow-hidden"
+            >
+              <div className="flex flex-col gap-2 border-t border-border/30 px-4 pb-4 pt-3">
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <a
+                    href={mapsUrl(location)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/80"
+                  >
+                    <span>📍</span>
+                    <span>Apri in Maps</span>
+                  </a>
+                  {secondary && (
+                    <a
+                      href={secondary.href}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/80"
+                    >
+                      <span>{secondary.icon}</span>
+                      <span>{secondary.label}</span>
+                    </a>
+                  )}
+                </div>
 
-            {/* Content column */}
-            <div className="min-w-0 flex-1">
-              {/* Row 1: TYPE · LOCATION | menu */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-                  {typeRow}
-                </span>
+                {/* Delete */}
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setShowMenu(true); }}
-                  aria-label="Opzioni"
-                  className="-mr-1 flex-shrink-0 rounded-md px-1.5 py-0.5 text-sm leading-none text-muted-foreground/50 transition-colors hover:bg-white/10 hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowConfirm(true);
+                  }}
+                  className="self-start text-xs text-destructive/60 transition-colors hover:text-destructive"
                 >
-                  ···
+                  Elimina evento
                 </button>
               </div>
-
-              {/* Row 2: title — display font */}
-              <p className="mt-0.5 truncate font-display text-[15px] font-bold leading-snug text-foreground">
-                {title}
-              </p>
-
-              {/* Row 3: date — mono, accent */}
-              {formattedDate && (
-                <p className="mt-1 font-mono text-[11px] text-primary/70">
-                  {formattedDate}
-                </p>
-              )}
-            </div>
-          </Card>
-        </div>
-      </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Card>
 
       {error && (
         <p className="mt-1 px-1 text-xs text-destructive" role="alert">
           {error}
         </p>
       )}
-
-      {/* Options sheet */}
-      <Sheet open={showMenu} onOpenChange={setShowMenu}>
-        <SheetContent
-          side="bottom"
-          className="rounded-t-2xl border-border bg-card"
-          style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
-        >
-          <SheetHeader className="mb-4">
-            <SheetTitle className="text-left font-display text-base font-bold text-foreground">
-              {title}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="flex flex-col gap-1">
-            <a
-              href={mapsUrl(location)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/10"
-              onClick={() => setShowMenu(false)}
-            >
-              <span>🗺</span>
-              <span>Apri in Maps</span>
-            </a>
-            <button
-              type="button"
-              onClick={() => { setShowMenu(false); setShowConfirm(true); }}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
-            >
-              <TrashIcon className="h-4 w-4" />
-              <span>Elimina</span>
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* Delete confirmation dialog */}
       {showConfirm && (

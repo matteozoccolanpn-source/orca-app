@@ -1,3 +1,7 @@
+"use client";
+
+import { motion } from "framer-motion";
+
 export interface ActionButton {
   label: string;
   href: string;
@@ -32,19 +36,21 @@ export function ActionBar({ type, location }: { type: string; location: string }
   const buttons = actionsForType(type, location);
   return (
     <div className="flex gap-3">
-      {buttons.map((btn) => (
-        <a
+      {buttons.map((btn, i) => (
+        <motion.a
           key={btn.label}
           href={btn.href}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all
-            ${buttons.indexOf(btn) === 0
-              ? "bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 border border-amber-400/20"
+          whileTap={{ scale: 0.93 }}
+          transition={{ duration: 0.1 }}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors
+            ${i === 0
+              ? "border border-amber-400/20 bg-amber-400/20 text-amber-300 hover:bg-amber-400/30"
               : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
             }`}
         >
           <span>{btn.icon}</span>
           <span>{btn.label}</span>
-        </a>
+        </motion.a>
       ))}
     </div>
   );
