@@ -23,7 +23,7 @@ function emojiForType(type: string | undefined): string {
 }
 
 /**
- * Fetches upcoming events from Airtable, filtered by Status = "Upcoming"
+ * Fetches upcoming events from Airtable, filtered by Datetime > NOW()
  * and sorted by Datetime ascending. Returns at most 20 records.
  *
  * Safe to call only from Server Components or Route Handlers.
@@ -41,7 +41,7 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
   }
 
   const params = new URLSearchParams({
-    filterByFormula: `{Status} = 'Upcoming'`,
+    filterByFormula: `IS_AFTER({Datetime}, NOW())`,
     "sort[0][field]": "Datetime",
     "sort[0][direction]": "asc",
     maxRecords: "20",

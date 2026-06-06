@@ -107,7 +107,6 @@ export async function POST(req: NextRequest) {
           Datetime: parsed.datetime,
           Location: parsed.location,
           Reference: parsed.reference,
-          Status: 'Upcoming',
         },
       }),
     }
