@@ -91,7 +91,7 @@ export default async function Home() {
                 </h2>
                 <div className="flex flex-col gap-3">
                   {upcoming.map((event) => (
-                    <Ticket key={`${event.title}-${event.datetime}`} {...event} />
+                    <Ticket key={event.id} {...event} />
                   ))}
                 </div>
               </section>

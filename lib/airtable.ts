@@ -1,11 +1,12 @@
 // Server-side only — AIRTABLE_* env vars must never reach the client bundle.
 
 export interface Ticket {
+  id: string;
   emoji: string;
   title: string;
-  datetime: string; // ISO 8601 string from Airtable
+  datetime: string;
   location: string;
-  type: string;     // raw Airtable Type value (train, flight, restaurant, hotel, …)
+  type: string;
 }
 
 /** Maps the Airtable "Type" field value to an emoji. */
@@ -63,9 +64,10 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
     const data = await res.json();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data.records ?? []).map((record: any): Ticket => {
+    return data.records.map((record: any): Ticket => {
       const f = record.fields ?? {};
       return {
+        id:       record.id,
         emoji:    emojiForType(f.Type),
         title:    f.Title ?? f.Name ?? "Untitled",
         datetime: f.Datetime ?? "",
