@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useTransform,
+  animate,
+} from "framer-motion";
 import { DM_Sans } from "next/font/google";
 import {
   Train,
@@ -21,6 +28,7 @@ import {
   Phone,
   Bookmark,
   LayoutGrid,
+  Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Ticket } from "@/lib/airtable";
@@ -35,6 +43,14 @@ const dmSans = DM_Sans({
 
 const sans = "var(--font-dm-sans), 'DM Sans', sans-serif";
 const splashEase = [0.22, 1, 0.36, 1] as const;
+const SWIPE_THRESHOLD = -72;
+const SWIPE_SNAP_AT = SWIPE_THRESHOLD / 2;
+const SWIPE_SPRING = { type: "spring" as const, stiffness: 400, damping: 40 };
+
+const scrollStyle = {
+  scrollBehavior: "smooth" as const,
+  WebkitOverflowScrolling: "touch" as const,
+};
 
 const C = {
   bg: "#0a0908",
@@ -182,23 +198,6 @@ function eventsForBento(cat: BentoCategory, events: Ticket[]): Ticket[] {
   return events.filter((e) => cat.match(e.type?.toLowerCase()));
 }
 
-function tickerMood(days: number): { mood: string; color: string } {
-  if (days <= 2) return { mood: "figata 🔥", color: C.sage };
-  if (days <= 7) return { mood: "ok dai", color: C.textSec };
-  if (days <= 14) return { mood: "che fatica", color: C.textSec };
-  return { mood: "che palle 😵", color: C.textSec };
-}
-
-function buildTickerItems(events: Ticket[]) {
-  return events.slice(0, 8).map((ev) => {
-    const days = daysUntil(ev.datetime);
-    const { mood, color } = tickerMood(days);
-    const date = formatEventDate(ev.datetime);
-    const line = [ev.title, date].filter(Boolean).join(" · ");
-    return { line, mood, moodColor: color };
-  });
-}
-
 function OceanBg() {
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
@@ -247,47 +246,6 @@ function OrcaInO({ px }: { px: number }) {
   );
 }
 
-function OrCaMark({
-  size = 80,
-  showWordmark = false,
-  showTagline = false,
-}: {
-  size?: number;
-  showWordmark?: boolean;
-  showTagline?: boolean;
-}) {
-  if (!showWordmark) return <OrcaInO px={size} />;
-
-  const letterSize = size * 0.58;
-  const aSize = letterSize * 0.86;
-
-  return (
-    <div className="flex flex-col items-center text-center">
-      <OrcaInO px={size} />
-      <div className="mt-3.5 flex items-baseline leading-none">
-        <span className="font-bold" style={{ color: C.text, fontSize: letterSize }}>
-          OrC
-        </span>
-        <span className="font-bold" style={{ color: C.text, fontSize: aSize }}>
-          a
-        </span>
-      </div>
-      {showTagline && (
-        <p
-          className="mt-3 uppercase leading-snug"
-          style={{
-            color: C.textSec,
-            fontSize: Math.max(10, size * 0.14),
-            letterSpacing: "0.2em",
-          }}
-        >
-          Organize your Calendar
-        </p>
-      )}
-    </div>
-  );
-}
-
 function FixedTopBar() {
   return (
     <header
@@ -310,60 +268,6 @@ function FixedTopBar() {
         Organize your Calendar
       </p>
     </header>
-  );
-}
-
-function DepartureTicker({ events }: { events: Ticket[] }) {
-  const items = buildTickerItems(events);
-  if (items.length === 0) return null;
-
-  const loop = [...items, ...items];
-
-  return (
-    <div
-      className="relative overflow-hidden py-1"
-      style={{
-        background: `linear-gradient(180deg, rgba(22, 38, 56, 0.78) 0%, rgba(16, 48, 82, 0.42) 100%)`,
-        borderTop: `1px solid ${C.petrolio}`,
-        borderBottom: "1px solid rgba(255,255,255,0.09)",
-      }}
-    >
-      <motion.div
-        className="relative flex w-max items-center gap-5 whitespace-nowrap px-4 text-[11px] font-medium"
-        style={{ color: C.textSec }}
-        animate={{ x: ["0%", "-50%"] }}
-        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-      >
-        {loop.map((item, i) => (
-          <span key={i} className="flex items-center gap-4">
-            <span>
-              {item.line}{" "}
-              <span style={{ color: item.moodColor }}>({item.mood})</span>
-            </span>
-            <span style={{ color: C.primary }}>·</span>
-          </span>
-        ))}
-      </motion.div>
-    </div>
-  );
-}
-
-function OrcaHeroZone({ events }: { events: Ticket[] }) {
-  return (
-    <div
-      className="relative overflow-hidden px-4 pb-0 pt-6"
-      style={{
-        background: `
-          linear-gradient(180deg, rgba(8, 10, 14, 0.45) 0%, transparent 40%),
-          radial-gradient(ellipse 80% 60% at 50% 70%, ${C.oceanBlueSoft} 0%, transparent 65%)
-        `,
-      }}
-    >
-      <div className="relative flex justify-center pb-4">
-        <OrCaMark size={88} showWordmark showTagline />
-      </div>
-      <DepartureTicker events={events} />
-    </div>
   );
 }
 
@@ -433,32 +337,32 @@ function HeroEventCard({ event }: { event: Ticket }) {
         }}
       >
         <div className="flex">
-          <div className="min-w-0 flex-1 px-3 py-2">
+          <div className="min-w-0 flex-1 p-5">
             <span
-              className="inline-flex items-center gap-0.5 rounded-sm px-1 py-px text-[8px] font-semibold uppercase tracking-wide"
+              className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
               style={{ background: C.pill, color: C.primary }}
             >
-              <Icon size={9} />
+              <Icon size={11} />
               {categoryLabel(event.type)}
             </span>
-            <h2 className="mt-1 text-[16px] font-semibold leading-snug" style={{ color: "#f0ebe0" }}>
+            <h2 className="mt-1.5 text-[26px] font-semibold leading-snug" style={{ color: "#f0ebe0" }}>
               {event.title}
             </h2>
             {formatted && (
-              <p className="mt-0.5 text-[11px]" style={{ color: C.blue }}>
+              <p className="mt-1 text-[14px]" style={{ color: C.blue }}>
                 {formatted}
               </p>
             )}
             {event.location && (
-              <p className="mt-0.5 truncate text-[10px] leading-tight" style={{ color: C.textSec }}>
+              <p className="mt-1 truncate text-[14px] leading-tight" style={{ color: C.textSec }}>
                 {event.location}
               </p>
             )}
-            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <ActionButtons type={event.type} location={event.location} />
               <button
                 type="button"
-                className="rounded-sm px-2 py-1 text-[9px] font-medium"
+                className="rounded-sm px-2.5 py-1 text-[12px] font-medium"
                 style={{ background: "transparent", color: C.textMuted, border: `1px solid ${C.border}` }}
               >
                 Dettagli
@@ -466,20 +370,20 @@ function HeroEventCard({ event }: { event: Ticket }) {
             </div>
           </div>
           <div
-            className="flex min-w-[52px] shrink-0 flex-col items-center justify-center px-1.5 py-2"
+            className="flex min-w-[72px] shrink-0 flex-col items-center justify-center px-2 py-5"
             style={{
               background: `linear-gradient(180deg, rgba(10,22,40,0.45) 0%, rgba(13,40,71,0.2) 100%)`,
               borderLeft: `1px solid ${C.border}`,
             }}
           >
             <span
-              className="text-[32px] font-bold leading-none"
-              style={{ color: C.primary, letterSpacing: "-0.5px" }}
+              className="text-[115px] font-bold leading-none"
+              style={{ color: C.primary, letterSpacing: "-2px" }}
             >
               {days}
             </span>
             <span
-              className="mt-0.5 text-[8px] font-medium uppercase"
+              className="mt-1 text-[10px] font-medium uppercase"
               style={{ color: C.sage, letterSpacing: "0.18em" }}
             >
               GIORNI
@@ -491,44 +395,193 @@ function HeroEventCard({ event }: { event: Ticket }) {
   );
 }
 
-function EventRow({ event }: { event: Ticket }) {
+function EventRowContent({ event }: { event: Ticket }) {
   const Icon = iconForType(event.type);
   const days = daysUntil(event.datetime);
   const formatted = formatEventDate(event.datetime);
 
   return (
     <div
-      className="rounded-[10px] px-3 py-2"
+      className="rounded-[10px] p-5"
       style={{
         fontFamily: sans,
         background: `linear-gradient(135deg, rgba(10, 22, 40, 0.28) 0%, transparent 52%), ${C.surface}`,
       }}
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm" style={{ background: C.pill }}>
-          <Icon size={14} strokeWidth={2} style={{ color: C.primary }} />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm" style={{ background: C.pill }}>
+          <Icon size={17} strokeWidth={2} style={{ color: C.primary }} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-medium" style={{ color: C.text }}>
+          <p className="truncate text-[17px] font-medium" style={{ color: C.text }}>
             {event.title}
           </p>
           {formatted && (
-            <p className="mt-0.5 text-[12px]" style={{ color: C.blue }}>
+            <p className="mt-0.5 text-[14px]" style={{ color: C.blue }}>
               {formatted}
             </p>
           )}
         </div>
         <span
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+          className="shrink-0 rounded-full px-2.5 py-0.5 text-[13px] font-semibold"
           style={{ border: `1px solid ${C.primary}`, color: C.primary }}
         >
           {days}g
         </span>
       </div>
-      <div className="mt-2 pl-10">
+      <div className="mt-2.5 pl-11">
         <ActionButtons type={event.type} location={event.location} size="sm" />
       </div>
     </div>
+  );
+}
+
+function DeleteConfirmDialog({
+  title,
+  loading,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  loading: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-5"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-dialog-title"
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+        style={{ background: C.card, border: `1px solid ${C.border}` }}
+      >
+        <h4 id="delete-dialog-title" className="text-base font-bold" style={{ color: C.text }}>
+          Eliminare questo evento?
+        </h4>
+        <p className="mt-2 text-[14px]" style={{ color: C.textSec }}>
+          {title}
+        </p>
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ border: `1px solid ${C.border}`, color: C.textSec }}
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
+          >
+            {loading ? "Eliminazione…" : "Elimina"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SwipeEventRow({
+  event,
+  onRemoved,
+  onRestored,
+}: {
+  event: Ticket;
+  onRemoved: (id: string) => void;
+  onRestored: (id: string) => void;
+}) {
+  const router = useRouter();
+  const x = useMotionValue(0);
+  const deleteOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
+  const deleteScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.7, 1]);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [removed, setRemoved] = useState(false);
+
+  function handleDragEnd() {
+    if (x.get() < SWIPE_SNAP_AT) {
+      animate(x, SWIPE_THRESHOLD, SWIPE_SPRING);
+    } else {
+      animate(x, 0, SWIPE_SPRING);
+    }
+  }
+
+  async function handleDelete() {
+    setLoading(true);
+    setShowConfirm(false);
+    setRemoved(true);
+    onRemoved(event.id);
+
+    try {
+      const res = await fetch("/api/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: event.id }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error ?? "Eliminazione fallita");
+      router.refresh();
+    } catch {
+      setRemoved(false);
+      onRestored(event.id);
+      animate(x, 0, SWIPE_SPRING);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (removed) return null;
+
+  return (
+    <>
+      <div className="relative overflow-hidden rounded-[10px]">
+        <motion.div
+          className="absolute inset-y-0 right-0 flex w-20 items-center justify-center rounded-r-[10px] bg-red-600"
+          style={{ opacity: deleteOpacity }}
+        >
+          <motion.button
+            type="button"
+            style={{ scale: deleteScale }}
+            onClick={() => setShowConfirm(true)}
+            className="flex flex-col items-center gap-1"
+            aria-label="Elimina evento"
+          >
+            <Trash2 className="size-4 text-white" />
+            <span className="text-[10px] font-medium text-white">Elimina</span>
+          </motion.button>
+        </motion.div>
+
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: SWIPE_THRESHOLD, right: 0 }}
+          dragElastic={{ left: 0.1, right: 0.05 }}
+          onDragEnd={handleDragEnd}
+          style={{ x }}
+          className={loading ? "pointer-events-none opacity-50" : ""}
+        >
+          <EventRowContent event={event} />
+        </motion.div>
+      </div>
+
+      {showConfirm && (
+        <DeleteConfirmDialog
+          title={event.title}
+          loading={loading}
+          onCancel={() => {
+            setShowConfirm(false);
+            animate(x, 0, SWIPE_SPRING);
+          }}
+          onConfirm={handleDelete}
+        />
+      )}
+    </>
   );
 }
 
@@ -579,10 +632,14 @@ function CategorySheet({
   cat,
   events,
   onClose,
+  onRemoved,
+  onRestored,
 }: {
   cat: BentoCategory;
   events: Ticket[];
   onClose: () => void;
+  onRemoved: (id: string) => void;
+  onRestored: (id: string) => void;
 }) {
   const Icon = cat.icon;
   const filtered = eventsForBento(cat, events);
@@ -615,13 +672,20 @@ function CategorySheet({
             <X size={18} style={{ color: C.textSec }} />
           </button>
         </div>
-        <div className="flex flex-col gap-2 overflow-y-auto px-4 pb-8">
+        <div className="flex flex-col gap-2 overflow-y-auto px-4 pb-8" style={scrollStyle}>
           {filtered.length === 0 ? (
             <p className="py-6 text-center text-[13px]" style={{ color: C.textSec }}>
               Nessun evento in questa categoria
             </p>
           ) : (
-            filtered.map((ev) => <EventRow key={ev.id} event={ev} />)
+            filtered.map((ev) => (
+              <SwipeEventRow
+                key={ev.id}
+                event={ev}
+                onRemoved={onRemoved}
+                onRestored={onRestored}
+              />
+            ))
           )}
         </div>
       </motion.div>
@@ -678,11 +742,25 @@ function EmptyState() {
 export default function HomeView({ events }: { events: Ticket[] }) {
   const [expanded, setExpanded] = useState(false);
   const [openCategory, setOpenCategory] = useState<BentoCategory | null>(null);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
 
-  const [hero, ...upcoming] = events;
+  const visibleEvents = events.filter((e) => !removedIds.has(e.id));
+  const [hero, ...upcoming] = visibleEvents;
   const visibleCount = 4;
   const collapsed = upcoming.slice(0, visibleCount);
   const extra = upcoming.slice(visibleCount);
+
+  function markRemoved(id: string) {
+    setRemovedIds((prev) => new Set(prev).add(id));
+  }
+
+  function markRestored(id: string) {
+    setRemovedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
 
   return (
     <div
@@ -694,10 +772,11 @@ export default function HomeView({ events }: { events: Ticket[] }) {
       <div className="relative mx-auto flex min-h-screen max-w-lg flex-col">
         <FixedTopBar />
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-36">
-          <OrcaHeroZone events={events} />
-
-          {events.length === 0 ? (
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-36"
+          style={scrollStyle}
+        >
+          {visibleEvents.length === 0 ? (
             <EmptyState />
           ) : (
             <>
@@ -708,9 +787,17 @@ export default function HomeView({ events }: { events: Ticket[] }) {
                   <h3 className="mb-3 text-[16px] font-semibold" style={{ color: C.text }}>
                     Prossimi eventi
                   </h3>
-                  <div className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto overscroll-contain">
+                  <div
+                    className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto overscroll-contain"
+                    style={scrollStyle}
+                  >
                     {collapsed.map((ev) => (
-                      <EventRow key={ev.id} event={ev} />
+                      <SwipeEventRow
+                        key={ev.id}
+                        event={ev}
+                        onRemoved={markRemoved}
+                        onRestored={markRestored}
+                      />
                     ))}
                   </div>
                   {extra.length > 0 && (
@@ -740,7 +827,12 @@ export default function HomeView({ events }: { events: Ticket[] }) {
                           >
                             <div className="flex flex-col gap-1 pt-1">
                               {extra.map((ev) => (
-                                <EventRow key={ev.id} event={ev} />
+                                <SwipeEventRow
+                                  key={ev.id}
+                                  event={ev}
+                                  onRemoved={markRemoved}
+                                  onRestored={markRestored}
+                                />
                               ))}
                             </div>
                           </motion.div>
@@ -760,7 +852,7 @@ export default function HomeView({ events }: { events: Ticket[] }) {
                     <CategoryTile
                       key={cat.id}
                       cat={cat}
-                      count={eventsForBento(cat, events).length}
+                      count={eventsForBento(cat, visibleEvents).length}
                       onOpen={() => setOpenCategory(cat)}
                     />
                   ))}
@@ -782,8 +874,10 @@ export default function HomeView({ events }: { events: Ticket[] }) {
         {openCategory && (
           <CategorySheet
             cat={openCategory}
-            events={events}
+            events={visibleEvents}
             onClose={() => setOpenCategory(null)}
+            onRemoved={markRemoved}
+            onRestored={markRestored}
           />
         )}
       </AnimatePresence>
