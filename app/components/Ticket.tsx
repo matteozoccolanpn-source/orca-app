@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatDatetime } from "@/lib/format";
-import { ActionBar } from "./actions";
+import { Card } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 interface TicketProps {
   id: string;
@@ -15,6 +15,46 @@ interface TicketProps {
 }
 
 const DELETE_WIDTH = 72;
+
+const TYPE_EMOJI: Record<string, string> = {
+  train: "🚆",
+  flight: "✈️",
+  concert: "🎵",
+  hotel: "🏨",
+  museum: "🎨",
+  restaurant: "🍽️",
+};
+
+function resolveEmoji(type: string, fallback: string): string {
+  return TYPE_EMOJI[type?.toLowerCase()] ?? fallback ?? "📌";
+}
+
+function formatCompact(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+
+  const datePart = new Intl.DateTimeFormat("it-IT", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/Rome",
+  }).format(d);
+
+  const timePart = new Intl.DateTimeFormat("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/Rome",
+  }).format(d);
+
+  return `${datePart} · ${timePart}`;
+}
+
+function mapsUrl(location: string): string {
+  if (!location) return "https://www.google.com/maps";
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
 
 function TrashIcon({ className }: { className?: string }) {
   return (
@@ -47,17 +87,19 @@ export default function Ticket({
   type = "",
 }: TicketProps) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [showMenu, setShowMenu] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removed, setRemoved] = useState(false);
   const startX = useRef(0);
   const startOffset = useRef(0);
-  const { date, time } = formatDatetime(datetime);
 
-  function openConfirm(e: React.MouseEvent) {
+  const displayEmoji = resolveEmoji(type, emoji);
+  const formattedDate = formatCompact(datetime);
+
+  function openSwipeDelete(e: React.MouseEvent) {
     e.stopPropagation();
     setShowConfirm(true);
     setError(null);
@@ -85,6 +127,7 @@ export default function Ticket({
   async function handleDelete() {
     setLoading(true);
     setError(null);
+    setShowMenu(false);
 
     try {
       const res = await fetch("/api/delete", {
@@ -113,12 +156,12 @@ export default function Ticket({
 
   return (
     <>
+      {/* Swipe-to-delete container — unchanged */}
       <div className="relative overflow-hidden rounded-2xl">
-        {/* Mobile swipe — delete zone behind the card */}
         <div className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-red-600 md:hidden">
           <button
             type="button"
-            onClick={openConfirm}
+            onClick={openSwipeDelete}
             disabled={loading}
             aria-label="Elimina evento"
             className="flex h-full w-full items-center justify-center text-white transition-opacity hover:opacity-90 disabled:opacity-50"
@@ -129,83 +172,76 @@ export default function Ticket({
 
         {/* Sliding card surface */}
         <div
-          className={`relative flex flex-col rounded-2xl border border-white/10 bg-[#0a0a0a] backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.08] ${
-            loading ? "pointer-events-none opacity-50" : ""
-          }`}
+          className={loading ? "pointer-events-none opacity-50" : ""}
           style={{ transform: `translateX(${offset}px)` }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <div className="pointer-events-none absolute left-0 top-4 bottom-4 w-[2px] rounded-full bg-blue-400/30" />
+          <Card className="flex items-center gap-3 rounded-2xl border-border bg-card px-4 py-3.5 transition-colors hover:border-white/20">
+            {/* Emoji */}
+            <span className="flex-shrink-0 text-2xl leading-none">{displayEmoji}</span>
 
-          <div className="flex w-full items-center gap-3 px-6 py-5">
-            <button
-              type="button"
-              onClick={() => setExpanded((e) => !e)}
-              className="flex min-w-0 flex-1 items-center gap-3 text-left"
-            >
-              <span className="text-2xl leading-none">{emoji}</span>
+            {/* Title + location */}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+              {location && (
+                <p className="truncate text-xs text-muted-foreground">{location}</p>
+              )}
+            </div>
 
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <h3 className="text-base font-semibold tracking-wide text-white">{title}</h3>
-                <div className="flex flex-col gap-0.5 text-sm text-white/50">
-                  {date && (
-                    <span>
-                      {date}
-                      {time && <span className="ml-2 font-medium text-white/70">· {time}</span>}
-                    </span>
-                  )}
-                  {location && <span className="truncate">{location}</span>}
-                </div>
-              </div>
-
-              <span
-                className={`ml-2 flex-shrink-0 text-xs text-white/30 transition-transform duration-200 ${
-                  expanded ? "rotate-180" : ""
-                }`}
+            {/* Date + menu */}
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <span className="text-right text-xs text-muted-foreground">{formattedDate}</span>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowMenu(true); }}
+                aria-label="Opzioni"
+                className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
               >
-                ▾
-              </span>
-            </button>
-
-            {/* Desktop delete button */}
-            <button
-              type="button"
-              onClick={openConfirm}
-              disabled={loading}
-              aria-label="Elimina evento"
-              className="hidden flex-shrink-0 rounded-lg p-2 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50 md:flex"
-            >
-              <TrashIcon className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              expanded ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
-            }`}
-          >
-            <div className="px-6 pb-5">
-              <div className="mb-4 h-px bg-white/[0.07]" />
-              <ActionBar type={type} location={location} />
+                ···
+              </button>
             </div>
-          </div>
-
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20">
-              <span className="text-xs text-white/60">Eliminazione…</span>
-            </div>
-          )}
+          </Card>
         </div>
       </div>
 
       {error && (
-        <p className="mt-1 px-1 text-xs text-red-400" role="alert">
+        <p className="mt-1 px-1 text-xs text-destructive" role="alert">
           {error}
         </p>
       )}
 
+      {/* Options sheet */}
+      <Sheet open={showMenu} onOpenChange={setShowMenu}>
+        <SheetContent side="bottom" className="rounded-t-2xl border-border bg-card" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-left text-sm font-semibold text-foreground">{title}</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-1">
+            <a
+              href={mapsUrl(location)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/10"
+              onClick={() => setShowMenu(false)}
+            >
+              <span>🗺</span>
+              <span>Apri in Maps</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => { setShowMenu(false); setShowConfirm(true); }}
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <TrashIcon className="h-4 w-4" />
+              <span>Elimina</span>
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete confirmation dialog */}
       {showConfirm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-5"
@@ -213,17 +249,17 @@ export default function Ticket({
           aria-modal="true"
           aria-labelledby="delete-dialog-title"
         >
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#141414] p-6 shadow-2xl">
-            <h4 id="delete-dialog-title" className="text-base font-semibold text-white">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <h4 id="delete-dialog-title" className="text-base font-semibold text-foreground">
               Eliminare questo evento?
             </h4>
-            <p className="mt-2 text-sm text-white/60">{title}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{title}</p>
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowConfirm(false)}
                 disabled={loading}
-                className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 disabled:opacity-50"
+                className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-white/5 disabled:opacity-50"
               >
                 Annulla
               </button>
@@ -231,7 +267,7 @@ export default function Ticket({
                 type="button"
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground transition-colors hover:opacity-90 disabled:opacity-50"
               >
                 {loading ? "Eliminazione…" : "Elimina"}
               </button>
