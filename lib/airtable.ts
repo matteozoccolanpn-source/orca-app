@@ -41,7 +41,7 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
   }
 
   const params = new URLSearchParams({
-    filterByFormula: `IS_AFTER({Datetime}, NOW())`,
+    filterByFormula: `AND(IS_AFTER({Datetime}, NOW()), NOT(FIND("[PABLO]", {Title})))`,
     "sort[0][field]": "Datetime",
     "sort[0][direction]": "asc",
     maxRecords: "20",
