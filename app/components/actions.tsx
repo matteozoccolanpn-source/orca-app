@@ -19,9 +19,11 @@ export function actionsForType(type: string, location: string): ActionButton[] {
   const call:    ActionButton = { label: "Chiama",       icon: "📞",  href: "tel:" };
   const booking: ActionButton = { label: "Prenotazione", icon: "🔖",  href: "#" };
 
-  switch (type) {
+  switch (type?.toLowerCase()) {
     case "train":
     case "flight":
+      return [ticket, maps];
+    case "concert":
       return [maps, ticket];
     case "restaurant":
       return [call, maps];
