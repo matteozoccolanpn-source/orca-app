@@ -9,20 +9,46 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData()
   const file = formData.get('image') as File | null
-  if (!file) {
-    return NextResponse.json({ error: 'No image provided' }, { status: 400 })
+  const text = formData.get('text') as string | null
+
+  if (!file && !text) {
+    return NextResponse.json({ error: 'No image or text provided' }, { status: 400 })
   }
 
-  if (!file.type.startsWith('image/')) {
-    return NextResponse.json({ error: 'File must be an image' }, { status: 400 })
-  }
-  if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 400 })
-  }
+  let claudeMessages: object[]
 
-  const arrayBuffer = await file.arrayBuffer()
-  const base64 = Buffer.from(arrayBuffer).toString('base64')
-  const mediaType = file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+  if (file) {
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json({ error: 'File must be an image' }, { status: 400 })
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 400 })
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    const mediaType = file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+
+    claudeMessages = [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: base64 },
+          },
+          { type: 'text', text: IMAGE_PARSE_PROMPT },
+        ],
+      },
+    ]
+  } else {
+    claudeMessages = [
+      {
+        role: 'user',
+        content: `${TEXT_PARSE_PROMPT}\n\nTesto: ${text}`,
+      },
+    ]
+  }
 
   const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -34,25 +60,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: base64,
-              },
-            },
-            {
-              type: 'text',
-              text: PARSE_PROMPT,
-            },
-          ],
-        },
-      ],
+      messages: claudeMessages,
     }),
   })
 
@@ -79,55 +87,15 @@ export async function POST(req: NextRequest) {
   } catch {
     console.error('Failed to parse Claude response:', rawText)
     return NextResponse.json(
-      { error: 'Could not parse ticket data', raw: rawText },
+      { error: 'Could not parse event data', raw: rawText },
       { status: 422 }
     )
   }
 
-  const apiKey = process.env.AIRTABLE_API_KEY
-  const baseId = process.env.AIRTABLE_BASE_ID
-  const tableName = process.env.AIRTABLE_TABLE_NAME
-
-  if (!apiKey || !baseId || !tableName) {
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
-  }
-
-  const airtableRes = await fetch(
-    `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        fields: {
-          Title: parsed.title,
-          Type: parsed.type,
-          Datetime: parsed.datetime,
-          Location: parsed.location,
-          Reference: parsed.reference,
-        },
-      }),
-    }
-  )
-
-  if (!airtableRes.ok) {
-    const err = await airtableRes.text()
-    console.error('Airtable error:', err)
-    return NextResponse.json({ error: 'Airtable write failed' }, { status: 502 })
-  }
-
-  const airtableData = await airtableRes.json()
-
-  return NextResponse.json({
-    success: true,
-    record: airtableData,
-    parsed,
-  })
+  return NextResponse.json({ parsed })
 }
 
-const PARSE_PROMPT = `You are a precise ticket and booking parser for a personal calendar app.
+const IMAGE_PARSE_PROMPT = `You are a precise ticket and booking parser for a personal calendar app.
 Extract event information from the image and return ONLY a valid JSON object — no explanations, no markdown, no code fences, no surrounding text.
 
 The image can be: a ticket screenshot, a booking confirmation email, a WhatsApp message, or any document containing event/travel/reservation information. Focus on the core event data and ignore headers, footers, legal text, and promotional content.
@@ -156,3 +124,24 @@ Rules:
 - title: use the language of the source (keep Italian if Italian). Keep it short and descriptive.
 - Never invent data. If a field is missing, use an empty string "" (except datetime).
 - Return ONLY the JSON object, nothing else.`
+
+const TEXT_PARSE_PROMPT = `Sei OrCa. Estrai i dati dell'evento dal testo libero. Restituisci SOLO un oggetto JSON valido — nessuna spiegazione, nessun markdown, nessun code fence, nessun testo aggiuntivo.
+
+Campi richiesti:
+{
+  "title": "titolo breve e descrittivo dell'evento",
+  "type": "uno tra: train, flight, concert, hotel, restaurant, museum, other",
+  "datetime": "YYYY-MM-DDTHH:mm:00",
+  "location": "luogo, stazione, aeroporto o venue; stringa vuota se assente",
+  "reference": "codice prenotazione / PNR / numero ordine; stringa vuota se assente"
+}
+
+Regole:
+- datetime: SEMPRE ISO 8601 SENZA offset timezone e SENZA "Z": YYYY-MM-DDTHH:mm:00.
+- Se l'ora non è specificata usa T12:00:00.
+- Se l'anno non è specificato scegli la data futura più prossima rispetto ad oggi.
+- Se il testo descrive più eventi, estrai solo il primo o quello principale.
+- type: scegli il più adatto; se incerto usa "other".
+- title: mantieni l'italiano se il testo è in italiano. Tienilo breve.
+- Non inventare dati. Se un campo manca usa stringa vuota "" (tranne datetime).
+- Restituisci SOLO il JSON.`

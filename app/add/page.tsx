@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ImagePlus, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 
-type UploadState = 'idle' | 'preview' | 'uploading' | 'parsing' | 'success' | 'error'
+type UploadState = 'idle' | 'preview' | 'uploading' | 'parsing' | 'confirming' | 'saving' | 'success' | 'error'
+type ActiveTab = 'foto' | 'testo'
 
 interface ParsedData {
   title: string
@@ -15,14 +16,66 @@ interface ParsedData {
   reference: string
 }
 
+interface ConfirmFields {
+  title: string
+  type: string
+  date: string
+  time: string
+  location: string
+  reference: string
+}
+
+const TYPE_OPTIONS = [
+  { value: 'flight',     label: 'Volo',       emoji: '✈️' },
+  { value: 'train',      label: 'Treno',      emoji: '🚆' },
+  { value: 'concert',    label: 'Concerto',   emoji: '🎵' },
+  { value: 'hotel',      label: 'Hotel',      emoji: '🏨' },
+  { value: 'restaurant', label: 'Ristorante', emoji: '🍽' },
+  { value: 'museum',     label: 'Museo',      emoji: '🎨' },
+  { value: 'other',      label: 'Altro',      emoji: '📦' },
+]
+
+const inputCls = `w-full rounded-xl border border-border/40 bg-muted/30 px-3 py-2.5 text-sm
+  focus:outline-none focus:ring-1 focus:ring-primary/40`
+
+function parsedToConfirm(parsed: ParsedData): ConfirmFields {
+  const [date = '', timeFull = '12:00'] = parsed.datetime.split('T')
+  return {
+    title:     parsed.title,
+    type:      parsed.type,
+    date,
+    time:      timeFull.slice(0, 5),
+    location:  parsed.location,
+    reference: parsed.reference,
+  }
+}
+
 export default function AddPage() {
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [state, setState] = useState<UploadState>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
+  const [activeTab, setActiveTab]   = useState<ActiveTab>('foto')
+  const [file, setFile]             = useState<File | null>(null)
+  const [preview, setPreview]       = useState<string | null>(null)
+  const [textInput, setTextInput]   = useState('')
+  const [state, setState]           = useState<UploadState>('idle')
+  const [errorMsg, setErrorMsg]     = useState('')
   const [parsedData, setParsedData] = useState<ParsedData | null>(null)
+  const [confirm, setConfirm]       = useState<ConfirmFields | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  const reset = () => {
+    setFile(null)
+    setPreview(null)
+    setState('idle')
+    setErrorMsg('')
+    setParsedData(null)
+    setConfirm(null)
+  }
+
+  const switchTab = (tab: ActiveTab) => {
+    if (tab === activeTab) return
+    reset()
+    setActiveTab(tab)
+  }
 
   const handleFile = (f: File) => {
     if (!f.type.startsWith('image/')) {
@@ -41,30 +94,69 @@ export default function AddPage() {
     if (f) handleFile(f)
   }
 
-  const handleSubmit = async () => {
+  const callUpload = async (body: FormData): Promise<ParsedData> => {
+    setState('parsing')
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body,
+      credentials: 'include',
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Errore sconosciuto')
+    return data.parsed as ParsedData
+  }
+
+  const handleSubmitFoto = async () => {
     if (!file) return
     setState('uploading')
-
     const formData = new FormData()
     formData.append('image', file)
-
     try {
-      setState('parsing')
-      const res = await fetch('/api/upload', {
+      const parsed = await callUpload(formData)
+      setConfirm(parsedToConfirm(parsed))
+      setState('confirming')
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Qualcosa è andato storto')
+      setState('error')
+    }
+  }
+
+  const handleAnalyzeText = async () => {
+    if (!textInput.trim()) return
+    const formData = new FormData()
+    formData.append('text', textInput.trim())
+    try {
+      const parsed = await callUpload(formData)
+      setConfirm(parsedToConfirm(parsed))
+      setState('confirming')
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Qualcosa è andato storto')
+      setState('error')
+    }
+  }
+
+  const handleSave = async () => {
+    if (!confirm) return
+    setState('saving')
+    const datetime = `${confirm.date}T${confirm.time}:00`
+    const payload: ParsedData = {
+      title:     confirm.title,
+      type:      confirm.type,
+      datetime,
+      location:  confirm.location,
+      reference: confirm.reference,
+    }
+    try {
+      const res = await fetch('/api/upload/confirm', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify(payload),
       })
-
       const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Errore sconosciuto')
-      }
-
-      setParsedData(data.parsed)
+      if (!res.ok) throw new Error(data.error || 'Errore sconosciuto')
+      setParsedData(payload)
       setState('success')
-
       setTimeout(() => {
         router.push('/')
         router.refresh()
@@ -75,28 +167,43 @@ export default function AddPage() {
     }
   }
 
-  const reset = () => {
-    setFile(null)
-    setPreview(null)
-    setState('idle')
-    setErrorMsg('')
-    setParsedData(null)
-  }
+  const updateConfirm = <K extends keyof ConfirmFields>(key: K, value: ConfirmFields[K]) =>
+    setConfirm((c) => (c ? { ...c, [key]: value } : c))
+
+  const showTabs = state === 'idle' || state === 'preview'
 
   return (
     <div className="min-h-screen px-4 pt-8 pb-32">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-bold tracking-tight">Aggiungi evento</h1>
         <p className="text-xs text-muted-foreground/60 mt-1">
-          Carica uno screenshot, email o messaggio
+          Carica uno screenshot o scrivi in testo libero
         </p>
       </div>
 
+      {showTabs && (
+        <div className="flex gap-1 mb-6 p-1 bg-muted rounded-2xl">
+          {(['foto', 'testo'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => switchTab(tab)}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                activeTab === tab
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground/70'
+              }`}
+            >
+              {tab === 'foto' ? '📷 Foto' : '✏️ Testo'}
+            </button>
+          ))}
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
 
-        {state === 'idle' && (
+        {state === 'idle' && activeTab === 'foto' && (
           <motion.div
-            key="idle"
+            key="idle-foto"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
@@ -128,6 +235,37 @@ export default function AddPage() {
           </motion.div>
         )}
 
+        {state === 'idle' && activeTab === 'testo' && (
+          <motion.div
+            key="idle-testo"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="flex flex-col gap-4"
+          >
+            <textarea
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              placeholder="volo domani 6am Ryanair MXP-LGW, cena giovedì con Marco, treno Roma venerdì..."
+              className="w-full h-40 rounded-2xl border border-border/40 bg-muted/30
+                         p-4 text-sm resize-none
+                         focus:outline-none focus:ring-1 focus:ring-primary/40
+                         placeholder:text-muted-foreground/40"
+            />
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleAnalyzeText}
+              disabled={!textInput.trim()}
+              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground
+                         font-semibold text-sm tracking-wide
+                         shadow-lg shadow-primary/25
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Analizza
+            </motion.button>
+          </motion.div>
+        )}
+
         {state === 'preview' && preview && (
           <motion.div
             key="preview"
@@ -138,11 +276,7 @@ export default function AddPage() {
           >
             <div className="relative rounded-2xl overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={preview}
-                alt="Preview"
-                className="w-full object-cover max-h-72"
-              />
+              <img src={preview} alt="Preview" className="w-full object-cover max-h-72" />
               <button
                 onClick={reset}
                 className="absolute top-3 right-3 size-8 rounded-full
@@ -159,17 +293,17 @@ export default function AddPage() {
 
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={handleSubmit}
+              onClick={handleSubmitFoto}
               className="w-full py-4 rounded-2xl bg-primary text-primary-foreground
                          font-semibold text-sm tracking-wide
                          shadow-lg shadow-primary/25"
             >
-              Analizza e salva
+              Analizza
             </motion.button>
           </motion.div>
         )}
 
-        {(state === 'uploading' || state === 'parsing') && (
+        {(state === 'uploading' || state === 'parsing' || state === 'saving') && (
           <motion.div
             key="loading"
             initial={{ opacity: 0 }}
@@ -182,11 +316,115 @@ export default function AddPage() {
             </div>
             <div className="text-center">
               <p className="font-medium text-sm">
-                {state === 'uploading' ? 'Caricamento...' : 'Claude sta leggendo il biglietto...'}
+                {state === 'saving'
+                  ? 'Salvataggio...'
+                  : state === 'uploading'
+                  ? 'Caricamento...'
+                  : 'Claude sta leggendo...'}
               </p>
-              <p className="text-xs text-muted-foreground/50 mt-1">
-                Ci vogliono pochi secondi
-              </p>
+              <p className="text-xs text-muted-foreground/50 mt-1">Ci vogliono pochi secondi</p>
+            </div>
+          </motion.div>
+        )}
+
+        {state === 'confirming' && confirm && (
+          <motion.div
+            key="confirming"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="flex flex-col gap-5"
+          >
+            <p className="text-xs text-muted-foreground/60">
+              Verifica e modifica i dati prima di salvare
+            </p>
+
+            {/* Type pills */}
+            <div className="flex flex-wrap gap-2">
+              {TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => updateConfirm('type', opt.value)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                              transition-all duration-150 ${
+                                confirm.type === opt.value
+                                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
+                                  : 'bg-muted text-muted-foreground hover:text-foreground'
+                              }`}
+                >
+                  <span>{opt.emoji}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Editable fields */}
+            <div className="flex flex-col gap-3">
+              <Field label="Titolo">
+                <input
+                  value={confirm.title}
+                  onChange={(e) => updateConfirm('title', e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+
+              <div className="flex gap-3">
+                <Field label="Data" className="flex-1">
+                  <input
+                    type="date"
+                    value={confirm.date}
+                    onChange={(e) => updateConfirm('date', e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Ora" className="flex-1">
+                  <input
+                    type="time"
+                    value={confirm.time}
+                    onChange={(e) => updateConfirm('time', e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+
+              <Field label="Luogo (opzionale)">
+                <input
+                  value={confirm.location}
+                  onChange={(e) => updateConfirm('location', e.target.value)}
+                  placeholder="—"
+                  className={inputCls}
+                />
+              </Field>
+
+              <Field label="Codice / riferimento (opzionale)">
+                <input
+                  value={confirm.reference}
+                  onChange={(e) => updateConfirm('reference', e.target.value)}
+                  placeholder="—"
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={reset}
+                className="flex-1 py-3.5 rounded-2xl border border-border/50
+                           text-sm font-medium text-muted-foreground
+                           hover:bg-muted/40 transition-colors"
+              >
+                Annulla
+              </button>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={handleSave}
+                className="flex-1 py-3.5 rounded-2xl bg-primary text-primary-foreground
+                           font-semibold text-sm tracking-wide
+                           shadow-lg shadow-primary/25"
+              >
+                Salva
+              </motion.button>
             </div>
           </motion.div>
         )}
@@ -247,6 +485,23 @@ export default function AddPage() {
         )}
 
       </AnimatePresence>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`flex flex-col gap-1 ${className ?? ''}`}>
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50">{label}</span>
+      {children}
     </div>
   )
 }
