@@ -38,9 +38,10 @@ export default function BottomNav() {
               key={tab.href}
               href={tab.href}
               aria-label={tab.label}
-              className="relative -top-3 flex size-12 flex-shrink-0 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30 transition-transform active:scale-95"
+              className="relative -top-3 flex size-12 flex-shrink-0 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
+              style={{ backgroundColor: "#D8BC62", boxShadow: "0 4px 14px rgba(216, 188, 98, 0.35)" }}
             >
-              <Icon className="size-5 text-primary-foreground" />
+              <Icon className="size-5" style={{ color: "#1C1408" }} />
             </Link>
           );
         }
@@ -53,14 +54,14 @@ export default function BottomNav() {
             className="flex flex-1 flex-col items-center gap-0.5 py-2"
           >
             <Icon
-              className={`size-5 transition-colors ${
-                isActive ? "text-primary" : "text-muted-foreground"
-              }`}
+              className="size-5 transition-colors"
+              style={{ color: isActive ? "#D8BC62" : "#6A727B" }}
             />
             <span
               className={`text-[10px] font-medium tracking-wide transition-colors ${
-                isActive ? "text-primary" : "opacity-0"
+                isActive ? "" : "opacity-0"
               }`}
+              style={{ color: isActive ? "#D8BC62" : "#6A727B" }}
             >
               {tab.label}
             </span>
