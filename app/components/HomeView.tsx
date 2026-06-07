@@ -36,13 +36,10 @@ import {
   Stethoscope,
   Building2,
   Route,
-  Home as HomeIcon,
-  Search,
-  Plus,
   Calendar,
-  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { createPortal } from "react-dom";
 import type { Ticket } from "@/lib/airtable";
 import { formatEventDate } from "@/lib/format";
 import { actionsForType, type ActionButton } from "./actions";
@@ -256,35 +253,35 @@ function countdownLabel(days: number): string {
   return `TRA ${days} ${days === 1 ? "GIORNO" : "GIORNI"}`;
 }
 
-/** Compact ticker date: weekday + 12h time, e.g. "MER · 8.30pm". */
+/** Compact ticker date in Italian 24h, e.g. "gio · 17:00" (Europe/Rome). */
 function tickerDate(iso: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
-  const weekday = new Intl.DateTimeFormat("it-IT", {
+  const parts = new Intl.DateTimeFormat("it-IT", {
     weekday: "short",
-    timeZone: "Europe/Rome",
-  })
-    .format(d)
-    .replace(".", "")
-    .toUpperCase();
-  const parts = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: "Europe/Rome",
   }).formatToParts(d);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  const ampm = get("dayPeriod").toLowerCase().replace(/[^a-z]/g, "");
-  const time = `${get("hour")}.${get("minute")}${ampm}`;
-  return `${weekday} · ${time}`;
+  const weekday = get("weekday").replace(".", "").toLowerCase();
+  return `${weekday} · ${get("hour")}:${get("minute")}`;
 }
 
-/** First word of the title, uppercased and clipped, e.g. "Inglese con…" -> "INGLESE". */
-function shortTitle(title: string, max = 10): string {
-  const first = title.trim().split(/\s+/)[0] ?? "";
-  const up = first.toUpperCase();
-  return up.length > max ? up.slice(0, max) : up;
+/**
+ * Full title, kept in its natural case. Truncated with an ellipsis only when
+ * very long (~22 chars), preferring a word boundary so words are never cut
+ * mid-way at random.
+ */
+function tickerTitle(title: string, max = 22): string {
+  const t = title.trim();
+  if (t.length <= max) return t;
+  const slice = t.slice(0, max);
+  const lastSpace = slice.lastIndexOf(" ");
+  const base = lastSpace > 10 ? slice.slice(0, lastSpace) : slice;
+  return `${base.trimEnd()}…`;
 }
 
 function eventsForBento(cat: BentoCategory, events: Ticket[]): Ticket[] {
@@ -488,6 +485,18 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
   );
 }
 
+/**
+ * Renders children into document.body so fixed overlays escape any ancestor
+ * stacking context (e.g. nested inside the scrollable <main>), guaranteeing
+ * they sit above the fixed bottom bars on mobile/PWA.
+ */
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
+
 function HeroMenuSheet({
   onClose,
   onDelete,
@@ -506,16 +515,16 @@ function HeroMenuSheet({
   ];
 
   return (
-    <>
+    <Portal>
       <motion.div
-        className="fixed inset-0 z-[90] bg-black/40"
+        className="fixed inset-0 z-[140] bg-black/40"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       />
       <motion.div
-        className="fixed inset-x-0 bottom-0 z-[95] mx-auto max-w-lg overflow-hidden rounded-t-2xl"
+        className="fixed inset-x-0 bottom-0 z-[150] mx-auto max-w-lg overflow-hidden rounded-t-2xl"
         style={{ background: C.heroCard, border: `1px solid ${C.heroBorder}` }}
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
@@ -546,7 +555,7 @@ function HeroMenuSheet({
           })}
         </div>
       </motion.div>
-    </>
+    </Portal>
   );
 }
 
@@ -699,7 +708,7 @@ function HeroEventCard({
   );
 }
 
-function EventRowContent({ event }: { event: Ticket }) {
+function EventRowContent({ event, expanded }: { event: Ticket; expanded?: boolean }) {
   const days = daysUntil(event.datetime);
   const formatted = formatEventDate(event.datetime);
 
@@ -719,6 +728,14 @@ function EventRowContent({ event }: { event: Ticket }) {
       <span className="shrink-0 text-[13px] tabular-nums" style={{ color: C.dayCount }}>
         {days}g
       </span>
+      <motion.span
+        className="flex shrink-0 items-center"
+        animate={{ rotate: expanded ? 180 : 0 }}
+        transition={{ duration: 0.25 }}
+        aria-hidden
+      >
+        <ChevronDown size={16} style={{ color: C.textTer }} />
+      </motion.span>
     </div>
   );
 }
@@ -780,10 +797,14 @@ function SwipeEventRow({
   event,
   onRemoved,
   onRestored,
+  expanded = false,
+  onToggle,
 }: {
   event: Ticket;
   onRemoved: (id: string) => void;
   onRestored: (id: string) => void;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const router = useRouter();
   const x = useMotionValue(0);
@@ -792,6 +813,7 @@ function SwipeEventRow({
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [removed, setRemoved] = useState(false);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   function handleDragEnd() {
     if (x.get() < SWIPE_SNAP_AT) {
@@ -857,7 +879,52 @@ function SwipeEventRow({
           style={{ x, background: C.secCard }}
           className={`relative z-10 ${loading ? "pointer-events-none opacity-50" : ""}`}
         >
-          <EventRowContent event={event} />
+          <div
+            role="button"
+            tabIndex={0}
+            aria-expanded={expanded}
+            className="cursor-pointer select-none"
+            onPointerDown={(e) => {
+              pointerStart.current = { x: e.clientX, y: e.clientY };
+            }}
+            onPointerUp={(e) => {
+              const start = pointerStart.current;
+              pointerStart.current = null;
+              if (!start) return;
+              // A net tap toggles the accordion; a horizontal drag is left to swipe-delete.
+              const movedX = Math.abs(e.clientX - start.x);
+              const movedY = Math.abs(e.clientY - start.y);
+              if (movedX < 8 && movedY < 8) onToggle?.();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggle?.();
+              }
+            }}
+          >
+            <EventRowContent event={event} expanded={expanded} />
+          </div>
+
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <motion.div
+                key="actions"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.28, ease: splashEase }}
+                className="overflow-hidden"
+              >
+                <div
+                  className="px-4 pb-4 pt-3"
+                  style={{ borderTop: `1px solid ${C.secBorder}` }}
+                >
+                  <ActionButtons type={event.type} location={event.location} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
 
@@ -965,6 +1032,7 @@ function CategorySheet({
 }) {
   const Icon = cat.icon;
   const filtered = eventsForBento(cat, events);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <>
@@ -1006,6 +1074,8 @@ function CategorySheet({
                 event={ev}
                 onRemoved={onRemoved}
                 onRestored={onRestored}
+                expanded={expandedId === ev.id}
+                onToggle={() => setExpandedId((p) => (p === ev.id ? null : ev.id))}
               />
             ))
           )}
@@ -1021,16 +1091,21 @@ function TickerGroup({ events, groupKey }: { events: Ticket[]; groupKey: string 
       <span className="flex shrink-0 items-center px-1" aria-hidden>
         <OrCaMark size={18} />
       </span>
-      <span style={{ color: C.dashed }}>|</span>
       {events.map((ev) => {
+        const Icon = iconForType(ev.type);
         const date = tickerDate(ev.datetime);
         return (
-          <span key={`${groupKey}-${ev.id}`} className="flex items-center gap-3">
-            <span className="uppercase tracking-wide" style={{ color: C.textSec }}>
-              {shortTitle(ev.title)}
-              {date && <span style={{ color: C.textTer }}> · {date}</span>}
+          <span key={`${groupKey}-${ev.id}`} className="flex items-center gap-2.5">
+            <span className="flex items-center gap-1.5">
+              <Icon size={13} strokeWidth={1.75} style={{ color: C.textTer }} aria-hidden />
+              <span style={{ color: C.textSec }}>
+                {tickerTitle(ev.title)}
+                {date && <span style={{ color: C.textTer }}> · {date}</span>}
+              </span>
             </span>
-            <span style={{ color: C.dashed }}>|</span>
+            <span aria-hidden style={{ color: C.dashed }}>
+              ·
+            </span>
           </span>
         );
       })}
@@ -1090,51 +1165,6 @@ function AskOrCaBar() {
   );
 }
 
-function BottomNav() {
-  const items: { id: string; icon: LucideIcon; active?: boolean; center?: boolean }[] = [
-    { id: "home", icon: HomeIcon, active: true },
-    { id: "search", icon: Search },
-    { id: "add", icon: Plus, center: true },
-    { id: "calendar", icon: Calendar },
-    { id: "profile", icon: User },
-  ];
-
-  return (
-    <nav className="flex items-center justify-around px-2 pb-0.5 pt-1.5">
-      {items.map((item) => {
-        const Icon = item.icon;
-        if (item.center) {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              aria-label="Aggiungi"
-              className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full shadow-lg"
-              style={{ background: "#2b333d" }}
-            >
-              <Icon size={24} strokeWidth={2.5} color={C.goldOnDark} />
-            </button>
-          );
-        }
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className="flex h-11 w-11 items-center justify-center"
-            aria-label={item.id}
-          >
-            <Icon
-              size={23}
-              strokeWidth={2}
-              style={{ color: item.active ? C.goldOnDark : C.navInactive }}
-            />
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
-
 function BottomBar() {
   return (
     <div
@@ -1142,7 +1172,9 @@ function BottomBar() {
       style={{
         background: `linear-gradient(180deg, ${C.chromeBotFrom} 0%, ${C.chromeBotTo} 100%)`,
         borderTop: `1px solid ${C.chromeBorder}`,
-        paddingBottom: "calc(0.25rem + env(safe-area-inset-bottom))",
+        // Reserve room for the single fixed bottom nav (components/BottomNav.tsx)
+        // so the "Chiedi a OrCa" bar is never covered by it on mobile/PWA.
+        paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))",
       }}
     >
       <div
@@ -1164,8 +1196,6 @@ function BottomBar() {
       <div className="px-4 pt-2">
         <AskOrCaBar />
       </div>
-
-      <BottomNav />
     </div>
   );
 }
@@ -1189,6 +1219,11 @@ export default function HomeView({ events }: { events: Ticket[] }) {
   const [openCategory, setOpenCategory] = useState<BentoCategory | null>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [showSplash, setShowSplash] = useState(true);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  function toggleRow(id: string) {
+    setExpandedRowId((prev) => (prev === id ? null : id));
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setShowSplash(false), 2000);
@@ -1254,6 +1289,8 @@ export default function HomeView({ events }: { events: Ticket[] }) {
                         event={ev}
                         onRemoved={markRemoved}
                         onRestored={markRestored}
+                        expanded={expandedRowId === ev.id}
+                        onToggle={() => toggleRow(ev.id)}
                       />
                     ))}
                   </div>
@@ -1292,6 +1329,8 @@ export default function HomeView({ events }: { events: Ticket[] }) {
                                   event={ev}
                                   onRemoved={markRemoved}
                                   onRestored={markRestored}
+                                  expanded={expandedRowId === ev.id}
+                                  onToggle={() => toggleRow(ev.id)}
                                 />
                               ))}
                             </div>
