@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ImagePlus, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { EventForm, toDatetime, splitDatetime, type EventFormValue } from '../components/EventForm'
 
 type UploadState = 'idle' | 'preview' | 'uploading' | 'parsing' | 'confirming' | 'saving' | 'success' | 'error'
 type ActiveTab = 'foto' | 'testo'
@@ -16,35 +17,13 @@ interface ParsedData {
   reference: string
 }
 
-interface ConfirmFields {
-  title: string
-  type: string
-  date: string
-  time: string
-  location: string
-  reference: string
-}
-
-const TYPE_OPTIONS = [
-  { value: 'flight',     label: 'Volo',       emoji: '✈️' },
-  { value: 'train',      label: 'Treno',      emoji: '🚆' },
-  { value: 'concert',    label: 'Concerto',   emoji: '🎵' },
-  { value: 'hotel',      label: 'Hotel',      emoji: '🏨' },
-  { value: 'restaurant', label: 'Ristorante', emoji: '🍽' },
-  { value: 'museum',     label: 'Museo',      emoji: '🎨' },
-  { value: 'other',      label: 'Altro',      emoji: '📦' },
-]
-
-const inputCls = `w-full rounded-xl border border-border/40 bg-muted/30 px-3 py-2.5 text-sm
-  focus:outline-none focus:ring-1 focus:ring-primary/40`
-
-function parsedToConfirm(parsed: ParsedData): ConfirmFields {
-  const [date = '', timeFull = '12:00'] = parsed.datetime.split('T')
+function parsedToConfirm(parsed: ParsedData): EventFormValue {
+  const { date, time } = splitDatetime(parsed.datetime)
   return {
     title:     parsed.title,
     type:      parsed.type,
     date,
-    time:      timeFull.slice(0, 5),
+    time,
     location:  parsed.location,
     reference: parsed.reference,
   }
@@ -58,7 +37,7 @@ export default function AddPage() {
   const [state, setState]           = useState<UploadState>('idle')
   const [errorMsg, setErrorMsg]     = useState('')
   const [parsedData, setParsedData] = useState<ParsedData | null>(null)
-  const [confirm, setConfirm]       = useState<ConfirmFields | null>(null)
+  const [confirm, setConfirm]       = useState<EventFormValue | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -138,7 +117,7 @@ export default function AddPage() {
   const handleSave = async () => {
     if (!confirm) return
     setState('saving')
-    const datetime = `${confirm.date}T${confirm.time}:00`
+    const datetime = toDatetime(confirm)
     const payload: ParsedData = {
       title:     confirm.title,
       type:      confirm.type,
@@ -166,9 +145,6 @@ export default function AddPage() {
       setState('error')
     }
   }
-
-  const updateConfirm = <K extends keyof ConfirmFields>(key: K, value: ConfirmFields[K]) =>
-    setConfirm((c) => (c ? { ...c, [key]: value } : c))
 
   const showTabs = state === 'idle' || state === 'preview'
 
@@ -333,99 +309,13 @@ export default function AddPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            className="flex flex-col gap-5"
           >
-            <p className="text-xs text-muted-foreground/60">
-              Verifica e modifica i dati prima di salvare
-            </p>
-
-            {/* Type pills */}
-            <div className="flex flex-wrap gap-2">
-              {TYPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => updateConfirm('type', opt.value)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
-                              transition-all duration-150 ${
-                                confirm.type === opt.value
-                                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
-                                  : 'bg-muted text-muted-foreground hover:text-foreground'
-                              }`}
-                >
-                  <span>{opt.emoji}</span>
-                  <span>{opt.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Editable fields */}
-            <div className="flex flex-col gap-3">
-              <Field label="Titolo">
-                <input
-                  value={confirm.title}
-                  onChange={(e) => updateConfirm('title', e.target.value)}
-                  className={inputCls}
-                />
-              </Field>
-
-              <div className="flex gap-3">
-                <Field label="Data" className="flex-1">
-                  <input
-                    type="date"
-                    value={confirm.date}
-                    onChange={(e) => updateConfirm('date', e.target.value)}
-                    className={inputCls}
-                  />
-                </Field>
-                <Field label="Ora" className="flex-1">
-                  <input
-                    type="time"
-                    value={confirm.time}
-                    onChange={(e) => updateConfirm('time', e.target.value)}
-                    className={inputCls}
-                  />
-                </Field>
-              </div>
-
-              <Field label="Luogo (opzionale)">
-                <input
-                  value={confirm.location}
-                  onChange={(e) => updateConfirm('location', e.target.value)}
-                  placeholder="—"
-                  className={inputCls}
-                />
-              </Field>
-
-              <Field label="Codice / riferimento (opzionale)">
-                <input
-                  value={confirm.reference}
-                  onChange={(e) => updateConfirm('reference', e.target.value)}
-                  placeholder="—"
-                  className={inputCls}
-                />
-              </Field>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={reset}
-                className="flex-1 py-3.5 rounded-2xl border border-border/50
-                           text-sm font-medium text-muted-foreground
-                           hover:bg-muted/40 transition-colors"
-              >
-                Annulla
-              </button>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={handleSave}
-                className="flex-1 py-3.5 rounded-2xl bg-primary text-primary-foreground
-                           font-semibold text-sm tracking-wide
-                           shadow-lg shadow-primary/25"
-              >
-                Salva
-              </motion.button>
-            </div>
+            <EventForm
+              value={confirm}
+              onChange={setConfirm}
+              onCancel={reset}
+              onSave={handleSave}
+            />
           </motion.div>
         )}
 
@@ -485,23 +375,6 @@ export default function AddPage() {
         )}
 
       </AnimatePresence>
-    </div>
-  )
-}
-
-function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className={`flex flex-col gap-1 ${className ?? ''}`}>
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50">{label}</span>
-      {children}
     </div>
   )
 }

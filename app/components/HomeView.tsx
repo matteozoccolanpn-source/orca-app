@@ -43,6 +43,7 @@ import { createPortal } from "react-dom";
 import type { Ticket } from "@/lib/airtable";
 import { formatEventDate } from "@/lib/format";
 import { actionsForType, type ActionButton } from "./actions";
+import { EventForm, toDatetime, splitDatetime, type EventFormValue } from "./EventForm";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -559,6 +560,96 @@ function HeroMenuSheet({
   );
 }
 
+/**
+ * Bottom sheet that reuses the shared EventForm (same UI/logic as /add's
+ * "confirming" step) to edit an existing event. Patches the record via
+ * /api/update using the stable record id — never a list index.
+ */
+function HeroEditSheet({
+  event,
+  onClose,
+  onSaved,
+}: {
+  event: Ticket;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [value, setValue] = useState<EventFormValue>(() => {
+    const { date, time } = splitDatetime(event.datetime);
+    return {
+      title: event.title,
+      type: event.type,
+      date,
+      time,
+      location: event.location,
+      reference: "",
+    };
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: event.id,
+          title: value.title,
+          type: value.type,
+          datetime: toDatetime(value),
+          location: value.location,
+          reference: value.reference,
+        }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error ?? "Salvataggio fallito");
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Qualcosa è andato storto");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Portal>
+      <motion.div
+        className="fixed inset-0 z-[140] bg-black/50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => {
+          if (!saving) onClose();
+        }}
+      />
+      <motion.div
+        className="fixed inset-x-0 bottom-0 z-[150] mx-auto max-h-[90vh] max-w-lg overflow-y-auto rounded-t-2xl bg-background px-4 pt-3 text-foreground"
+        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ duration: 0.32, ease: splashEase }}
+      >
+        <div className="flex justify-center pb-3 pt-1">
+          <div className="h-1 w-10 rounded-full bg-white/15" />
+        </div>
+        <h3 className="mb-4 text-lg font-bold">Modifica evento</h3>
+        <EventForm
+          value={value}
+          onChange={setValue}
+          onCancel={onClose}
+          onSave={handleSave}
+          saving={saving}
+          intro="Aggiorna i dati dell'evento"
+        />
+        {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+      </motion.div>
+    </Portal>
+  );
+}
+
 function HeroEventCard({
   event,
   onRemoved,
@@ -575,6 +666,7 @@ function HeroEventCard({
 
   const [showMenu, setShowMenu] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [removed, setRemoved] = useState(false);
@@ -622,7 +714,7 @@ function HeroEventCard({
 
   function handleEdit() {
     setShowMenu(false);
-    setToast("Modifica — coming soon");
+    setShowEdit(true);
   }
 
   if (removed) return null;
@@ -700,6 +792,19 @@ function HeroEventCard({
           onConfirm={handleDelete}
         />
       )}
+
+      <AnimatePresence>
+        {showEdit && (
+          <HeroEditSheet
+            event={event}
+            onClose={() => setShowEdit(false)}
+            onSaved={() => {
+              setShowEdit(false);
+              router.refresh();
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {toast && <Toast message={toast} onDone={() => setToast(null)} />}
@@ -811,6 +916,7 @@ function SwipeEventRow({
   const deleteOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
   const deleteScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.7, 1]);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [removed, setRemoved] = useState(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
@@ -917,10 +1023,23 @@ function SwipeEventRow({
                 className="overflow-hidden"
               >
                 <div
-                  className="px-4 pb-4 pt-3"
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 pt-3"
                   style={{ borderTop: `1px solid ${C.secBorder}` }}
                 >
                   <ActionButtons type={event.type} location={event.location} />
+                  <button
+                    type="button"
+                    onClick={() => setShowEdit(true)}
+                    className="inline-flex items-center gap-1.5 rounded-[12px] px-4 py-2.5 text-[14px] font-semibold"
+                    style={{
+                      background: "transparent",
+                      color: C.ghostText,
+                      border: `1px solid ${C.ghostBorder}`,
+                    }}
+                  >
+                    <Pencil size={15} strokeWidth={2} />
+                    Modifica
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -939,6 +1058,19 @@ function SwipeEventRow({
           onConfirm={handleDelete}
         />
       )}
+
+      <AnimatePresence>
+        {showEdit && (
+          <HeroEditSheet
+            event={event}
+            onClose={() => setShowEdit(false)}
+            onSaved={() => {
+              setShowEdit(false);
+              router.refresh();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
