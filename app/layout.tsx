@@ -25,6 +25,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "OrCa",
   description: "Organize your Calendar",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "OrCa",
+  },
 };
 
 export default function RootLayout({
@@ -37,6 +42,9 @@ export default function RootLayout({
       lang="it"
       className={`${inter.variable} ${syne.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
       <body className="min-h-full flex flex-col pb-24 font-sans text-foreground">
         <TooltipProvider>
           {children}
