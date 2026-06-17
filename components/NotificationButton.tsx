@@ -11,26 +11,38 @@ function urlB64ToUint8Array(base64: string) {
 }
 
 async function enableNotifications() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    alert("Notifiche non supportate su questo dispositivo/browser.");
-    return;
-  }
-  const reg = await navigator.serviceWorker.register("/sw.js");
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") return;
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlB64ToUint8Array(
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-    ),
-  });
-  const res = await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sub),
-  });
-  if (res.ok) {
-    alert("Notifiche attivate ✅");
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("Notifiche non supportate su questo dispositivo/browser.");
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { alert("Permesso non concesso."); return; }
+
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready; // aspetta che il SW sia ATTIVO
+
+    const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!key) { alert("Manca NEXT_PUBLIC_VAPID_PUBLIC_KEY nella build."); return; }
+
+    const existing = await reg.pushManager.getSubscription();
+    const sub =
+      existing ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(key),
+      }));
+
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sub),
+    });
+
+    if (res.ok) alert("Notifiche attivate ✅");
+    else alert("Errore salvataggio: " + res.status + " " + (await res.text()));
+  } catch (e) {
+    alert("Errore notifiche: " + (e instanceof Error ? e.message : String(e)));
   }
 }
 
