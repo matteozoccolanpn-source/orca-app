@@ -1,5 +1,6 @@
 import HomeView from "./components/HomeView";
 import RefreshButton from "./components/RefreshButton";
+import NotificationButton from "@/components/NotificationButton";
 import { getUpcomingTickets } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
@@ -9,6 +10,7 @@ export default async function Home() {
   return (
     <>
       <div className="fixed top-3 right-3 z-[60] flex items-center gap-3">
+        <NotificationButton />
         <RefreshButton />
         <form
           action={async () => {
