@@ -1,8 +1,11 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
+import { updateTicketById } from "@/lib/supabase"
 
-function isValidRecordId(id: unknown): id is string {
-  return typeof id === "string" && id.length > 0 && id.startsWith("rec")
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isValidId(id: unknown): id is string {
+  return typeof id === "string" && UUID_RE.test(id)
 }
 
 function asString(value: unknown): string | undefined {
@@ -31,63 +34,25 @@ export async function POST(request: Request) {
     reference?: unknown
   }
 
-  if (!isValidRecordId(id)) {
+  if (!isValidId(id)) {
     return NextResponse.json({ ok: false, error: "Invalid record id" }, { status: 400 })
   }
 
-  // Only patch fields that were actually provided so we never wipe values we
-  // don't control. `reference` is set only when non-empty: the client doesn't
-  // know the current code, so an empty string must not clear an existing one.
-  const fields: Record<string, string> = {}
-  const titleVal = asString(title)
-  const typeVal = asString(type)
-  const datetimeVal = asString(datetime)
-  const locationVal = asString(location)
-  const referenceVal = asString(reference)
-
-  if (titleVal !== undefined) fields.Title = titleVal
-  if (typeVal !== undefined) fields.Type = typeVal
-  if (datetimeVal !== undefined) fields.Datetime = datetimeVal
-  if (locationVal !== undefined) fields.Location = locationVal
-  if (referenceVal !== undefined && referenceVal.length > 0) fields.Reference = referenceVal
-
-  if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "No fields to update" }, { status: 400 })
-  }
-
-  const apiKey = process.env.AIRTABLE_API_KEY
-  const baseId = process.env.AIRTABLE_BASE_ID
-  const tableName = process.env.AIRTABLE_TABLE_NAME
-
-  if (!apiKey || !baseId || !tableName) {
-    return NextResponse.json({ ok: false, error: "Server misconfiguration" }, { status: 500 })
-  }
-
-  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}/${id}`
-
   try {
-    // PATCH performs a partial update: untouched Airtable fields are preserved.
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ fields }),
+    await updateTicketById(id, {
+      title:     asString(title),
+      type:      asString(type),
+      datetime:  asString(datetime),
+      location:  asString(location),
+      reference: asString(reference),
     })
-
-    if (!res.ok) {
-      const err = await res.text()
-      console.error("Airtable update error:", err)
-      return NextResponse.json(
-        { ok: false, error: `Airtable responded with ${res.status}` },
-        { status: 502 }
-      )
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Update failed"
+    if (msg === "No fields to update") {
+      return NextResponse.json({ ok: false, error: msg }, { status: 400 })
     }
-
-    const record = await res.json()
-    return NextResponse.json({ ok: true, record })
-  } catch {
-    return NextResponse.json({ ok: false, error: "Network error" }, { status: 502 })
+    console.error("Supabase update error:", err)
+    return NextResponse.json({ ok: false, error: "Update failed" }, { status: 502 })
   }
 }

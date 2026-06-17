@@ -1,8 +1,11 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
+import { deleteTicketById } from "@/lib/supabase"
 
-function isValidRecordId(id: unknown): id is string {
-  return typeof id === "string" && id.length > 0 && id.startsWith("rec")
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isValidId(id: unknown): id is string {
+  return typeof id === "string" && UUID_RE.test(id)
 }
 
 export async function POST(request: Request) {
@@ -19,38 +22,15 @@ export async function POST(request: Request) {
   }
 
   const id = (body as { id?: unknown })?.id
-  if (!isValidRecordId(id)) {
+  if (!isValidId(id)) {
     return NextResponse.json({ ok: false, error: "Invalid record id" }, { status: 400 })
   }
 
-  const apiKey = process.env.AIRTABLE_API_KEY
-  const baseId = process.env.AIRTABLE_BASE_ID
-  const tableName = process.env.AIRTABLE_TABLE_NAME
-
-  if (!apiKey || !baseId || !tableName) {
-    return NextResponse.json(
-      { ok: false, error: "Server misconfiguration" },
-      { status: 500 }
-    )
-  }
-
-  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}/${id}`
-
   try {
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${apiKey}` },
-    })
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { ok: false, error: `Airtable responded with ${res.status}` },
-        { status: 502 }
-      )
-    }
-
+    await deleteTicketById(id)
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ ok: false, error: "Network error" }, { status: 502 })
+  } catch (err) {
+    console.error("Supabase delete error:", err)
+    return NextResponse.json({ ok: false, error: "Delete failed" }, { status: 502 })
   }
 }

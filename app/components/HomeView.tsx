@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createPortal } from "react-dom";
-import type { Ticket } from "@/lib/airtable";
+import type { Ticket } from "@/lib/supabase";
 import { formatEventDate } from "@/lib/format";
 import { actionsForType, type ActionButton } from "./actions";
 import { EventForm, toDatetime, splitDatetime, type EventFormValue } from "./EventForm";

@@ -1,6 +1,6 @@
 import HomeView from "./components/HomeView";
 import RefreshButton from "./components/RefreshButton";
-import { getUpcomingTickets } from "@/lib/airtable";
+import { getUpcomingTickets } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
 export default async function Home() {
