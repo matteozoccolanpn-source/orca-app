@@ -73,14 +73,32 @@ export default function NotificationButton() {
     checkActive().then(setActive);
   }, []);
 
+  async function disableNotifications() {
+    const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await sub.unsubscribe();
+    await fetch("/api/push/unsubscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    });
+  }
+
   async function handleClick() {
-    if (active) return; // già attivo, niente da fare
     setLoading(true);
     try {
-      const ok = await enableNotifications();
-      if (ok) {
-        setActive(true);
-        alert("Notifiche attivate ✅");
+      if (active) {
+        await disableNotifications();
+        setActive(false);
+        alert("Notifiche disattivate");
+      } else {
+        const ok = await enableNotifications();
+        if (ok) {
+          setActive(true);
+          alert("Notifiche attivate ✅");
+        }
       }
     } catch (e) {
       alert("Errore: " + (e instanceof Error ? e.message : String(e)));
