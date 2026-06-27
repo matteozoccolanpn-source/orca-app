@@ -8,7 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
-  --font-display: var(--font-syne);
+  --font-display: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -36,10 +36,29 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-sand: var(--sand);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-elevated: var(--elevated);
+  --color-glass: var(--glass);
+  --color-event-travel: var(--event-travel);
+  --color-event-travel-soft: var(--event-travel-soft);
+  --color-event-evening: var(--event-evening);
+  --color-event-evening-soft: var(--event-evening-soft);
+  --color-event-food: var(--event-food);
+  --color-event-food-soft: var(--event-food-soft);
+  --color-event-sport: var(--event-sport);
+  --color-event-sport-soft: var(--event-sport-soft);
+  --color-event-work: var(--event-work);
+  --color-event-work-soft: var(--event-work-soft);
+  --color-event-family: var(--event-family);
+  --color-event-family-soft: var(--event-family-soft);
+  --color-event-default: var(--event-default);
+  --color-event-default-soft: var(--event-default-soft);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,54 +68,176 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* OrCa — dark-only design system */
+/* =====================================================================
+   KEIKO — Design tokens v15  ·  un solo punto di verità
+   Accento viola periwinkle · atmosfera "mare" · DUE temi (.dark / chiaro).
+   I componenti puntano SEMPRE a questi nomi, mai a valori hardcoded.
+   ===================================================================== */
 :root {
-  /* Base — very dark background, glacial white text */
-  --background: oklch(0.07 0 0);
-  --foreground: oklch(0.97 0 0);
+  color-scheme: light;
 
-  --card: oklch(0.22 0 0);
-  --card-foreground: oklch(0.97 0 0);
+  /* --- Token di marca (condivisi tra i due temi) --- */
+  --grad-blue:      linear-gradient(135deg, #6F58E8, #5238C8);
+  --keiko-grad:     var(--grad-blue);          /* CTA / FAB / today */
+  --keiko-warm:     #FF8A3D;  --warm: var(--keiko-warm);
+  --gold:           #FFC861;
+  --green:          #1FA971;
+  --keiko-whatsapp: #25D366;
 
-  --popover: oklch(0.22 0 0);
-  --popover-foreground: oklch(0.97 0 0);
+  /* Tinte categoria (sfondo hero/chip per tipo) */
+  --cat-treno:    linear-gradient(150deg, #2f74b8, #143a66);
+  --cat-volo:     linear-gradient(150deg, #1f93b6, #0f4257);
+  --cat-hotel:    linear-gradient(150deg, #7a54da, #2a1c66);
+  --cat-concerto: linear-gradient(150deg, #b63f93, #3e1340);
+  --cat-cena:     linear-gradient(150deg, #d8693d, #5e2414);
+  --cat-default:  linear-gradient(150deg, #5a5f8a, #232743);
 
-  /* Primary — electric blue accent */
-  --primary: oklch(0.63 0.20 244);
-  --primary-foreground: oklch(0.17 0 0);
+  /* Scala tipografica (base 16) */
+  --fs-cap: 12px; --fs-xs: 13px; --fs-sm: 14px; --fs-base: 16px;
+  --fs-lg: 18px; --fs-xl: 22px; --fs-2xl: 27px; --fs-3xl: 32px;
+  --fw-reg: 400; --fw-med: 500; --fw-semi: 600; --fw-bold: 700; --fw-black: 800;
 
-  --secondary: oklch(0.26 0 0);
-  --secondary-foreground: oklch(0.82 0 0);
+  /* Spazi 4/8 + raggi + tap + ombre */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+  --gutter: var(--s5); --sec: var(--s6);
+  --r-sm: 12px; --r-md: 16px; --r-lg: 20px; --r-xl: 26px; --r-pill: 999px;
+  --tap: 44px;
+  --sh-card: 0 24px 50px -26px rgba(0, 0, 0, .65);
+  --sh-pop:  0 28px 56px -18px rgba(0, 0, 0, .8);
+  --sh-btn:  0 10px 18px -9px rgba(95, 71, 214, .5);
 
-  --muted: oklch(0.28 0 0);
-  --muted-foreground: oklch(0.55 0 0);
-
-  --accent: oklch(0.63 0.20 244);
-  --accent-foreground: oklch(0.17 0 0);
-
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.97 0 0);
-
-  --border: oklch(0.30 0 0);
-  --input: oklch(0.26 0 0);
-  --ring: oklch(0.63 0.20 244);
-
+  /* raggio base shadcn (da cui @theme deriva radius-sm..4xl) */
   --radius: 1rem;
 
-  --chart-1: oklch(0.63 0.20 244);
-  --chart-2: oklch(0.55 0 0);
-  --chart-3: oklch(0.44 0 0);
-  --chart-4: oklch(0.37 0 0);
-  --chart-5: oklch(0.27 0 0);
+  /* ===== TEMA CHIARO (default su :root) ===== */
+  --screen-bg:     linear-gradient(180deg, #EFEBFA, #E2DCF2); /* lavanda più profonda: le card bianche staccano */
+  --accent-strong: #5F47D6;
+  --surface:       #FFFFFF;
+  --on-surface: #0E1622; --on-surface-2: #566276; --on-surface-3: #8A96A6;
+  --app-text:   #16131F; --app-2: #473F58; --app-faint: #6E6680;
+  --tile: #FFFFFF; --tile-line: #E1DBF0;
+  --bar:  rgba(255, 255, 255, .90); --bar-line: #D9D2EC;
+  --inset: #F5F3FB; --inset-line: #E9E6F2; --scrim: rgba(30, 22, 45, .4);
 
-  --sidebar: oklch(0.22 0 0);
-  --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.63 0.20 244);
-  --sidebar-primary-foreground: oklch(0.17 0 0);
-  --sidebar-accent: oklch(0.28 0 0);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
-  --sidebar-border: oklch(0.30 0 0);
-  --sidebar-ring: oklch(0.63 0.20 244);
+  /* Semantiche shadcn ← token v15 (chiaro) */
+  --background:          #F4F1FB;
+  --foreground:          var(--app-text);
+  --card:                var(--surface);
+  --card-foreground:     var(--on-surface);
+  --elevated:            #FFFFFF;
+  --glass:               var(--bar);
+  --popover:             var(--surface);
+  --popover-foreground:  var(--on-surface);
+  --primary:             #5F47D6;
+  --primary-foreground:  #FFFFFF;
+  --secondary:           var(--inset);
+  --secondary-foreground: var(--on-surface);
+  --muted:               var(--inset);
+  --muted-foreground:    var(--on-surface-2);
+  --accent:              var(--tile);
+  --accent-foreground:   var(--on-surface);
+  --destructive:         #D9534F;
+  --destructive-foreground: #FFFFFF;
+  --success:             var(--green);
+  --warning:             var(--gold);
+  --sand:                var(--gold);
+  --border:              var(--inset-line);
+  --input:               var(--inset-line);
+  --ring:                #5F47D6;
+
+  /* Tinte "tipo evento" (compat con @theme inline) */
+  --event-travel: #1f93b6; --event-travel-soft: #e3f0f5;
+  --event-evening: #b63f93; --event-evening-soft: #f6e6f1;
+  --event-food: #d8693d; --event-food-soft: #f9ece4;
+  --event-sport: #1FA971; --event-sport-soft: #e2f4ec;
+  --event-work: #5a5f8a; --event-work-soft: #eceaf3;
+  --event-family: #d8693d; --event-family-soft: #f9ece4;
+  --event-default: #5F47D6; --event-default-soft: #ECE9FF;
+
+  --chart-1: #5F47D6; --chart-2: #1f93b6; --chart-3: #b63f93; --chart-4: #1FA971; --chart-5: #FF8A3D;
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--on-surface);
+  --sidebar-primary: #5F47D6;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: var(--tile);
+  --sidebar-accent-foreground: var(--on-surface);
+  --sidebar-border: var(--inset-line);
+  --sidebar-ring: #5F47D6;
+}
+
+/* ===== TEMA SCURO (.dark — default dell'app via <html class="dark">) ===== */
+.dark {
+  color-scheme: dark;
+
+  --screen-bg:     radial-gradient(120% 62% at 50% -10%, #163a60, #0a1622 54%, #050b14);
+  --accent-strong: #A697FF;
+  --surface:       #141D2C;
+  --on-surface: #F1F4FA; --on-surface-2: #A9B4C6; --on-surface-3: #7B8699;
+  --app-text:   #F1F4FA; --app-2: #C2CCDB; --app-faint: #93A0B2;
+  --tile: rgba(255, 255, 255, .055); --tile-line: rgba(120, 160, 220, .16);
+  --bar:  rgba(6, 11, 18, .82); --bar-line: rgba(120, 150, 210, .13);
+  --inset: #1E2838; --inset-line: rgba(255, 255, 255, .07); --scrim: rgba(4, 9, 16, .6);
+
+  --background:          #08111d;
+  --foreground:          var(--app-text);
+  --card:                var(--surface);
+  --card-foreground:     var(--on-surface);
+  --elevated:            #1E2838;
+  --glass:               var(--bar);
+  --popover:             #1A2433;
+  --popover-foreground:  var(--on-surface);
+  --primary:             #5F47D6;
+  --primary-foreground:  #FFFFFF;
+  --secondary:           var(--inset);
+  --secondary-foreground: var(--on-surface);
+  --muted:               var(--inset);
+  --muted-foreground:    var(--on-surface-2);
+  --accent:              var(--tile);
+  --accent-foreground:   var(--on-surface);
+  --destructive:         #D98A82;
+  --destructive-foreground: #2A0E0B;
+  --success:             var(--green);
+  --warning:             var(--gold);
+  --sand:                var(--gold);
+  --border:              var(--inset-line);
+  --input:               var(--inset-line);
+  --ring:                var(--accent-strong);
+
+  --event-travel-soft: rgba(31, 147, 182, .18);
+  --event-evening-soft: rgba(182, 63, 147, .18);
+  --event-food-soft: rgba(216, 105, 61, .18);
+  --event-sport-soft: rgba(31, 169, 113, .18);
+  --event-work-soft: rgba(90, 95, 138, .18);
+  --event-family-soft: rgba(216, 105, 61, .18);
+  --event-default-soft: rgba(95, 71, 214, .18);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--on-surface);
+  --sidebar-accent: var(--tile);
+  --sidebar-accent-foreground: var(--on-surface);
+  --sidebar-border: var(--inset-line);
+  --sidebar-ring: var(--accent-strong);
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Bollicine decorative della Home (profondità mare) — puro CSS, dal mock.
+   Solo nel tema scuro: su sfondo chiaro sarebbero macchioline bianche. */
+html:not(.dark) .keiko-bubble { display: none; }
+.keiko-bubble {
+  position: absolute;
+  bottom: -26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.22), rgba(120, 170, 255, 0.05) 70%);
+  box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.16);
+  animation: keiko-rise linear infinite;
+}
+@keyframes keiko-rise {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  12%  { opacity: 0.65; }
+  88%  { opacity: 0.45; }
+  100% { transform: translateY(-860px) translateX(18px); opacity: 0; }
 }
 
 @layer base {
@@ -106,10 +247,8 @@
   }
   body {
     @apply text-foreground;
-    background-color: oklch(0.07 0 0);
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, oklch(0.25 0.08 244 / 0.35) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 30% at 80% 80%, oklch(0.20 0.06 280 / 0.15) 0%, transparent 60%);
+    background-color: var(--background);
+    background-image: var(--screen-bg);
     background-attachment: fixed;
     scroll-behavior: smooth;
     overscroll-behavior: none;

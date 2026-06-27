@@ -1,6 +1,16 @@
 "use client"
 
 import { motion } from 'framer-motion'
+import {
+  Plane,
+  Train,
+  Music,
+  Building2,
+  UtensilsCrossed,
+  Landmark,
+  Package,
+  type LucideIcon,
+} from 'lucide-react'
 
 export interface EventFormValue {
   title: string
@@ -11,14 +21,24 @@ export interface EventFormValue {
   reference: string
 }
 
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  flight: Plane,
+  train: Train,
+  concert: Music,
+  hotel: Building2,
+  restaurant: UtensilsCrossed,
+  museum: Landmark,
+  other: Package,
+}
+
 export const TYPE_OPTIONS = [
-  { value: 'flight',     label: 'Volo',       emoji: '✈️' },
-  { value: 'train',      label: 'Treno',      emoji: '🚆' },
-  { value: 'concert',    label: 'Concerto',   emoji: '🎵' },
-  { value: 'hotel',      label: 'Hotel',      emoji: '🏨' },
-  { value: 'restaurant', label: 'Ristorante', emoji: '🍽' },
-  { value: 'museum',     label: 'Museo',      emoji: '🎨' },
-  { value: 'other',      label: 'Altro',      emoji: '📦' },
+  { value: 'flight',     label: 'Volo',       icon: TYPE_ICONS.flight },
+  { value: 'train',      label: 'Treno',      icon: TYPE_ICONS.train },
+  { value: 'concert',    label: 'Concerto',   icon: TYPE_ICONS.concert },
+  { value: 'hotel',      label: 'Hotel',      icon: TYPE_ICONS.hotel },
+  { value: 'restaurant', label: 'Ristorante', icon: TYPE_ICONS.restaurant },
+  { value: 'museum',     label: 'Museo',      icon: TYPE_ICONS.museum },
+  { value: 'other',      label: 'Altro',      icon: TYPE_ICONS.other },
 ]
 
 const inputCls = `w-full rounded-xl border border-border/40 bg-muted/30 px-3 py-2.5 text-sm
@@ -66,7 +86,9 @@ export function EventForm({
 
       {/* Type pills */}
       <div className="flex flex-wrap gap-2">
-        {TYPE_OPTIONS.map((opt) => (
+        {TYPE_OPTIONS.map((opt) => {
+          const Icon = opt.icon
+          return (
           <button
             key={opt.value}
             type="button"
@@ -78,10 +100,11 @@ export function EventForm({
                             : 'bg-muted text-muted-foreground hover:text-foreground'
                         }`}
           >
-            <span>{opt.emoji}</span>
+            <Icon size={14} strokeWidth={1.75} aria-hidden />
             <span>{opt.label}</span>
           </button>
-        ))}
+          )
+        })}
       </div>
 
       {/* Editable fields */}

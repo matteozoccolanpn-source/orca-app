@@ -2,16 +2,33 @@ import { signIn } from "@/auth"
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] font-sans text-white flex items-center justify-center">
-      <div className="flex flex-col items-center gap-8">
+    <div className="relative min-h-screen bg-background font-sans text-foreground flex items-center justify-center px-6">
+      {/* glow ambientale */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-0"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 55% at 50% 0%, color-mix(in oklch, var(--primary) 20%, transparent), transparent 60%)",
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col items-center gap-10">
+        {/* wordmark */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight">OrCa 🐳</h1>
-          <div className="mt-3 mb-4 mx-auto h-[1px] w-12 bg-white/30" />
-          <p className="text-sm font-medium uppercase tracking-widest text-white/40">
-            Organize your Calendar
+          <h1
+            className="text-5xl font-extrabold tracking-tight text-foreground"
+            style={{ fontFamily: "var(--font-display, system-ui)", letterSpacing: "-0.02em" }}
+          >
+            Keiko
+          </h1>
+          <div className="mt-3 mb-5 mx-auto h-px w-10 bg-border/60" />
+          <p className="text-sm font-medium tracking-widest text-muted-foreground">
+            Il tuo calendario, organizzato
           </p>
         </div>
 
+        {/* sign-in */}
         <form
           action={async () => {
             "use server"
@@ -20,10 +37,11 @@ export default function LoginPage() {
         >
           <button
             type="submit"
-            className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+            className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-6 py-3.5 text-sm font-semibold text-foreground shadow-sm transition-all duration-200 hover:bg-elevated active:scale-[0.97]"
+            style={{ boxShadow: "0 2px 12px oklch(0 0 0 / 0.28), inset 0 1px 0 oklch(1 0 0 / 0.04)" }}
           >
             <GoogleIcon />
-            Sign in with Google
+            Accedi con Google
           </button>
         </form>
       </div>

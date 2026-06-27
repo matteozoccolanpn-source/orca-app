@@ -1,1518 +1,640 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useTransform,
-  animate,
-} from "framer-motion";
-import { DM_Sans } from "next/font/google";
-import {
+  Search,
+  Plane,
   Train,
   Music,
-  Plane,
-  ChevronDown,
-  ArrowUp,
-  Dumbbell,
-  Briefcase,
-  UtensilsCrossed,
-  Users,
-  X,
-  Landmark,
-  MapPin,
-  Ticket as TicketIcon,
-  Phone,
-  Bookmark,
-  LayoutGrid,
-  Trash2,
-  MoreHorizontal,
-  Share2,
-  Pencil,
-  BookOpen,
-  IdCard,
-  Stethoscope,
   Building2,
-  Route,
+  Landmark,
+  UtensilsCrossed,
   Calendar,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Ticket as TicketIcon,
+  Footprints,
+  QrCode,
+  CheckSquare,
+  Star,
+  Check,
+  LogOut,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { createPortal } from "react-dom";
 import type { Ticket } from "@/lib/supabase";
-import { formatEventDate } from "@/lib/format";
-import { actionsForType, type ActionButton } from "./actions";
-import { EventForm, toDatetime, splitDatetime, type EventFormValue } from "./EventForm";
+import NotificationButton from "@/components/NotificationButton";
+import ThemeToggle from "@/components/ThemeToggle";
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
-
-const sans = "var(--font-dm-sans), 'DM Sans', sans-serif";
-const splashEase = [0.22, 1, 0.36, 1] as const;
-const SWIPE_THRESHOLD = -72;
-const SWIPE_SNAP_AT = SWIPE_THRESHOLD / 2;
-const SWIPE_SPRING = { type: "spring" as const, stiffness: 400, damping: 40 };
-
-const scrollStyle = {
-  scrollBehavior: "smooth" as const,
-  WebkitOverflowScrolling: "touch" as const,
-};
-
-/**
- * Dark chrome (top/bottom bars) + light body palette.
- * GOLD is the only action color: light surfaces use #D2A93E, dark surfaces #D8BC62.
- * Teal/sky tones live only in the dark bars, background veils and the time badge.
- */
-const C = {
-  // Dark chrome
-  chromeTopFrom: "#1B212A",
-  chromeTopTo: "#181E25",
-  chromeBotFrom: "#181E25",
-  chromeBotTo: "#1B212A",
-  chromeText: "#ECEFF2",
-  chromeTextSec: "#969DA6",
-  chromeBorder: "rgba(160, 190, 210, 0.10)",
-  chip: "rgba(255, 255, 255, 0.06)",
-  chipBorder: "rgba(160, 190, 210, 0.14)",
-  chipText: "#B8BEC6",
-  askBorder: "rgba(216, 188, 98, 0.40)",
-  askBg: "#E1E3E1",
-  askText: "#232527",
-  askPlaceholder: "#6E737A",
-  goldOnDark: "#D8BC62",
-  goldOnDarkText: "#1C1408",
-  goldMuted: "#BFA75A",
-  navInactive: "#6A727B",
-
-  // Light body
-  bodyBg: "#ECECE7",
-  heroCard: "#FAFAF7",
-  heroBorder: "#E1E4E2",
-  secCard: "#F7F7F4",
-  secBorder: "#E4E5E1",
-  iconChipBg: "#ECEEEC",
-  iconChip: "#6E737A",
-  dayCount: "#9CA1A8",
-  dashed: "#CFD2CC",
-  text: "#232527",
-  textSec: "#6E737A",
-  textTer: "#9CA1A8",
-  tagBg: "#F2E8CE",
-  tagText: "#84641C",
-  badgeBg: "rgba(96, 150, 178, 0.16)",
-  badgeText: "#3C5A6B",
-  goldOnLight: "#D2A93E",
-  goldOnLightText: "#2A2206",
-  goldSmallLight: "#A8802E",
-  ghostBorder: "#DCDED9",
-  ghostText: "#3A3E44",
-
-  // Splash (stays dark)
-  splashBg: "#181E25",
-  splashText: "#ECEFF2",
-  splashMuted: "#969DA6",
-
-  // Destructive (kept)
-  danger: "#8b4040",
-  dangerSoft: "#c47676",
-} as const;
-
-const SUGGESTIONS = ["Cosa ho questa settimana?", "Scadenze in arrivo?"];
+/* ------------------------------------------------------------------ *
+ * v15 — tutto via token CSS (globals.css). Nessun colore hardcoded.
+ * ------------------------------------------------------------------ */
 
 const TYPE_ICON: Record<string, LucideIcon> = {
   train: Train,
   flight: Plane,
-  travel: Plane,
-  viaggio: Route,
-  trip: Route,
-  lesson: BookOpen,
-  lezione: BookOpen,
-  english: BookOpen,
-  inglese: BookOpen,
-  corso: BookOpen,
-  patente: IdCard,
-  id: IdCard,
-  documento: IdCard,
-  document: IdCard,
-  medico: Stethoscope,
-  doctor: Stethoscope,
-  salute: Stethoscope,
   hotel: Building2,
   concert: Music,
   museum: Landmark,
   restaurant: UtensilsCrossed,
-  sport: Dumbbell,
-  work: Briefcase,
-  lavoro: Briefcase,
-  family: Users,
-  famiglia: Users,
 };
 
-const TYPE_CATEGORY: Record<string, string> = {
-  train: "Viaggi",
-  flight: "Viaggi",
-  hotel: "Viaggi",
-  concert: "Serate",
-  museum: "Serate",
-  restaurant: "Cibo",
-  sport: "Sport",
-  work: "Lavoro",
-  lavoro: "Lavoro",
-  family: "Famiglia",
-  famiglia: "Famiglia",
+const TYPE_LABEL: Record<string, string> = {
+  train: "Treno",
+  flight: "Volo",
+  hotel: "Hotel",
+  concert: "Concerto",
+  museum: "Museo",
+  restaurant: "Ristorante",
 };
 
-const ACTION_ICON: Record<string, LucideIcon> = {
-  Mappa: MapPin,
-  Biglietto: TicketIcon,
-  Chiama: Phone,
-  Prenotazione: Bookmark,
+/* Tinta categoria (sfondo hero/chip per tipo) — token --cat-*. */
+const CAT_TINT: Record<string, string> = {
+  train: "var(--cat-treno)",
+  flight: "var(--cat-volo)",
+  hotel: "var(--cat-hotel)",
+  concert: "var(--cat-concerto)",
+  museum: "var(--cat-concerto)",
+  restaurant: "var(--cat-cena)",
 };
 
-type BentoCategory = {
-  id: string;
-  name: string;
-  icon: LucideIcon;
-  layout: string;
-  match: (type: string) => boolean;
-};
-
-const BENTO_CATEGORIES: BentoCategory[] = [
-  {
-    id: "tutti",
-    name: "Tutti",
-    icon: LayoutGrid,
-    layout: "col-span-2 row-span-2 max-h-[100px]",
-    match: () => true,
-  },
-  {
-    id: "viaggi",
-    name: "Viaggi",
-    icon: Plane,
-    layout: "col-span-1 row-span-1 max-h-[100px]",
-    match: (t) => ["train", "flight", "hotel"].includes(t),
-  },
-  {
-    id: "serate",
-    name: "Serate",
-    icon: Music,
-    layout: "col-span-1 row-span-1 max-h-[100px]",
-    match: (t) => ["concert", "museum"].includes(t),
-  },
-  {
-    id: "cibo",
-    name: "Cibo",
-    icon: UtensilsCrossed,
-    layout: "col-span-1 row-span-1 max-h-[100px]",
-    match: (t) => t === "restaurant",
-  },
-  {
-    id: "sport",
-    name: "Sport",
-    icon: Dumbbell,
-    layout: "col-span-1 row-span-1 max-h-[100px]",
-    match: (t) => t === "sport",
-  },
-  {
-    id: "lavoro",
-    name: "Lavoro",
-    icon: Briefcase,
-    layout: "col-span-1 row-span-1 max-h-[100px]",
-    match: (t) => ["work", "lavoro"].includes(t),
-  },
-  {
-    id: "famiglia",
-    name: "Famiglia",
-    icon: Users,
-    layout: "col-span-2 row-span-1 max-h-[100px]",
-    match: (t) => ["family", "famiglia"].includes(t),
-  },
-];
-
-function daysUntil(datetime: string): number {
-  if (!datetime) return 0;
-  const event = new Date(datetime);
-  if (isNaN(event.getTime())) return 0;
-  const diffMs = event.getTime() - Date.now();
-  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+/* Azioni hero pertinenti per tipo (inerti: nessun backend collegato). */
+type HeroAction = { label: string; Icon: LucideIcon };
+function heroActions(type: string): { primary: HeroAction; ghost?: HeroAction } {
+  switch (type?.toLowerCase()) {
+    case "train":
+    case "flight":
+      return { primary: { label: "Biglietto", Icon: TicketIcon }, ghost: { label: "Quando uscire", Icon: Footprints } };
+    case "hotel":
+    case "restaurant":
+      return { primary: { label: "Prenotazione", Icon: TicketIcon } };
+    case "concert":
+    case "museum":
+      return { primary: { label: "Biglietto", Icon: TicketIcon } };
+    default:
+      return { primary: { label: "Dettagli", Icon: TicketIcon } };
+  }
 }
+
+/* To-do d'esempio per l'overlay: SOLO UI, da togliere col backend to-do. */
+const MOCK_TODOS = [
+  { id: 1, text: "Ritirare i vestiti", done: true, star: false },
+  { id: 2, text: "Chiamare il dentista", done: false, star: true },
+  { id: 3, text: "Stampare la carta d'imbarco", done: false, star: false },
+];
 
 function iconForType(type: string): LucideIcon {
   return TYPE_ICON[type?.toLowerCase()] ?? Calendar;
 }
-
-function categoryLabel(type: string): string {
-  return TYPE_CATEGORY[type?.toLowerCase()] ?? "Evento";
+function labelForType(type: string): string {
+  return TYPE_LABEL[type?.toLowerCase()] ?? "Evento";
+}
+function catTint(type: string): string {
+  return CAT_TINT[type?.toLowerCase()] ?? "var(--cat-default)";
 }
 
-function countdownLabel(days: number): string {
-  if (days <= 0) return "OGGI";
-  return `TRA ${days} ${days === 1 ? "GIORNO" : "GIORNI"}`;
+function daysUntil(datetime: string): number {
+  if (!datetime) return 0;
+  const d = new Date(datetime);
+  if (isNaN(d.getTime())) return 0;
+  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86_400_000));
+}
+/* Un solo formato "quanto manca" ovunque. */
+function relativeDays(days: number): string {
+  if (days <= 0) return "Oggi";
+  if (days === 1) return "Domani";
+  return `Tra ${days} giorni`;
 }
 
-/** Compact ticker date in Italian 24h, e.g. "gio · 17:00" (Europe/Rome). */
-function tickerDate(iso: string): string {
-  if (!iso) return "";
+function dateTimeParts(iso: string): { date: string; time: string } {
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  const parts = new Intl.DateTimeFormat("it-IT", {
+  if (isNaN(d.getTime())) return { date: "—", time: "—" };
+  const date = new Intl.DateTimeFormat("it-IT", {
     weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/Rome",
+  }).format(d);
+  const time = new Intl.DateTimeFormat("it-IT", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
     timeZone: "Europe/Rome",
-  }).formatToParts(d);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  const weekday = get("weekday").replace(".", "").toLowerCase();
-  return `${weekday} · ${get("hour")}:${get("minute")}`;
+  }).format(d);
+  const cap = date.charAt(0).toUpperCase() + date.slice(1);
+  return { date: cap, time };
+}
+/* Riga compatta "Sab 4 lug · 08:48 · Luogo". */
+function eventLine(event: Ticket): string {
+  const { date, time } = dateTimeParts(event.datetime);
+  return [date, time, event.location].filter(Boolean).join(" · ");
 }
 
-/**
- * Full title, kept in its natural case. Truncated with an ellipsis only when
- * very long (~22 chars), preferring a word boundary so words are never cut
- * mid-way at random.
- */
-function tickerTitle(title: string, max = 22): string {
-  const t = title.trim();
-  if (t.length <= max) return t;
-  const slice = t.slice(0, max);
-  const lastSpace = slice.lastIndexOf(" ");
-  const base = lastSpace > 10 ? slice.slice(0, lastSpace) : slice;
-  return `${base.trimEnd()}…`;
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+function startOfWeek(d: Date): Date {
+  const date = new Date(d);
+  const dow = (date.getDay() + 6) % 7; // 0 = lunedì
+  date.setDate(date.getDate() - dow);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+type WeekDay = { date: Date; dn: string; dd: number; key: string };
+function buildWeek(from: Date): WeekDay[] {
+  const monday = startOfWeek(from);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const dn = new Intl.DateTimeFormat("it-IT", { weekday: "short" }).format(date).slice(0, 3).toUpperCase();
+    return { date, dn, dd: date.getDate(), key: dayKey(date) };
+  });
 }
 
-function eventsForBento(cat: BentoCategory, events: Ticket[]): Ticket[] {
-  if (cat.id === "tutti") return events;
-  return events.filter((e) => cat.match(e.type?.toLowerCase()));
-}
+/* ================================================================== */
 
-function EventTypeIcon({ event }: { event: Ticket }) {
-  const Icon = iconForType(event.type);
+export default function HomeView({
+  events,
+  logoutAction,
+}: {
+  events: Ticket[];
+  logoutAction?: () => Promise<void>;
+}) {
+  const today = useMemo(() => new Date(), []);
+  const week = useMemo(() => buildWeek(today), [today]);
+  const todayKey = dayKey(today);
+
+  const countByDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of events) {
+      const d = new Date(e.datetime);
+      if (isNaN(d.getTime())) continue;
+      const k = dayKey(d);
+      map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    return map;
+  }, [events]);
+
+  // Giorno aperto nell'overlay to-do. Determina anche il giorno "selezionato"
+  // (grad), mentre OGGI resta evidenziato col numero accentato.
+  const [openDay, setOpenDay] = useState<WeekDay | null>(null);
+  const selectedKey = openDay ? openDay.key : todayKey;
+  const todayWD = week.find((w) => w.key === todayKey);
+
+  const [hero, ...rest] = events;
+  const upcoming = rest.slice(0, 4);
+
   return (
-    <div
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]"
-      style={{ background: C.iconChipBg }}
-      aria-hidden
-    >
-      <Icon size={18} strokeWidth={1.75} style={{ color: C.iconChip }} />
+    <div className="relative mx-auto min-h-[100dvh] w-full max-w-lg">
+      <Bubbles />
+
+      <div className="relative z-10 pb-[160px]">
+        {/* ---------- App bar ---------- */}
+        <header
+          className="flex items-center justify-between pb-[var(--s2)] pt-[var(--s3)]"
+          style={{ paddingInline: "var(--gutter)" }}
+        >
+          <span
+            className="text-[length:var(--fs-xl)] -tracking-[0.03em]"
+            style={{ fontWeight: "var(--fw-black)", color: "var(--app-text)" }}
+          >
+            🐋 Keiko
+          </span>
+          <div className="flex items-center gap-[var(--s4)]" style={{ color: "var(--app-2)" }}>
+            {/* Cerca — nessun backend: VUOTO */}
+            {/* TODO: backend — placeholder v15 */}
+            <button
+              type="button"
+              disabled
+              aria-label="Cerca"
+              className="grid place-items-center disabled:opacity-100"
+              style={{ width: "var(--tap)", height: "var(--tap)", margin: -12 }}
+            >
+              <Search className="size-[21px]" />
+            </button>
+            <ThemeToggle />
+            <NotificationButton compact />
+            {logoutAction && (
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  aria-label="Esci"
+                  className="grid place-items-center transition-colors active:scale-95"
+                  style={{ width: "var(--tap)", height: "var(--tap)", margin: -12 }}
+                >
+                  <LogOut className="size-[21px]" />
+                </button>
+              </form>
+            )}
+          </div>
+        </header>
+
+        {/* ---------- Calendario settimana ---------- */}
+        <WeekStrip
+          week={week}
+          todayKey={todayKey}
+          selectedKey={selectedKey}
+          countByDay={countByDay}
+          onPick={(d) => setOpenDay(d)}
+        />
+
+        {/* ---------- Scroll content ---------- */}
+        <div style={{ padding: "var(--s5) var(--gutter) 0" }}>
+          <Lead>Prossimo</Lead>
+          {hero ? <HeroCard event={hero} /> : <EmptyHero />}
+
+          {upcoming.length > 0 && (
+            <>
+              <Lead className="mt-[var(--sec)]">Prossimi eventi</Lead>
+              {upcoming.map((e) => (
+                <EventCard key={e.id} event={e} />
+              ))}
+            </>
+          )}
+
+          <Lead className="mt-[var(--sec)]">Oggi</Lead>
+          <TodoRow onOpen={() => todayWD && setOpenDay(todayWD)} />
+        </div>
+      </div>
+
+      {openDay && <TodoOverlay day={openDay} onClose={() => setOpenDay(null)} />}
     </div>
   );
 }
 
-/** Two thin arcs fading at the edges, behind the dark top bar. */
-function OceanLines() {
-  return (
-    <svg
-      className="pointer-events-none absolute inset-0 h-full w-full"
-      viewBox="0 0 400 56"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id="oceanStroke" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#2A7B83" />
-          <stop offset="50%" stopColor="#4E9FB8" />
-          <stop offset="100%" stopColor="#92C8E4" />
-        </linearGradient>
-        <linearGradient id="oceanMaskGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="black" />
-          <stop offset="22%" stopColor="white" />
-          <stop offset="78%" stopColor="white" />
-          <stop offset="100%" stopColor="black" />
-        </linearGradient>
-        <mask id="oceanMask">
-          <rect x="0" y="0" width="400" height="56" fill="url(#oceanMaskGrad)" />
-        </mask>
-      </defs>
-      <g
-        mask="url(#oceanMask)"
-        fill="none"
-        stroke="url(#oceanStroke)"
-        strokeWidth="1"
-        opacity="0.45"
-      >
-        <path d="M-20 30 Q 200 6 420 26" vectorEffect="non-scaling-stroke" />
-        <path d="M-20 46 Q 200 22 420 42" vectorEffect="non-scaling-stroke" />
-      </g>
-    </svg>
-  );
-}
+/* ------------------------------------------------------------------ */
 
-function OrCaMark({ size = 40 }: { size?: number }) {
+function Lead({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-      <circle cx="50" cy="50" r="46" stroke="#c8a84b" strokeWidth="3" fill="#2b333d" />
-      <ellipse cx="48" cy="55" rx="28" ry="18" fill="#1a1a1a" />
-      <ellipse cx="44" cy="60" rx="16" ry="10" fill="#e8e8e8" />
-      <path d="M50 37 L58 22 L65 37 Z" fill="#1a1a1a" />
-      <path d="M18 50 L8 42 L12 55 L8 62 L20 56 Z" fill="#1a1a1a" />
-      <path d="M42 65 L32 74 L45 70 Z" fill="#1a1a1a" />
-      <ellipse cx="68" cy="48" rx="8" ry="7" fill="#e8e8e8" />
-      <circle cx="69" cy="48" r="3.5" fill="#1a1a1a" />
-      <circle cx="70" cy="47" r="1" fill="white" />
-      <path d="M60 56 Q67 66 76 58" stroke="#1a1a1a" strokeWidth="1.5" fill="#c41e1e" strokeLinecap="round" />
-      <path d="M62 57 L63 62 L65 57" fill="white" stroke="#1a1a1a" strokeWidth="0.5" />
-      <path d="M65 58 L66 63 L68 58" fill="white" stroke="#1a1a1a" strokeWidth="0.5" />
-      <path d="M68 58 L69 63 L71 58" fill="white" stroke="#1a1a1a" strokeWidth="0.5" />
-      <path d="M71 57 L72 62 L74 57" fill="white" stroke="#1a1a1a" strokeWidth="0.5" />
-      <path d="M63 62 L64 58 L66 62" fill="white" stroke="#1a1a1a" strokeWidth="0.5" />
-      <path d="M67 63 L68 59 L70 63" fill="white" stroke="#1a1a1a" strokeWidth="0.5" />
-      <path d="M71 62 L72 58 L74 62" fill="white" stroke="#1a1a1a" strokeWidth="0.5" />
-    </svg>
-  );
-}
-
-function SplashScreen() {
-  return (
-    <motion.div
-      className="fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden"
+    <p
+      className={`mx-0.5 mb-[var(--s3)] uppercase ${className}`}
       style={{
-        background: `linear-gradient(180deg, ${C.chromeTopFrom} 0%, ${C.chromeTopTo} 100%)`,
-      }}
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 1.03 }}
-      transition={{ duration: 0.5, ease: splashEase }}
-    >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-1/2 h-40 -translate-y-1/2"
-        aria-hidden
-      >
-        <OceanLines />
-      </div>
-      <motion.div
-        className="relative flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.82 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, ease: splashEase }}
-      >
-        <OrCaMark size={132} />
-        <div className="mt-5 text-[34px] font-bold tracking-tight" style={{ color: C.splashText }}>
-          OrCa
-        </div>
-        <div
-          className="mt-1.5 text-[11px] uppercase tracking-[0.22em]"
-          style={{ color: C.splashMuted }}
-        >
-          Organize your Calendar
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function FixedTopBar() {
-  return (
-    <header
-      className="relative z-50 flex shrink-0 items-center justify-between overflow-hidden px-4 py-1.5"
-      style={{
-        background: `linear-gradient(180deg, ${C.chromeTopFrom} 0%, ${C.chromeTopTo} 100%)`,
-        paddingTop: "max(6px, env(safe-area-inset-top))",
+        fontSize: "var(--fs-cap)",
+        fontWeight: "var(--fw-bold)",
+        letterSpacing: ".07em",
+        color: "var(--app-faint)",
       }}
     >
-      <OceanLines />
-      <div className="relative flex items-center gap-2.5">
-        <OrCaMark size={30} />
-        <span className="text-[17px] font-bold tracking-tight" style={{ color: C.chromeText }}>
-          OrCa
-        </span>
-      </div>
-      {/* Right side intentionally left empty: Aggiorna + Logout live in app/page.tsx overlay */}
-      <div className="relative h-7 w-32" aria-hidden />
-    </header>
+      {children}
+    </p>
   );
 }
 
-function ActionButtons({ type, location }: { type: string; location: string }) {
-  const actions = actionsForType(type, location);
+function Bubbles() {
+  const bubbles = [
+    { left: "14%", size: 7, dur: "16s", delay: "0s" },
+    { left: "24%", size: 9, dur: "18s", delay: "2s" },
+    { left: "48%", size: 6, dur: "15s", delay: "5s" },
+    { left: "66%", size: 11, dur: "20s", delay: "3s" },
+    { left: "82%", size: 8, dur: "17s", delay: "6s" },
+  ];
   return (
-    <div className="flex items-center gap-2">
-      {actions.map((btn, i) => (
-        <ActionLink key={btn.label} btn={btn} primary={i === 0} />
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+      {bubbles.map((b, i) => (
+        <span
+          key={i}
+          className="keiko-bubble"
+          style={{ left: b.left, width: b.size, height: b.size, animationDuration: b.dur, animationDelay: b.delay }}
+        />
       ))}
     </div>
   );
 }
 
-function ActionLink({ btn, primary }: { btn: ActionButton; primary: boolean }) {
-  const Icon = ACTION_ICON[btn.label] ?? MapPin;
-  return (
-    <a
-      href={btn.href}
-      target={btn.href.startsWith("http") ? "_blank" : undefined}
-      rel={btn.href.startsWith("http") ? "noopener noreferrer" : undefined}
-      className="inline-flex items-center gap-1.5 rounded-[12px] px-4 py-2.5 text-[14px] font-semibold"
-      style={
-        primary
-          ? { background: C.goldOnLight, color: C.goldOnLightText }
-          : { background: "transparent", color: C.ghostText, border: `1px solid ${C.ghostBorder}` }
-      }
-    >
-      <Icon size={15} strokeWidth={2} />
-      {btn.label}
-    </a>
-  );
-}
-
-function Toast({ message, onDone }: { message: string; onDone: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 2200);
-    return () => clearTimeout(t);
-  }, [onDone]);
-
-  return (
-    <motion.div
-      className="fixed inset-x-0 z-[110] mx-auto flex max-w-lg justify-center px-4"
-      style={{ bottom: "calc(11rem + env(safe-area-inset-bottom))" }}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 12 }}
-      transition={{ duration: 0.24, ease: splashEase }}
-    >
-      <div
-        className="rounded-full px-4 py-2 text-[13px] font-medium shadow-lg"
-        style={{
-          background: C.chromeTopTo,
-          color: C.chromeText,
-          border: `1px solid ${C.chromeBorder}`,
-        }}
-      >
-        {message}
-      </div>
-    </motion.div>
-  );
-}
-
-/**
- * Renders children into document.body so fixed overlays escape any ancestor
- * stacking context (e.g. nested inside the scrollable <main>), guaranteeing
- * they sit above the fixed bottom bars on mobile/PWA.
- */
-function Portal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-  return createPortal(children, document.body);
-}
-
-function HeroMenuSheet({
-  onClose,
-  onDelete,
-  onShare,
-  onEdit,
+/* ---------- Calendario settimana ---------- */
+function WeekStrip({
+  week,
+  todayKey,
+  selectedKey,
+  countByDay,
+  onPick,
 }: {
-  onClose: () => void;
-  onDelete: () => void;
-  onShare: () => void;
-  onEdit: () => void;
+  week: WeekDay[];
+  todayKey: string;
+  selectedKey: string;
+  countByDay: Map<string, number>;
+  onPick: (d: WeekDay) => void;
 }) {
-  const items = [
-    { id: "share", label: "Condividi", icon: Share2, color: C.text, onClick: onShare },
-    { id: "edit", label: "Modifica", icon: Pencil, color: C.text, onClick: onEdit },
-    { id: "delete", label: "Elimina", icon: Trash2, color: C.danger, onClick: onDelete },
-  ];
-
   return (
-    <Portal>
-      <motion.div
-        className="fixed inset-0 z-[140] bg-black/40"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="fixed inset-x-0 bottom-0 z-[150] mx-auto max-w-lg overflow-hidden rounded-t-2xl"
-        style={{ background: C.heroCard, border: `1px solid ${C.heroBorder}` }}
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ duration: 0.32, ease: splashEase }}
-      >
-        <div className="flex justify-center pt-3">
-          <div className="h-1 w-10 rounded-full" style={{ background: C.heroBorder }} />
-        </div>
-        <div
-          className="flex flex-col p-2"
-          style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
-        >
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={item.onClick}
-                className="flex items-center gap-3 rounded-xl px-4 py-3.5 text-left text-[15px] font-medium transition-colors active:bg-black/5"
-                style={{ color: item.color }}
-              >
-                <Icon size={18} strokeWidth={1.75} />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      </motion.div>
-    </Portal>
-  );
-}
-
-/**
- * Bottom sheet that reuses the shared EventForm (same UI/logic as /add's
- * "confirming" step) to edit an existing event. Patches the record via
- * /api/update using the stable record id — never a list index.
- */
-function HeroEditSheet({
-  event,
-  onClose,
-  onSaved,
-}: {
-  event: Ticket;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [value, setValue] = useState<EventFormValue>(() => {
-    const { date, time } = splitDatetime(event.datetime);
-    return {
-      title: event.title,
-      type: event.type,
-      date,
-      time,
-      location: event.location,
-      reference: "",
-    };
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: event.id,
-          title: value.title,
-          type: value.type,
-          datetime: toDatetime(value),
-          location: value.location,
-          reference: value.reference,
-        }),
-      });
-      const data = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? "Salvataggio fallito");
-      onSaved();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Qualcosa è andato storto");
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Portal>
-      <motion.div
-        className="fixed inset-0 z-[140] bg-black/50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={() => {
-          if (!saving) onClose();
-        }}
-      />
-      <motion.div
-        className="fixed inset-x-0 bottom-0 z-[150] mx-auto max-h-[90vh] max-w-lg overflow-y-auto rounded-t-2xl bg-background px-4 pt-3 text-foreground"
-        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ duration: 0.32, ease: splashEase }}
-      >
-        <div className="flex justify-center pb-3 pt-1">
-          <div className="h-1 w-10 rounded-full bg-white/15" />
-        </div>
-        <h3 className="mb-4 text-lg font-bold">Modifica evento</h3>
-        <EventForm
-          value={value}
-          onChange={setValue}
-          onCancel={onClose}
-          onSave={handleSave}
-          saving={saving}
-          intro="Aggiorna i dati dell'evento"
-        />
-        {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
-      </motion.div>
-    </Portal>
-  );
-}
-
-function HeroEventCard({
-  event,
-  onRemoved,
-  onRestored,
-}: {
-  event: Ticket;
-  onRemoved: (id: string) => void;
-  onRestored: (id: string) => void;
-}) {
-  const router = useRouter();
-  const days = daysUntil(event.datetime);
-  const formatted = formatEventDate(event.datetime);
-  const dateLine = [formatted, event.location].filter(Boolean).join(" · ");
-
-  const [showMenu, setShowMenu] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const [removed, setRemoved] = useState(false);
-
-  async function handleDelete() {
-    setLoading(true);
-    setShowConfirm(false);
-    setRemoved(true);
-    onRemoved(event.id);
-
-    try {
-      const res = await fetch("/api/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: event.id }),
-      });
-      const data = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? "Eliminazione fallita");
-      router.refresh();
-    } catch {
-      setRemoved(false);
-      onRestored(event.id);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleShare() {
-    setShowMenu(false);
-    const shareData = {
-      title: event.title,
-      text: [event.title, formatted, event.location].filter(Boolean).join(" · "),
-    };
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard?.writeText(shareData.text);
-        setToast("Copiato negli appunti");
-      }
-    } catch {
-      /* user cancelled share — no-op */
-    }
-  }
-
-  function handleEdit() {
-    setShowMenu(false);
-    setShowEdit(true);
-  }
-
-  if (removed) return null;
-
-  const TypeIcon = iconForType(event.type);
-
-  return (
-    <div className="px-4 pt-4">
-      <div
-        className="relative overflow-hidden rounded-[18px] p-5"
-        style={{ background: C.heroCard, border: `1px solid ${C.heroBorder}` }}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
-            style={{ background: C.tagBg, color: C.tagText }}
+    <div className="flex gap-1.5" style={{ padding: "var(--s2) var(--gutter) 0" }}>
+      {week.map((d) => {
+        const isSel = d.key === selectedKey;
+        const isTodayAccent = d.key === todayKey && !isSel;
+        const count = countByDay.get(d.key) ?? 0;
+        return (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => onPick(d)}
+            className="relative flex-1 text-center transition-transform duration-200 ease-out active:scale-95"
+            style={{
+              padding: "9px 0",
+              borderRadius: "var(--r-sm)",
+              background: isSel ? "var(--keiko-grad)" : "transparent",
+              boxShadow: isSel ? "var(--sh-btn)" : "none",
+            }}
           >
-            <TypeIcon size={13} strokeWidth={2} />
-            {categoryLabel(event.type)}
-          </span>
-          <div className="flex shrink-0 items-center gap-1.5">
             <span
-              className="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
-              style={{ background: C.badgeBg, color: C.badgeText }}
+              className="block uppercase"
+              style={{
+                fontSize: "11px",
+                fontWeight: "var(--fw-semi)",
+                letterSpacing: ".02em",
+                color: isSel ? "#fff" : "var(--app-faint)",
+              }}
             >
-              {countdownLabel(days)}
+              {d.dn}
             </span>
-            <button
-              type="button"
-              onClick={() => setShowMenu(true)}
-              aria-label="Altre opzioni"
-              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors active:bg-black/5"
-              style={{ color: C.textSec }}
+            <span
+              className="mt-[3px] block tabular-nums"
+              style={{
+                fontSize: "16px",
+                fontWeight: "var(--fw-bold)",
+                color: isSel ? "#fff" : isTodayAccent ? "var(--accent-strong)" : "var(--app-text)",
+              }}
             >
-              <MoreHorizontal size={20} strokeWidth={2} />
-            </button>
-          </div>
-        </div>
-
-        <h2 className="mt-3 text-[26px] font-bold leading-tight" style={{ color: C.text }}>
-          {event.title}
-        </h2>
-
-        {dateLine && (
-          <p className="mt-2 flex items-center gap-1.5 text-[13px]" style={{ color: C.textSec }}>
-            <Calendar size={13} strokeWidth={1.75} style={{ color: C.textTer }} />
-            {dateLine}
-          </p>
-        )}
-
-        <div className="mt-4">
-          <ActionButtons type={event.type} location={event.location} />
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {showMenu && (
-          <HeroMenuSheet
-            onClose={() => setShowMenu(false)}
-            onDelete={() => {
-              setShowMenu(false);
-              setShowConfirm(true);
-            }}
-            onShare={handleShare}
-            onEdit={handleEdit}
-          />
-        )}
-      </AnimatePresence>
-
-      {showConfirm && (
-        <DeleteConfirmDialog
-          title={event.title}
-          loading={loading}
-          onCancel={() => setShowConfirm(false)}
-          onConfirm={handleDelete}
-        />
-      )}
-
-      <AnimatePresence>
-        {showEdit && (
-          <HeroEditSheet
-            event={event}
-            onClose={() => setShowEdit(false)}
-            onSaved={() => {
-              setShowEdit(false);
-              router.refresh();
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function EventRowContent({ event, expanded }: { event: Ticket; expanded?: boolean }) {
-  const days = daysUntil(event.datetime);
-  const formatted = formatEventDate(event.datetime);
-
-  return (
-    <div className="flex items-center gap-3 p-4">
-      <EventTypeIcon event={event} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[16px] font-semibold" style={{ color: C.text }}>
-          {event.title}
-        </p>
-        {formatted && (
-          <p className="mt-0.5 truncate text-[13px]" style={{ color: C.textSec }}>
-            {formatted}
-          </p>
-        )}
-      </div>
-      <span className="shrink-0 text-[13px] tabular-nums" style={{ color: C.dayCount }}>
-        {days}g
-      </span>
-      <motion.span
-        className="flex shrink-0 items-center"
-        animate={{ rotate: expanded ? 180 : 0 }}
-        transition={{ duration: 0.25 }}
-        aria-hidden
-      >
-        <ChevronDown size={16} style={{ color: C.textTer }} />
-      </motion.span>
-    </div>
-  );
-}
-
-function DeleteConfirmDialog({
-  title,
-  loading,
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  loading: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-5"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-dialog-title"
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
-        style={{ background: C.heroCard, border: `1px solid ${C.heroBorder}` }}
-      >
-        <h4 id="delete-dialog-title" className="text-base font-bold" style={{ color: C.text }}>
-          Eliminare questo evento?
-        </h4>
-        <p className="mt-2 text-[14px]" style={{ color: C.textSec }}>
-          {title}
-        </p>
-        <div className="mt-6 flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
-            style={{ border: `1px solid ${C.ghostBorder}`, color: C.ghostText }}
-          >
-            Annulla
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
-            style={{ background: C.danger }}
-          >
-            {loading ? "Eliminazione…" : "Elimina"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SwipeEventRow({
-  event,
-  onRemoved,
-  onRestored,
-  expanded = false,
-  onToggle,
-}: {
-  event: Ticket;
-  onRemoved: (id: string) => void;
-  onRestored: (id: string) => void;
-  expanded?: boolean;
-  onToggle?: () => void;
-}) {
-  const router = useRouter();
-  const x = useMotionValue(0);
-  const deleteOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
-  const deleteScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.7, 1]);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [removed, setRemoved] = useState(false);
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
-
-  function handleDragEnd() {
-    if (x.get() < SWIPE_SNAP_AT) {
-      animate(x, SWIPE_THRESHOLD, SWIPE_SPRING);
-    } else {
-      animate(x, 0, SWIPE_SPRING);
-    }
-  }
-
-  async function handleDelete() {
-    setLoading(true);
-    setShowConfirm(false);
-    setRemoved(true);
-    onRemoved(event.id);
-
-    try {
-      const res = await fetch("/api/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: event.id }),
-      });
-      const data = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !data.ok) throw new Error(data.error ?? "Eliminazione fallita");
-      router.refresh();
-    } catch {
-      setRemoved(false);
-      onRestored(event.id);
-      animate(x, 0, SWIPE_SPRING);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (removed) return null;
-
-  return (
-    <>
-      <div
-        className="relative overflow-hidden rounded-[14px]"
-        style={{ border: `1px solid ${C.secBorder}` }}
-      >
-        <motion.div
-          className="absolute inset-y-0 right-0 flex w-20 items-center justify-center"
-          style={{ background: C.danger, opacity: deleteOpacity }}
-        >
-          <motion.button
-            type="button"
-            style={{ scale: deleteScale }}
-            onClick={() => setShowConfirm(true)}
-            className="flex flex-col items-center gap-1"
-            aria-label="Elimina evento"
-          >
-            <Trash2 className="size-4 text-white" />
-            <span className="text-[10px] font-medium text-white">Elimina</span>
-          </motion.button>
-        </motion.div>
-
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: SWIPE_THRESHOLD, right: 0 }}
-          dragElastic={{ left: 0.1, right: 0.05 }}
-          onDragEnd={handleDragEnd}
-          style={{ x, background: C.secCard }}
-          className={`relative z-10 ${loading ? "pointer-events-none opacity-50" : ""}`}
-        >
-          <div
-            role="button"
-            tabIndex={0}
-            aria-expanded={expanded}
-            className="cursor-pointer select-none"
-            onPointerDown={(e) => {
-              pointerStart.current = { x: e.clientX, y: e.clientY };
-            }}
-            onPointerUp={(e) => {
-              const start = pointerStart.current;
-              pointerStart.current = null;
-              if (!start) return;
-              // A net tap toggles the accordion; a horizontal drag is left to swipe-delete.
-              const movedX = Math.abs(e.clientX - start.x);
-              const movedY = Math.abs(e.clientY - start.y);
-              if (movedX < 8 && movedY < 8) onToggle?.();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onToggle?.();
-              }
-            }}
-          >
-            <EventRowContent event={event} expanded={expanded} />
-          </div>
-
-          <AnimatePresence initial={false}>
-            {expanded && (
-              <motion.div
-                key="actions"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.28, ease: splashEase }}
-                className="overflow-hidden"
+              {d.dd}
+            </span>
+            {count > 0 && (
+              <span
+                className="absolute right-1/2 grid translate-x-[15px] place-items-center text-white"
+                style={{
+                  top: 3,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  borderRadius: "var(--r-pill)",
+                  background: "var(--warm)",
+                  fontSize: "9.5px",
+                  fontWeight: "var(--fw-black)",
+                }}
               >
-                <div
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 pt-3"
-                  style={{ borderTop: `1px solid ${C.secBorder}` }}
-                >
-                  <ActionButtons type={event.type} location={event.location} />
-                  <button
-                    type="button"
-                    onClick={() => setShowEdit(true)}
-                    className="inline-flex items-center gap-1.5 rounded-[12px] px-4 py-2.5 text-[14px] font-semibold"
-                    style={{
-                      background: "transparent",
-                      color: C.ghostText,
-                      border: `1px solid ${C.ghostBorder}`,
-                    }}
-                  >
-                    <Pencil size={15} strokeWidth={2} />
-                    Modifica
-                  </button>
-                </div>
-              </motion.div>
+                {count}
+              </span>
             )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
-
-      {showConfirm && (
-        <DeleteConfirmDialog
-          title={event.title}
-          loading={loading}
-          onCancel={() => {
-            setShowConfirm(false);
-            animate(x, 0, SWIPE_SPRING);
-          }}
-          onConfirm={handleDelete}
-        />
-      )}
-
-      <AnimatePresence>
-        {showEdit && (
-          <HeroEditSheet
-            event={event}
-            onClose={() => setShowEdit(false)}
-            onSaved={() => {
-              setShowEdit(false);
-              router.refresh();
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
-function TripsPlaceholder() {
+/* ---------- Hero per-tipo (una sola CTA primaria) ---------- */
+function HeroCard({ event }: { event: Ticket }) {
+  const Icon = iconForType(event.type);
+  const { date, time } = dateTimeParts(event.datetime);
+  const { primary, ghost } = heroActions(event.type);
+
   return (
-    <div className="px-4 pt-2">
-      <div
-        className="flex items-center gap-3 rounded-[14px] px-4 py-4"
-        style={{ border: `1px dashed ${C.dashed}` }}
-      >
+    <div className="overflow-hidden" style={{ borderRadius: "var(--r-xl)", background: "var(--surface)", boxShadow: "var(--sh-card)", border: "1px solid var(--tile-line)" }}>
+      {/* zona alta colorata per tipo */}
+      <div className="flex gap-[var(--s3)] text-white" style={{ minHeight: 80, padding: "var(--s3)", background: catTint(event.type) }}>
+        <div className="flex min-w-0 flex-1 flex-col gap-[var(--s2)]">
+          <span
+            className="inline-flex w-fit items-center gap-1.5"
+            style={{ fontSize: "var(--fs-cap)", fontWeight: "var(--fw-semi)", background: "rgba(255,255,255,.22)", padding: "6px 12px", borderRadius: "var(--r-pill)" }}
+          >
+            <Icon className="size-3.5" />
+            {labelForType(event.type)}
+          </span>
+          <span style={{ fontWeight: "var(--fw-black)", fontSize: "var(--fs-lg)", letterSpacing: "-.02em", lineHeight: 1.05 }}>
+            {relativeDays(daysUntil(event.datetime))}
+          </span>
+          {/* riga "highlight" — manca il campo dal parsing: per ora omessa */}
+          {/* TODO: backend — campo highlight dal parsing */}
+        </div>
         <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]"
-          style={{ background: C.iconChipBg }}
-          aria-hidden
+          className="grid flex-none place-items-center self-center"
+          style={{
+            width: 70,
+            height: 70,
+            borderRadius: "var(--r-md)",
+            background: "radial-gradient(120% 120% at 30% 20%, rgba(255,255,255,.15), rgba(255,255,255,.02))",
+            border: "1px solid rgba(255,255,255,.15)",
+          }}
         >
-          <Route size={18} strokeWidth={1.75} style={{ color: C.textTer }} />
+          <Icon className="size-9" style={{ filter: "drop-shadow(0 6px 11px rgba(0,0,0,.28))" }} />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-semibold" style={{ color: C.textSec }}>
-            I tuoi viaggi
-          </p>
-          <p className="mt-0.5 text-[13px]" style={{ color: C.textTer }}>
-            Presto: biglietti collegati raggruppati
-          </p>
-        </div>
-        <span
-          className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium"
-          style={{ background: C.iconChipBg, color: C.textTer }}
-        >
-          presto
+      </div>
+
+      {/* info */}
+      <div className="flex flex-col gap-[var(--s1)]" style={{ padding: "var(--s3)" }}>
+        <span style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-lg)", color: "var(--on-surface)", lineHeight: 1.25, letterSpacing: "-.01em" }}>
+          {event.title}
         </span>
+        {event.location && (
+          <span style={{ color: "var(--on-surface-2)", fontSize: "var(--fs-sm)" }}>{event.location}</span>
+        )}
+        <span className="tabular-nums" style={{ color: "var(--accent-strong)", fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)" }}>
+          {date} · {time}
+        </span>
+        <div className="flex gap-[var(--s2)]" style={{ marginTop: "var(--s3)" }}>
+          {/* TODO: backend — placeholder v15 */}
+          <HeroBtn variant="pri" Icon={primary.Icon} label={primary.label} />
+          {ghost && <HeroBtn variant="gho" Icon={ghost.Icon} label={ghost.label} />}
+        </div>
       </div>
     </div>
   );
 }
 
-function CategoryTile({
-  cat,
-  count,
-  onOpen,
-}: {
-  cat: BentoCategory;
-  count: number;
-  onOpen: () => void;
-}) {
-  const Icon = cat.icon;
+function HeroBtn({ variant, Icon, label }: { variant: "pri" | "gho"; Icon: LucideIcon; label: string }) {
+  const pri = variant === "pri";
   return (
     <button
       type="button"
-      onClick={onOpen}
-      className={`relative overflow-hidden rounded-[12px] p-2.5 text-left transition-transform active:scale-[0.98] ${cat.layout}`}
-      style={{ background: C.secCard, border: `1px solid ${C.secBorder}` }}
+      disabled
+      className="inline-flex items-center justify-center gap-[7px] disabled:opacity-100"
+      style={{
+        fontSize: "var(--fs-sm)",
+        fontWeight: "var(--fw-semi)",
+        minHeight: "var(--tap)",
+        padding: "0 16px",
+        borderRadius: "var(--r-sm)",
+        ...(pri
+          ? { background: "var(--keiko-grad)", color: "#fff", boxShadow: "var(--sh-btn)" }
+          : { background: "var(--inset)", color: "var(--on-surface)", border: "1px solid var(--inset-line)" }),
+      }}
     >
-      <Icon
-        size={40}
-        strokeWidth={1.5}
-        className="pointer-events-none absolute right-1 top-1"
-        style={{ color: C.iconChip, opacity: 0.18 }}
-        aria-hidden
-      />
-      <div className="relative flex h-full min-h-0 flex-col justify-end">
-        <div className="flex items-end justify-between gap-2">
-          <p className="text-[13px] font-bold leading-tight" style={{ color: C.text }}>
-            {cat.name}
-          </p>
-          <span
-            className="shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
-            style={{ background: C.iconChipBg, color: C.textSec }}
-          >
-            {count}
-          </span>
-        </div>
-      </div>
+      <Icon className="size-[17px]" />
+      {label}
     </button>
   );
 }
 
-function CategorySheet({
-  cat,
-  events,
-  onClose,
-  onRemoved,
-  onRestored,
-}: {
-  cat: BentoCategory;
-  events: Ticket[];
-  onClose: () => void;
-  onRemoved: (id: string) => void;
-  onRestored: (id: string) => void;
-}) {
-  const Icon = cat.icon;
-  const filtered = eventsForBento(cat, events);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  return (
-    <>
-      <motion.div
-        className="fixed inset-0 z-[60] bg-black/40"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="fixed inset-x-0 bottom-0 z-[70] mx-auto max-h-[70vh] max-w-lg overflow-hidden rounded-t-2xl"
-        style={{ background: C.bodyBg, border: `1px solid ${C.heroBorder}` }}
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ duration: 0.32, ease: splashEase }}
-      >
-        <div className="flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Icon size={18} style={{ color: C.iconChip }} />
-            <h3 className="text-[16px] font-semibold" style={{ color: C.text }}>
-              {cat.name}
-            </h3>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Chiudi">
-            <X size={18} style={{ color: C.textSec }} />
-          </button>
-        </div>
-        <div className="flex flex-col gap-2 overflow-y-auto px-4 pb-8" style={scrollStyle}>
-          {filtered.length === 0 ? (
-            <p className="py-6 text-center text-[13px]" style={{ color: C.textSec }}>
-              Nessun evento in questa categoria
-            </p>
-          ) : (
-            filtered.map((ev) => (
-              <SwipeEventRow
-                key={ev.id}
-                event={ev}
-                onRemoved={onRemoved}
-                onRestored={onRestored}
-                expanded={expandedId === ev.id}
-                onToggle={() => setExpandedId((p) => (p === ev.id ? null : ev.id))}
-              />
-            ))
-          )}
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-function TickerGroup({ events, groupKey }: { events: Ticket[]; groupKey: string }) {
-  return (
-    <>
-      <span className="flex shrink-0 items-center px-1" aria-hidden>
-        <OrCaMark size={18} />
-      </span>
-      {events.map((ev) => {
-        const Icon = iconForType(ev.type);
-        const date = tickerDate(ev.datetime);
-        return (
-          <span key={`${groupKey}-${ev.id}`} className="flex items-center gap-2.5">
-            <span className="flex items-center gap-1.5">
-              <Icon size={13} strokeWidth={1.75} style={{ color: C.textTer }} aria-hidden />
-              <span style={{ color: C.textSec }}>
-                {tickerTitle(ev.title)}
-                {date && <span style={{ color: C.textTer }}> · {date}</span>}
-              </span>
-            </span>
-            <span aria-hidden style={{ color: C.dashed }}>
-              ·
-            </span>
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
-function DepartureTicker({ events }: { events: Ticket[] }) {
-  if (events.length === 0) return null;
-
+function EmptyHero() {
   return (
     <div
-      className="relative mt-3 overflow-hidden py-2"
-      style={{
-        background: C.secCard,
-        borderTop: `1px solid ${C.secBorder}`,
-        borderBottom: `1px solid ${C.secBorder}`,
-      }}
+      className="text-center"
+      style={{ borderRadius: "var(--r-xl)", background: "var(--surface)", boxShadow: "var(--sh-card)", border: "1px solid var(--tile-line)", padding: "var(--s8) var(--s5)" }}
     >
-      <motion.div
-        className="relative flex w-max items-center gap-5 whitespace-nowrap px-4 text-[11px] font-normal tracking-normal"
-        animate={{ x: ["0%", "-50%"] }}
-        transition={{ duration: 31.5, repeat: Infinity, ease: "linear" }}
-      >
-        <TickerGroup events={events} groupKey="a" />
-        <TickerGroup events={events} groupKey="b" />
-      </motion.div>
+      <p style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-base)", color: "var(--on-surface)" }}>Nessun evento in arrivo</p>
+      <p className="mt-1" style={{ fontSize: "var(--fs-sm)", color: "var(--on-surface-2)" }}>
+        Tocca ＋ e dimmi tutto: ci penso io.
+      </p>
     </div>
   );
 }
 
-function AskOrCaBar() {
+/* ---------- Card piccola espandibile (stat-chips) ---------- */
+function EventCard({ event }: { event: Ticket }) {
+  const [open, setOpen] = useState(false);
+  const Icon = iconForType(event.type);
+  const { date, time } = dateTimeParts(event.datetime);
+  const days = daysUntil(event.datetime);
+
   return (
     <div
-      className="flex items-center gap-2 rounded-[16px] px-3 py-2"
-      style={{ background: C.askBg, border: `1px solid ${C.askBorder}` }}
+      className="overflow-hidden"
+      style={{ borderRadius: "var(--r-lg)", background: "var(--tile)", border: "1px solid var(--tile-line)", marginBottom: "var(--s3)" }}
     >
-      <span className="flex shrink-0 items-center" aria-hidden>
-        <OrCaMark size={23} />
-      </span>
-      <input
-        type="text"
-        readOnly
-        placeholder="Chiedi a OrCa…"
-        className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#6E737A]"
-        style={{ color: C.askText }}
-      />
       <button
         type="button"
-        aria-label="Invia"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]"
-        style={{ background: C.goldOnDark }}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-[var(--s3)] text-left"
+        style={{ padding: "var(--s3)" }}
       >
-        <ArrowUp size={16} strokeWidth={2.5} color={C.goldOnDarkText} />
-      </button>
-    </div>
-  );
-}
-
-function BottomBar() {
-  return (
-    <div
-      className="relative z-40 shrink-0"
-      style={{
-        background: `linear-gradient(180deg, ${C.chromeBotFrom} 0%, ${C.chromeBotTo} 100%)`,
-        borderTop: `1px solid ${C.chromeBorder}`,
-        // Reserve room for the single fixed bottom nav (components/BottomNav.tsx)
-        // so the "Chiedi a OrCa" bar is never covered by it on mobile/PWA.
-        paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))",
-      }}
-    >
-      <div
-        className="flex gap-2 overflow-x-auto px-4 pt-2"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {SUGGESTIONS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            className="shrink-0 whitespace-nowrap rounded-[20px] px-3.5 py-2 text-[13px] font-medium"
-            style={{ background: C.chip, border: `1px solid ${C.chipBorder}`, color: C.chipText }}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      <div className="px-4 pt-2">
-        <AskOrCaBar />
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center gap-3 px-4 py-20 text-center">
-      <OrCaMark size={64} />
-      <p className="text-sm font-semibold" style={{ color: C.text }}>
-        Nessun evento
-      </p>
-      <p className="text-xs" style={{ color: C.textSec }}>
-        Il calendario è vuoto per ora
-      </p>
-    </div>
-  );
-}
-
-export default function HomeView({ events }: { events: Ticket[] }) {
-  const [expanded, setExpanded] = useState(false);
-  const [openCategory, setOpenCategory] = useState<BentoCategory | null>(null);
-  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
-  const [showSplash, setShowSplash] = useState(true);
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
-
-  function toggleRow(id: string) {
-    setExpandedRowId((prev) => (prev === id ? null : id));
-  }
-
-  useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 2000);
-    return () => clearTimeout(t);
-  }, []);
-
-  const visibleEvents = events.filter((e) => !removedIds.has(e.id));
-  const [hero, ...upcoming] = visibleEvents;
-  const visibleCount = 4;
-  const collapsed = upcoming.slice(0, visibleCount);
-  const extra = upcoming.slice(visibleCount);
-
-  function markRemoved(id: string) {
-    setRemovedIds((prev) => new Set(prev).add(id));
-  }
-
-  function markRestored(id: string) {
-    setRemovedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }
-
-  return (
-    <div className={dmSans.variable} style={{ fontFamily: sans }}>
-      <div
-        className="mx-auto flex h-[100dvh] max-w-lg flex-col"
-        style={{ background: C.bodyBg, color: C.text }}
-      >
-        <FixedTopBar />
-
-        <main
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8"
-          style={{
-            ...scrollStyle,
-            background: `
-              radial-gradient(115% 60% at 0% 0%, rgba(24,72,80,0.06), transparent 55%),
-              radial-gradient(120% 70% at 100% 100%, rgba(120,168,200,0.08), transparent 58%),
-              ${C.bodyBg}
-            `,
-          }}
+        <span className="grid flex-none place-items-center text-white" style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: catTint(event.type) }}>
+          <Icon className="size-6" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate" style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>
+            {event.title}
+          </div>
+          <div className="tabular-nums" style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>
+            {eventLine(event)}
+          </div>
+        </div>
+        <span
+          className="flex-none tabular-nums"
+          style={{ fontSize: "var(--fs-cap)", fontWeight: "var(--fw-bold)", color: "var(--app-text)", background: "color-mix(in srgb, var(--app-2) 22%, transparent)", padding: "5px 10px", borderRadius: "var(--r-pill)" }}
         >
-          {visibleEvents.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <>
-              {hero && (
-                <HeroEventCard event={hero} onRemoved={markRemoved} onRestored={markRestored} />
-              )}
+          {days} g
+        </span>
+        <ChevronDown
+          className="size-[18px] flex-none transition-transform duration-200"
+          style={{ color: "var(--app-faint)", transform: open ? "rotate(180deg)" : "none" }}
+        />
+      </button>
 
-              {upcoming.length > 0 && <DepartureTicker events={upcoming.slice(0, 4)} />}
-
-              {upcoming.length > 0 && (
-                <div className="px-4 pt-6">
-                  <h3 className="mb-3 text-[16px] font-semibold" style={{ color: C.text }}>
-                    Prossimi eventi
-                  </h3>
-                  <div className="flex flex-col gap-2">
-                    {collapsed.map((ev) => (
-                      <SwipeEventRow
-                        key={ev.id}
-                        event={ev}
-                        onRemoved={markRemoved}
-                        onRestored={markRestored}
-                        expanded={expandedRowId === ev.id}
-                        onToggle={() => toggleRow(ev.id)}
-                      />
-                    ))}
-                  </div>
-                  {extra.length > 0 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setExpanded((v) => !v)}
-                        className="mt-2 flex w-full items-center justify-center gap-1 rounded-[12px] py-2.5"
-                        style={{ background: C.secCard, border: `1px solid ${C.secBorder}` }}
-                        aria-expanded={expanded}
-                      >
-                        <span className="text-[12px] font-medium" style={{ color: C.textSec }}>
-                          {expanded ? "Comprimi" : `Altri ${extra.length}`}
-                        </span>
-                        <motion.span
-                          animate={{ rotate: expanded ? 180 : 0 }}
-                          transition={{ duration: 0.25 }}
-                        >
-                          <ChevronDown size={14} style={{ color: C.textSec }} />
-                        </motion.span>
-                      </button>
-                      <AnimatePresence>
-                        {expanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3, ease: splashEase }}
-                            className="overflow-hidden"
-                          >
-                            <div className="flex flex-col gap-2 pt-1">
-                              {extra.map((ev) => (
-                                <SwipeEventRow
-                                  key={ev.id}
-                                  event={ev}
-                                  onRemoved={markRemoved}
-                                  onRestored={markRestored}
-                                  expanded={expandedRowId === ev.id}
-                                  onToggle={() => toggleRow(ev.id)}
-                                />
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </>
-                  )}
-                </div>
-              )}
-
-              <TripsPlaceholder />
-
-              <div className="px-4 pt-6 pb-2">
-                <h3 className="mb-3 text-[16px] font-semibold" style={{ color: C.text }}>
-                  Le tue categorie
-                </h3>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {BENTO_CATEGORIES.filter(
-                    (cat) => eventsForBento(cat, visibleEvents).length > 0,
-                  ).map((cat) => (
-                    <CategoryTile
-                      key={cat.id}
-                      cat={cat}
-                      count={eventsForBento(cat, visibleEvents).length}
-                      onOpen={() => setOpenCategory(cat)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </main>
-
-        <BottomBar />
-      </div>
-
-      <AnimatePresence>
-        {openCategory && (
-          <CategorySheet
-            cat={openCategory}
-            events={visibleEvents}
-            onClose={() => setOpenCategory(null)}
-            onRemoved={markRemoved}
-            onRestored={markRestored}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>{showSplash && <SplashScreen />}</AnimatePresence>
+      {open && (
+        <div style={{ margin: "0 var(--s3) var(--s3)", background: "var(--surface)", borderRadius: "var(--r-md)", padding: "var(--s3)" }}>
+          <div className="flex gap-[var(--s2)]">
+            <Stat k="Data" v={date} />
+            <Stat k="Ora" v={time} />
+            <Stat k="Luogo" v={event.location || "—"} />
+          </div>
+          {/* TODO: backend — placeholder v15 (no QR/biglietto reale) */}
+          <button
+            type="button"
+            disabled
+            className="mt-[var(--s3)] inline-flex w-full items-center justify-center gap-[7px] text-white disabled:opacity-100"
+            style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", minHeight: "var(--tap)", borderRadius: "var(--r-sm)", background: "var(--keiko-grad)", boxShadow: "var(--sh-btn)" }}
+          >
+            <QrCode className="size-[17px]" /> Mostra biglietto
+          </button>
+        </div>
+      )}
     </div>
+  );
+}
+
+function Stat({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex-1 text-center" style={{ background: "var(--inset)", borderRadius: "var(--r-sm)", padding: "10px 8px" }}>
+      <div className="uppercase" style={{ fontSize: "10.5px", fontWeight: "var(--fw-med)", color: "var(--on-surface-2)", letterSpacing: ".02em" }}>
+        {k}
+      </div>
+      <div className="truncate tabular-nums" style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-bold)", color: "var(--on-surface)", marginTop: 3 }}>
+        {v}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Riga "To-do di oggi" (apre l'overlay di oggi) ---------- */
+function TodoRow({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-[var(--s3)] text-left"
+      style={{ background: "var(--tile)", border: "1px solid var(--tile-line)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
+    >
+      <span
+        className="grid flex-none place-items-center"
+        style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: "color-mix(in srgb, var(--primary) 18%, transparent)", color: "var(--accent-strong)" }}
+      >
+        <CheckSquare className="size-5" />
+      </span>
+      <div className="flex-1">
+        <div style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>To-do di oggi</div>
+        <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>Tocca un giorno per vederle</div>
+      </div>
+      <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />
+    </button>
+  );
+}
+
+/* ---------- Overlay to-do del giorno (UI inerte) ---------- */
+function TodoOverlay({ day, onClose }: { day: WeekDay; onClose: () => void }) {
+  const titleDate = new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric" }).format(day.date);
+  const cap = titleDate.charAt(0).toUpperCase() + titleDate.slice(1);
+  const pending = MOCK_TODOS.filter((t) => !t.done).length;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ background: "var(--scrim)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+      <div
+        className="fixed z-50"
+        style={{ left: "var(--gutter)", right: "var(--gutter)", top: 118, background: "var(--surface)", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-pop)", padding: "var(--s4)" }}
+        role="dialog"
+        aria-label={`To-do ${cap}`}
+      >
+        <div className="flex items-center justify-between" style={{ marginBottom: "var(--s2)" }}>
+          <span style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-base)", color: "var(--on-surface)", letterSpacing: "-.02em" }}>
+            {cap} · to-do
+          </span>
+          <span
+            style={{ fontSize: "11px", fontWeight: "var(--fw-bold)", color: "var(--accent-strong)", background: "color-mix(in srgb, var(--primary) 16%, transparent)", padding: "4px 10px", borderRadius: "var(--r-pill)" }}
+          >
+            {pending} da fare
+          </span>
+        </div>
+
+        {/* Righe d'esempio — SOLO UI, nessuna spunta/salvataggio reale */}
+        {MOCK_TODOS.map((t) => (
+          <div key={t.id} className="flex items-center gap-[var(--s3)]" style={{ padding: "11px 0", borderTop: "1px solid var(--inset-line)" }}>
+            <span
+              className="grid flex-none place-items-center"
+              style={{ width: 23, height: 23, borderRadius: "var(--r-pill)", border: "2px solid var(--accent-strong)", background: t.done ? "var(--primary)" : "transparent", color: "#fff" }}
+            >
+              {t.done && <Check className="size-3" />}
+            </span>
+            <span
+              style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-med)", color: t.done ? "var(--on-surface-2)" : "var(--on-surface)", textDecoration: t.done ? "line-through" : "none" }}
+            >
+              {t.text}
+            </span>
+            {t.star && <Star className="ml-auto size-[17px]" style={{ color: "var(--warm)" }} />}
+          </div>
+        ))}
+
+        {/* Aggiungi to-do — VUOTO (nessun backend) */}
+        {/* TODO: backend — placeholder v15 */}
+        <button
+          type="button"
+          disabled
+          className="flex items-center gap-[var(--s3)] disabled:opacity-100"
+          style={{ padding: "12px 0 2px", borderTop: "1px solid var(--inset-line)", color: "var(--accent-strong)", fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)" }}
+        >
+          <span className="grid place-items-center text-white" style={{ width: 23, height: 23, borderRadius: "var(--r-pill)", background: "var(--keiko-grad)" }}>
+            <Plus className="size-3.5" />
+          </span>
+          Ricordami di…
+        </button>
+      </div>
+    </>
   );
 }

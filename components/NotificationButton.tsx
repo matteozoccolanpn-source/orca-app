@@ -28,8 +28,8 @@ async function enableNotifications(): Promise<boolean> {
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
     if (isIos) {
       alert(
-        "Su iPhone le notifiche funzionano solo se OrCa è installata.\n\n" +
-        "Tocca Condividi → “Aggiungi a Home” → apri OrCa dalla Home."
+        'Su iPhone le notifiche funzionano solo se Keiko è installata.\n\n' +
+        'Tocca Condividi → “Aggiungi a Home” → apri Keiko dalla Home.'
       );
     } else {
       alert("Notifiche non supportate su questo browser.");
@@ -65,7 +65,7 @@ async function enableNotifications(): Promise<boolean> {
   return false;
 }
 
-export default function NotificationButton() {
+export default function NotificationButton({ compact = false }: { compact?: boolean }) {
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -107,20 +107,37 @@ export default function NotificationButton() {
     }
   }
 
+  if (compact) {
+    // Icona "nuda" coerente con le altre dell'appbar (Cerca/Tema/Logout).
+    return (
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        aria-label={active ? "Notifiche attive" : "Attiva notifiche"}
+        title={active ? "Notifiche attive" : "Attiva notifiche"}
+        className="grid place-items-center transition-transform duration-200 ease-out active:scale-95 disabled:opacity-50"
+        style={{
+          width: "var(--tap)",
+          height: "var(--tap)",
+          margin: -12,
+          color: active ? "var(--accent-strong)" : "var(--app-2)",
+        }}
+      >
+        <Bell className="size-[21px]" fill={active ? "currentColor" : "none"} />
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={handleClick}
       disabled={loading}
       aria-label={active ? "Notifiche attive" : "Attiva notifiche"}
       title={active ? "Notifiche attive" : "Attiva notifiche"}
-      className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-wider transition-colors disabled:opacity-50"
-      style={
-        active
-          ? { borderColor: "rgba(216,188,98,0.5)", color: "#D8BC62", background: "rgba(216,188,98,0.08)" }
-          : { borderColor: "rgba(255,255,255,0.08)", color: "rgba(138,144,128,0.6)", background: "rgba(255,255,255,0.03)" }
-      }
+      className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-wider transition-colors disabled:opacity-50 border-border/40 text-muted-foreground/60 bg-white/[0.03] data-[active=true]:border-primary/50 data-[active=true]:text-primary data-[active=true]:bg-primary/10"
+      data-active={active || undefined}
     >
-      <Bell className="size-3.5" fill={active ? "#D8BC62" : "none"} />
+      <Bell className={`size-3.5 ${active ? "fill-primary text-primary" : ""}`} />
       {loading ? "…" : active ? "On" : "Off"}
     </button>
   );

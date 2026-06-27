@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Plus, CalendarDays, User } from "lucide-react";
+import { Home, Wallet, Plus, LayoutGrid, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import CaptureSheet from "@/components/CaptureSheet";
 
 interface Tab {
   href: string;
@@ -13,61 +15,78 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { href: "/",         icon: Home,         label: "Home" },
-  { href: "/search",   icon: Search,       label: "Cerca" },
-  { href: "/add",      icon: Plus,         label: "Aggiungi", isCenter: true },
-  { href: "/calendar", icon: CalendarDays, label: "Calendario" },
-  { href: "/profile",  icon: User,         label: "Profilo" },
+  { href: "/",         icon: Home,       label: "Home" },
+  { href: "/search",   icon: Wallet,     label: "Wallet" },
+  { href: "/add",      icon: Plus,       label: "Aggiungi", isCenter: true },
+  { href: "/calendar", icon: LayoutGrid, label: "Categorie" },
+  { href: "/profile",  icon: User,       label: "Profilo" },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
+  // Il ＋ centrale apre la sheet di cattura (non naviga più a /add).
+  const [capture, setCapture] = useState(false);
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-white/[0.06] bg-black/60 px-2 backdrop-blur-2xl backdrop-saturate-150"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
-      {tabs.map((tab) => {
-        const isActive = pathname === tab.href;
-        const Icon = tab.icon;
+    <>
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 flex items-end justify-around backdrop-blur-2xl backdrop-saturate-150"
+        style={{
+          background: "var(--bar)",
+          borderTop: "1px solid var(--bar-line)",
+          padding: "10px var(--s5) calc(14px + env(safe-area-inset-bottom))",
+        }}
+        aria-label="Navigazione principale"
+      >
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = pathname === tab.href;
 
-        if (tab.isCenter) {
+          // FAB centrale "Aggiungi" — rialzato, apre la cattura
+          if (tab.isCenter) {
+            return (
+              <button
+                key={tab.href}
+                type="button"
+                onClick={() => setCapture(true)}
+                aria-label={tab.label}
+                className="flex flex-col items-center gap-[3px]"
+                style={{ minWidth: "var(--tap)" }}
+              >
+                <span
+                  className="flex items-center justify-center rounded-full text-white"
+                  style={{
+                    width: 52,
+                    height: 52,
+                    marginTop: -18,
+                    background: "var(--keiko-grad)",
+                    boxShadow: "0 13px 26px -8px rgba(95, 71, 214, .55)",
+                  }}
+                >
+                  <Icon className="size-6" />
+                </span>
+                <span className="text-[11px] font-medium" style={{ color: "var(--accent-strong)" }}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          }
+
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              aria-label={tab.label}
-              className="relative -top-3 flex size-12 flex-shrink-0 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
-              style={{ backgroundColor: "#D8BC62", boxShadow: "0 4px 14px rgba(216, 188, 98, 0.35)" }}
+              aria-current={isActive ? "page" : undefined}
+              className="flex flex-col items-center gap-[3px] transition-colors duration-200 ease-out active:scale-95"
+              style={{ minWidth: "var(--tap)", color: isActive ? "var(--accent-strong)" : "var(--app-faint)" }}
             >
-              <Icon className="size-5" style={{ color: "#1C1408" }} />
+              <Icon className="size-[22px]" />
+              <span className="text-[11px] font-medium">{tab.label}</span>
             </Link>
           );
-        }
-
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            aria-label={tab.label}
-            className="flex flex-1 flex-col items-center gap-0.5 py-2"
-          >
-            <Icon
-              className="size-5 transition-colors"
-              style={{ color: isActive ? "#D8BC62" : "#6A727B" }}
-            />
-            <span
-              className={`text-[10px] font-medium tracking-wide transition-colors ${
-                isActive ? "" : "opacity-0"
-              }`}
-              style={{ color: isActive ? "#D8BC62" : "#6A727B" }}
-            >
-              {tab.label}
-            </span>
-          </Link>
-        );
-      })}
-    </nav>
+        })}
+      </nav>
+      <CaptureSheet open={capture} onClose={() => setCapture(false)} />
+    </>
   );
 }

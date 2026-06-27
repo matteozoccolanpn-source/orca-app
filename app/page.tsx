@@ -1,33 +1,15 @@
 import HomeView from "./components/HomeView";
-import RefreshButton from "./components/RefreshButton";
-import NotificationButton from "@/components/NotificationButton";
 import { getUpcomingTickets } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
 export default async function Home() {
   const events = await getUpcomingTickets();
 
-  return (
-    <>
-      <div className="fixed top-3 right-3 z-[60] flex items-center gap-3">
-        <NotificationButton />
-        <RefreshButton />
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-        >
-          <button
-            type="submit"
-            className="text-[10px] uppercase tracking-wider text-[#8a9080]/60 transition-colors hover:text-[#8a9080]"
-          >
-            Logout
-          </button>
-        </form>
-      </div>
+  // Server action passata all'appbar della Home per il logout discreto.
+  async function logout() {
+    "use server";
+    await signOut({ redirectTo: "/login" });
+  }
 
-      <HomeView events={events} />
-    </>
-  );
+  return <HomeView events={events} logoutAction={logout} />;
 }
