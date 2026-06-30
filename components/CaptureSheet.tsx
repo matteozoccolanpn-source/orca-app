@@ -104,10 +104,14 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
 
   if (!open) return null;
   const busy = state === "parsing" || state === "saving";
+  // Mentre leggo o salvo (busy) o mentre sei sul form di conferma ("confirming"),
+  // il tocco sullo sfondo NON deve chiudere: altrimenti l'evento appena letto si
+  // perde prima del "Salva". Per uscire restano la X e il bottone "Annulla".
+  const lockClose = busy || state === "confirming";
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 backdrop-blur-sm" style={{ background: "var(--scrim)" }} onClick={busy ? undefined : close} />
+      <div className="absolute inset-0 backdrop-blur-sm" style={{ background: "var(--scrim)" }} onClick={lockClose ? undefined : close} />
       <motion.div
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
