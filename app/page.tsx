@@ -2,6 +2,11 @@ import HomeView from "./components/HomeView";
 import { getUpcomingTickets } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
+// La home deve SEMPRE leggere i dati freschi da Supabase: senza questo, Next.js
+// può servire una versione in cache e gli eventi appena aggiunti non compaiono
+// finché non si forza un ricaricamento. (Causa del "sembra non salvato".)
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const events = await getUpcomingTickets();
 
