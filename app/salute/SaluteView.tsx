@@ -17,6 +17,11 @@ import {
 import type { DietWeek } from "@/lib/supabase";
 import { DAY_ORDER, DAY_FULL, todayDietKey, MealRow } from "@/app/components/DietMeal";
 
+// Salva nel piano lo scambio di un alimento su una precisa opzione
+// (giorno → indice pasto → indice opzione). Vive qui perché SaluteView ha
+// la settimana intera. Riusa /api/diet/save (che chiama saveDietPlan).
+type CommitSwap = (day: string, mealIndex: number, optionIndex: number, newText: string) => Promise<void>;
+
 type State = "idle" | "parsing" | "success" | "error";
 
 export default function SaluteView({
@@ -77,6 +82,26 @@ export default function SaluteView({
       setState("error");
     }
   }
+
+  const commitSwap: CommitSwap = async (day, mealIndex, optionIndex, newText) => {
+    if (!week) return;
+    const newWeek: DietWeek = structuredClone(week);
+    const meal = newWeek[day]?.[mealIndex];
+    if (!meal || !Array.isArray(meal.opzioni) || optionIndex >= meal.opzioni.length) return;
+    meal.opzioni[optionIndex] = newText;
+    const res = await fetch("/api/diet/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ week: newWeek }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(data.error || "Salvataggio non riuscito");
+      throw new Error("save failed"); // MealRow tiene il testo temporaneo
+    }
+    router.refresh();
+  };
 
   async function handleDelete() {
     if (!window.confirm("Eliminare la dieta salvata? L'azione non si può annullare.")) return;
@@ -276,7 +301,7 @@ export default function SaluteView({
             </div>
 
             {daysWithMeals.map((k, i) => (
-              <DayCard key={k} dayKey={k} meals={week![k]} isToday={k === todayKey} index={i} />
+              <DayCard key={k} dayKey={k} meals={week![k]} isToday={k === todayKey} index={i} onCommit={commitSwap} />
             ))}
 
             {/* Elimina la dieta salvata */}
@@ -374,11 +399,13 @@ function DayCard({
   meals,
   isToday,
   index,
+  onCommit,
 }: {
   dayKey: string;
   meals: import("@/lib/supabase").DietMeal[];
   isToday: boolean;
   index: number;
+  onCommit: CommitSwap;
 }) {
   return (
     <motion.section
@@ -423,7 +450,11 @@ function DayCard({
       </div>
       <div className="flex flex-col gap-[var(--s2)]">
         {meals.map((meal, i) => (
-          <MealRow key={i} meal={meal} />
+          <MealRow
+            key={i}
+            meal={meal}
+            onCommit={(optionIndex, newText) => onCommit(dayKey, i, optionIndex, newText)}
+          />
         ))}
       </div>
     </motion.section>
