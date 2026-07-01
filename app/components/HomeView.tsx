@@ -23,9 +23,11 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { Salad } from "lucide-react";
-import type { Ticket, DietWeek } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import { Salad, Dumbbell, Moon } from "lucide-react";
+import type { Ticket, DietWeek, WorkoutWeek } from "@/lib/supabase";
 import { MealRow, todayDietKey, DAY_FULL } from "./DietMeal";
+import { ExerciseRow, todayISO } from "./WorkoutDay";
 import NotificationButton from "@/components/NotificationButton";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -159,10 +161,14 @@ function buildWeek(from: Date): WeekDay[] {
 export default function HomeView({
   events,
   diet,
+  workout,
+  trainedDays = [],
   logoutAction,
 }: {
   events: Ticket[];
   diet?: DietWeek | null;
+  workout?: WorkoutWeek | null;
+  trainedDays?: string[];
   logoutAction?: () => Promise<void>;
 }) {
   const today = useMemo(() => new Date(), []);
@@ -260,6 +266,9 @@ export default function HomeView({
 
           <Lead className="mt-[var(--sec)]">Dieta oggi</Lead>
           <DietToday diet={diet} />
+
+          <Lead className="mt-[var(--sec)]">Allenamento oggi</Lead>
+          <WorkoutToday workout={workout} trainedDays={trainedDays} />
 
           <Lead className="mt-[var(--sec)]">Oggi</Lead>
           <TodoRow onOpen={() => todayWD && setOpenDay(todayWD)} />
@@ -635,6 +644,147 @@ function DietToday({ diet }: { diet?: DietWeek | null }) {
             style={{ fontSize: "var(--fs-xs)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
           >
             Vedi tutta la settimana
+            <ChevronRight className="size-[15px]" />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Allenamento di oggi (estraibile, con "fatto oggi") ---------- */
+function WorkoutToday({ workout, trainedDays }: { workout?: WorkoutWeek | null; trainedDays: string[] }) {
+  const router = useRouter();
+  const today = workout?.[todayDietKey()];
+  const iso = todayISO();
+  const hasPlan =
+    !!workout && Object.values(workout).some((d) => (d?.esercizi?.length ?? 0) > 0);
+
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState(trainedDays.includes(iso));
+  const [saving, setSaving] = useState(false);
+
+  // Nessuna scheda: accenno discreto verso /allenamento.
+  if (!hasPlan) {
+    return (
+      <Link
+        href="/allenamento"
+        className="flex w-full items-center gap-[var(--s3)] text-left transition-transform duration-200 active:scale-[0.99]"
+        style={{ background: "var(--tile)", border: "1px solid var(--tile-line)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
+      >
+        <span
+          className="grid flex-none place-items-center"
+          style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: "color-mix(in srgb, var(--primary) 18%, transparent)", color: "var(--accent-strong)" }}
+        >
+          <Dumbbell className="size-5" />
+        </span>
+        <div className="flex-1">
+          <div style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>
+            Aggiungi il tuo allenamento
+          </div>
+          <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>
+            Carica la scheda una volta sola
+          </div>
+        </div>
+        <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />
+      </Link>
+    );
+  }
+
+  const esercizi = today?.esercizi ?? [];
+  const rest = esercizi.length === 0;
+
+  async function toggleDone() {
+    const willBe = !done;
+    setDone(willBe);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/workout/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ day: iso, done: willBe }),
+      });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      setDone(!willBe);
+      window.alert("Non sono riuscito a salvare, riprova");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="overflow-hidden"
+      style={{ background: "var(--surface)", border: "1px solid var(--tile-line)", boxShadow: "var(--sh-card)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 transition-transform duration-200 active:scale-[0.99]"
+      >
+        <span
+          className="grid flex-none place-items-center"
+          style={{ width: 30, height: 30, borderRadius: "var(--r-sm)", background: "color-mix(in srgb, var(--primary) 16%, transparent)", color: "var(--accent-strong)" }}
+        >
+          <Dumbbell className="size-[17px]" />
+        </span>
+        <span style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-sm)", color: "var(--on-surface)", letterSpacing: "-.01em" }}>
+          {rest ? "Riposo" : today?.titolo || "Allenamento"}
+        </span>
+        {done && (
+          <span
+            className="inline-flex items-center gap-1"
+            style={{ fontSize: "10.5px", fontWeight: "var(--fw-bold)", color: "var(--green)" }}
+          >
+            <Check className="size-3.5" /> fatto
+          </span>
+        )}
+        <ChevronDown
+          className="ml-auto size-[18px] flex-none transition-transform duration-200"
+          style={{ color: "var(--app-faint)", transform: open ? "rotate(180deg)" : "none" }}
+        />
+      </button>
+
+      {open && (
+        <div className="mt-[var(--s3)] flex flex-col gap-[var(--s2)]">
+          {rest ? (
+            <div className="flex items-center gap-2" style={{ color: "var(--on-surface-3)" }}>
+              <Moon className="size-4" />
+              <span style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-med)" }}>Oggi è giorno di riposo</span>
+            </div>
+          ) : (
+            esercizi.map((ex, i) => <ExerciseRow key={i} nome={ex.nome} dettaglio={ex.dettaglio} />)
+          )}
+
+          <button
+            type="button"
+            onClick={toggleDone}
+            disabled={saving}
+            className="mt-[var(--s1)] flex w-full items-center justify-center gap-2 transition-transform duration-200 active:scale-[0.98] disabled:opacity-60"
+            style={{
+              minHeight: "var(--tap)",
+              borderRadius: "var(--r-sm)",
+              fontSize: "var(--fs-sm)",
+              fontWeight: "var(--fw-semi)",
+              ...(done
+                ? { background: "var(--inset)", border: "1px solid var(--inset-line)", color: "var(--on-surface-2)" }
+                : { background: "var(--keiko-grad)", color: "#fff", boxShadow: "var(--sh-btn)" }),
+            }}
+          >
+            <Check className="size-[17px]" />
+            {done ? "Allenamento fatto ✓" : "Segna come fatto"}
+          </button>
+
+          <Link
+            href="/allenamento"
+            className="mt-[var(--s1)] flex items-center justify-center gap-1"
+            style={{ fontSize: "var(--fs-xs)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
+          >
+            Vedi tutta la scheda
             <ChevronRight className="size-[15px]" />
           </Link>
         </div>

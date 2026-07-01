@@ -170,3 +170,81 @@ export async function deleteDietPlan(): Promise<void> {
     .neq("id", "00000000-0000-0000-0000-000000000000");
   if (error) throw new Error(error.message);
 }
+
+/* ===================== ALLENAMENTO ===================== */
+// Stesso schema della dieta: il piano è un'unica riga (app single-user) con la
+// settimana in JSON. Il monitoraggio ("mi sono allenato oggi") sta in una
+// seconda tabella, una riga per giorno allenato.
+//
+// week = { "lun": { titolo, esercizi: [{ nome, dettaglio }] }, ... , "dom": {...} }
+// Giorno di riposo = esercizi: [].
+
+export type WorkoutExercise = { nome: string; dettaglio: string };
+export type WorkoutDay = { titolo?: string; esercizi: WorkoutExercise[] };
+export type WorkoutWeek = Record<string, WorkoutDay>;
+export interface WorkoutPlan {
+  week: WorkoutWeek;
+  updatedAt: string | null;
+}
+
+/** Legge la scheda salvata (la riga più recente). null se non c'è ancora. */
+export async function getWorkoutPlan(): Promise<WorkoutPlan | null> {
+  const { data, error } = await admin()
+    .from("workout_plan")
+    .select("week, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Supabase: failed to fetch workout plan:", error.message);
+    return null;
+  }
+  if (!data) return null;
+  return {
+    week: (data.week as WorkoutWeek) ?? {},
+    updatedAt: (data.updated_at as string) ?? null,
+  };
+}
+
+/** Sostituisce la scheda: cancella la vecchia riga e ne scrive una nuova. */
+export async function saveWorkoutPlan(week: WorkoutWeek): Promise<void> {
+  const client = admin();
+  // Delete richiede un filtro: prendo tutte le righe con updated_at non nullo.
+  await client.from("workout_plan").delete().not("updated_at", "is", null);
+  const { error } = await client.from("workout_plan").insert({ week });
+  if (error) throw new Error(error.message);
+}
+
+/** Elimina la scheda salvata (svuota la tabella). */
+export async function deleteWorkoutPlan(): Promise<void> {
+  const { error } = await admin()
+    .from("workout_plan")
+    .delete()
+    .not("updated_at", "is", null);
+  if (error) throw new Error(error.message);
+}
+
+/** Date (YYYY-MM-DD) dei giorni in cui l'utente si è allenato. */
+export async function getTrainedDays(): Promise<string[]> {
+  const { data, error } = await admin().from("workout_log").select("day");
+  if (error) {
+    console.error("Supabase: failed to fetch trained days:", error.message);
+    return [];
+  }
+  return (data ?? [])
+    .map((row) => (row.day as string) ?? "")
+    .filter(Boolean);
+}
+
+/** Segna/desegna un giorno come allenato. done=true → upsert; false → delete. */
+export async function setTrainedDay(day: string, done: boolean): Promise<void> {
+  const client = admin();
+  if (done) {
+    const { error } = await client.from("workout_log").upsert({ day }, { onConflict: "day" });
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await client.from("workout_log").delete().eq("day", day);
+    if (error) throw new Error(error.message);
+  }
+}

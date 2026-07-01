@@ -1,5 +1,5 @@
 import HomeView from "./components/HomeView";
-import { getUpcomingTickets, getDietPlan } from "@/lib/supabase";
+import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
 // La home deve SEMPRE leggere i dati freschi da Supabase: senza questo, Next.js
@@ -8,7 +8,12 @@ import { signOut } from "@/auth";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [events, diet] = await Promise.all([getUpcomingTickets(), getDietPlan()]);
+  const [events, diet, workout, trainedDays] = await Promise.all([
+    getUpcomingTickets(),
+    getDietPlan(),
+    getWorkoutPlan(),
+    getTrainedDays(),
+  ]);
 
   // Server action passata all'appbar della Home per il logout discreto.
   async function logout() {
@@ -16,5 +21,13 @@ export default async function Home() {
     await signOut({ redirectTo: "/login" });
   }
 
-  return <HomeView events={events} diet={diet?.week ?? null} logoutAction={logout} />;
+  return (
+    <HomeView
+      events={events}
+      diet={diet?.week ?? null}
+      workout={workout?.week ?? null}
+      trainedDays={trainedDays}
+      logoutAction={logout}
+    />
+  );
 }

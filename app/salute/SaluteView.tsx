@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { DietWeek } from "@/lib/supabase";
 import { DAY_ORDER, DAY_FULL, todayDietKey, MealRow } from "@/app/components/DietMeal";
+import HealthTabs from "@/app/components/HealthTabs";
 
 // Salva nel piano lo scambio di un alimento su una precisa opzione
 // (giorno → indice pasto → indice opzione). Vive qui perché SaluteView ha
@@ -124,6 +125,9 @@ export default function SaluteView({
   return (
     <div className="relative mx-auto min-h-[100dvh] w-full max-w-lg">
       <div style={{ padding: "var(--s3) var(--gutter) calc(env(safe-area-inset-bottom) + 150px)" }}>
+        <div className="pt-[var(--s2)]">
+          <HealthTabs active="salute" />
+        </div>
         {/* ---------- Intestazione ---------- */}
         <header className="pb-[var(--s2)] pt-[var(--s3)]">
           <div
