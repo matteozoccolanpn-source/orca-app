@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { saveDietPlan, type DietWeek } from '@/lib/supabase'
 
+// Diete lunghe = lettura lenta: diamo alla funzione fino a 60s prima del timeout.
+export const maxDuration = 60
+
 // Legge una dieta da foto multiple + PDF + testo, la fa strutturare a Claude
 // (stesso modello del flusso eventi) e la salva. Auth-guarded come /api/upload.
 export async function POST(req: NextRequest) {
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
-      max_tokens: 8192,
+      max_tokens: 16000,
       messages: [{ role: 'user', content }],
     }),
   })
@@ -67,20 +70,26 @@ export async function POST(req: NextRequest) {
   if (!claudeRes.ok) {
     const err = await claudeRes.text()
     console.error('Claude API error (diet):', err)
-    return NextResponse.json({ error: 'Claude API failed' }, { status: 502 })
+    return NextResponse.json({ error: 'Claude non ha risposto: ' + err.slice(0, 200) }, { status: 502 })
   }
 
   const claudeData = await claudeRes.json()
   const rawText = claudeData.content?.[0]?.text ?? ''
+  const troncata = claudeData.stop_reason === 'max_tokens'
 
   let parsed: { week: DietWeek; haGiorni?: boolean; note?: string }
   try {
     const clean = rawText.replace(/```json|```/g, '').trim()
     parsed = JSON.parse(clean)
   } catch {
-    console.error('Diet parse failed:', rawText)
+    console.error('Diet parse failed. stop_reason=', claudeData.stop_reason, 'len=', rawText.length)
     return NextResponse.json(
-      { error: 'Non sono riuscito a leggere la dieta', raw: rawText },
+      {
+        error: troncata
+          ? 'La dieta è troppo lunga da leggere in un colpo: prova a caricarne una parte per volta (meno giorni).'
+          : 'Non sono riuscito a leggere la dieta.',
+        raw: rawText.slice(0, 500),
+      },
       { status: 422 }
     )
   }
@@ -93,7 +102,8 @@ export async function POST(req: NextRequest) {
     await saveDietPlan(parsed.week)
   } catch (e) {
     console.error('Diet save error:', e)
-    return NextResponse.json({ error: 'Salvataggio fallito' }, { status: 502 })
+    const msg = e instanceof Error ? e.message : 'errore sconosciuto'
+    return NextResponse.json({ error: 'Salvataggio fallito: ' + msg }, { status: 502 })
   }
 
   return NextResponse.json({
