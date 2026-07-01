@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import type { DietWeek } from "@/lib/supabase";
 import { DAY_ORDER, DAY_FULL, todayDietKey, MealRow } from "@/app/components/DietMeal";
@@ -31,6 +32,7 @@ export default function SaluteView({
   const [state, setState] = useState<State>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [note, setNote] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const imgRef = useRef<HTMLInputElement | null>(null);
   const pdfRef = useRef<HTMLInputElement | null>(null);
 
@@ -73,6 +75,24 @@ export default function SaluteView({
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Qualcosa è andato storto");
       setState("error");
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm("Eliminare la dieta salvata? L'azione non si può annullare.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/diet/delete", { method: "POST", credentials: "include" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Eliminazione fallita");
+      }
+      router.refresh();
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Eliminazione fallita");
+      setState("error");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -258,6 +278,26 @@ export default function SaluteView({
             {daysWithMeals.map((k, i) => (
               <DayCard key={k} dayKey={k} meals={week![k]} isToday={k === todayKey} index={i} />
             ))}
+
+            {/* Elimina la dieta salvata */}
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="mt-[var(--s3)] flex w-full items-center justify-center gap-2 transition-transform duration-200 active:scale-[0.98] disabled:opacity-50"
+              style={{
+                minHeight: "var(--tap)",
+                borderRadius: "var(--r-sm)",
+                border: "1px solid color-mix(in srgb, var(--destructive) 35%, transparent)",
+                color: "var(--destructive)",
+                fontSize: "var(--fs-sm)",
+                fontWeight: "var(--fw-semi)",
+                background: "transparent",
+              }}
+            >
+              <Trash2 className="size-[17px]" />
+              {deleting ? "Elimino…" : "Elimina dieta"}
+            </button>
           </>
         ) : (
           <EmptyState />

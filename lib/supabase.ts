@@ -161,3 +161,12 @@ export async function saveDietPlan(week: DietWeek): Promise<void> {
   const { error } = await client.from("diet_plan").insert({ user_id: null, week });
   if (error) throw new Error(error.message);
 }
+
+/** Elimina il piano dieta salvato (svuota la tabella). */
+export async function deleteDietPlan(): Promise<void> {
+  const { error } = await admin()
+    .from("diet_plan")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+  if (error) throw new Error(error.message);
+}

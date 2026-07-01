@@ -244,7 +244,8 @@ export default function HomeView({
         />
 
         {/* ---------- Scroll content ---------- */}
-        <div style={{ padding: "var(--s5) var(--gutter) 0" }}>
+        {/* padding-bottom ampio: l'ultima riga non deve finire sotto la barra "Chiedi a Keiko" + nav. */}
+        <div style={{ padding: "var(--s5) var(--gutter) 160px" }}>
           <Lead>Prossimo</Lead>
           {hero ? <HeroCard event={hero} /> : <EmptyHero />}
 
@@ -564,6 +565,7 @@ function Stat({ k, v }: { k: string; v: string }) {
 /* ---------- Dieta di oggi (pasti del giorno, o accenno a /salute) ---------- */
 function DietToday({ diet }: { diet?: DietWeek | null }) {
   const meals = diet?.[todayDietKey()] ?? [];
+  const [open, setOpen] = useState(false);
 
   // Nessun piano, o piano senza pasti per oggi: accenno discreto verso /salute.
   if (!diet || meals.length === 0) {
@@ -597,9 +599,12 @@ function DietToday({ diet }: { diet?: DietWeek | null }) {
       className="overflow-hidden"
       style={{ background: "var(--surface)", border: "1px solid var(--tile-line)", boxShadow: "var(--sh-card)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
     >
-      <Link
-        href="/salute"
-        className="mb-[var(--s3)] flex items-center gap-2 transition-transform duration-200 active:scale-[0.99]"
+      {/* Intestazione = tasto apri/chiudi (finestra estraibile) */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 transition-transform duration-200 active:scale-[0.99]"
       >
         <span
           className="grid flex-none place-items-center"
@@ -610,13 +615,30 @@ function DietToday({ diet }: { diet?: DietWeek | null }) {
         <span style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-sm)", color: "var(--on-surface)", letterSpacing: "-.01em" }}>
           {DAY_FULL[todayDietKey()]}
         </span>
-        <ChevronRight className="ml-auto size-[18px] flex-none" style={{ color: "var(--app-faint)" }} />
-      </Link>
-      <div className="flex flex-col gap-[var(--s2)]">
-        {meals.map((meal, i) => (
-          <MealRow key={i} meal={meal} />
-        ))}
-      </div>
+        <span style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)" }}>
+          {meals.length} pasti
+        </span>
+        <ChevronDown
+          className="ml-auto size-[18px] flex-none transition-transform duration-200"
+          style={{ color: "var(--app-faint)", transform: open ? "rotate(180deg)" : "none" }}
+        />
+      </button>
+
+      {open && (
+        <div className="mt-[var(--s3)] flex flex-col gap-[var(--s2)]">
+          {meals.map((meal, i) => (
+            <MealRow key={i} meal={meal} />
+          ))}
+          <Link
+            href="/salute"
+            className="mt-[var(--s1)] flex items-center justify-center gap-1"
+            style={{ fontSize: "var(--fs-xs)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
+          >
+            Vedi tutta la settimana
+            <ChevronRight className="size-[15px]" />
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
