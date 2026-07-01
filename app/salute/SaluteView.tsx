@@ -28,9 +28,11 @@ type State = "idle" | "parsing" | "success" | "error";
 export default function SaluteView({
   week,
   updatedAt,
+  embedded = false,
 }: {
   week: DietWeek | null;
   updatedAt: string | null;
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [images, setImages] = useState<File[]>([]);
@@ -125,9 +127,11 @@ export default function SaluteView({
   return (
     <div className="relative mx-auto min-h-[100dvh] w-full max-w-lg">
       <div style={{ padding: "var(--s3) var(--gutter) calc(env(safe-area-inset-bottom) + 150px)" }}>
-        <div className="pt-[var(--s2)]">
-          <HealthTabs active="salute" />
-        </div>
+        {!embedded && (
+          <div className="pt-[var(--s2)]">
+            <HealthTabs active="salute" />
+          </div>
+        )}
         {/* ---------- Intestazione ---------- */}
         <header className="pb-[var(--s2)] pt-[var(--s3)]">
           <div

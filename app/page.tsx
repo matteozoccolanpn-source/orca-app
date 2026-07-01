@@ -1,4 +1,4 @@
-import HomeView from "./components/HomeView";
+import SwipeShell from "./components/SwipeShell";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
@@ -22,10 +22,12 @@ export default async function Home() {
   }
 
   return (
-    <HomeView
+    <SwipeShell
       events={events}
       diet={diet?.week ?? null}
+      dietUpdatedAt={diet?.updatedAt ?? null}
       workout={workout?.week ?? null}
+      workoutUpdatedAt={workout?.updatedAt ?? null}
       trainedDays={trainedDays}
       logoutAction={logout}
     />

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
+import AddButton from "@/components/AddButton";
 import HeyKeikoBar from "@/components/HeyKeikoBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -56,7 +56,7 @@ export default function RootLayout({
           {children}
         </TooltipProvider>
         <HeyKeikoBar />
-        <BottomNav />
+        <AddButton />
       </body>
     </html>
   );

@@ -27,10 +27,12 @@ export default function AllenamentoView({
   week,
   updatedAt,
   trainedDays,
+  embedded = false,
 }: {
   week: WorkoutWeek | null;
   updatedAt: string | null;
   trainedDays: string[];
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [images, setImages] = useState<File[]>([]);
@@ -136,9 +138,11 @@ export default function AllenamentoView({
   return (
     <div className="relative mx-auto min-h-[100dvh] w-full max-w-lg">
       <div style={{ padding: "var(--s3) var(--gutter) calc(env(safe-area-inset-bottom) + 150px)" }}>
-        <div className="pt-[var(--s2)]">
-          <HealthTabs active="allenamento" />
-        </div>
+        {!embedded && (
+          <div className="pt-[var(--s2)]">
+            <HealthTabs active="allenamento" />
+          </div>
+        )}
 
         {/* ---------- Intestazione (+ Aggiorna scheda se il piano c'è) ---------- */}
         <header className="flex items-start justify-between pb-[var(--s2)] pt-[var(--s3)]">
