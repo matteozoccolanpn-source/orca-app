@@ -244,8 +244,8 @@ export default function HomeView({
         />
 
         {/* ---------- Scroll content ---------- */}
-        {/* padding-bottom ampio: l'ultima riga non deve finire sotto la barra "Chiedi a Keiko" + nav. */}
-        <div style={{ padding: "var(--s5) var(--gutter) 160px" }}>
+        {/* padding-bottom = zona sicura + spazio per la barra "Chiedi a Keiko" e la nav. */}
+        <div style={{ padding: "var(--s5) var(--gutter) calc(env(safe-area-inset-bottom) + 150px)" }}>
           <Lead>Prossimo</Lead>
           {hero ? <HeroCard event={hero} /> : <EmptyHero />}
 

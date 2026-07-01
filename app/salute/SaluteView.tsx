@@ -98,7 +98,7 @@ export default function SaluteView({
 
   return (
     <div className="relative mx-auto min-h-[100dvh] w-full max-w-lg">
-      <div className="pb-[160px]" style={{ padding: "var(--s3) var(--gutter) 0" }}>
+      <div style={{ padding: "var(--s3) var(--gutter) calc(env(safe-area-inset-bottom) + 150px)" }}>
         {/* ---------- Intestazione ---------- */}
         <header className="pb-[var(--s2)] pt-[var(--s3)]">
           <div
