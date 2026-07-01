@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Wallet, Plus, LayoutGrid, User } from "lucide-react";
+import { Home, Wallet, Plus, Salad, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import CaptureSheet from "@/components/CaptureSheet";
 
@@ -18,7 +18,7 @@ const tabs: Tab[] = [
   { href: "/",         icon: Home,       label: "Home" },
   { href: "/search",   icon: Wallet,     label: "Wallet" },
   { href: "/add",      icon: Plus,       label: "Aggiungi", isCenter: true },
-  { href: "/calendar", icon: LayoutGrid, label: "Categorie" },
+  { href: "/salute",   icon: Salad,      label: "Salute" },
   { href: "/profile",  icon: User,       label: "Profilo" },
 ];
 

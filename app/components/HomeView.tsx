@@ -22,7 +22,10 @@ import {
   LogOut,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Ticket } from "@/lib/supabase";
+import Link from "next/link";
+import { Salad } from "lucide-react";
+import type { Ticket, DietWeek } from "@/lib/supabase";
+import { MealRow, todayDietKey, DAY_FULL } from "./DietMeal";
 import NotificationButton from "@/components/NotificationButton";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -155,9 +158,11 @@ function buildWeek(from: Date): WeekDay[] {
 
 export default function HomeView({
   events,
+  diet,
   logoutAction,
 }: {
   events: Ticket[];
+  diet?: DietWeek | null;
   logoutAction?: () => Promise<void>;
 }) {
   const today = useMemo(() => new Date(), []);
@@ -251,6 +256,9 @@ export default function HomeView({
               ))}
             </>
           )}
+
+          <Lead className="mt-[var(--sec)]">Dieta oggi</Lead>
+          <DietToday diet={diet} />
 
           <Lead className="mt-[var(--sec)]">Oggi</Lead>
           <TodoRow onOpen={() => todayWD && setOpenDay(todayWD)} />
@@ -548,6 +556,66 @@ function Stat({ k, v }: { k: string; v: string }) {
       </div>
       <div className="truncate tabular-nums" style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-bold)", color: "var(--on-surface)", marginTop: 3 }}>
         {v}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Dieta di oggi (pasti del giorno, o accenno a /salute) ---------- */
+function DietToday({ diet }: { diet?: DietWeek | null }) {
+  const meals = diet?.[todayDietKey()] ?? [];
+
+  // Nessun piano, o piano senza pasti per oggi: accenno discreto verso /salute.
+  if (!diet || meals.length === 0) {
+    return (
+      <Link
+        href="/salute"
+        className="flex w-full items-center gap-[var(--s3)] text-left transition-transform duration-200 active:scale-[0.99]"
+        style={{ background: "var(--tile)", border: "1px solid var(--tile-line)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
+      >
+        <span
+          className="grid flex-none place-items-center"
+          style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: "color-mix(in srgb, var(--primary) 18%, transparent)", color: "var(--accent-strong)" }}
+        >
+          <Salad className="size-5" />
+        </span>
+        <div className="flex-1">
+          <div style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>
+            {diet ? "Nessun pasto per oggi" : "Aggiungi la tua dieta"}
+          </div>
+          <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>
+            {diet ? "Apri per vedere la settimana" : "Carica il piano una volta sola"}
+          </div>
+        </div>
+        <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      className="overflow-hidden"
+      style={{ background: "var(--surface)", border: "1px solid var(--tile-line)", boxShadow: "var(--sh-card)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
+    >
+      <Link
+        href="/salute"
+        className="mb-[var(--s3)] flex items-center gap-2 transition-transform duration-200 active:scale-[0.99]"
+      >
+        <span
+          className="grid flex-none place-items-center"
+          style={{ width: 30, height: 30, borderRadius: "var(--r-sm)", background: "color-mix(in srgb, var(--primary) 16%, transparent)", color: "var(--accent-strong)" }}
+        >
+          <Salad className="size-[17px]" />
+        </span>
+        <span style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-sm)", color: "var(--on-surface)", letterSpacing: "-.01em" }}>
+          {DAY_FULL[todayDietKey()]}
+        </span>
+        <ChevronRight className="ml-auto size-[18px] flex-none" style={{ color: "var(--app-faint)" }} />
+      </Link>
+      <div className="flex flex-col gap-[var(--s2)]">
+        {meals.map((meal, i) => (
+          <MealRow key={i} meal={meal} />
+        ))}
       </div>
     </div>
   );

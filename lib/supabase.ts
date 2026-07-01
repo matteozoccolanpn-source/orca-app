@@ -119,3 +119,45 @@ export async function createTicket(fields: TicketCreate): Promise<{ id: string }
   if (error) throw new Error(error.message);
   return { id: (data as { id: string }).id };
 }
+
+/* ===================== DIETA ===================== */
+// Il piano dieta è un'unica riga (app single-user) con la settimana in JSON.
+// week = { "lun": [{ pasto, contenuto }], "mar": [...], ... , "dom": [...] }
+
+// Un pasto ha un nome e una o più alternative ("opzioni"): l'utente ne vede una
+// e può scambiarla con le altre. Es. { pasto: "Colazione", opzioni: ["Yogurt+cereali", "Pane+marmellata"] }
+export type DietMeal = { pasto: string; opzioni: string[] };
+export type DietWeek = Record<string, DietMeal[]>;
+export interface DietPlan {
+  week: DietWeek;
+  updatedAt: string | null;
+}
+
+/** Legge il piano dieta salvato (la riga più recente). null se non c'è ancora. */
+export async function getDietPlan(): Promise<DietPlan | null> {
+  const { data, error } = await admin()
+    .from("diet_plan")
+    .select("week, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Supabase: failed to fetch diet plan:", error.message);
+    return null;
+  }
+  if (!data) return null;
+  return {
+    week: (data.week as DietWeek) ?? {},
+    updatedAt: (data.updated_at as string) ?? null,
+  };
+}
+
+/** Sostituisce il piano dieta: cancella la vecchia riga e ne scrive una nuova. */
+export async function saveDietPlan(week: DietWeek): Promise<void> {
+  const client = admin();
+  // Cancella tutte le righe esistenti (Supabase richiede un filtro: id != uuid-impossibile).
+  await client.from("diet_plan").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error } = await client.from("diet_plan").insert({ user_id: null, week });
+  if (error) throw new Error(error.message);
+}
