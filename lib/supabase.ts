@@ -1,6 +1,7 @@
 // Server-side only — SUPABASE_SERVICE_ROLE_KEY must never reach the client bundle.
 
 import { createClient } from "@supabase/supabase-js";
+import { detectClusters, type TicketInput } from "./incastri";
 
 export interface Ticket {
   id: string;
@@ -25,6 +26,7 @@ export interface TicketCreate {
   datetime: string;
   location?: string;
   reference?: string;
+  city?: string;        // città (destinazione) — serve al rilevamento incastri
 }
 
 function emojiForType(type: string | undefined): string {
@@ -112,6 +114,7 @@ export async function createTicket(fields: TicketCreate): Promise<{ id: string }
       datetime:  fields.datetime || null,
       location:  fields.location  ?? null,
       reference: fields.reference ?? null,
+      city:      fields.city      ?? null,
     })
     .select("id")
     .single();
@@ -247,4 +250,55 @@ export async function setTrainedDay(day: string, done: boolean): Promise<void> {
     const { error } = await client.from("workout_log").delete().eq("day", day);
     if (error) throw new Error(error.message);
   }
+}
+
+/* ===================== INCASTRI (viaggi) ===================== */
+// Ponte tra la logica pura (lib/incastri.ts) e il database:
+// legge i biglietti futuri, rileva i cluster "viaggio", e salva quelli che
+// meritano un piano (fires=true) nella tabella trip_plans.
+//
+// Idempotenza: upsert su cluster_key. Se il viaggio esiste già, aggiorna solo
+// città/date/biglietti e NON tocca status/plan (così una ricerca già fatta non
+// viene persa). Un viaggio nuovo entra con status di default 'pending'.
+
+export async function syncTripPlans(): Promise<{ clusters: number; upserted: number }> {
+  const client = admin();
+
+  // Solo biglietti futuri, esclusi i [PABLO] come nel resto dell'app.
+  const { data, error } = await client
+    .from("tickets")
+    .select("id, type, datetime, city")
+    .gt("datetime", new Date().toISOString())
+    .not("title", "ilike", "%[PABLO]%")
+    .limit(200);
+
+  if (error) throw new Error(error.message);
+
+  const tickets: TicketInput[] = (data ?? []).map((r) => ({
+    id:       r.id as string,
+    type:     ((r.type as string) ?? "").toLowerCase(),
+    datetime: (r.datetime as string) ?? "",
+    city:     (r.city as string) ?? "",
+  }));
+
+  const clusters = detectClusters(tickets);
+  const daPianificare = clusters.filter((c) => c.fires);
+
+  let upserted = 0;
+  for (const c of daPianificare) {
+    const { error: upErr } = await client.from("trip_plans").upsert(
+      {
+        cluster_key: c.clusterKey,
+        city:        c.city,
+        start_date:  c.startDate,
+        end_date:    c.endDate,
+        ticket_ids:  c.ticketIds,
+      },
+      { onConflict: "cluster_key" }
+    );
+    if (upErr) throw new Error(upErr.message);
+    upserted++;
+  }
+
+  return { clusters: clusters.length, upserted };
 }

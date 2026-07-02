@@ -15,6 +15,7 @@ interface ParsedData {
   datetime: string
   location: string
   reference: string
+  city: string
 }
 
 function parsedToConfirm(parsed: ParsedData): EventFormValue {
@@ -38,6 +39,8 @@ export default function AddPage() {
   const [errorMsg, setErrorMsg]     = useState('')
   const [parsedData, setParsedData] = useState<ParsedData | null>(null)
   const [confirm, setConfirm]       = useState<EventFormValue | null>(null)
+  // city non è modificabile nel form: la porto a parte dal parsing fino al salvataggio
+  const [pendingCity, setPendingCity] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -48,6 +51,7 @@ export default function AddPage() {
     setErrorMsg('')
     setParsedData(null)
     setConfirm(null)
+    setPendingCity('')
   }
 
   const switchTab = (tab: ActiveTab) => {
@@ -93,6 +97,7 @@ export default function AddPage() {
     try {
       const parsed = await callUpload(formData)
       setConfirm(parsedToConfirm(parsed))
+      setPendingCity(parsed.city || '')
       setState('confirming')
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Qualcosa è andato storto')
@@ -107,6 +112,7 @@ export default function AddPage() {
     try {
       const parsed = await callUpload(formData)
       setConfirm(parsedToConfirm(parsed))
+      setPendingCity(parsed.city || '')
       setState('confirming')
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Qualcosa è andato storto')
@@ -124,6 +130,7 @@ export default function AddPage() {
       datetime,
       location:  confirm.location,
       reference: confirm.reference,
+      city:      pendingCity,
     }
     try {
       const res = await fetch('/api/upload/confirm', {
@@ -346,6 +353,7 @@ export default function AddPage() {
               <Row label="Tipo" value={parsedData.type} />
               <Row label="Data" value={parsedData.datetime} />
               {parsedData.location && <Row label="Luogo" value={parsedData.location} />}
+              {parsedData.city && <Row label="Città" value={parsedData.city} />}
               {parsedData.reference && <Row label="Codice" value={parsedData.reference} />}
             </div>
           </motion.div>

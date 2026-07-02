@@ -19,15 +19,16 @@ interface Parsed {
   datetime: string;
   location: string;
   reference: string;
+  city: string;
 }
 
 const STEPS = ["Scrivi", "Keiko legge", "Controlli", "Fatto"];
 
 /**
  * Sheet di cattura "Dimmi tutto" aperta dal ＋ della bottom nav.
- * - Campo testo: per ora INERTE (la pipeline testo arriva dopo).
- * - Allega screenshot (CTA primaria): riusa il flusso immagine ESISTENTE
- *   (/api/upload → conferma con EventForm → /api/upload/confirm).
+ * - Campo testo (CTA "Invia"): pipeline testo collegata → /api/upload (branch text).
+ * - Allega screenshot (CTA secondaria): flusso immagine → /api/upload (branch image).
+ * - Entrambi: conferma con EventForm → /api/upload/confirm. Estraggono anche `city`.
  *   Non duplica logica di backend e non modifica /add.
  */
 export default function CaptureSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -36,6 +37,8 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
   const [state, setState] = useState<State>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [confirm, setConfirm] = useState<EventFormValue | null>(null);
+  // city non è modificabile nel form: la porto a parte dal parsing fino al salvataggio
+  const [pendingCity, setPendingCity] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   function reset() {
@@ -43,6 +46,7 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
     setState("idle");
     setErrorMsg("");
     setConfirm(null);
+    setPendingCity("");
   }
   function close() {
     reset();
@@ -65,6 +69,29 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
       const p = data.parsed as Parsed;
       const { date, time } = splitDatetime(p.datetime);
       setConfirm({ title: p.title, type: p.type, date, time, location: p.location, reference: p.reference });
+      setPendingCity(p.city || "");
+      setState("confirming");
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Qualcosa è andato storto");
+      setState("error");
+    }
+  }
+
+  // Flusso TESTO: stessa pipeline dell'immagine ma manda "text" invece di "image".
+  // Riusa /api/upload (che già supporta il testo) → conferma con EventForm → /api/upload/confirm.
+  async function handleText() {
+    if (!text.trim()) return;
+    setState("parsing");
+    const fd = new FormData();
+    fd.append("text", text.trim());
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
+      const p = data.parsed as Parsed;
+      const { date, time } = splitDatetime(p.datetime);
+      setConfirm({ title: p.title, type: p.type, date, time, location: p.location, reference: p.reference });
+      setPendingCity(p.city || "");
       setState("confirming");
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Qualcosa è andato storto");
@@ -81,6 +108,7 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
       datetime: toDatetime(confirm),
       location: confirm.location,
       reference: confirm.reference,
+      city: pendingCity,
     };
     try {
       const res = await fetch("/api/upload/confirm", {
@@ -148,8 +176,7 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
               Scrivi, incolla o allega uno screenshot. Ci penso io.
             </p>
 
-            {/* Campo testo — INERTE (pipeline testo non ancora collegata) */}
-            {/* TODO: backend — pipeline testo */}
+            {/* Campo testo — collegato: il bottone "Invia" qui sotto lo manda a /api/upload */}
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -177,12 +204,23 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
               ))}
             </div>
 
-            {/* CTA primaria = allega screenshot (flusso immagine reale) */}
+            {/* CTA primaria = Invia testo (pipeline testo, riusa /api/upload) */}
+            <button
+              type="button"
+              onClick={handleText}
+              disabled={!text.trim()}
+              className="mt-[var(--s4)] flex w-full items-center justify-center gap-2 text-white transition-transform duration-200 active:scale-[0.98] disabled:opacity-40"
+              style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", minHeight: "var(--tap)", borderRadius: "var(--r-sm)", background: "var(--keiko-grad)", boxShadow: "var(--sh-btn)" }}
+            >
+              Invia
+            </button>
+
+            {/* CTA secondaria = allega screenshot (flusso immagine reale) */}
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="mt-[var(--s4)] flex w-full items-center justify-center gap-2 text-white transition-transform duration-200 active:scale-[0.98]"
-              style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", minHeight: "var(--tap)", borderRadius: "var(--r-sm)", background: "var(--keiko-grad)", boxShadow: "var(--sh-btn)" }}
+              className="mt-[var(--s3)] flex w-full items-center justify-center gap-2 transition-transform duration-200 active:scale-[0.98]"
+              style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", minHeight: "var(--tap)", borderRadius: "var(--r-sm)", border: "1px solid var(--inset-line)", background: "var(--inset)", color: "var(--on-surface)" }}
             >
               <ImagePlus className="size-[18px] flex-none" />
               Allega screenshot

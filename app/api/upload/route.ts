@@ -17,6 +17,12 @@ export async function POST(req: NextRequest) {
 
   let claudeMessages: object[]
 
+  // Diamo a Claude la data di OGGI: senza, indovina l'anno e mette date passate
+  // (es. "sabato" -> un sabato del 2025). Con questa riga, "oggi/domani/sabato"
+  // vengono ancorati correttamente e l'anno esce giusto.
+  const today = new Date().toISOString().slice(0, 10)
+  const todayLine = `Oggi è ${today}. Usa questa come data di riferimento per "oggi", "domani", i giorni della settimana ecc.: scegli sempre la prima occorrenza FUTURA rispetto a oggi, con l'anno corrispondente.`
+
   if (file) {
     if (!file.type.startsWith('image/')) {
       return NextResponse.json({ error: 'File must be an image' }, { status: 400 })
@@ -37,7 +43,7 @@ export async function POST(req: NextRequest) {
             type: 'image',
             source: { type: 'base64', media_type: mediaType, data: base64 },
           },
-          { type: 'text', text: IMAGE_PARSE_PROMPT },
+          { type: 'text', text: `${todayLine}\n\n${IMAGE_PARSE_PROMPT}` },
         ],
       },
     ]
@@ -45,7 +51,7 @@ export async function POST(req: NextRequest) {
     claudeMessages = [
       {
         role: 'user',
-        content: `${TEXT_PARSE_PROMPT}\n\nTesto: ${text}`,
+        content: `${todayLine}\n\n${TEXT_PARSE_PROMPT}\n\nTesto: ${text}`,
       },
     ]
   }
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest) {
     datetime: string
     location: string
     reference: string
+    city: string
   }
 
   try {
@@ -106,6 +113,7 @@ Return exactly these fields:
   "type": "one of: train, flight, concert, hotel, museum, restaurant, other",
   "datetime": "YYYY-MM-DDTHH:mm:00",
   "location": "place, station, airport, or venue name; empty string if none",
+  "city": "the CITY of the event in plain form (e.g. Roma, Milano); empty string if unknown",
   "reference": "booking code / PNR / reservation number / order number; empty string if none"
 }
 
@@ -121,6 +129,7 @@ Rules:
 - For email confirmations: extract the actual event data, not the email send date.
 - For WhatsApp messages: extract the event being discussed, not the message timestamp.
 - type: choose the closest match; if genuinely unclear, use "other".
+- city: the city where the event takes place, in plain form (e.g. "Roma"), EVEN IF the location/venue name does not contain it (e.g. venue "Tor Vergata" -> city "Roma"; "San Siro" -> "Milano"). For train/flight use the DESTINATION (arrival) city. Empty string only if genuinely unknown.
 - title: use the language of the source (keep Italian if Italian). Keep it short and descriptive.
 - Never invent data. If a field is missing, use an empty string "" (except datetime).
 - Return ONLY the JSON object, nothing else.`
@@ -133,6 +142,7 @@ Campi richiesti:
   "type": "uno tra: train, flight, concert, hotel, restaurant, museum, other",
   "datetime": "YYYY-MM-DDTHH:mm:00",
   "location": "luogo, stazione, aeroporto o venue; stringa vuota se assente",
+  "city": "la CITTÀ dell'evento in forma semplice (es. Roma, Milano); stringa vuota se sconosciuta",
   "reference": "codice prenotazione / PNR / numero ordine; stringa vuota se assente"
 }
 
@@ -142,6 +152,7 @@ Regole:
 - Se l'anno non è specificato scegli la data futura più prossima rispetto ad oggi.
 - Se il testo descrive più eventi, estrai solo il primo o quello principale.
 - type: scegli il più adatto; se incerto usa "other".
+- city: la città dell'evento in forma semplice (es. "Roma"), ANCHE SE la location/venue non la contiene (es. "Tor Vergata" -> "Roma"; "San Siro" -> "Milano"). Per treno/volo usa la città di DESTINAZIONE (arrivo). Stringa vuota solo se davvero sconosciuta.
 - title: mantieni l'italiano se il testo è in italiano. Tienilo breve.
 - Non inventare dati. Se un campo manca usa stringa vuota "" (tranne datetime).
 - Restituisci SOLO il JSON.`
