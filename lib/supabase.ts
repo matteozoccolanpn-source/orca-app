@@ -389,6 +389,20 @@ export async function getReadyTripPlans(): Promise<TripPlanRow[]> {
   return (data ?? []) as TripPlanRow[];
 }
 
+/** Tutti i viaggi rilevati (pending/generating/ready), per mostrarli in home. */
+export async function getAllTripPlans(): Promise<TripPlanRow[]> {
+  const { data, error } = await admin()
+    .from("trip_plans")
+    .select("*")
+    .in("status", ["pending", "generating", "ready"])
+    .order("start_date", { ascending: true });
+  if (error) {
+    console.error("Supabase: getAllTripPlans:", error.message);
+    return [];
+  }
+  return (data ?? []) as TripPlanRow[];
+}
+
 /** Cambia lo stato di un viaggio (pending → generating → ready). */
 export async function setTripPlanStatus(clusterKey: string, status: string): Promise<void> {
   const { error } = await admin()

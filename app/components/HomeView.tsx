@@ -532,19 +532,36 @@ function fmtTripRange(a: string | null, b: string | null): string {
 }
 
 function PlotCard({ trip }: { trip: TripPlanRow }) {
-  return (
-    <Link
-      href="/viaggio"
-      className="flex w-full items-center gap-[var(--s3)] text-left transition-transform duration-200 active:scale-[0.99]"
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--tile-line)",
-        boxShadow: "var(--sh-card)",
-        borderRadius: "var(--r-lg)",
-        padding: "var(--s3)",
-        marginBottom: "var(--s3)",
-      }}
-    >
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const ready = trip.status === "ready";
+  const generating = trip.status === "generating" || busy;
+
+  // Lancia la generazione del piano (ricerca web) e poi ricarica per mostrarlo.
+  async function creaPlot() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/trip/generate", { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      window.alert("Non sono riuscito a creare il plot, riprova tra poco");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const cardStyle: React.CSSProperties = {
+    background: "var(--surface)",
+    border: "1px solid var(--tile-line)",
+    boxShadow: "var(--sh-card)",
+    borderRadius: "var(--r-lg)",
+    padding: "var(--s3)",
+    marginBottom: "var(--s3)",
+  };
+
+  const head = (
+    <div className="flex items-center gap-[var(--s3)]">
       <span
         className="grid flex-none place-items-center text-white"
         style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: "var(--cat-treno)" }}
@@ -556,11 +573,44 @@ function PlotCard({ trip }: { trip: TripPlanRow }) {
           Viaggio a {trip.city}
         </div>
         <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>
-          {fmtTripRange(trip.start_date, trip.end_date)} · vedi il piano
+          {fmtTripRange(trip.start_date, trip.end_date)}
+          {ready ? " · vedi il piano" : ""}
         </div>
       </div>
-      <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />
-    </Link>
+      {ready && <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />}
+    </div>
+  );
+
+  // Piano pronto → la card apre l'itinerario.
+  if (ready) {
+    return (
+      <Link href="/viaggio" className="block transition-transform duration-200 active:scale-[0.99]" style={cardStyle}>
+        {head}
+      </Link>
+    );
+  }
+
+  // Non ancora pronto → card con bottone "Crea plot".
+  return (
+    <div style={cardStyle}>
+      {head}
+      <button
+        type="button"
+        onClick={creaPlot}
+        disabled={generating}
+        className="mt-[var(--s3)] flex w-full items-center justify-center gap-2 text-white transition-transform duration-200 active:scale-[0.98] disabled:opacity-60"
+        style={{
+          minHeight: "var(--tap)",
+          borderRadius: "var(--r-sm)",
+          fontSize: "var(--fs-sm)",
+          fontWeight: "var(--fw-semi)",
+          background: "var(--keiko-grad)",
+          boxShadow: "var(--sh-btn)",
+        }}
+      >
+        {generating ? "Sto preparando il plot…" : "Crea plot"}
+      </button>
+    </div>
   );
 }
 

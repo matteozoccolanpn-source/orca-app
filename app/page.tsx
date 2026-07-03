@@ -1,5 +1,5 @@
 import SwipeShell from "./components/SwipeShell";
-import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getReadyTripPlans } from "@/lib/supabase";
+import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
 // La home deve SEMPRE leggere i dati freschi da Supabase: senza questo, Next.js
@@ -13,7 +13,7 @@ export default async function Home() {
     getDietPlan(),
     getWorkoutPlan(),
     getTrainedDays(),
-    getReadyTripPlans(),
+    getAllTripPlans(),
   ]);
 
   // Server action passata all'appbar della Home per il logout discreto.
