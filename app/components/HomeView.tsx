@@ -28,6 +28,7 @@ import {
   Trash2,
   Bell,
   Trophy,
+  Clapperboard,
 } from "lucide-react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -222,6 +223,7 @@ export default function HomeView({
   events,
   trips = [],
   todos = [],
+  watchCount = 0,
   diet,
   workout,
   trainedDays = [],
@@ -230,6 +232,7 @@ export default function HomeView({
   events: Ticket[];
   trips?: TripPlanRow[];
   todos?: Todo[];
+  watchCount?: number;
   diet?: DietWeek | null;
   workout?: WorkoutWeek | null;
   trainedDays?: string[];
@@ -421,6 +424,27 @@ export default function HomeView({
 
           <Lead className="mt-[var(--sec)]">Allenamento oggi</Lead>
           <WorkoutToday workout={workout} trainedDays={trainedDays} />
+
+          <Lead className="mt-[var(--sec)]">Da guardare</Lead>
+          <Link
+            href="/guarda"
+            className="flex w-full items-center gap-[var(--s3)] text-left transition-transform duration-200 active:scale-[0.99]"
+            style={{ background: "var(--tile)", border: "1px solid var(--tile-line)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
+          >
+            <span
+              className="grid flex-none place-items-center"
+              style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: "color-mix(in srgb, var(--primary) 18%, transparent)", color: "var(--accent-strong)" }}
+            >
+              <Clapperboard className="size-5" />
+            </span>
+            <div className="flex-1">
+              <div style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>Film & serie</div>
+              <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>
+                {watchCount > 0 ? `${watchCount} in lista` : "Chiedi un consiglio a Keiko"}
+              </div>
+            </div>
+            <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />
+          </Link>
 
           <Lead className="mt-[var(--sec)]">Oggi</Lead>
           <TodoRow

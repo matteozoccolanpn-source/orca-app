@@ -80,4 +80,13 @@ righe + RLS per utente + policy dati/GDPR + quote costi API). Senza, non entra n
 
 **E — UI/UX** (punto 6) → già coperto da #20 (redesign completo), si fa in altra sede.
 
-Ordine proposto: **A0 → B → A1 → A2 → C → D**.
+**F — Watchlist "Da guardare"** (idea 2026-07-03, ispirata a TV Time)
+- Sezione film/serie da vedere: aggiunta rozza ("quel film di Nolan") → Claude risolve
+  titolo esatto + dove vederlo in streaming/TV + link. Spunta "visto".
+- v2: uscite nuove stagioni/film in sala → notifica. Riusa il pattern resolver dei to-do.
+
+FATTI (2026-07-03 sera): A0 ✅ A1 ✅ A2 ✅ B ✅ C ✅ (+ fix fuso orario +2h,
+to-do eventi smart con info TV e classifica, ordine orario, add in background).
+Restano: **D** (serve mini-piano tracking uso) e **F** (watchlist).
+
+⚠️ Aperto: chi schedula /api/cron/tick ogni ~15 min? vercel.json ha solo reminders 7:00.

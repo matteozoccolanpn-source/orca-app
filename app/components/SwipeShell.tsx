@@ -19,6 +19,7 @@ export default function SwipeShell({
   events,
   trips,
   todos,
+  watchCount,
   diet,
   dietUpdatedAt,
   workout,
@@ -29,6 +30,7 @@ export default function SwipeShell({
   events: Ticket[];
   trips: TripPlanRow[];
   todos: Todo[];
+  watchCount: number;
   diet: DietWeek | null;
   dietUpdatedAt: string | null;
   workout: WorkoutWeek | null;
@@ -73,6 +75,7 @@ export default function SwipeShell({
             events={events}
             trips={trips}
             todos={todos}
+            watchCount={watchCount}
             diet={diet}
             workout={workout}
             trainedDays={trainedDays}

@@ -459,6 +459,108 @@ export async function setTripPlanStatus(clusterKey: string, status: string): Pro
   if (error) throw new Error(error.message);
 }
 
+/* ===================== DA GUARDARE (watchlist + catalogo) ===================== */
+// Logica TV Time: la watchlist è la TUA lista (con "visto"), il catalogo è la
+// cache delle ricerche approfondite fatte in background (vedi lib/films.ts).
+
+export interface WatchItem {
+  id: string;
+  title: string;
+  kind: string;          // 'film' | 'serie'
+  info: string | null;   // es. "Commedia 2016 · su Netflix"
+  link: string | null;
+  seen: boolean;
+}
+
+/** Tutta la watchlist: prima i "da vedere" (più recenti in alto), poi i visti. */
+export async function getWatchlist(): Promise<WatchItem[]> {
+  const { data, error } = await admin()
+    .from("watchlist")
+    .select("id, title, kind, info, link, seen")
+    .order("seen", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("Supabase: getWatchlist:", error.message);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    title: (r.title as string) ?? "",
+    kind: (r.kind as string) ?? "film",
+    info: (r.info as string | null) ?? null,
+    link: (r.link as string | null) ?? null,
+    seen: r.seen === true,
+  }));
+}
+
+export async function addWatchItem(f: { title: string; kind?: string; info?: string | null; link?: string | null }): Promise<WatchItem> {
+  const { data, error } = await admin()
+    .from("watchlist")
+    .insert({ user_id: null, title: f.title, kind: f.kind ?? "film", info: f.info ?? null, link: f.link ?? null })
+    .select("id, title, kind, info, link, seen")
+    .single();
+  if (error) throw new Error(error.message);
+  const r = data as Record<string, unknown>;
+  return {
+    id: r.id as string,
+    title: r.title as string,
+    kind: (r.kind as string) ?? "film",
+    info: (r.info as string | null) ?? null,
+    link: (r.link as string | null) ?? null,
+    seen: r.seen === true,
+  };
+}
+
+export async function setWatchItemSeen(id: string, seen: boolean): Promise<void> {
+  const { error } = await admin().from("watchlist").update({ seen }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteWatchItem(id: string): Promise<void> {
+  const { error } = await admin().from("watchlist").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** Un titolo del catalogo cache (fase 2 di lib/films.ts). */
+export interface CatalogFilm {
+  title: string;
+  kind: string;
+  genres: string | null;
+  platform: string | null;
+  info: string | null;
+  link: string | null;
+}
+
+/** Voci di catalogo fresche (ultimi 30 giorni): le info streaming invecchiano. */
+export async function getFreshCatalog(limit = 60): Promise<CatalogFilm[]> {
+  const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { data, error } = await admin()
+    .from("films_catalog")
+    .select("title, kind, genres, platform, info, link")
+    .gte("cached_at", cutoff)
+    .order("cached_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("Supabase: getFreshCatalog:", error.message);
+    return [];
+  }
+  return (data ?? []) as CatalogFilm[];
+}
+
+export async function saveCatalogFilms(films: CatalogFilm[]): Promise<void> {
+  if (films.length === 0) return;
+  const rows = films.map((f) => ({
+    title: f.title,
+    kind: f.kind,
+    genres: f.genres,
+    platform: f.platform,
+    info: f.info,
+    link: f.link,
+  }));
+  const { error } = await admin().from("films_catalog").insert(rows);
+  if (error) throw new Error(error.message);
+}
+
 /* ===================== TO-DO (barra per-giorno) ===================== */
 // Un to-do appartiene a un giorno (colonna `day`, formato YYYY-MM-DD).
 // App single-user: si leggono tutti i to-do (sono pochi) e il client
