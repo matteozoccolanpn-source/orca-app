@@ -28,7 +28,7 @@ export interface Cluster {
 }
 
 const TRASPORTI = new Set(["train", "flight"]);
-const EVENTI = new Set(["concert", "museum", "restaurant"]);
+const EVENTI = new Set(["concert", "museum", "restaurant", "sport"]);
 // "hotel" = pernottamento: è contenuto, ma non un "evento".
 
 const FINESTRA_GIORNI = 4;    // durata massima di un viaggio breve (accorpa contenuti vicini)

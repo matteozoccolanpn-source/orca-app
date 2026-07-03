@@ -12,6 +12,7 @@ function leadMinutes(type: string, hourLocal: number): number | null {
     case "concert":    return 180;
     case "restaurant": return hourLocal < 16 ? 60 : 90;
     case "museum":     return 60;
+    case "sport":      return 120; // gara/partita: preavviso lungo
     default:           return 60;
   }
 }

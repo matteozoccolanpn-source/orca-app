@@ -27,6 +27,7 @@ import {
   Phone,
   Trash2,
   Bell,
+  Trophy,
 } from "lucide-react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -50,6 +51,7 @@ const TYPE_ICON: Record<string, LucideIcon> = {
   concert: Music,
   museum: Landmark,
   restaurant: UtensilsCrossed,
+  sport: Trophy,
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -59,6 +61,7 @@ const TYPE_LABEL: Record<string, string> = {
   concert: "Concerto",
   museum: "Museo",
   restaurant: "Ristorante",
+  sport: "Sport",
 };
 
 /* Tinta categoria (sfondo hero/chip per tipo) — token --cat-*. */
@@ -69,7 +72,19 @@ const CAT_TINT: Record<string, string> = {
   concert: "var(--cat-concerto)",
   museum: "var(--cat-concerto)",
   restaurant: "var(--cat-cena)",
+  sport: "var(--cat-concerto)",
 };
+
+/* Link alla classifica della competizione, dedotto dal titolo dell'evento sport.
+ * Casi noti → sito ufficiale; altrimenti ricerca Google "classifica …". */
+function standingsUrl(title: string): string {
+  const t = title.toLowerCase();
+  const anno = new Date().getFullYear();
+  if (/\bf1\b|formula\s*1|gran premio/.test(t)) return `https://www.formula1.com/en/results/${anno}/drivers`;
+  if (/motogp|moto\s*gp/.test(t)) return "https://www.motogp.com/it/world-standing";
+  if (/serie\s*a\b/.test(t)) return "https://www.legaseriea.it/it/serie-a/classifica";
+  return `https://www.google.com/search?q=${encodeURIComponent("classifica " + title)}`;
+}
 
 /* Azioni hero pertinenti per tipo (inerti: nessun backend collegato). */
 type HeroAction = { label: string; Icon: LucideIcon };
@@ -418,7 +433,10 @@ export default function HomeView({
       {openDay && (
         <TodoOverlay
           day={openDay}
-          todos={todoList.filter((t) => t.day === isoDay(openDay.date))}
+          todos={[...todoList.filter((t) => t.day === isoDay(openDay.date))].sort(
+            // Ordine orario: prima i to-do con orario (crescente), poi quelli senza.
+            (a, b) => (a.time ?? "99:99").localeCompare(b.time ?? "99:99")
+          )}
           dayEvents={events.filter((e) => {
             const d = new Date(e.datetime);
             return !isNaN(d.getTime()) && isoDay(d) === isoDay(openDay.date);
@@ -615,6 +633,18 @@ function HeroCard({ event }: { event: Ticket }) {
           >
             <MapPin className="size-3.5 flex-none" style={{ color: "var(--accent-strong)" }} />
             {event.location}
+          </a>
+        )}
+        {event.type?.toLowerCase() === "sport" && (
+          <a
+            href={standingsUrl(event.title)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1"
+            style={{ color: "var(--on-surface-2)", fontSize: "var(--fs-sm)" }}
+          >
+            <Trophy className="size-3.5 flex-none" style={{ color: "var(--accent-strong)" }} />
+            Classifica mondiale
           </a>
         )}
         <span className="tabular-nums" style={{ color: "var(--accent-strong)", fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)" }}>
@@ -886,17 +916,30 @@ function EventCard({ event }: { event: Ticket }) {
             <Stat k="Ora" v={time} />
             <Stat k="Luogo" v={event.location || "—"} />
           </div>
-          {event.location && (
-            <a
-              href={mapsUrl(event.location)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-[var(--s3)] inline-flex items-center gap-1.5"
-              style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
-            >
-              <MapPin className="size-[15px]" /> Apri in Mappe
-            </a>
-          )}
+          <div className="flex flex-wrap gap-[var(--s3)]">
+            {event.location && (
+              <a
+                href={mapsUrl(event.location)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-[var(--s3)] inline-flex items-center gap-1.5"
+                style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
+              >
+                <MapPin className="size-[15px]" /> Apri in Mappe
+              </a>
+            )}
+            {event.type?.toLowerCase() === "sport" && (
+              <a
+                href={standingsUrl(event.title)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-[var(--s3)] inline-flex items-center gap-1.5"
+                style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
+              >
+                <Trophy className="size-[15px]" /> Classifica
+              </a>
+            )}
+          </div>
           {/* TODO: backend — placeholder v15 (no QR/biglietto reale) */}
           <button
             type="button"
@@ -1292,6 +1335,24 @@ function TodoMeta({ todo, onPatch }: { todo: Todo; onPatch: (id: string, fields:
           <Phone className="size-3" /> Chiama
         </a>
       )}
+      {/* Link extra trovato da Claude (es. classifica F1) */}
+      {todo.link && (
+        <a
+          href={todo.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 active:scale-95"
+          style={chip}
+        >
+          <Trophy className="size-3" /> {todo.linkLabel ?? "Info"}
+        </a>
+      )}
+      {/* Riga informativa (es. dove vederlo in TV) */}
+      {todo.info && (
+        <span className="w-full" style={{ fontSize: "var(--fs-xs)", color: "var(--on-surface-2)", lineHeight: 1.35 }}>
+          {todo.info}
+        </span>
+      )}
     </div>
   );
 }
@@ -1425,16 +1486,17 @@ function TodoOverlay({
   const pending = todos.filter((t) => !t.done).length;
 
   const [text, setText] = useState("");
-  const [saving, setSaving] = useState(false);
 
-  async function submit() {
+  function submit() {
     const t = text.trim();
-    if (!t || saving) return;
-    setSaving(true);
-    const ok = await onAdd(t);
-    if (ok) setText("");
-    else window.alert("Non sono riuscito a salvare, riprova");
-    setSaving(false);
+    if (!t) return;
+    // Chiudi subito: Keiko lavora in background (le ricerche web richiedono
+    // secondi) e il to-do compare nella lista appena è pronto.
+    onAdd(t).then((ok) => {
+      if (!ok) window.alert("Non sono riuscito a salvare: " + t);
+    });
+    setText("");
+    onClose();
   }
 
   return (
@@ -1539,7 +1601,7 @@ function TodoOverlay({
         >
           <button
             type="submit"
-            disabled={saving || !text.trim()}
+            disabled={!text.trim()}
             aria-label="Aggiungi to-do"
             className="grid flex-none place-items-center text-white active:scale-95 disabled:opacity-60"
             style={{ width: 23, height: 23, borderRadius: "var(--r-pill)", background: "var(--keiko-grad)" }}

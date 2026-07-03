@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { createTodo, updateTodoById, deleteTodoById } from '@/lib/supabase'
 import { parseTodoTime, cleanTodoText } from '@/lib/todo-time'
-import { looksLikePlace, resolveTodoPlace } from '@/lib/todo-place'
+import { shouldEnrichTodo, resolveTodoPlace } from '@/lib/todo-place'
 
 // La risoluzione del luogo usa la ricerca web di Claude: può volerci qualche
 // secondo, quindi alziamo il tetto della serverless function.
@@ -49,15 +49,25 @@ export async function POST(req: NextRequest) {
     // Il testo viene ripulito (maiuscola, via le indicazioni d'orario).
     const clean = cleanTodoText(text)
 
-    // Se il testo sembra contenere un luogo, Claude lo cerca sul web
-    // (nome + indirizzo + telefono) e riscrive anche un titolo pulito.
-    // Se fallisce, si salva il testo ripulito dalla regex, senza luogo.
-    let place = { title: null as string | null, location: null as string | null, phone: null as string | null }
-    if (looksLikePlace(clean)) {
-      place = await resolveTodoPlace(text)
+    // Se il testo sembra contenere un luogo O un evento da vedere (gara,
+    // partita, spettacolo…), Claude lo risolve sul web: titolo proprio,
+    // luogo/telefono, orario, dove vederlo, link utile (es. classifica).
+    // Se fallisce, si salva il testo ripulito dalla regex, senza extra.
+    let extra: Awaited<ReturnType<typeof resolveTodoPlace>> = {
+      title: null, location: null, phone: null, time: null, info: null, link: null, linkLabel: null,
+    }
+    if (shouldEnrichTodo(clean)) {
+      extra = await resolveTodoPlace(text, day)
     }
 
-    const todo = await createTodo(day, place.title ?? clean, parseTodoTime(text), place.location, place.phone)
+    // L'orario scritto dall'utente vince; altrimenti quello trovato da Claude.
+    const time = parseTodoTime(text) ?? extra.time
+
+    const todo = await createTodo(day, extra.title ?? clean, time, extra.location, extra.phone, {
+      info: extra.info,
+      link: extra.link,
+      linkLabel: extra.linkLabel,
+    })
     return NextResponse.json({ success: true, todo })
   } catch (e) {
     console.error('Todo create error:', e)

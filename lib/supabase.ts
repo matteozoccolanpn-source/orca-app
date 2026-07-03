@@ -475,13 +475,16 @@ export interface Todo {
   phone: string | null;    // telefono del posto, se trovato
   lead: number;            // minuti di anticipo della notifica (default 30)
   double: boolean;         // seconda notifica a ridosso (~15 min prima)?
+  info: string | null;     // riga informativa (es. "Diretta Sky · differita TV8 18:30")
+  link: string | null;     // link utile (es. classifica F1)
+  linkLabel: string | null; // etichetta del bottone link
 }
 
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */
 export async function getTodos(): Promise<Todo[]> {
   const { data, error } = await admin()
     .from("todos")
-    .select("id, day, text, done, star, time, location, phone, lead_minutes, double_reminder")
+    .select("id, day, text, done, star, time, location, phone, lead_minutes, double_reminder, info, link, link_label")
     .order("day", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -501,6 +504,9 @@ export async function getTodos(): Promise<Todo[]> {
     phone: (row.phone as string | null) ?? null,
     lead: typeof row.lead_minutes === "number" ? row.lead_minutes : 30,
     double: row.double_reminder === true,
+    info: (row.info as string | null) ?? null,
+    link: (row.link as string | null) ?? null,
+    linkLabel: (row.link_label as string | null) ?? null,
   }));
 }
 
@@ -512,27 +518,41 @@ export async function createTodo(
   text: string,
   time?: string | null,
   location?: string | null,
-  phone?: string | null
+  phone?: string | null,
+  extra?: { info?: string | null; link?: string | null; linkLabel?: string | null }
 ): Promise<Todo> {
   const { data, error } = await admin()
     .from("todos")
-    .insert({ user_id: null, day, text, time: time ?? null, location: location ?? null, phone: phone ?? null })
-    .select("id, day, text, done, star, time, location, phone, lead_minutes, double_reminder")
+    .insert({
+      user_id: null,
+      day,
+      text,
+      time: time ?? null,
+      location: location ?? null,
+      phone: phone ?? null,
+      info: extra?.info ?? null,
+      link: extra?.link ?? null,
+      link_label: extra?.linkLabel ?? null,
+    })
+    .select("id, day, text, done, star, time, location, phone, lead_minutes, double_reminder, info, link, link_label")
     .single();
 
   if (error) throw new Error(error.message);
-  const row = data as { id: string; day: string; text: string; done: boolean; star: boolean; time: string | null; location: string | null; phone: string | null; lead_minutes: number; double_reminder: boolean };
+  const row = data as Record<string, unknown>;
   return {
-    id: row.id,
-    day: row.day,
-    text: row.text,
-    done: row.done,
-    star: row.star,
+    id: row.id as string,
+    day: row.day as string,
+    text: row.text as string,
+    done: row.done === true,
+    star: row.star === true,
     time: typeof row.time === "string" ? row.time.slice(0, 5) : null,
-    location: row.location ?? null,
-    phone: row.phone ?? null,
+    location: (row.location as string | null) ?? null,
+    phone: (row.phone as string | null) ?? null,
     lead: typeof row.lead_minutes === "number" ? row.lead_minutes : 30,
     double: row.double_reminder === true,
+    info: (row.info as string | null) ?? null,
+    link: (row.link as string | null) ?? null,
+    linkLabel: (row.link_label as string | null) ?? null,
   };
 }
 

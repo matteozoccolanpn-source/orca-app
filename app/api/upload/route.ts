@@ -110,7 +110,7 @@ The image can be: a ticket screenshot, a booking confirmation email, a WhatsApp 
 Return exactly these fields:
 {
   "title": "short descriptive title of the event",
-  "type": "one of: train, flight, concert, hotel, museum, restaurant, other",
+  "type": "one of: train, flight, concert, hotel, museum, restaurant, sport, other",
   "datetime": "YYYY-MM-DDTHH:mm:00",
   "location": "place, station, airport, or venue name; empty string if none",
   "city": "the CITY of the event in plain form (e.g. Roma, Milano); empty string if unknown",
@@ -123,7 +123,9 @@ Rules:
   - train / flight / other transport: the DEPARTURE date and time.
   - hotel: the CHECK-IN date and time. If only a check-in date is shown without a time, use T14:00:00 (standard check-in).
   - concert / museum / restaurant: the START or RESERVATION date and time.
+  - sport: the race/match START time.
   - other: the main START date and time of the event.
+- sport events (F1, MotoGP, football, tennis...): type "sport"; title = clean competition + round name, e.g. "F1 GP Gran Bretagna" (venue like "Silverstone" goes in location, not title).
 - If no time at all is visible, use T00:00:00.
 - Year handling: if the year is NOT visible, choose the year that makes the date fall in the FUTURE relative to today. Never pick a past year when the month/day suggest an upcoming event.
 - For email confirmations: extract the actual event data, not the email send date.
@@ -139,7 +141,7 @@ const TEXT_PARSE_PROMPT = `Sei OrCa. Estrai i dati dell'evento dal testo libero.
 Campi richiesti:
 {
   "title": "titolo breve e descrittivo dell'evento",
-  "type": "uno tra: train, flight, concert, hotel, restaurant, museum, other",
+  "type": "uno tra: train, flight, concert, hotel, restaurant, museum, sport, other",
   "datetime": "YYYY-MM-DDTHH:mm:00",
   "location": "luogo, stazione, aeroporto o venue; stringa vuota se assente",
   "city": "la CITTÀ dell'evento in forma semplice (es. Roma, Milano); stringa vuota se sconosciuta",
@@ -152,6 +154,7 @@ Regole:
 - Se l'anno non è specificato scegli la data futura più prossima rispetto ad oggi.
 - Se il testo descrive più eventi, estrai solo il primo o quello principale.
 - type: scegli il più adatto; se incerto usa "other".
+- eventi sportivi (F1, MotoGP, calcio, tennis...): type "sport"; title = competizione + tappa pulita, es. "F1 GP Gran Bretagna" (il circuito/stadio va in location, non nel title); orario = inizio gara/partita.
 - city: la città dell'evento in forma semplice (es. "Roma"), ANCHE SE la location/venue non la contiene (es. "Tor Vergata" -> "Roma"; "San Siro" -> "Milano"). Per treno/volo usa la città di DESTINAZIONE (arrivo). Stringa vuota solo se davvero sconosciuta.
 - title: mantieni l'italiano se il testo è in italiano. Tienilo breve.
 - Non inventare dati. Se un campo manca usa stringa vuota "" (tranne datetime).
