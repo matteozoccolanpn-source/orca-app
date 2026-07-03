@@ -177,6 +177,71 @@ export async function enrichTripPlan(clusterKey: string): Promise<{ ok: boolean;
   return { ok: true, plan };
 }
 
+/* ===== A2: modifica TESTUALE di un singolo slot dell'itinerario =====
+ * L'utente scrive cosa vuole ("spostalo al pomeriggio", "trova qualcosa al
+ * chiuso") e Claude riscrive SOLO quello slot, non tutto il piano.
+ * Costo contenuto: web-search limitata, un solo slot in output. */
+
+type EditSlot = { quando?: string; fisso?: boolean; opzioni?: { cosa?: string; nota?: string; link?: string }[] };
+
+export async function editTripSlot(
+  clusterKey: string,
+  slotIndex: number,
+  richiesta: string
+): Promise<{ ok: boolean; slot: EditSlot }> {
+  const trip = await getTripPlanByKey(clusterKey);
+  if (!trip) throw new Error(`trip_plan non trovato: ${clusterKey}`);
+
+  const plan = (trip.plan ?? {}) as { slot?: EditSlot[] };
+  const slots = Array.isArray(plan.slot) ? plan.slot : [];
+  if (slotIndex < 0 || slotIndex >= slots.length) throw new Error("slot inesistente");
+
+  const attuale = slots[slotIndex];
+  // Contesto compatto: tutta la sequenza (solo quando + prima opzione),
+  // così la modifica resta coerente con orari e tappe vicine.
+  const sequenza = slots
+    .map((s, i) => `${i === slotIndex ? "→" : " "} ${s.quando ?? "?"} | ${s.opzioni?.[0]?.cosa ?? "-"}${s.fisso ? " [FISSO]" : ""}`)
+    .join("\n");
+
+  const prompt = `Sei l'assistente viaggi di Keiko. Viaggio a ${trip.city} (${trip.start_date} → ${trip.end_date}).
+
+SEQUENZA ATTUALE (la freccia → indica la tappa da modificare):
+${sequenza}
+
+TAPPA DA MODIFICARE (JSON attuale):
+${JSON.stringify(attuale)}
+
+RICHIESTA DELL'UTENTE: "${richiesta}"
+
+Riscrivi SOLO questa tappa secondo la richiesta. Regole:
+1. Stessa forma JSON: {"quando": "...", "fisso": true/false, "opzioni": [{"cosa": "...", "nota": "...", "link": "https://... (opzionale)"}]}.
+2. Se la tappa è [FISSO] (treno/volo/evento con biglietto): NON cambiare orario né mezzo,
+   puoi solo arricchire la nota (es. consigli, a che ora uscire).
+3. Se proponi posti nuovi (musei, ristoranti...), VERIFICA con la ricerca web che esistano
+   e siano aperti in quel giorno della settimana. Niente prezzi, solo link.
+4. Mantieni la coerenza con le tappe vicine (orari che si incastrano).
+5. Attività non fissa → 2-3 opzioni alternative concrete.
+6. Non inventare: se non trovi qualcosa, dillo nel campo nota.
+
+Rispondi SOLO col JSON della tappa, nessun testo fuori.`;
+
+  const text = await callClaudeWebSearch(prompt);
+  let nuovo: EditSlot;
+  try {
+    nuovo = JSON.parse(text.replace(/```json|```/g, "").trim()) as EditSlot;
+  } catch {
+    throw new Error(`La tappa modificata non è JSON valido:\n${text.slice(0, 400)}`);
+  }
+  if (!nuovo || !Array.isArray(nuovo.opzioni) || nuovo.opzioni.length === 0) {
+    throw new Error("Tappa modificata senza opzioni: annullo per sicurezza");
+  }
+
+  slots[slotIndex] = nuovo;
+  plan.slot = slots;
+  await saveTripPlanResult(clusterKey, plan);
+  return { ok: true, slot: nuovo };
+}
+
 // Durata del viaggio in giorni (per il guardrail viaggi lunghi).
 function tripDurationDays(start: string | null, end: string | null): number {
   if (!start) return 0;

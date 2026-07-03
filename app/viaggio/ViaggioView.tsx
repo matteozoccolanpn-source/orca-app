@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronDown, ExternalLink, Copy, Check, MapPin, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronDown, ExternalLink, Copy, Check, MapPin, RefreshCw, Pencil } from "lucide-react";
 import type { TripPlanRow } from "@/lib/supabase";
 
 // Forma del piano salvato in trip_plans.plan (generato dalla fase pesante).
@@ -112,11 +113,11 @@ function TripBlock({ trip }: { trip: TripPlanRow }) {
           <SectionTitle>La sequenza</SectionTitle>
           <div style={{ borderRadius: "var(--r-lg)", background: "var(--surface)", border: "1px solid var(--tile-line)", overflow: "hidden" }}>
             {slot.map((s, i) => (
-              <StepRow key={i} step={s} first={i === 0} />
+              <StepRow key={i} step={s} first={i === 0} clusterKey={trip.cluster_key} index={i} />
             ))}
           </div>
           <p style={{ fontSize: "var(--fs-xs)", color: "var(--app-faint)", marginTop: "var(--s2)", marginLeft: 2 }}>
-            Tocca una tappa per i dettagli.
+            Tocca una tappa per i dettagli. Con la matita chiedi una modifica a Keiko.
           </p>
         </>
       )}
@@ -132,7 +133,8 @@ function TripBlock({ trip }: { trip: TripPlanRow }) {
 
 /* Una tappa della sequenza: chiusa mostra quando + cosa; aperta rivela la nota (+ link).
    Le attività (fisso:false) con più opzioni hanno il tasto "Cambia" (swap istantaneo). */
-function StepRow({ step, first }: { step: Slot; first: boolean }) {
+function StepRow({ step, first, clusterKey, index }: { step: Slot; first: boolean; clusterKey: string; index: number }) {
+  const router = useRouter();
   // Retro-compatibilità: se non ci sono "opzioni", uso cosa/nota come opzione unica.
   const opzioni: Opt[] =
     step.opzioni && step.opzioni.length > 0
@@ -143,9 +145,46 @@ function StepRow({ step, first }: { step: Slot; first: boolean }) {
 
   const [sel, setSel] = useState(0);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [richiesta, setRichiesta] = useState("");
+  const [busy, setBusy] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  // La barra "Chiedi a Keiko" galleggia in basso e può coprire il bottone Invia:
+  // quando apri la modifica, centriamo il form sullo schermo, lontano dalla barra.
+  useEffect(() => {
+    if (editing) formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [editing]);
   const opt = opzioni[sel] ?? {};
   const hasDetail = !!(opt.nota || opt.link);
   const swappable = !step.fisso && opzioni.length > 1;
+
+  // Manda la richiesta a Keiko: riscrive SOLO questa tappa, poi ricarica il piano.
+  async function chiediModifica() {
+    const r = richiesta.trim();
+    if (!r || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/trip/edit-slot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ clusterKey, slotIndex: index, richiesta: r }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      setEditing(false);
+      setRichiesta("");
+      setSel(0);
+      router.refresh();
+    } catch (e) {
+      console.error("edit-slot fallita:", e);
+      const msg = e instanceof Error && e.message ? e.message : "errore sconosciuto";
+      window.alert("Modifica fallita: " + msg);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div style={{ borderTop: first ? "none" : "1px solid var(--inset-line)" }}>
@@ -195,28 +234,93 @@ function StepRow({ step, first }: { step: Slot; first: boolean }) {
         </div>
       )}
 
-      {swappable && (
-        <div style={{ padding: "0 var(--s3) var(--s3)" }}>
+      <div className="flex flex-wrap items-center gap-[var(--s2)]" style={{ padding: "0 var(--s3) var(--s3)" }}>
+          {swappable && (
+            <button
+              type="button"
+              onClick={() => {
+                setSel((s) => (s + 1) % opzioni.length);
+                setOpen(false);
+              }}
+              className="inline-flex items-center gap-1.5 transition-transform active:scale-[0.98]"
+              style={{
+                fontSize: "var(--fs-xs)",
+                fontWeight: "var(--fw-semi)",
+                color: "var(--accent-strong)",
+                background: "var(--inset)",
+                border: "1px solid var(--inset-line)",
+                borderRadius: "var(--r-pill)",
+                padding: "6px 12px",
+              }}
+            >
+              <RefreshCw className="size-3.5" /> Cambia ({sel + 1}/{opzioni.length})
+            </button>
+          )}
+
+          {/* Modifica testuale: Keiko riscrive SOLO questa tappa */}
           <button
             type="button"
-            onClick={() => {
-              setSel((s) => (s + 1) % opzioni.length);
-              setOpen(false);
-            }}
+            onClick={() => setEditing((e) => !e)}
             className="inline-flex items-center gap-1.5 transition-transform active:scale-[0.98]"
             style={{
               fontSize: "var(--fs-xs)",
               fontWeight: "var(--fw-semi)",
-              color: "var(--accent-strong)",
+              color: editing ? "var(--accent-strong)" : "var(--app-2)",
               background: "var(--inset)",
               border: "1px solid var(--inset-line)",
               borderRadius: "var(--r-pill)",
               padding: "6px 12px",
             }}
           >
-            <RefreshCw className="size-3.5" /> Cambia ({sel + 1}/{opzioni.length})
+            <Pencil className="size-3.5" /> Modifica
           </button>
-        </div>
+      </div>
+
+      {editing && (
+        <form
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            chiediModifica();
+          }}
+          className="relative z-50 flex items-center gap-[var(--s2)]"
+          style={{ padding: "0 var(--s3) var(--s3)", scrollMarginBlock: 120 }}
+        >
+          <input
+            type="text"
+            value={richiesta}
+            onChange={(e) => setRichiesta(e.target.value)}
+            placeholder={step.fisso ? "es. consigli per questa tappa…" : "es. spostalo al pomeriggio…"}
+            maxLength={300}
+            disabled={busy}
+            autoFocus
+            className="min-w-0 flex-1 outline-none"
+            style={{
+              fontSize: "var(--fs-sm)",
+              color: "var(--on-surface)",
+              background: "var(--inset)",
+              border: "1px solid var(--inset-line)",
+              borderRadius: "var(--r-sm)",
+              padding: "10px 12px",
+            }}
+          />
+          <button
+            type="button"
+            onClick={chiediModifica}
+            disabled={busy || !richiesta.trim()}
+            className="flex-none text-white transition-transform active:scale-[0.98] disabled:opacity-60"
+            style={{
+              fontSize: "var(--fs-xs)",
+              fontWeight: "var(--fw-semi)",
+              background: "var(--keiko-grad)",
+              borderRadius: "var(--r-sm)",
+              padding: "10px 14px",
+              boxShadow: "var(--sh-btn)",
+            }}
+          >
+            {busy ? "Keiko ci pensa…" : "Invia"}
+          </button>
+        </form>
       )}
     </div>
   );
