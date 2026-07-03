@@ -374,3 +374,17 @@ export async function saveTripPlanResult(clusterKey: string, plan: unknown): Pro
     .eq("cluster_key", clusterKey);
   if (error) throw new Error(error.message);
 }
+
+/** Viaggi con un piano pronto (status = 'ready'), per mostrarli nell'app. */
+export async function getReadyTripPlans(): Promise<TripPlanRow[]> {
+  const { data, error } = await admin()
+    .from("trip_plans")
+    .select("*")
+    .eq("status", "ready")
+    .order("start_date", { ascending: true });
+  if (error) {
+    console.error("Supabase: getReadyTripPlans:", error.message);
+    return [];
+  }
+  return (data ?? []) as TripPlanRow[];
+}

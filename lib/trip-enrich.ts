@@ -58,6 +58,27 @@ async function callClaudeWebSearch(userContent: string): Promise<string> {
   throw new Error("web-search: troppe pause_turn, interrotto");
 }
 
+// Giorni del viaggio con il nome ESATTO (calcolato in codice: gli LLM sbagliano
+// il giorno della settimana da una data). Es: "2026-07-04 = sabato 4 luglio".
+function giorniDelViaggio(start: string | null, end: string | null): string {
+  if (!start) return "";
+  const days: string[] = [];
+  const d = new Date(start + "T12:00:00");
+  const last = new Date((end ?? start) + "T12:00:00");
+  let guard = 0;
+  while (d <= last && guard++ < 40) {
+    const label = new Intl.DateTimeFormat("it-IT", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: "Europe/Rome",
+    }).format(d);
+    days.push(`- ${d.toISOString().slice(0, 10)} = ${label}`);
+    d.setDate(d.getDate() + 1);
+  }
+  return days.join("\n");
+}
+
 function buildPrompt(trip: TripPlanRow, tickets: TicketDetail[]): string {
   const oggi = new Date().toISOString().slice(0, 10);
   const bigliettiTxt = tickets
@@ -66,13 +87,19 @@ function buildPrompt(trip: TripPlanRow, tickets: TicketDetail[]): string {
         `- ${t.type} | ${t.datetime} | ${t.title} | luogo: ${t.location || "-"} | città: ${t.city || "-"}`
     )
     .join("\n");
+  const giorni = giorniDelViaggio(trip.start_date, trip.end_date);
 
   return `Sei l'assistente di pianificazione viaggi di Keiko. Oggi è ${oggi}.
 
 VIAGGIO a ${trip.city} (${trip.start_date} → ${trip.end_date}). Biglietti già in mano all'utente:
 ${bigliettiTxt}
 
-COMPITO: costruisci un piano operativo pratico. Regole (IMPORTANTISSIME):
+GIORNI DEL VIAGGIO (usa ESATTAMENTE questi nomi dei giorni; NON ricalcolare tu il giorno
+della settimana da una data, perché sbagli):
+${giorni}
+
+COMPITO: costruisci un piano operativo pratico E PIENO DI COSE DA FARE (non solo logistica).
+Regole (IMPORTANTISSIME):
 1. Cerca sul web SOLO la "logistica operativa": come raggiungere le venue, navette e tempi,
    distanze a piedi, chiusure/scioperi/deviazioni DI QUEI GIORNI PRECISI, mezzi notturni per
    il rientro, orari di apertura dei musei in quella data. Usa FONTI UFFICIALI e cita l'URL.
@@ -81,12 +108,38 @@ COMPITO: costruisci un piano operativo pratico. Regole (IMPORTANTISSIME):
 3. Calcola gli orari A RITROSO dalle ancore fisse (orari di treni/voli e dell'evento), con
    margini realistici per code e attriti.
 4. Non inventare dati: se non trovi qualcosa, scrivilo nel campo nota.
+5. Per i giorni usa SEMPRE i nomi esatti dell'elenco "GIORNI DEL VIAGGIO" (es. "Sab 4 lug").
+6. RIEMPI il tempo libero (mattine, buchi tra gli impegni, l'ultimo giorno prima di ripartire)
+   con COSE DA FARE concrete nella città giusta: musei/attrazioni (CERCA e verifica che siano
+   aperti QUEL giorno preciso della settimana), quartieri da girare, punti panoramici, mercati,
+   dove mangiare (solo nome + link). Proponi 2-3 opzioni per ogni blocco libero. NON lasciare
+   slot vaghi tipo "giornata libera" o "relax mattina" senza proposte concrete. Ricorda anche
+   le cose pratiche (es. deposito bagagli l'ultimo giorno se il check-out è prima del rientro).
+   PRIMA di proporre un museo/attrazione VERIFICA (ricerca) che sia APERTO quel giorno esatto
+   della settimana. Se è chiuso quel giorno NON proporlo (es. molti musei chiudono il LUNEDÌ;
+   i Musei Vaticani chiudono la DOMENICA, salvo l'ultima del mese). Mai proporre posti chiusi.
+7. STRUTTURA slot: le tappe FISSE (treno, volo, concerto, navetta, deposito bagagli) hanno
+   "fisso": true e UNA sola opzione. Le ATTIVITÀ del tempo libero hanno "fisso": false e
+   2-3 opzioni ALTERNATIVE concrete, così l'utente può scambiarle senza altre ricerche.
 
 Rispondi SOLO con un oggetto JSON valido (nessun testo fuori dal JSON), in italiano, così:
 {
   "riassunto": "una frase sul viaggio",
   "slot": [
-    { "quando": "es. Sab 4 lug ~15:00", "cosa": "cosa fare", "nota": "consiglio/margine, opzionale" }
+    {
+      "quando": "es. Sab 4 lug ~15:00",
+      "fisso": true,
+      "opzioni": [ { "cosa": "cosa fare", "nota": "dettaglio/margine", "link": "https://... (opzionale)" } ]
+    },
+    {
+      "quando": "es. Dom 5 lug mattina",
+      "fisso": false,
+      "opzioni": [
+        { "cosa": "Galleria Borghese", "nota": "climatizzata, prenota online", "link": "https://..." },
+        { "cosa": "Palazzo Barberini", "nota": "Caravaggio, centrale", "link": "https://..." },
+        { "cosa": "Passeggiata a Trastevere", "nota": "quartiere caratteristico" }
+      ]
+    }
   ],
   "logistica": [
     { "info": "fatto operativo verificato", "fonte": "https://url-ufficiale" }

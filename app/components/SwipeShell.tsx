@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import HomeView from "./HomeView";
 import SaluteView from "@/app/salute/SaluteView";
 import AllenamentoView from "@/app/allenamento/AllenamentoView";
-import type { Ticket, DietWeek, WorkoutWeek } from "@/lib/supabase";
+import type { Ticket, DietWeek, WorkoutWeek, TripPlanRow } from "@/lib/supabase";
 
 /* ------------------------------------------------------------------ *
  * Guscio a swipe orizzontale: Dieta ← Home → Allenamento.
@@ -17,6 +17,7 @@ const HOME_INDEX = 1;
 
 export default function SwipeShell({
   events,
+  trips,
   diet,
   dietUpdatedAt,
   workout,
@@ -25,6 +26,7 @@ export default function SwipeShell({
   logoutAction,
 }: {
   events: Ticket[];
+  trips: TripPlanRow[];
   diet: DietWeek | null;
   dietUpdatedAt: string | null;
   workout: WorkoutWeek | null;
@@ -67,6 +69,7 @@ export default function SwipeShell({
         <Panel>
           <HomeView
             events={events}
+            trips={trips}
             diet={diet}
             workout={workout}
             trainedDays={trainedDays}

@@ -187,5 +187,27 @@ con la fase pesante secca. Feature avanzata, non ora.
 La funzione **enrichTripPlan** resta comunque sempre disponibile come azione manuale/su
 richiesta, anche per i viaggi lunghi (l'utente la lancia se vuole).
 
+### Viaggi multi-città: le tratte interne sono ANCORE che vincolano tutto (deciso con Matteo)
+
+Per un viaggio lungo multi-città (es. USA):
+1. si carica il volo oceanico A/R;
+2. si caricano le **tratte interne** (voli/treni dentro il paese di destinazione);
+3. queste tratte creano una **timeline "città-per-data"**: si sa dove sei ogni giorno.
+
+Regola d'oro: qualsiasi tips/ricerca/itinerario generato deve **sposarsi e bloccarsi** con
+questi biglietti. Se mercoledì il volo è per Los Angeles, mercoledì l'utente è a LA →
+Keiko NON deve proporre New York quel giorno. I biglietti sono **ancore** che fissano
+luogo + data; il piano si costruisce **PER SEGMENTO** (città + intervallo di date), mai
+mischiando le città.
+
+Nota: il rilevamento attuale (`detectClusters`) è pensato per UN viaggio a UNA destinazione
+(weekend). Il modello multi-città a segmenti è parte della fase avanzata/chat, non ora.
+
+**UX multi-città (riusa l'architettura esistente):** carichi il programma → Keiko lo impagina
+pulito → la fase pesante gira in background **per segmento (per città)** → entri nel viaggio,
+**schiacci una città** e vedi le cose da fare lì (piano già pronto, fase leggera). Vale la
+stessa regola degli slot: le cose **già caricate/fissate non si ri-cercano** (risparmio).
+Cioè: stesse due fasi + slot-lock + tre secchi di sempre, applicati per-città.
+
 Entry point dell'itinerario: **NON** "Quando uscire" (a Matteo non piace) → da ridisegnare
 insieme quando facciamo la UI.

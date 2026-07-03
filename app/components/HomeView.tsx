@@ -20,12 +20,14 @@ import {
   Star,
   Check,
   LogOut,
+  Compass,
+  MapPin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Salad, Dumbbell, Moon } from "lucide-react";
-import type { Ticket, DietWeek, WorkoutWeek } from "@/lib/supabase";
+import type { Ticket, DietWeek, WorkoutWeek, TripPlanRow } from "@/lib/supabase";
 import { MealRow, todayDietKey, DAY_FULL } from "./DietMeal";
 import { ExerciseRow, todayISO } from "./WorkoutDay";
 import NotificationButton from "@/components/NotificationButton";
@@ -134,6 +136,10 @@ function eventLine(event: Ticket): string {
   const { date, time } = dateTimeParts(event.datetime);
   return [date, time, event.location].filter(Boolean).join(" · ");
 }
+/* Deep-link Google Maps per il luogo (stazione/aeroporto/venue). */
+function mapsUrl(location: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
 
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -160,12 +166,14 @@ function buildWeek(from: Date): WeekDay[] {
 
 export default function HomeView({
   events,
+  trips = [],
   diet,
   workout,
   trainedDays = [],
   logoutAction,
 }: {
   events: Ticket[];
+  trips?: TripPlanRow[];
   diet?: DietWeek | null;
   workout?: WorkoutWeek | null;
   trainedDays?: string[];
@@ -260,6 +268,15 @@ export default function HomeView({
               <Lead className="mt-[var(--sec)]">Prossimi eventi</Lead>
               {upcoming.map((e) => (
                 <EventCard key={e.id} event={e} />
+              ))}
+            </>
+          )}
+
+          {trips.length > 0 && (
+            <>
+              <Lead className="mt-[var(--sec)]">Plot</Lead>
+              {trips.map((t) => (
+                <PlotCard key={t.id} trip={t} />
               ))}
             </>
           )}
@@ -441,7 +458,16 @@ function HeroCard({ event }: { event: Ticket }) {
           {event.title}
         </span>
         {event.location && (
-          <span style={{ color: "var(--on-surface-2)", fontSize: "var(--fs-sm)" }}>{event.location}</span>
+          <a
+            href={mapsUrl(event.location)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1"
+            style={{ color: "var(--on-surface-2)", fontSize: "var(--fs-sm)" }}
+          >
+            <MapPin className="size-3.5 flex-none" style={{ color: "var(--accent-strong)" }} />
+            {event.location}
+          </a>
         )}
         <span className="tabular-nums" style={{ color: "var(--accent-strong)", fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)" }}>
           {date} · {time}
@@ -494,6 +520,50 @@ function EmptyHero() {
   );
 }
 
+/* ---------- Card "Plot" (porta d'ingresso all'itinerario /viaggio) ---------- */
+function fmtTripRange(a: string | null, b: string | null): string {
+  if (!a) return "";
+  const opt: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
+  const da = new Date(a + "T00:00:00");
+  const db = b ? new Date(b + "T00:00:00") : da;
+  const s = new Intl.DateTimeFormat("it-IT", opt).format(da);
+  const e = new Intl.DateTimeFormat("it-IT", opt).format(db);
+  return s === e ? s : `${s} – ${e}`;
+}
+
+function PlotCard({ trip }: { trip: TripPlanRow }) {
+  return (
+    <Link
+      href="/viaggio"
+      className="flex w-full items-center gap-[var(--s3)] text-left transition-transform duration-200 active:scale-[0.99]"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--tile-line)",
+        boxShadow: "var(--sh-card)",
+        borderRadius: "var(--r-lg)",
+        padding: "var(--s3)",
+        marginBottom: "var(--s3)",
+      }}
+    >
+      <span
+        className="grid flex-none place-items-center text-white"
+        style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: "var(--cat-treno)" }}
+      >
+        <Compass className="size-6" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>
+          Viaggio a {trip.city}
+        </div>
+        <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>
+          {fmtTripRange(trip.start_date, trip.end_date)} · vedi il piano
+        </div>
+      </div>
+      <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />
+    </Link>
+  );
+}
+
 /* ---------- Card piccola espandibile (stat-chips) ---------- */
 function EventCard({ event }: { event: Ticket }) {
   const [open, setOpen] = useState(false);
@@ -543,6 +613,17 @@ function EventCard({ event }: { event: Ticket }) {
             <Stat k="Ora" v={time} />
             <Stat k="Luogo" v={event.location || "—"} />
           </div>
+          {event.location && (
+            <a
+              href={mapsUrl(event.location)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-[var(--s3)] inline-flex items-center gap-1.5"
+              style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
+            >
+              <MapPin className="size-[15px]" /> Apri in Mappe
+            </a>
+          )}
           {/* TODO: backend — placeholder v15 (no QR/biglietto reale) */}
           <button
             type="button"

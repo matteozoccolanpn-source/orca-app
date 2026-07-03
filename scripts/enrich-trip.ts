@@ -10,12 +10,19 @@ import { enrichTripPlan } from "../lib/trip-enrich";
 
 (async () => {
   try {
-    const keys = await getPendingTripPlanKeys();
-    if (keys.length === 0) {
-      console.log("Nessun viaggio 'pending' da arricchire. (Aggiungi biglietti che formano un viaggio.)");
-      return;
+    // Puoi passare un cluster_key per RI-generare un viaggio già pronto:
+    //   npx tsx --env-file=.env.local scripts/enrich-trip.ts 'roma:2026-07-04:2026-07-05'
+    // Senza argomenti, prende il primo viaggio 'pending'.
+    let key = process.argv[2];
+    if (!key) {
+      const keys = await getPendingTripPlanKeys();
+      if (keys.length === 0) {
+        console.log("Nessun viaggio 'pending'. Per ri-generarne uno già pronto passa il cluster_key:");
+        console.log("  npx tsx --env-file=.env.local scripts/enrich-trip.ts 'roma:2026-07-04:2026-07-05'");
+        return;
+      }
+      key = keys[0];
     }
-    const key = keys[0];
     console.log(`Arricchisco il viaggio: ${key}\n(ricerca web in corso, può metterci qualche secondo...)\n`);
     const { plan } = await enrichTripPlan(key);
     console.log("=== PIANO GENERATO ===\n");
