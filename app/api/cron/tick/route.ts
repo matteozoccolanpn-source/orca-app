@@ -133,7 +133,9 @@ export async function GET(req: Request) {
  * mentre il server (Vercel) ragiona in UTC. */
 function romeLocalToUtc(day: string, hhmm: string): Date {
   const guess = new Date(`${day}T${hhmm}:00Z`);               // finta UTC
+  // Confronto UTC-vs-Roma della stessa data: robusto qualunque sia il fuso del server.
+  const utcView = new Date(guess.toLocaleString("en-US", { timeZone: "UTC" }));
   const romeView = new Date(guess.toLocaleString("en-US", { timeZone: TZ }));
-  const offset = romeView.getTime() - guess.getTime();        // es. +2h d'estate
+  const offset = romeView.getTime() - utcView.getTime();      // es. +2h d'estate
   return new Date(guess.getTime() - offset);
 }

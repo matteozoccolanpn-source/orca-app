@@ -2,7 +2,7 @@
 
 > Snapshot per ripartire (anche in una nuova chat). I ragionamenti di dettaglio sono in
 > `BUSSOLA-E-ROADMAP.md`, `SPEC-PIANIFICATORE.md`, `ROADMAP-AL-LANCIO.md`.
-> Aggiornato il 2026-07-03.
+> Aggiornato il 2026-07-03 (sera: barra to-do fatta, nuovo backlog in fondo).
 
 ## Dove siamo
 Alpha single-user **funzionante e in produzione**. Il **pianificatore di viaggi** gira
@@ -19,6 +19,11 @@ build verde prima di ogni commit, non committare senza ok di Matteo.
 - Pipeline testo nel drawer `CaptureSheet`; link Google Maps sugli eventi.
 - Tabella `trip_plans` (+ permessi/RLS); guardrail viaggi lunghi (≥7 giorni no auto).
 - Doc: bussola/roadmap, spec pianificatore, roadmap-al-lancio.
+- **#21 Barra TODO per-giorno — FATTA** (2026-07-03): tabella `todos` + API + overlay collegato
+  (spunta/stella/elimina/aggiungi), orario dal testo (`lib/todo-time.ts`) con chip modificabile,
+  notifica push 30 min prima via `/api/cron/tick`, luogo vero risolto da Claude web-search
+  (`lib/todo-place.ts`, chip Maps/Chiama), titolo riscritto pulito, eventi del giorno
+  nell'overlay, calendario mensile in app-bar, swipe-elimina sulle card evento.
 
 ## TODO aperti (dalla task list)
 
@@ -52,13 +57,27 @@ build verde prima di ogni commit, non committare senza ok di Matteo.
 Il vero salto verso "prodotto": **privacy totale + login/multi-utente** (user_id su tutte le
 righe + RLS per utente + policy dati/GDPR + quote costi API). Senza, non entra nessun estraneo.
 
-## Prossimo step scelto: #21 — Barra TODO in Keiko
-Cos'è: la barra to-do per-giorno che si apre dalla striscia dei giorni in alto (ora è solo UI
-finta). Serve renderla vera.
-- **Dati**: nuova tabella Supabase `todos` (id, user_id, day date, text, done bool, star bool,
-  created_at). Additiva.
-- **API**: aggiungere / spuntare / eliminare / stellare un todo.
-- **UI**: in `app/components/HomeView.tsx` collegare `TodoOverlay` e `TodoRow` ai dati veri
-  (oggi usano `MOCK_TODOS`); il badge arancione sui giorni (`WeekStrip`/`countByDay`) può
-  contare i todo oltre agli eventi.
-- **Auth**: resta auth-guarded come il resto.
+## Backlog 2026-07-03 (analisi dei 7 punti di Matteo)
+
+**A — Viaggi: "il plot vive"** (punti 3+4+7 — priorità 1, "potenziamo molto")
+- A0 *(bug, piccolo)*: il plot si è fumato l'HOTEL → verificare che trip-enrich riceva
+  e usi i ticket hotel come ancora del piano.
+- A1 *(medio)*: evento nuovo dentro le date di un viaggio → il plot si aggiorna da solo
+  (o propone "aggiorna plot" sulla card).
+- A2 *(medio)*: modifica TESTUALE di un singolo item dell'itinerario ("sposta il museo
+  al pomeriggio") → Claude riscrive solo quello slot, non tutto il piano.
+
+**B — Notifiche to-do regolabili** (punto 1 — piccolo, chiude il tema appena fatto)
+- Anticipo per-todo (15/30/60/120 min) e scelta notifica singola o doppia (come gli eventi).
+
+**C — Eventi smart tipo F1** (punto 2 — medio-piccolo)
+- Riconoscere l'evento sportivo (es. GP Gran Bretagna), info minime + link classifica
+  mondiale. Poi versione "in stile Keiko" più avanti.
+
+**D — Categorie per uso** (punto 5 — medio)
+- Sezioni home (Dieta, Allenamento, To-do, e future) ordinate per uso settimanale
+  + reminder se una categoria dorme 1-2 settimane. Serve un minimo di tracking uso.
+
+**E — UI/UX** (punto 6) → già coperto da #20 (redesign completo), si fa in altra sede.
+
+Ordine proposto: **A0 → B → A1 → A2 → C → D**.

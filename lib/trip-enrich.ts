@@ -123,6 +123,10 @@ Regole (IMPORTANTISSIME):
 7. STRUTTURA slot: le tappe FISSE (treno, volo, concerto, navetta, deposito bagagli) hanno
    "fisso": true e UNA sola opzione. Le ATTIVITÀ del tempo libero hanno "fisso": false e
    2-3 opzioni ALTERNATIVE concrete, così l'utente può scambiarle senza altre ricerche.
+8. HOTEL: se tra i biglietti c'è un hotel, è la BASE del viaggio. Inserisci check-in e
+   check-out come slot fissi (orari standard se non indicati), fai convergere le serate
+   verso l'hotel (rientro), usa la sua posizione per scegliere attività comode e NON
+   proporre altri hotel o link per dormire.
 
 Rispondi SOLO con un oggetto JSON valido (nessun testo fuori dal JSON), in italiano, così:
 {

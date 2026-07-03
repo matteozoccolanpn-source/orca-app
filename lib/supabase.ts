@@ -104,6 +104,24 @@ export async function updateTicketById(id: string, fields: TicketUpdate): Promis
   if (error) throw new Error(error.message);
 }
 
+/* FIX FUSO ORARIO (bug "due ore avanti").
+ * Il parser produce l'ora SENZA fuso (es. "2026-07-04T08:48:00") intendendo
+ * l'ora ITALIANA, ma la colonna è timestamptz: senza fuso, Postgres la legge
+ * come UTC e l'app (che converte UTC→Roma per mostrarla) aggiunge +2h.
+ * Qui, se manca il fuso, interpretiamo l'ora come Europe/Rome e salviamo
+ * l'istante UTC corretto. Se il fuso c'è già (Z o +hh:mm), non tocchiamo nulla. */
+function romeNaiveToUtcIso(datetime: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(datetime)) return datetime; // formato ignoto: com'è
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/.test(datetime)) return datetime;          // fuso già presente
+  const guess = new Date(datetime + (datetime.length === 16 ? ":00" : "") + "Z"); // finta UTC
+  // Offset di Roma calcolato confrontando due letture della STESSA data
+  // (una in UTC, una in Europe/Rome): robusto qualunque sia il fuso del server.
+  const utcView = new Date(guess.toLocaleString("en-US", { timeZone: "UTC" }));
+  const romeView = new Date(guess.toLocaleString("en-US", { timeZone: "Europe/Rome" }));
+  const offset = romeView.getTime() - utcView.getTime(); // es. +2h d'estate
+  return new Date(guess.getTime() - offset).toISOString();
+}
+
 export async function createTicket(fields: TicketCreate): Promise<{ id: string }> {
   const { data, error } = await admin()
     .from("tickets")
@@ -111,7 +129,7 @@ export async function createTicket(fields: TicketCreate): Promise<{ id: string }
       user_id:   null,
       title:     fields.title,
       type:      fields.type,
-      datetime:  fields.datetime || null,
+      datetime:  fields.datetime ? romeNaiveToUtcIso(fields.datetime) : null,
       location:  fields.location  ?? null,
       reference: fields.reference ?? null,
       city:      fields.city      ?? null,
@@ -284,6 +302,15 @@ export async function syncTripPlans(): Promise<{ clusters: number; upserted: num
   const clusters = detectClusters(tickets);
   const daPianificare = clusters.filter((c) => c.fires);
 
+  // Stato attuale dei viaggi salvati: serve per capire se i biglietti di un
+  // viaggio sono CAMBIATI rispetto a quando il piano è stato generato.
+  const { data: esistenti } = await client
+    .from("trip_plans")
+    .select("cluster_key, status, ticket_ids, start_date");
+  const perKey = new Map(
+    (esistenti ?? []).map((r) => [r.cluster_key as string, r as { status: string; ticket_ids: string[]; start_date: string | null }])
+  );
+
   let upserted = 0;
   for (const c of daPianificare) {
     const { error: upErr } = await client.from("trip_plans").upsert(
@@ -298,6 +325,26 @@ export async function syncTripPlans(): Promise<{ clusters: number; upserted: num
     );
     if (upErr) throw new Error(upErr.message);
     upserted++;
+
+    // Biglietti cambiati su un piano già pronto (es. hotel aggiunto dopo)?
+    // → il piano è vecchio: torna 'pending' così viene rigenerato.
+    const prima = perKey.get(c.clusterKey);
+    const idsPrima = [...(prima?.ticket_ids ?? [])].sort().join(",");
+    const idsOra = [...c.ticketIds].sort().join(",");
+    if (prima && prima.status === "ready" && idsPrima !== idsOra) {
+      await client.from("trip_plans").update({ status: "pending" }).eq("cluster_key", c.clusterKey);
+    }
+  }
+
+  // Viaggi FUTURI il cui cluster non esiste più (es. treno eliminato, o date
+  // cambiate → nuova cluster_key): via il fantasma, altrimenti resta in home.
+  const keysAttuali = new Set(daPianificare.map((c) => c.clusterKey));
+  const oggi = new Date().toISOString().slice(0, 10);
+  for (const r of esistenti ?? []) {
+    const row = r as { cluster_key: string; start_date: string | null };
+    if (!keysAttuali.has(row.cluster_key) && row.start_date && row.start_date >= oggi) {
+      await client.from("trip_plans").delete().eq("cluster_key", row.cluster_key);
+    }
   }
 
   return { clusters: clusters.length, upserted };

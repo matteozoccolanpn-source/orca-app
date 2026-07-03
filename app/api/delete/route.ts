@@ -1,6 +1,10 @@
 import { auth } from "@/auth"
-import { NextResponse } from "next/server"
-import { deleteTicketById } from "@/lib/supabase"
+import { NextResponse, after } from "next/server"
+import { deleteTicketById, syncTripPlans } from "@/lib/supabase"
+import { autoEnrichNewTrips } from "@/lib/trip-enrich"
+
+// La risincronizzazione viaggi in background può includere web-search.
+export const maxDuration = 300
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -28,6 +32,18 @@ export async function POST(request: Request) {
 
   try {
     await deleteTicketById(id)
+
+    // Un biglietto in meno può cambiare (o cancellare) un viaggio:
+    // risincronizza gli incastri e rigenera i piani invecchiati, in background.
+    after(async () => {
+      try {
+        await syncTripPlans()
+        await autoEnrichNewTrips()
+      } catch (e) {
+        console.error("sync viaggi dopo delete fallita:", e)
+      }
+    })
+
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error("Supabase delete error:", err)
