@@ -1,6 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { auth } from '@/auth'
 import { createTicket, syncTripPlans } from '@/lib/supabase'
+import { autoEnrichNewTrips } from '@/lib/trip-enrich'
+
+// La generazione del piano (ricerca web ~30s) gira in background dopo la
+// risposta: alziamo il limite di durata della funzione.
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -25,6 +30,16 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.error('syncTripPlans dopo create fallita (il biglietto è comunque salvato):', e)
     }
+
+    // Genera il piano del viaggio in BACKGROUND, dopo la risposta (così il
+    // salvataggio resta veloce). Solo viaggi brevi: il guardrail è dentro la funzione.
+    after(async () => {
+      try {
+        await autoEnrichNewTrips()
+      } catch (e) {
+        console.error('autoEnrich background fallita:', e)
+      }
+    })
 
     return NextResponse.json({ success: true, record: { id } })
   } catch (err) {

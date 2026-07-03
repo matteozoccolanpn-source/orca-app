@@ -388,3 +388,12 @@ export async function getReadyTripPlans(): Promise<TripPlanRow[]> {
   }
   return (data ?? []) as TripPlanRow[];
 }
+
+/** Cambia lo stato di un viaggio (pending → generating → ready). */
+export async function setTripPlanStatus(clusterKey: string, status: string): Promise<void> {
+  const { error } = await admin()
+    .from("trip_plans")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("cluster_key", clusterKey);
+  if (error) throw new Error(error.message);
+}

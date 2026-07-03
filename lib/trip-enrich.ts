@@ -9,6 +9,8 @@ import {
   getTripPlanByKey,
   getTicketsByIds,
   saveTripPlanResult,
+  getPendingTripPlanKeys,
+  setTripPlanStatus,
   type TripPlanRow,
   type TicketDetail,
 } from "./supabase";
@@ -169,4 +171,39 @@ export async function enrichTripPlan(clusterKey: string): Promise<{ ok: boolean;
 
   await saveTripPlanResult(clusterKey, plan);
   return { ok: true, plan };
+}
+
+// Durata del viaggio in giorni (per il guardrail viaggi lunghi).
+function tripDurationDays(start: string | null, end: string | null): number {
+  if (!start) return 0;
+  const a = new Date(start + "T00:00:00").getTime();
+  const b = new Date((end ?? start) + "T00:00:00").getTime();
+  return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * AUTO-GENERAZIONE: genera i piani per i viaggi 'pending' brevi.
+ * Da chiamare in BACKGROUND (dopo la risposta) al salvataggio di un biglietto.
+ * - Salta i viaggi lunghi (>= 7 giorni) — guardrail deciso con Matteo.
+ * - Usa lo stato 'generating' per non generare due volte lo stesso viaggio.
+ * - Se fallisce, rimette 'pending' così può riprovare al prossimo salvataggio.
+ */
+export async function autoEnrichNewTrips(): Promise<void> {
+  const keys = await getPendingTripPlanKeys();
+  for (const key of keys) {
+    const trip = await getTripPlanByKey(key);
+    if (!trip) continue;
+    if (tripDurationDays(trip.start_date, trip.end_date) >= 7) continue; // viaggio lungo: no auto
+    try {
+      await setTripPlanStatus(key, "generating");
+      await enrichTripPlan(key); // alla fine diventa 'ready'
+    } catch (e) {
+      console.error("autoEnrich fallita per", key, e);
+      try {
+        await setTripPlanStatus(key, "pending");
+      } catch {
+        /* ignora */
+      }
+    }
+  }
 }
