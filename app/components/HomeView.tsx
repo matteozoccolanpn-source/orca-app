@@ -26,6 +26,7 @@ import {
   X,
   Phone,
   Trash2,
+  Bell,
 } from "lucide-react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -257,7 +258,7 @@ export default function HomeView({
     }
   }
 
-  async function patchTodo(id: string, fields: { done?: boolean; star?: boolean; time?: string | null }) {
+  async function patchTodo(id: string, fields: { done?: boolean; star?: boolean; time?: string | null; lead?: number; double?: boolean }) {
     const prev = todoList;
     setTodoList((l) => l.map((t) => (t.id === id ? { ...t, ...fields } : t)));
     try {
@@ -1216,7 +1217,10 @@ function TodoRow({ pending, onOpen }: { pending: number; onOpen: () => void }) {
 
 /* Riga sotto il testo del to-do: orario (se c'è) + mini bottoni Mappa/Chiama
  * ricavati dal testo. Stessa idea delle azioni per-tipo degli eventi. */
-function TodoMeta({ todo, onPatch }: { todo: Todo; onPatch: (id: string, fields: { time?: string | null }) => void }) {
+/* Anticipi disponibili per la notifica: tap sulla campanella per ciclare. */
+const LEAD_STEPS = [15, 30, 60, 120];
+
+function TodoMeta({ todo, onPatch }: { todo: Todo; onPatch: (id: string, fields: { time?: string | null; lead?: number; double?: boolean }) => void }) {
   // Prima scelta: luogo/telefono veri risolti da Claude. Fallback: euristica sul testo.
   const phone = todo.phone ? `tel:${todo.phone.replace(/[^\d+]/g, "")}` : todoPhone(todo.text);
   const place = todo.location ?? todoPlace(todo.text);
@@ -1244,6 +1248,33 @@ function TodoMeta({ todo, onPatch }: { todo: Todo; onPatch: (id: string, fields:
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
       </label>
+      {/* Notifica: campanella cicla l'anticipo (15→30→60→120 min) */}
+      {todo.time && (
+        <button
+          type="button"
+          onClick={() => {
+            const i = LEAD_STEPS.indexOf(todo.lead);
+            onPatch(todo.id, { lead: LEAD_STEPS[(i + 1) % LEAD_STEPS.length] });
+          }}
+          aria-label="Anticipo notifica"
+          className="inline-flex items-center gap-1 active:scale-95"
+          style={chip}
+        >
+          <Bell className="size-3" /> {todo.lead}′
+        </button>
+      )}
+      {/* ×2 = seconda notifica a ridosso (~15 min prima) */}
+      {todo.time && todo.lead > 15 && (
+        <button
+          type="button"
+          onClick={() => onPatch(todo.id, { double: !todo.double })}
+          aria-label="Doppia notifica"
+          className="inline-flex items-center active:scale-95"
+          style={todo.double ? chip : { ...chip, color: "var(--app-faint)", background: "var(--inset)" }}
+        >
+          ×2
+        </button>
+      )}
       {place && (
         <a
           href={mapsUrl(place)}
@@ -1385,7 +1416,7 @@ function TodoOverlay({
   todos: Todo[];
   dayEvents?: Ticket[];
   onAdd: (text: string) => Promise<boolean>;
-  onPatch: (id: string, fields: { done?: boolean; star?: boolean; time?: string | null }) => void;
+  onPatch: (id: string, fields: { done?: boolean; star?: boolean; time?: string | null; lead?: number; double?: boolean }) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }) {

@@ -107,21 +107,29 @@ export async function GET(req: Request) {
     }
   }
 
-  // (iv) To-do con orario — notifica 30 min prima (stessa finestra degli eventi).
-  // Prende i to-do di oggi non fatti, con orario, mai notificati.
+  // (iv) To-do con orario — notifica con anticipo scelto dall'utente
+  // (lead_minutes, default 30) + eventuale seconda notifica a ridosso (~15 min).
   const { data: todosOggi } = await sb.from("todos")
-    .select("id, text, time")
+    .select("id, text, time, lead_minutes, double_reminder, reminded_at, reminded_imminent_at")
     .eq("day", today)
     .eq("done", false)
-    .not("time", "is", null)
-    .is("reminded_at", null);
+    .not("time", "is", null);
 
   for (const t of todosOggi ?? []) {
     const start = romeLocalToUtc(today, String(t.time).slice(0, 5));
     const minsTo = (start.getTime() - now.getTime()) / 60000;
-    if (minsTo <= 30 && minsTo > 15) {
-      await blast(`Tra 30 min: ${t.text}`, "Promemoria to-do ✅", "/");
+    const lead = typeof t.lead_minutes === "number" ? t.lead_minutes : 30;
+
+    // Prima notifica: nella finestra [lead-15, lead] (il cron passa ogni ~15 min).
+    if (!t.reminded_at && minsTo <= lead && minsTo > lead - 15) {
+      await blast(`Tra ${Math.round(minsTo)} min: ${t.text}`, "Promemoria to-do ✅", "/");
       await sb.from("todos").update({ reminded_at: now.toISOString() }).eq("id", t.id);
+    }
+
+    // Seconda notifica (se attiva e ha senso: anticipo > 15): a ridosso.
+    if (t.double_reminder === true && lead > 15 && !t.reminded_imminent_at && minsTo <= 15 && minsTo > 0) {
+      await blast(`Tra poco: ${t.text}`, "Ci siamo quasi", "/");
+      await sb.from("todos").update({ reminded_imminent_at: now.toISOString() }).eq("id", t.id);
     }
   }
 

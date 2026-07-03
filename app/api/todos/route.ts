@@ -70,7 +70,7 @@ export async function PATCH(req: NextRequest) {
   const denied = await guard()
   if (denied) return denied
 
-  let body: { id?: string; done?: boolean; star?: boolean; time?: string | null }
+  let body: { id?: string; done?: boolean; star?: boolean; time?: string | null; lead?: number; double?: boolean }
   try {
     body = await req.json()
   } catch {
@@ -81,9 +81,14 @@ export async function PATCH(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: 'Id mancante' }, { status: 400 })
   }
-  const fields: { done?: boolean; star?: boolean; time?: string | null } = {}
+  const fields: { done?: boolean; star?: boolean; time?: string | null; lead?: number; double?: boolean } = {}
   if (typeof body.done === 'boolean') fields.done = body.done
   if (typeof body.star === 'boolean') fields.star = body.star
+  if (typeof body.double === 'boolean') fields.double = body.double
+  // Anticipo notifica: solo valori sensati (5 min .. 8 ore).
+  if (typeof body.lead === 'number' && Number.isInteger(body.lead) && body.lead >= 5 && body.lead <= 480) {
+    fields.lead = body.lead
+  }
   // Orario cambiato a mano: "HH:MM" per impostarlo, null per toglierlo.
   if (body.time === null) fields.time = null
   else if (typeof body.time === 'string' && /^\d{2}:\d{2}$/.test(body.time)) fields.time = body.time

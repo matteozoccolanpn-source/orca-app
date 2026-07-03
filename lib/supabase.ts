@@ -470,16 +470,18 @@ export interface Todo {
   text: string;
   done: boolean;
   star: boolean;
-  time: string | null;     // "HH:MM" — orario opzionale (per la notifica 30 min prima)
+  time: string | null;     // "HH:MM" — orario opzionale (abilita la notifica)
   location: string | null; // luogo vero risolto da Claude (nome + indirizzo)
   phone: string | null;    // telefono del posto, se trovato
+  lead: number;            // minuti di anticipo della notifica (default 30)
+  double: boolean;         // seconda notifica a ridosso (~15 min prima)?
 }
 
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */
 export async function getTodos(): Promise<Todo[]> {
   const { data, error } = await admin()
     .from("todos")
-    .select("id, day, text, done, star, time, location, phone")
+    .select("id, day, text, done, star, time, location, phone, lead_minutes, double_reminder")
     .order("day", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -497,6 +499,8 @@ export async function getTodos(): Promise<Todo[]> {
     time: typeof row.time === "string" ? row.time.slice(0, 5) : null,
     location: (row.location as string | null) ?? null,
     phone: (row.phone as string | null) ?? null,
+    lead: typeof row.lead_minutes === "number" ? row.lead_minutes : 30,
+    double: row.double_reminder === true,
   }));
 }
 
@@ -513,11 +517,11 @@ export async function createTodo(
   const { data, error } = await admin()
     .from("todos")
     .insert({ user_id: null, day, text, time: time ?? null, location: location ?? null, phone: phone ?? null })
-    .select("id, day, text, done, star, time, location, phone")
+    .select("id, day, text, done, star, time, location, phone, lead_minutes, double_reminder")
     .single();
 
   if (error) throw new Error(error.message);
-  const row = data as { id: string; day: string; text: string; done: boolean; star: boolean; time: string | null; location: string | null; phone: string | null };
+  const row = data as { id: string; day: string; text: string; done: boolean; star: boolean; time: string | null; location: string | null; phone: string | null; lead_minutes: number; double_reminder: boolean };
   return {
     id: row.id,
     day: row.day,
@@ -527,19 +531,27 @@ export async function createTodo(
     time: typeof row.time === "string" ? row.time.slice(0, 5) : null,
     location: row.location ?? null,
     phone: row.phone ?? null,
+    lead: typeof row.lead_minutes === "number" ? row.lead_minutes : 30,
+    double: row.double_reminder === true,
   };
 }
 
-/** Aggiorna done, star e/o time di un to-do. */
-export async function updateTodoById(id: string, fields: { done?: boolean; star?: boolean; time?: string | null }): Promise<void> {
-  const patch: Record<string, boolean | string | null> = {};
+/** Aggiorna done, star, time e/o impostazioni notifica di un to-do. */
+export async function updateTodoById(
+  id: string,
+  fields: { done?: boolean; star?: boolean; time?: string | null; lead?: number; double?: boolean }
+): Promise<void> {
+  const patch: Record<string, boolean | string | number | null> = {};
   if (fields.done !== undefined) patch.done = fields.done;
   if (fields.star !== undefined) patch.star = fields.star;
-  if (fields.time !== undefined) {
-    patch.time = fields.time;
-    // Orario cambiato → azzera il "già notificato", così la notifica
-    // 30-min-prima riparte sul nuovo orario.
+  if (fields.lead !== undefined) patch.lead_minutes = fields.lead;
+  if (fields.double !== undefined) patch.double_reminder = fields.double;
+  if (fields.time !== undefined) patch.time = fields.time;
+  // Orario o anticipo cambiati → azzera i "già notificato", così le
+  // notifiche ripartono sui nuovi valori.
+  if (fields.time !== undefined || fields.lead !== undefined) {
     patch.reminded_at = null;
+    patch.reminded_imminent_at = null;
   }
   if (Object.keys(patch).length === 0) throw new Error("No fields to update");
 
