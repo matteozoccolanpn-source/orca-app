@@ -302,3 +302,75 @@ export async function syncTripPlans(): Promise<{ clusters: number; upserted: num
 
   return { clusters: clusters.length, upserted };
 }
+
+// ---- Helper per la FASE PESANTE (arricchimento del piano) ----
+
+export interface TripPlanRow {
+  id: string;
+  cluster_key: string;
+  city: string;
+  start_date: string | null;
+  end_date: string | null;
+  ticket_ids: string[];
+  status: string;
+  plan: unknown;
+  searched_at: string | null;
+}
+
+export interface TicketDetail {
+  id: string;
+  title: string;
+  type: string;
+  datetime: string;
+  location: string;
+  city: string;
+}
+
+/** Legge un viaggio dato il suo cluster_key. */
+export async function getTripPlanByKey(clusterKey: string): Promise<TripPlanRow | null> {
+  const { data, error } = await admin()
+    .from("trip_plans")
+    .select("*")
+    .eq("cluster_key", clusterKey)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as TripPlanRow) ?? null;
+}
+
+/** Chiavi dei viaggi ancora da arricchire (status = 'pending'). */
+export async function getPendingTripPlanKeys(): Promise<string[]> {
+  const { data, error } = await admin()
+    .from("trip_plans")
+    .select("cluster_key")
+    .eq("status", "pending");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => r.cluster_key as string);
+}
+
+/** Dettagli dei biglietti che compongono un viaggio. */
+export async function getTicketsByIds(ids: string[]): Promise<TicketDetail[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await admin()
+    .from("tickets")
+    .select("id, title, type, datetime, location, city")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id:       r.id as string,
+    title:    (r.title as string) ?? "",
+    type:     ((r.type as string) ?? "").toLowerCase(),
+    datetime: (r.datetime as string) ?? "",
+    location: (r.location as string) ?? "",
+    city:     (r.city as string) ?? "",
+  }));
+}
+
+/** Salva il piano generato e segna il viaggio come 'ready'. */
+export async function saveTripPlanResult(clusterKey: string, plan: unknown): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await admin()
+    .from("trip_plans")
+    .update({ plan, status: "ready", searched_at: now, updated_at: now })
+    .eq("cluster_key", clusterKey);
+  if (error) throw new Error(error.message);
+}

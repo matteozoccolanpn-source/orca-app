@@ -168,5 +168,24 @@ Per non impantanarsi sul pezzo "wow". Le fette sono i task #2–#11 della lista:
 8. Ripristino Google Maps (indipendente).
 9. Verifica: build + test con i 3 biglietti Milano-Roma + concerto.
 
-> Aperto/da decidere insieme: costo reale del web-search di Claude (da verificare sulla doc
-> ufficiale prima di attivarlo); dove mostrare il bottone (home vs pagina evento).
+> Costo web-search verificato: **$10 / 1000 ricerche** (~$0,01 a ricerca), + token dei
+> risultati. Con max_uses=6 un viaggio costa pochi centesimi. Non è un ostacolo.
+
+---
+
+## 10. Guardrail viaggi lunghi (deciso con Matteo)
+
+L'auto-ricerca (fase pesante automatica) NON parte per i viaggi lunghi. Se la durata è
+~1 settimana o più, è un viaggio complesso da pianificare a tavolino con una ricerca
+one-shot → si sprecherebbero ricerche e verrebbe male. Regola: se
+(end_date − start_date) ≥ ~7 giorni, il viaggio viene rilevato e salvato ma l'**auto-enrich
+lo salta**.
+
+I viaggi lunghi, in futuro (fase avanzata), si pianificheranno **chattando con Keiko** — non
+con la fase pesante secca. Feature avanzata, non ora.
+
+La funzione **enrichTripPlan** resta comunque sempre disponibile come azione manuale/su
+richiesta, anche per i viaggi lunghi (l'utente la lancia se vuole).
+
+Entry point dell'itinerario: **NON** "Quando uscire" (a Matteo non piace) → da ridisegnare
+insieme quando facciamo la UI.
