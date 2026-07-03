@@ -11,6 +11,7 @@ import {
   UtensilsCrossed,
   Calendar,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Plus,
   Ticket as TicketIcon,
@@ -22,12 +23,16 @@ import {
   LogOut,
   Compass,
   MapPin,
+  X,
+  Phone,
+  Trash2,
 } from "lucide-react";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Salad, Dumbbell, Moon } from "lucide-react";
-import type { Ticket, DietWeek, WorkoutWeek, TripPlanRow } from "@/lib/supabase";
+import type { Ticket, DietWeek, WorkoutWeek, TripPlanRow, Todo } from "@/lib/supabase";
 import { MealRow, todayDietKey, DAY_FULL } from "./DietMeal";
 import { ExerciseRow, todayISO } from "./WorkoutDay";
 import NotificationButton from "@/components/NotificationButton";
@@ -83,12 +88,40 @@ function heroActions(type: string): { primary: HeroAction; ghost?: HeroAction } 
   }
 }
 
-/* To-do d'esempio per l'overlay: SOLO UI, da togliere col backend to-do. */
-const MOCK_TODOS = [
-  { id: 1, text: "Ritirare i vestiti", done: true, star: false },
-  { id: 2, text: "Chiamare il dentista", done: false, star: true },
-  { id: 3, text: "Stampare la carta d'imbarco", done: false, star: false },
-];
+/* Giorno in formato ISO "YYYY-MM-DD" (stesso formato della colonna `day` dei to-do). */
+function isoDay(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const g = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${g}`;
+}
+
+/* ----- Mini-azioni ricavate dal TESTO del to-do (nessuna colonna nuova) ----- */
+
+/* Numero di telefono nel testo (almeno 6 cifre) → link tel: */
+function todoPhone(text: string): string | null {
+  const m = text.match(/\+?\d[\d\s./-]{5,}\d/);
+  if (!m) return null;
+  const digits = m[0].replace(/[^\d+]/g, "");
+  if ((digits.match(/\d/g)?.length ?? 0) < 6) return null;
+  return `tel:${digits}`;
+}
+
+/* Luogo dopo "da/al/alla/in/presso/@" con iniziale maiuscola → query per Maps.
+ * Es. "cena da Marco" → "Marco", "ritiro in Via Roma 12" → "Via Roma 12".
+ * Con "vicino (a) X" passiamo a Maps TUTTA la frase: Google capisce query
+ * tipo "patente vicino Linklaters Milano" e mostra i posti giusti in zona. */
+function todoPlace(text: string): string | null {
+  if (/\bvicino\b/i.test(text)) return text;
+  const m = text.match(
+    /(?:\bda\b|\bdal\b|\bdalla\b|\bal\b|\ballo\b|\balla\b|\ball'|\bin\b|\bpresso\b|@)\s*([A-ZÀ-Ý][^\s,.;!?]*(?:\s+(?:[A-ZÀ-Ý][^\s,.;!?]*|\d+))*)/
+  );
+  return m ? m[1] : null;
+}
+
+/* Costanti dello swipe-per-eliminare (stessi valori del vecchio Ticket.tsx). */
+const SWIPE_THRESHOLD = -72;
+const SWIPE_SNAP = SWIPE_THRESHOLD / 2;
+const SWIPE_SPRING = { type: "spring" as const, stiffness: 400, damping: 40 };
 
 function iconForType(type: string): LucideIcon {
   return TYPE_ICON[type?.toLowerCase()] ?? Calendar;
@@ -152,6 +185,11 @@ function startOfWeek(d: Date): Date {
   return date;
 }
 type WeekDay = { date: Date; dn: string; dd: number; key: string };
+/* Crea un WeekDay da una data qualsiasi (per il calendario mensile). */
+function makeWeekDay(date: Date): WeekDay {
+  const dn = new Intl.DateTimeFormat("it-IT", { weekday: "short" }).format(date).slice(0, 3).toUpperCase();
+  return { date, dn, dd: date.getDate(), key: dayKey(date) };
+}
 function buildWeek(from: Date): WeekDay[] {
   const monday = startOfWeek(from);
   return Array.from({ length: 7 }, (_, i) => {
@@ -167,6 +205,7 @@ function buildWeek(from: Date): WeekDay[] {
 export default function HomeView({
   events,
   trips = [],
+  todos = [],
   diet,
   workout,
   trainedDays = [],
@@ -174,6 +213,7 @@ export default function HomeView({
 }: {
   events: Ticket[];
   trips?: TripPlanRow[];
+  todos?: Todo[];
   diet?: DietWeek | null;
   workout?: WorkoutWeek | null;
   trainedDays?: string[];
@@ -182,6 +222,10 @@ export default function HomeView({
   const today = useMemo(() => new Date(), []);
   const week = useMemo(() => buildWeek(today), [today]);
   const todayKey = dayKey(today);
+
+  // Lista to-do "viva" sul client: parte dai dati del server e viene
+  // aggiornata subito a ogni azione (spunta/aggiungi/elimina), senza ricaricare.
+  const [todoList, setTodoList] = useState<Todo[]>(todos);
 
   const countByDay = useMemo(() => {
     const map = new Map<string, number>();
@@ -194,11 +238,76 @@ export default function HomeView({
     return map;
   }, [events]);
 
+  /* ----- azioni to-do: aggiornamento ottimista + chiamata API ----- */
+
+  async function addTodo(day: string, text: string): Promise<boolean> {
+    try {
+      const res = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ day, text }),
+      });
+      if (!res.ok) return false;
+      const { todo } = (await res.json()) as { todo: Todo };
+      setTodoList((l) => [...l, todo]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function patchTodo(id: string, fields: { done?: boolean; star?: boolean; time?: string | null }) {
+    const prev = todoList;
+    setTodoList((l) => l.map((t) => (t.id === id ? { ...t, ...fields } : t)));
+    try {
+      const res = await fetch("/api/todos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id, ...fields }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setTodoList(prev);
+      window.alert("Non sono riuscito a salvare, riprova");
+    }
+  }
+
+  async function removeTodo(id: string) {
+    const prev = todoList;
+    setTodoList((l) => l.filter((t) => t.id !== id));
+    try {
+      const res = await fetch("/api/todos", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setTodoList(prev);
+      window.alert("Non sono riuscito a eliminare, riprova");
+    }
+  }
+
   // Giorno aperto nell'overlay to-do. Determina anche il giorno "selezionato"
   // (grad), mentre OGGI resta evidenziato col numero accentato.
   const [openDay, setOpenDay] = useState<WeekDay | null>(null);
+  const [calOpen, setCalOpen] = useState(false);
   const selectedKey = openDay ? openDay.key : todayKey;
   const todayWD = week.find((w) => w.key === todayKey);
+
+  // Giorni "segnati" nel calendario mensile: c'è almeno un evento o un to-do.
+  const markedDays = useMemo(() => {
+    const s = new Set<string>();
+    for (const e of events) {
+      const d = new Date(e.datetime);
+      if (!isNaN(d.getTime())) s.add(isoDay(d));
+    }
+    for (const t of todoList) s.add(t.day);
+    return s;
+  }, [events, todoList]);
 
   const [hero, ...rest] = events;
   const upcoming = rest.slice(0, 4);
@@ -220,6 +329,16 @@ export default function HomeView({
             🐋 Keiko
           </span>
           <div className="flex items-center gap-[var(--s4)]" style={{ color: "var(--app-2)" }}>
+            {/* Calendario mensile: scegli un giorno qualsiasi e aggiungi to-do */}
+            <button
+              type="button"
+              onClick={() => setCalOpen(true)}
+              aria-label="Calendario"
+              className="grid place-items-center transition-colors active:scale-95"
+              style={{ width: "var(--tap)", height: "var(--tap)", margin: -12 }}
+            >
+              <Calendar className="size-[21px]" />
+            </button>
             {/* Cerca — nessun backend: VUOTO */}
             {/* TODO: backend — placeholder v15 */}
             <button
@@ -288,11 +407,39 @@ export default function HomeView({
           <WorkoutToday workout={workout} trainedDays={trainedDays} />
 
           <Lead className="mt-[var(--sec)]">Oggi</Lead>
-          <TodoRow onOpen={() => todayWD && setOpenDay(todayWD)} />
+          <TodoRow
+            pending={todoList.filter((t) => t.day === isoDay(today) && !t.done).length}
+            onOpen={() => todayWD && setOpenDay(todayWD)}
+          />
         </div>
       </div>
 
-      {openDay && <TodoOverlay day={openDay} onClose={() => setOpenDay(null)} />}
+      {openDay && (
+        <TodoOverlay
+          day={openDay}
+          todos={todoList.filter((t) => t.day === isoDay(openDay.date))}
+          dayEvents={events.filter((e) => {
+            const d = new Date(e.datetime);
+            return !isNaN(d.getTime()) && isoDay(d) === isoDay(openDay.date);
+          })}
+          onAdd={(text) => addTodo(isoDay(openDay.date), text)}
+          onPatch={patchTodo}
+          onDelete={removeTodo}
+          onClose={() => setOpenDay(null)}
+        />
+      )}
+
+      {calOpen && (
+        <MonthPicker
+          initial={openDay?.date ?? today}
+          marked={markedDays}
+          onPick={(d) => {
+            setCalOpen(false);
+            setOpenDay(makeWeekDay(d));
+          }}
+          onClose={() => setCalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -614,21 +761,96 @@ function PlotCard({ trip }: { trip: TripPlanRow }) {
   );
 }
 
-/* ---------- Card piccola espandibile (stat-chips) ---------- */
+/* ---------- Card piccola espandibile (stat-chips) ----------
+ * Swipe verso sinistra → cestino → conferma → /api/delete.
+ * Stesso comportamento del vecchio Ticket.tsx, sui token v15. */
 function EventCard({ event }: { event: Ticket }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [removed, setRemoved] = useState(false);
   const Icon = iconForType(event.type);
   const { date, time } = dateTimeParts(event.datetime);
   const days = daysUntil(event.datetime);
 
+  const x = useMotionValue(0);
+  const delOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
+  const delScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.7, 1]);
+
+  function onDragEnd() {
+    animate(x, x.get() < SWIPE_SNAP ? SWIPE_THRESHOLD : 0, SWIPE_SPRING);
+  }
+
+  function onCardTap() {
+    // Se la card è aperta a metà swipe, il tap la richiude e basta.
+    if (x.get() < -10) {
+      animate(x, 0, SWIPE_SPRING);
+      return;
+    }
+    setOpen((o) => !o);
+  }
+
+  async function doDelete() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: event.id }),
+      });
+      const data = (await res.json()) as { ok: boolean };
+      if (!res.ok || !data.ok) throw new Error();
+      setRemoved(true);
+      router.refresh();
+    } catch {
+      setConfirm(false);
+      window.alert("Non sono riuscito a eliminare, riprova");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (removed) return null;
+
   return (
-    <div
-      className="overflow-hidden"
-      style={{ borderRadius: "var(--r-lg)", background: "var(--tile)", border: "1px solid var(--tile-line)", marginBottom: "var(--s3)" }}
-    >
+    <div className="relative" style={{ marginBottom: "var(--s3)" }}>
+      {/* Zona rossa dietro, rivelata dallo swipe */}
+      <motion.div
+        className="absolute inset-y-0 right-0 flex w-20 items-center justify-center"
+        style={{ opacity: delOpacity, background: "var(--destructive)", borderRadius: "var(--r-lg)" }}
+      >
+        <motion.button
+          type="button"
+          style={{ scale: delScale }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirm(true);
+          }}
+          className="flex flex-col items-center gap-1 text-white"
+        >
+          <Trash2 className="size-4" />
+          <span style={{ fontSize: 10, fontWeight: "var(--fw-semi)" }}>Elimina</span>
+        </motion.button>
+      </motion.div>
+
+      {/* Superficie trascinabile */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: SWIPE_THRESHOLD, right: 0 }}
+        dragElastic={{ left: 0.1, right: 0.05 }}
+        onDragEnd={onDragEnd}
+        style={{ x }}
+        className={busy ? "pointer-events-none opacity-50" : ""}
+      >
+        <div
+          className="overflow-hidden"
+          style={{ borderRadius: "var(--r-lg)", background: "var(--tile)", border: "1px solid var(--tile-line)" }}
+        >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onCardTap}
         aria-expanded={open}
         className="flex w-full items-center gap-[var(--s3)] text-left"
         style={{ padding: "var(--s3)" }}
@@ -683,6 +905,48 @@ function EventCard({ event }: { event: Ticket }) {
           >
             <QrCode className="size-[17px]" /> Mostra biglietto
           </button>
+        </div>
+      )}
+        </div>
+      </motion.div>
+
+      {/* Conferma eliminazione */}
+      {confirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-5"
+          style={{ background: "var(--scrim)" }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm" style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-pop)", padding: "var(--s4)" }}>
+            <h4 style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-base)", color: "var(--on-surface)" }}>
+              Eliminare questo evento?
+            </h4>
+            <p className="mt-2" style={{ fontSize: "var(--fs-sm)", color: "var(--on-surface-2)" }}>{event.title}</p>
+            <div className="mt-5 flex gap-[var(--s2)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirm(false);
+                  animate(x, 0, SWIPE_SPRING);
+                }}
+                disabled={busy}
+                className="flex-1 disabled:opacity-50"
+                style={{ minHeight: "var(--tap)", borderRadius: "var(--r-sm)", fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", background: "var(--inset)", border: "1px solid var(--inset-line)", color: "var(--on-surface)" }}
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={doDelete}
+                disabled={busy}
+                className="flex-1 text-white disabled:opacity-50"
+                style={{ minHeight: "var(--tap)", borderRadius: "var(--r-sm)", fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", background: "var(--destructive)" }}
+              >
+                {busy ? "Elimino…" : "Elimina"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -925,7 +1189,7 @@ function WorkoutToday({ workout, trainedDays }: { workout?: WorkoutWeek | null; 
 }
 
 /* ---------- Riga "To-do di oggi" (apre l'overlay di oggi) ---------- */
-function TodoRow({ onOpen }: { onOpen: () => void }) {
+function TodoRow({ pending, onOpen }: { pending: number; onOpen: () => void }) {
   return (
     <button
       type="button"
@@ -941,18 +1205,206 @@ function TodoRow({ onOpen }: { onOpen: () => void }) {
       </span>
       <div className="flex-1">
         <div style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>To-do di oggi</div>
-        <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>Tocca un giorno per vederle</div>
+        <div style={{ fontSize: "var(--fs-xs)", color: "var(--app-2)", marginTop: 2 }}>
+          {pending > 0 ? `${pending} da fare` : "Tutto fatto · tocca un giorno per aggiungere"}
+        </div>
       </div>
       <ChevronRight className="size-5 flex-none" style={{ color: "var(--app-faint)" }} />
     </button>
   );
 }
 
-/* ---------- Overlay to-do del giorno (UI inerte) ---------- */
-function TodoOverlay({ day, onClose }: { day: WeekDay; onClose: () => void }) {
+/* Riga sotto il testo del to-do: orario (se c'è) + mini bottoni Mappa/Chiama
+ * ricavati dal testo. Stessa idea delle azioni per-tipo degli eventi. */
+function TodoMeta({ todo, onPatch }: { todo: Todo; onPatch: (id: string, fields: { time?: string | null }) => void }) {
+  // Prima scelta: luogo/telefono veri risolti da Claude. Fallback: euristica sul testo.
+  const phone = todo.phone ? `tel:${todo.phone.replace(/[^\d+]/g, "")}` : todoPhone(todo.text);
+  const place = todo.location ?? todoPlace(todo.text);
+
+  const chip: React.CSSProperties = {
+    fontSize: "11px",
+    fontWeight: "var(--fw-semi)",
+    color: "var(--accent-strong)",
+    background: "color-mix(in srgb, var(--primary) 14%, transparent)",
+    padding: "3px 8px",
+    borderRadius: "var(--r-pill)",
+  };
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+      {/* Chip orario: toccalo per impostare/cambiare l'ora (selettore nativo).
+          L'input vero è invisibile sopra il chip. */}
+      <label className="relative inline-flex items-center active:scale-95" style={todo.time ? chip : { ...chip, color: "var(--app-faint)", background: "var(--inset)" }}>
+        <span className="tabular-nums">{todo.time ?? "+ orario"}</span>
+        <input
+          type="time"
+          value={todo.time ?? ""}
+          onChange={(e) => onPatch(todo.id, { time: e.target.value || null })}
+          aria-label="Orario del to-do"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </label>
+      {place && (
+        <a
+          href={mapsUrl(place)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex max-w-[60%] items-center gap-1 active:scale-95"
+          style={chip}
+        >
+          <MapPin className="size-3 flex-none" />
+          <span className="truncate">Maps</span>
+        </a>
+      )}
+      {phone && (
+        <a href={phone} className="inline-flex items-center gap-1 active:scale-95" style={chip}>
+          <Phone className="size-3" /> Chiama
+        </a>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Calendario mensile: scegli un giorno → apre l'overlay to-do ---------- */
+function MonthPicker({
+  initial,
+  marked,
+  onPick,
+  onClose,
+}: {
+  initial: Date;
+  marked: Set<string>;
+  onPick: (d: Date) => void;
+  onClose: () => void;
+}) {
+  const [ym, setYm] = useState(() => new Date(initial.getFullYear(), initial.getMonth(), 1));
+  const todayIso = isoDay(new Date());
+
+  const label = new Intl.DateTimeFormat("it-IT", { month: "long", year: "numeric" }).format(ym);
+  const cap = label.charAt(0).toUpperCase() + label.slice(1);
+
+  // Celle del mese: vuote fino al primo giorno (settimana che parte da lunedì).
+  const offset = (ym.getDay() + 6) % 7;
+  const nDays = new Date(ym.getFullYear(), ym.getMonth() + 1, 0).getDate();
+  const cells: (Date | null)[] = [
+    ...Array.from({ length: offset }, () => null),
+    ...Array.from({ length: nDays }, (_, i) => new Date(ym.getFullYear(), ym.getMonth(), i + 1)),
+  ];
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ background: "var(--scrim)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+      <div
+        className="fixed z-50"
+        style={{ left: "var(--gutter)", right: "var(--gutter)", top: 118, background: "var(--surface)", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-pop)", padding: "var(--s4)" }}
+        role="dialog"
+        aria-label="Calendario"
+      >
+        {/* Mese + frecce */}
+        <div className="flex items-center justify-between" style={{ marginBottom: "var(--s3)" }}>
+          <button
+            type="button"
+            onClick={() => setYm(new Date(ym.getFullYear(), ym.getMonth() - 1, 1))}
+            aria-label="Mese precedente"
+            className="grid place-items-center active:scale-95"
+            style={{ width: "var(--tap)", height: "var(--tap)", margin: -10, color: "var(--app-2)" }}
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+          <span style={{ fontWeight: "var(--fw-bold)", fontSize: "var(--fs-base)", color: "var(--on-surface)" }}>{cap}</span>
+          <button
+            type="button"
+            onClick={() => setYm(new Date(ym.getFullYear(), ym.getMonth() + 1, 1))}
+            aria-label="Mese successivo"
+            className="grid place-items-center active:scale-95"
+            style={{ width: "var(--tap)", height: "var(--tap)", margin: -10, color: "var(--app-2)" }}
+          >
+            <ChevronRight className="size-5" />
+          </button>
+        </div>
+
+        {/* Intestazione giorni */}
+        <div className="grid grid-cols-7 text-center" style={{ marginBottom: "var(--s1)" }}>
+          {["L", "M", "M", "G", "V", "S", "D"].map((d, i) => (
+            <span key={i} style={{ fontSize: "11px", fontWeight: "var(--fw-semi)", color: "var(--app-faint)" }}>
+              {d}
+            </span>
+          ))}
+        </div>
+
+        {/* Griglia dei giorni */}
+        <div className="grid grid-cols-7">
+          {cells.map((d, i) => {
+            if (!d) return <span key={i} />;
+            const iso = isoDay(d);
+            const isToday = iso === todayIso;
+            const hasStuff = marked.has(iso);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onPick(d)}
+                className="relative mx-auto grid place-items-center active:scale-95"
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "var(--r-pill)",
+                  fontSize: "var(--fs-sm)",
+                  fontWeight: isToday ? "var(--fw-black)" : "var(--fw-med)",
+                  color: isToday ? "#fff" : "var(--on-surface)",
+                  background: isToday ? "var(--keiko-grad)" : "transparent",
+                }}
+              >
+                <span className="tabular-nums">{d.getDate()}</span>
+                {hasStuff && (
+                  <span
+                    className="absolute"
+                    style={{ bottom: 4, width: 4, height: 4, borderRadius: "var(--r-pill)", background: isToday ? "#fff" : "var(--warm)" }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ---------- Overlay to-do del giorno (dati veri via /api/todos) ---------- */
+function TodoOverlay({
+  day,
+  todos,
+  dayEvents = [],
+  onAdd,
+  onPatch,
+  onDelete,
+  onClose,
+}: {
+  day: WeekDay;
+  todos: Todo[];
+  dayEvents?: Ticket[];
+  onAdd: (text: string) => Promise<boolean>;
+  onPatch: (id: string, fields: { done?: boolean; star?: boolean; time?: string | null }) => void;
+  onDelete: (id: string) => void;
+  onClose: () => void;
+}) {
   const titleDate = new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric" }).format(day.date);
   const cap = titleDate.charAt(0).toUpperCase() + titleDate.slice(1);
-  const pending = MOCK_TODOS.filter((t) => !t.done).length;
+  const pending = todos.filter((t) => !t.done).length;
+
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    const t = text.trim();
+    if (!t || saving) return;
+    setSaving(true);
+    const ok = await onAdd(t);
+    if (ok) setText("");
+    else window.alert("Non sono riuscito a salvare, riprova");
+    setSaving(false);
+  }
 
   return (
     <>
@@ -974,37 +1426,105 @@ function TodoOverlay({ day, onClose }: { day: WeekDay; onClose: () => void }) {
           </span>
         </div>
 
-        {/* Righe d'esempio — SOLO UI, nessuna spunta/salvataggio reale */}
-        {MOCK_TODOS.map((t) => (
+        {/* Impegni del giorno (biglietti & co.) — sola lettura, in breve */}
+        {dayEvents.map((e) => {
+          const EvIcon = iconForType(e.type);
+          const { time: evTime } = dateTimeParts(e.datetime);
+          return (
+            <div key={e.id} className="flex items-center gap-[var(--s3)]" style={{ padding: "9px 0", borderTop: "1px solid var(--inset-line)" }}>
+              <span
+                className="grid flex-none place-items-center text-white"
+                style={{ width: 23, height: 23, borderRadius: "var(--r-sm)", background: catTint(e.type) }}
+              >
+                <EvIcon className="size-3" />
+              </span>
+              <span className="min-w-0 flex-1 truncate" style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-med)", color: "var(--on-surface)" }}>
+                {e.title}
+              </span>
+              <span className="flex-none tabular-nums" style={{ fontSize: "var(--fs-xs)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}>
+                {evTime}
+              </span>
+            </div>
+          );
+        })}
+
+        {todos.length === 0 && dayEvents.length === 0 && (
+          <p style={{ padding: "11px 0", borderTop: "1px solid var(--inset-line)", fontSize: "var(--fs-sm)", color: "var(--on-surface-2)" }}>
+            Niente per questo giorno.
+          </p>
+        )}
+
+        {todos.map((t) => (
           <div key={t.id} className="flex items-center gap-[var(--s3)]" style={{ padding: "11px 0", borderTop: "1px solid var(--inset-line)" }}>
-            <span
-              className="grid flex-none place-items-center"
+            {/* Spunta fatto/da fare */}
+            <button
+              type="button"
+              onClick={() => onPatch(t.id, { done: !t.done })}
+              aria-label={t.done ? "Segna da fare" : "Segna fatto"}
+              className="grid flex-none place-items-center active:scale-95"
               style={{ width: 23, height: 23, borderRadius: "var(--r-pill)", border: "2px solid var(--accent-strong)", background: t.done ? "var(--primary)" : "transparent", color: "#fff" }}
             >
               {t.done && <Check className="size-3" />}
-            </span>
-            <span
-              style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-med)", color: t.done ? "var(--on-surface-2)" : "var(--on-surface)", textDecoration: t.done ? "line-through" : "none" }}
+            </button>
+            <div className="min-w-0 flex-1">
+              <span
+                style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-med)", color: t.done ? "var(--on-surface-2)" : "var(--on-surface)", textDecoration: t.done ? "line-through" : "none" }}
+              >
+                {t.text}
+              </span>
+              <TodoMeta todo={t} onPatch={onPatch} />
+            </div>
+            {/* Stella importante */}
+            <button
+              type="button"
+              onClick={() => onPatch(t.id, { star: !t.star })}
+              aria-label={t.star ? "Togli stella" : "Metti stella"}
+              className="grid flex-none place-items-center active:scale-95"
+              style={{ width: "var(--tap)", height: "var(--tap)", margin: "-10px -8px" }}
             >
-              {t.text}
-            </span>
-            {t.star && <Star className="ml-auto size-[17px]" style={{ color: "var(--warm)" }} />}
+              <Star className="size-[17px]" style={{ color: t.star ? "var(--warm)" : "var(--app-faint)", fill: t.star ? "var(--warm)" : "none" }} />
+            </button>
+            {/* Elimina */}
+            <button
+              type="button"
+              onClick={() => onDelete(t.id)}
+              aria-label="Elimina to-do"
+              className="grid flex-none place-items-center active:scale-95"
+              style={{ width: "var(--tap)", height: "var(--tap)", margin: "-10px -10px -10px -8px", color: "var(--app-faint)" }}
+            >
+              <X className="size-[17px]" />
+            </button>
           </div>
         ))}
 
-        {/* Aggiungi to-do — VUOTO (nessun backend) */}
-        {/* TODO: backend — placeholder v15 */}
-        <button
-          type="button"
-          disabled
-          className="flex items-center gap-[var(--s3)] disabled:opacity-100"
-          style={{ padding: "12px 0 2px", borderTop: "1px solid var(--inset-line)", color: "var(--accent-strong)", fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)" }}
+        {/* Aggiungi to-do */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+          className="flex items-center gap-[var(--s3)]"
+          style={{ padding: "12px 0 2px", borderTop: "1px solid var(--inset-line)" }}
         >
-          <span className="grid place-items-center text-white" style={{ width: 23, height: 23, borderRadius: "var(--r-pill)", background: "var(--keiko-grad)" }}>
+          <button
+            type="submit"
+            disabled={saving || !text.trim()}
+            aria-label="Aggiungi to-do"
+            className="grid flex-none place-items-center text-white active:scale-95 disabled:opacity-60"
+            style={{ width: 23, height: 23, borderRadius: "var(--r-pill)", background: "var(--keiko-grad)" }}
+          >
             <Plus className="size-3.5" />
-          </span>
-          Ricordami di…
-        </button>
+          </button>
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Ricordami di…"
+            maxLength={200}
+            className="min-w-0 flex-1 bg-transparent outline-none"
+            style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", color: "var(--on-surface)" }}
+          />
+        </form>
       </div>
     </>
   );

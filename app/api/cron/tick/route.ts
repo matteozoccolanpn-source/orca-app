@@ -107,5 +107,33 @@ export async function GET(req: Request) {
     }
   }
 
+  // (iv) To-do con orario — notifica 30 min prima (stessa finestra degli eventi).
+  // Prende i to-do di oggi non fatti, con orario, mai notificati.
+  const { data: todosOggi } = await sb.from("todos")
+    .select("id, text, time")
+    .eq("day", today)
+    .eq("done", false)
+    .not("time", "is", null)
+    .is("reminded_at", null);
+
+  for (const t of todosOggi ?? []) {
+    const start = romeLocalToUtc(today, String(t.time).slice(0, 5));
+    const minsTo = (start.getTime() - now.getTime()) / 60000;
+    if (minsTo <= 30 && minsTo > 15) {
+      await blast(`Tra 30 min: ${t.text}`, "Promemoria to-do ✅", "/");
+      await sb.from("todos").update({ reminded_at: now.toISOString() }).eq("id", t.id);
+    }
+  }
+
   return NextResponse.json({ ok: true, hour });
+}
+
+/* Converte "giorno + orario" letti come ORA ITALIANA in un istante UTC.
+ * Serve perché i to-do salvano solo `day` e `time` locali (niente fuso),
+ * mentre il server (Vercel) ragiona in UTC. */
+function romeLocalToUtc(day: string, hhmm: string): Date {
+  const guess = new Date(`${day}T${hhmm}:00Z`);               // finta UTC
+  const romeView = new Date(guess.toLocaleString("en-US", { timeZone: TZ }));
+  const offset = romeView.getTime() - guess.getTime();        // es. +2h d'estate
+  return new Date(guess.getTime() - offset);
 }

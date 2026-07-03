@@ -411,3 +411,97 @@ export async function setTripPlanStatus(clusterKey: string, status: string): Pro
     .eq("cluster_key", clusterKey);
   if (error) throw new Error(error.message);
 }
+
+/* ===================== TO-DO (barra per-giorno) ===================== */
+// Un to-do appartiene a un giorno (colonna `day`, formato YYYY-MM-DD).
+// App single-user: si leggono tutti i to-do (sono pochi) e il client
+// li raggruppa per giorno. Stesso accesso server-side delle altre tabelle.
+
+export interface Todo {
+  id: string;
+  day: string;   // YYYY-MM-DD
+  text: string;
+  done: boolean;
+  star: boolean;
+  time: string | null;     // "HH:MM" — orario opzionale (per la notifica 30 min prima)
+  location: string | null; // luogo vero risolto da Claude (nome + indirizzo)
+  phone: string | null;    // telefono del posto, se trovato
+}
+
+/** Tutti i to-do, ordinati per giorno e poi per creazione. */
+export async function getTodos(): Promise<Todo[]> {
+  const { data, error } = await admin()
+    .from("todos")
+    .select("id, day, text, done, star, time, location, phone")
+    .order("day", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Supabase: failed to fetch todos:", error.message);
+    return [];
+  }
+  return (data ?? []).map((row) => ({
+    id:   row.id as string,
+    day:  (row.day as string) ?? "",
+    text: (row.text as string) ?? "",
+    done: row.done === true,
+    star: row.star === true,
+    // Postgres restituisce "HH:MM:SS" → teniamo solo "HH:MM"
+    time: typeof row.time === "string" ? row.time.slice(0, 5) : null,
+    location: (row.location as string | null) ?? null,
+    phone: (row.phone as string | null) ?? null,
+  }));
+}
+
+/** Crea un to-do e lo restituisce (il client lo aggiunge subito alla lista).
+ *  `time` è opzionale: se c'è, il cron manda la notifica 30 min prima.
+ *  `location`/`phone`: luogo vero risolto da Claude (vedi lib/todo-place.ts). */
+export async function createTodo(
+  day: string,
+  text: string,
+  time?: string | null,
+  location?: string | null,
+  phone?: string | null
+): Promise<Todo> {
+  const { data, error } = await admin()
+    .from("todos")
+    .insert({ user_id: null, day, text, time: time ?? null, location: location ?? null, phone: phone ?? null })
+    .select("id, day, text, done, star, time, location, phone")
+    .single();
+
+  if (error) throw new Error(error.message);
+  const row = data as { id: string; day: string; text: string; done: boolean; star: boolean; time: string | null; location: string | null; phone: string | null };
+  return {
+    id: row.id,
+    day: row.day,
+    text: row.text,
+    done: row.done,
+    star: row.star,
+    time: typeof row.time === "string" ? row.time.slice(0, 5) : null,
+    location: row.location ?? null,
+    phone: row.phone ?? null,
+  };
+}
+
+/** Aggiorna done, star e/o time di un to-do. */
+export async function updateTodoById(id: string, fields: { done?: boolean; star?: boolean; time?: string | null }): Promise<void> {
+  const patch: Record<string, boolean | string | null> = {};
+  if (fields.done !== undefined) patch.done = fields.done;
+  if (fields.star !== undefined) patch.star = fields.star;
+  if (fields.time !== undefined) {
+    patch.time = fields.time;
+    // Orario cambiato → azzera il "già notificato", così la notifica
+    // 30-min-prima riparte sul nuovo orario.
+    patch.reminded_at = null;
+  }
+  if (Object.keys(patch).length === 0) throw new Error("No fields to update");
+
+  const { error } = await admin().from("todos").update(patch).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** Elimina un to-do. */
+export async function deleteTodoById(id: string): Promise<void> {
+  const { error } = await admin().from("todos").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
