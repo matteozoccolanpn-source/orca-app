@@ -119,6 +119,12 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
+
+      // Fire-and-forget: genera il piano del viaggio in una richiesta SEPARATA (non
+      // aspettiamo la risposta). keepalive = sopravvive alla chiusura del drawer.
+      // NON tocca il salvataggio, che è già concluso qui sopra.
+      fetch("/api/trip/generate", { method: "POST", credentials: "include", keepalive: true }).catch(() => {});
+
       setState("success");
       setTimeout(() => {
         close();
