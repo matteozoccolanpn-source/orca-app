@@ -244,12 +244,12 @@
 
   /* ---- PERSONALITÀ (default = Oceano). --pA/--pB sono terne RGB. ---- */
   --pA:90,157,255; --pB:255,138,92;
-  --glowA:rgba(var(--pA),.26); --glowB:rgba(var(--pB),.22);
-  --bloomA:rgba(var(--pA),.5); --bloomB:rgba(var(--pB),.4); --bloomC:rgba(var(--pA),.22);
+  --glowA:rgba(var(--pA),.34); --glowB:rgba(var(--pB),.30);
+  --bloomA:rgba(var(--pA),.72); --bloomB:rgba(var(--pB),.58); --bloomC:rgba(var(--pA),.34);
   --ambient:
-    radial-gradient(72% 44% at 90% -4%, var(--bloomB) 0%, transparent 60%),
-    radial-gradient(100% 55% at 40% -12%, var(--bloomA) 0%, transparent 64%),
-    linear-gradient(to bottom, var(--bloomC) 0%, transparent 40%);
+    radial-gradient(78% 50% at 90% -4%, var(--bloomB) 0%, transparent 62%),
+    radial-gradient(108% 60% at 38% -12%, var(--bloomA) 0%, transparent 66%),
+    linear-gradient(to bottom, var(--bloomC) 0%, transparent 46%);
 
   /* ---- SCALA TIPOGRAFICA 11→24 ---- */
   --fs-xs:11px; --fs-sm:13px; --fs-md:15px; --fs-lg:19px; --fs-xl:24px;
@@ -272,8 +272,8 @@
   --amber:#C77E08; --amber-soft:rgba(199,126,8,.14);
   --shadow:0 10px 26px rgba(70,55,25,.13);
   --bar:rgba(248,244,233,.92);
-  --glowA:rgba(var(--pA),.16); --glowB:rgba(var(--pB),.14);
-  --bloomA:rgba(var(--pA),.34); --bloomB:rgba(var(--pB),.26); --bloomC:rgba(var(--pA),.13);
+  --glowA:rgba(var(--pA),.24); --glowB:rgba(var(--pB),.20);
+  --bloomA:rgba(var(--pA),.52); --bloomB:rgba(var(--pB),.42); --bloomC:rgba(var(--pA),.22);
 }
 
 /* ---- 3 PERSONALITÀ colore (impostabili via data-pers) ---- */
