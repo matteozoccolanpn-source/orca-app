@@ -1,68 +1,138 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import {
-  ChevronLeft,
-  ChevronDown,
-  Clapperboard,
-  Tv,
-  Check,
-  Plus,
-  X,
-  ExternalLink,
-  Sparkles,
-} from "lucide-react";
+import { useRef, useState } from "react";
+import KeikoShell, { useKeikoToast } from "@/app/components/keiko/KeikoShell";
 import type { WatchItem } from "@/lib/supabase";
 
-/* Sezione "Da guardare" — logica TV Time in salsa Keiko:
- * scrivi un titolo secco O una richiesta ("commedia stile quo vado") →
- * proposte con piattaforma verificata → le aggiungi con un tap → spunti "visto". */
+/* Sezione "Da guardare" — vista #watchView del mockup keiko-final (v2.3).
+ * Cablaggi reali preservati: toggle "visto" (PATCH), elimina con Annulla (DELETE
+ * differito), aggiunta libera (POST /api/watch), consiglio AI (/api/watch/suggest).
+ * Nessun campo poster nel data layer: le cover sono i gradienti del mockup
+ * (dune/opp/bear) con titolo in overlay. Niente dati finti: ciò che manca (età,
+ * orari) si compatta. */
 
-type Pick = {
-  title: string;
-  kind: "film" | "serie";
-  platform: string | null;
-  info: string | null;
-  link: string | null;
-};
+type Toast = (msg: string, action?: string, onAction?: () => void) => void;
+type Pick = { title: string; kind: "film" | "serie"; platform: string | null; info: string | null; link: string | null };
+
+const COVERS = ["dune", "opp", "bear"] as const;
+const coverOf = (i: number) => COVERS[i % COVERS.length];
+const kindLabel = (k: string) => (k === "serie" ? "Serie" : "Film");
+
+function insertAt<T>(arr: T[], item: T, index: number): T[] {
+  const i = Math.max(0, Math.min(index, arr.length));
+  return [...arr.slice(0, i), item, ...arr.slice(i)];
+}
 
 export default function GuardaView({ items }: { items: WatchItem[] }) {
   const [list, setList] = useState<WatchItem[]>(items);
-  const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [picks, setPicks] = useState<Pick[]>([]);
-  const [showSeen, setShowSeen] = useState(false);
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const busy = useRef(false);
 
-  const daVedere = list.filter((i) => !i.seen);
-  const visti = list.filter((i) => i.seen);
+  const count = list.length;
+  const badge = `${count} ${count === 1 ? "TITOLO" : "TITOLI"}`;
 
-  /* Fase 1: chiedi a Keiko (titolo o consiglio). */
-  async function cerca() {
-    const q = query.trim();
-    if (!q || busy) return;
-    setBusy(true);
-    setPicks([]);
+  /* "visto" — PATCH ottimistico. */
+  async function toggleSeen(item: WatchItem, toast: Toast) {
+    const next = !item.seen;
+    setList((l) => l.map((i) => (i.id === item.id ? { ...i, seen: next } : i)));
+    toast(next ? "Visto ✓ Com'era?" : "Ok, resta in lista");
+    try {
+      const res = await fetch("/api/watch", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: item.id, seen: next }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setList((l) => l.map((i) => (i.id === item.id ? { ...i, seen: item.seen } : i)));
+      toast("Qualcosa non torna, riprovo");
+    }
+  }
+
+  /* "elimina" — rimozione ottimistica, DELETE differito, con Annulla nel toast. */
+  function elimina(item: WatchItem, index: number, toast: Toast) {
+    setList((l) => l.filter((i) => i.id !== item.id));
+    const commit = () => {
+      delete timers.current[item.id];
+      fetch("/api/watch", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: item.id }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error();
+        })
+        .catch(() => setList((l) => insertAt(l, item, index)));
+    };
+    timers.current[item.id] = setTimeout(commit, 3800);
+    toast("Eliminato 🗑️", "Annulla", () => {
+      clearTimeout(timers.current[item.id]);
+      delete timers.current[item.id];
+      setList((l) => insertAt(l, item, index));
+    });
+  }
+
+  /* "Dove vederlo" — apre la scheda se c'è, altrimenti mostra l'info reale. */
+  function dove(item: WatchItem, toast: Toast) {
+    if (item.link) window.open(item.link, "_blank", "noopener");
+    else toast(item.info ? item.info : "Non ho ancora la scheda, la cerco 🔎");
+  }
+
+  /* "aggiunta libera" — POST /api/watch con un titolo scritto come viene. */
+  async function aggiungiTitolo(toast: Toast) {
+    const raw = window.prompt("Aggiungi un titolo — anche solo «quel film di Nolan»");
+    const title = (raw ?? "").trim();
+    if (!title) return;
+    const kind = /\b(serie|stagione|s\d)/i.test(title) ? "serie" : "film";
+    try {
+      const res = await fetch("/api/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title, kind, info: null, link: null }),
+      });
+      const data = (await res.json()) as { item?: WatchItem };
+      if (!res.ok || !data.item) throw new Error();
+      setList((l) => [data.item!, ...l]);
+      toast("Preso in carico ✓");
+    } catch {
+      toast("Qualcosa non torna, riprovo");
+    }
+  }
+
+  /* "consiglio AI" — /api/watch/suggest: una proposta, offerta con "Aggiungi". */
+  async function consiglio(toast: Toast) {
+    if (busy.current) return;
+    const raw = window.prompt("Che serata è? es. «commedia leggera», «thriller»");
+    if (raw === null) return;
+    const query = raw.trim() || "consigliami qualcosa da vedere stasera";
+    busy.current = true;
+    toast("Ci penso io ✨");
     try {
       const res = await fetch("/api/watch/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query }),
       });
-      const data = (await res.json()) as { films?: Pick[]; error?: string };
-      if (!res.ok) throw new Error(data.error);
-      setPicks(data.films ?? []);
-      if ((data.films ?? []).length === 0) window.alert("Non ho trovato niente di convincente, prova a riformulare");
-    } catch (e) {
-      window.alert("Ricerca fallita: " + (e instanceof Error && e.message ? e.message : "riprova"));
+      const data = (await res.json()) as { films?: Pick[] };
+      if (!res.ok) throw new Error();
+      const p = (data.films ?? [])[0];
+      if (!p) {
+        toast("Non ho trovato niente di convincente, riformula");
+        return;
+      }
+      toast(`Stasera ti direi ${p.title} ✨`, "Aggiungi", () => salvaPick(p, toast));
+    } catch {
+      toast("Qualcosa non torna, riprovo");
     } finally {
-      setBusy(false);
+      busy.current = false;
     }
   }
 
-  /* Aggiungi una proposta alla lista. */
-  async function aggiungi(p: Pick) {
+  async function salvaPick(p: Pick, toast: Toast) {
     const info = [p.info, p.platform ? `su ${p.platform}` : null].filter(Boolean).join(" · ");
     try {
       const res = await fetch("/api/watch", {
@@ -74,279 +144,184 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
       const data = (await res.json()) as { item?: WatchItem };
       if (!res.ok || !data.item) throw new Error();
       setList((l) => [data.item!, ...l]);
-      setPicks((ps) => ps.filter((x) => x.title !== p.title));
+      toast("Preso in carico ✓");
     } catch {
-      window.alert("Non sono riuscito ad aggiungere, riprova");
-    }
-  }
-
-  async function toggleSeen(item: WatchItem) {
-    const prev = list;
-    setList((l) => l.map((i) => (i.id === item.id ? { ...i, seen: !i.seen } : i)));
-    try {
-      const res = await fetch("/api/watch", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id: item.id, seen: !item.seen }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      setList(prev);
-      window.alert("Non sono riuscito a salvare, riprova");
-    }
-  }
-
-  async function elimina(id: string) {
-    const prev = list;
-    setList((l) => l.filter((i) => i.id !== id));
-    try {
-      const res = await fetch("/api/watch", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      setList(prev);
-      window.alert("Non sono riuscito a eliminare, riprova");
+      toast("Qualcosa non torna, riprovo");
     }
   }
 
   return (
-    <div
-      className="relative mx-auto min-h-[100dvh] w-full max-w-lg"
-      style={{ padding: "var(--s3) var(--gutter) 140px", color: "var(--app-text)" }}
-    >
-      <header className="flex items-center gap-[var(--s2)]" style={{ paddingBlock: "var(--s3)" }}>
-        <Link
-          href="/"
-          aria-label="Indietro"
-          className="grid place-items-center transition-transform active:scale-95"
-          style={{ width: "var(--tap)", height: "var(--tap)", marginLeft: -10, color: "var(--app-2)" }}
-        >
-          <ChevronLeft className="size-6" />
-        </Link>
-        <span style={{ fontWeight: "var(--fw-black)", fontSize: "var(--fs-xl)", letterSpacing: "-.03em" }}>
-          Da guardare
-        </span>
-      </header>
-
-      {/* Barra "Cosa guardiamo?": titolo secco o richiesta di consiglio */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          cerca();
-        }}
-        className="flex items-center gap-[var(--s2)]"
-      >
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder='Un titolo, o "commedia stile Quo Vado"…'
-          maxLength={200}
-          disabled={busy}
-          className="min-w-0 flex-1 outline-none"
-          style={{
-            fontSize: "var(--fs-sm)",
-            color: "var(--on-surface)",
-            background: "var(--surface)",
-            border: "1px solid var(--tile-line)",
-            borderRadius: "var(--r-md)",
-            padding: "13px 14px",
-          }}
-        />
-        <button
-          type="submit"
-          disabled={busy || !query.trim()}
-          className="flex-none text-white transition-transform active:scale-[0.98] disabled:opacity-60"
-          style={{
-            fontSize: "var(--fs-sm)",
-            fontWeight: "var(--fw-semi)",
-            background: "var(--keiko-grad)",
-            borderRadius: "var(--r-md)",
-            padding: "13px 16px",
-            boxShadow: "var(--sh-btn)",
-          }}
-        >
-          {busy ? "Cerco…" : "Trova"}
-        </button>
-      </form>
-
-      {/* Proposte di Keiko */}
-      {picks.length > 0 && (
-        <>
-          <SectionTitle>
-            <Sparkles className="mr-1 inline size-3.5" /> Proposte — tocca + per salvarle
-          </SectionTitle>
-          <div className="flex flex-col gap-[var(--s2)]">
-            {picks.map((p) => (
-              <div
-                key={p.title}
-                className="flex items-start gap-[var(--s3)]"
-                style={{ background: "var(--surface)", border: "1px solid var(--tile-line)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
-              >
-                <span
-                  className="grid flex-none place-items-center text-white"
-                  style={{ width: 40, height: 40, borderRadius: "var(--r-sm)", background: "var(--cat-concerto)" }}
-                >
-                  {p.kind === "serie" ? <Tv className="size-5" /> : <Clapperboard className="size-5" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--on-surface)" }}>
-                    {p.title}
-                    {p.platform && (
-                      <span
-                        className="ml-2 align-middle"
-                        style={{ fontSize: "10.5px", fontWeight: "var(--fw-bold)", color: "var(--accent-strong)", background: "color-mix(in srgb, var(--primary) 14%, transparent)", padding: "2px 8px", borderRadius: "var(--r-pill)" }}
-                      >
-                        {p.platform}
-                      </span>
-                    )}
-                  </div>
-                  {p.info && (
-                    <div style={{ fontSize: "var(--fs-xs)", color: "var(--on-surface-2)", marginTop: 2, lineHeight: 1.35 }}>
-                      {p.info}
-                    </div>
-                  )}
-                  {p.link && (
-                    <a
-                      href={p.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-1 inline-flex items-center gap-1"
-                      style={{ fontSize: "var(--fs-xs)", fontWeight: "var(--fw-semi)", color: "var(--accent-strong)" }}
-                    >
-                      Scheda <ExternalLink className="size-3" />
-                    </a>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => aggiungi(p)}
-                  aria-label={`Aggiungi ${p.title}`}
-                  className="grid flex-none place-items-center text-white active:scale-95"
-                  style={{ width: 32, height: 32, borderRadius: "var(--r-pill)", background: "var(--keiko-grad)", boxShadow: "var(--sh-btn)" }}
-                >
-                  <Plus className="size-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* La lista */}
-      <SectionTitle>Da vedere ({daVedere.length})</SectionTitle>
-      {daVedere.length === 0 ? (
-        <p style={{ fontSize: "var(--fs-sm)", color: "var(--on-surface-2)" }}>
-          Lista vuota: scrivi qua sopra un titolo o chiedi un consiglio.
-        </p>
-      ) : (
-        <div style={{ borderRadius: "var(--r-lg)", background: "var(--surface)", border: "1px solid var(--tile-line)", overflow: "hidden" }}>
-          {daVedere.map((item, i) => (
-            <Row key={item.id} item={item} first={i === 0} onSeen={() => toggleSeen(item)} onDelete={() => elimina(item.id)} />
-          ))}
-        </div>
-      )}
-
-      {/* Visti, collassati */}
-      {visti.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setShowSeen((s) => !s)}
-            className="mt-[var(--sec)] flex w-full items-center gap-2"
-            style={{ background: "var(--tile)", border: "1px solid var(--tile-line)", borderRadius: "var(--r-lg)", padding: "var(--s3)" }}
-          >
-            <span style={{ fontWeight: "var(--fw-semi)", fontSize: "var(--fs-sm)", color: "var(--app-text)" }}>
-              Visti ({visti.length})
-            </span>
-            <ChevronDown
-              className="ml-auto size-[18px] flex-none transition-transform duration-200"
-              style={{ color: "var(--app-faint)", transform: showSeen ? "rotate(180deg)" : "none" }}
-            />
-          </button>
-          {showSeen && (
-            <div className="mt-[var(--s2)]" style={{ borderRadius: "var(--r-lg)", background: "var(--surface)", border: "1px solid var(--tile-line)", overflow: "hidden" }}>
-              {visti.map((item, i) => (
-                <Row key={item.id} item={item} first={i === 0} onSeen={() => toggleSeen(item)} onDelete={() => elimina(item.id)} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <KeikoShell title="Da guardare" badge={badge} backHref="/?v2">
+      <Body
+        list={list}
+        onToggleSeen={toggleSeen}
+        onDelete={elimina}
+        onWhere={dove}
+        onAdd={aggiungiTitolo}
+        onSuggest={consiglio}
+      />
+    </KeikoShell>
   );
 }
 
-function Row({ item, first, onSeen, onDelete }: { item: WatchItem; first: boolean; onSeen: () => void; onDelete: () => void }) {
+/* Corpo sotto il provider del toast (useKeikoToast vive qui). */
+function Body({
+  list,
+  onToggleSeen,
+  onDelete,
+  onWhere,
+  onAdd,
+  onSuggest,
+}: {
+  list: WatchItem[];
+  onToggleSeen: (item: WatchItem, toast: Toast) => void;
+  onDelete: (item: WatchItem, index: number, toast: Toast) => void;
+  onWhere: (item: WatchItem, toast: Toast) => void;
+  onAdd: (toast: Toast) => void;
+  onSuggest: (toast: Toast) => void;
+}) {
+  const toast = useKeikoToast();
+  const hero = list.find((i) => !i.seen) ?? null;
+  const grid = hero ? list.filter((i) => i.id !== hero.id) : list;
+
   return (
-    <div className="flex items-center gap-[var(--s3)]" style={{ padding: "var(--s3)", borderTop: first ? "none" : "1px solid var(--inset-line)" }}>
-      {/* Spunta visto */}
-      <button
-        type="button"
-        onClick={onSeen}
-        aria-label={item.seen ? "Segna da vedere" : "Segna visto"}
-        className="grid flex-none place-items-center active:scale-95"
-        style={{ width: 23, height: 23, borderRadius: "var(--r-pill)", border: "2px solid var(--accent-strong)", background: item.seen ? "var(--primary)" : "transparent", color: "#fff" }}
-      >
-        {item.seen && <Check className="size-3" />}
-      </button>
-
-      <span className="flex-none" style={{ color: "var(--app-2)" }}>
-        {item.kind === "serie" ? <Tv className="size-4" /> : <Clapperboard className="size-4" />}
-      </span>
-
-      <div className="min-w-0 flex-1">
+    <>
+      {hero && (
         <div
-          className="truncate"
-          style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", color: item.seen ? "var(--on-surface-2)" : "var(--on-surface)", textDecoration: item.seen ? "line-through" : "none" }}
+          className="wHero"
+          onClick={() => onWhere(hero, toast)}
+          role="button"
+          tabIndex={0}
         >
-          {item.title}
-        </div>
-        {item.info && (
-          <div className="truncate" style={{ fontSize: "var(--fs-xs)", color: "var(--on-surface-2)", marginTop: 2 }}>
-            {item.info}
+          <div className={`cover ${coverOf(list.indexOf(hero))}`} style={HERO_COVER}>
+            <span className="ttl" style={CLAMP2}>{hero.title}</span>
           </div>
-        )}
+          <div className="wt">
+            <span className="k3">Stasera per te</span>
+            <b>{hero.title}</b>
+            <small style={CLAMP2}>{hero.info ?? kindLabel(hero.kind)}</small>
+            <div className="wa">
+              <button
+                className="chipA dk"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSeen(hero, toast);
+                }}
+              >
+                {"✓"} Visto
+              </button>
+              <button
+                className="chipA dk"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWhere(hero, toast);
+                }}
+              >
+                {"▶"} Dove vederlo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="agLbl">La lista</div>
+      <div className="pGrid">
+        {grid.map((item) => (
+          <div
+            key={item.id}
+            className={`film${item.seen ? " seen" : ""}`}
+            onClick={() => onToggleSeen(item, toast)}
+            role="button"
+            tabIndex={0}
+            style={{ minWidth: 0 }}
+          >
+            <div className={`cover ${coverOf(list.indexOf(item))}`}>
+              <span className="ttl" style={CLAMP3}>{item.title}</span>
+            </div>
+            <div className="seenMark">{"✅"}</div>
+            <button
+              type="button"
+              aria-label={`Elimina ${item.title}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(item, list.indexOf(item), toast);
+              }}
+              style={DEL_BTN}
+            >
+              {"✕"}
+            </button>
+            <div className="plat" style={PLAT_ELLIPSIS}>
+              <b>{kindLabel(item.kind)}</b>
+              {item.info ? ` · ${item.info}` : ""}
+            </div>
+          </div>
+        ))}
+
+        <div className="addFilm" onClick={() => onAdd(toast)} role="button" tabIndex={0}>
+          <b>{"＋"}</b>
+          Aggiungi un titolo
+          <br />
+          anche solo &laquo;quel film di Nolan&raquo;
+        </div>
+        <div className="addFilm" onClick={() => onSuggest(toast)} role="button" tabIndex={0}>
+          <b>{"✨"}</b>
+          Consiglio di Keiko
+          <br />
+          in base alla tua serata
+        </div>
       </div>
 
-      {item.link && (
-        <a
-          href={item.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Apri scheda"
-          className="grid flex-none place-items-center active:scale-95"
-          style={{ width: "var(--tap)", height: "var(--tap)", margin: "-10px -8px", color: "var(--accent-strong)" }}
-        >
-          <ExternalLink className="size-4" />
-        </a>
-      )}
-
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label="Elimina"
-        className="grid flex-none place-items-center active:scale-95"
-        style={{ width: "var(--tap)", height: "var(--tap)", margin: "-10px -10px -10px -8px", color: "var(--app-faint)" }}
-      >
-        <X className="size-[17px]" />
-      </button>
-    </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <span className="tbc">notifiche uscite &middot; presto</span>
+      </div>
+    </>
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      className="uppercase"
-      style={{ fontSize: "var(--fs-cap)", fontWeight: "var(--fw-bold)", letterSpacing: ".07em", color: "var(--app-faint)", margin: "var(--sec) 0.5px var(--s3)" }}
-    >
-      {children}
-    </p>
-  );
-}
+/* Il mockup non dà a `.wHero .cover` i tratti strutturali che ha `.film .cover`
+ * (position/overflow/radius/flex/padding): senza, il "sole" del gradiente esce
+ * e il titolo resta in alto. Li riapplico qui in attesa del fix in keiko.css. */
+const HERO_COVER: React.CSSProperties = {
+  position: "relative",
+  overflow: "hidden",
+  borderRadius: "var(--r-md)",
+  boxShadow: "var(--shadow)",
+  display: "flex",
+  flexDirection: "column",
+  padding: 10,
+};
+const CLAMP2: React.CSSProperties = {
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+};
+const CLAMP3: React.CSSProperties = {
+  display: "-webkit-box",
+  WebkitLineClamp: 3,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+};
+const PLAT_ELLIPSIS: React.CSSProperties = {
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+const DEL_BTN: React.CSSProperties = {
+  position: "absolute",
+  top: 8,
+  right: 8,
+  width: 24,
+  height: 24,
+  borderRadius: "50%",
+  background: "rgba(6,12,24,.55)",
+  color: "#fff",
+  fontSize: 12,
+  fontWeight: 800,
+  display: "grid",
+  placeItems: "center",
+  border: 0,
+  cursor: "pointer",
+  zIndex: 2,
+  lineHeight: 1,
+};
