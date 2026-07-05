@@ -712,6 +712,52 @@
 .keiko .cg button.tod {background:var(--accent);color:#fff}
 .keiko .cg button i {position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgb(var(--pA));font-style:normal}
 .keiko .calHint {font-size:11px;font-weight:700;color:var(--text-3);padding-top:12px;text-align:center}
+.keiko .vHero {position:relative;border-radius:var(--r-xl);overflow:hidden;padding:15px;min-height:118px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--shadow);margin-bottom:14px}
+.keiko .vHero .shade {position:absolute;inset:0;background:linear-gradient(to top,rgba(4,9,18,.55),transparent 62%)}
+.keiko .vHero>* {position:relative}
+.keiko .vHero .vk {font-size:10.5px;font-weight:800;letter-spacing:.12em;color:#F5D9AE;text-transform:uppercase}
+.keiko .vHero h4 {font-size:19px;font-weight:800;color:#fff;margin-top:4px}
+.keiko .vHero .vs2 {font-size:11.5px;font-weight:700;color:rgba(255,255,255,.86);margin-top:3px}
+.keiko .vHero .vActs {display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+.keiko .pRow {display:flex;align-items:center;gap:11px;background:var(--paper);border-radius:var(--r-md);padding:11px 12px;margin-bottom:8px;box-shadow:0 4px 14px rgba(0,0,0,.15);cursor:pointer}
+.keiko .pRow .pi {font-size:20px;flex:none}
+.keiko .pRow .pt {flex:1;min-width:0}
+.keiko .pRow .pt b {display:block;font-size:13px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.keiko .pRow .pt small {display:block;font-size:10.5px;font-weight:700;color:var(--ink-2);margin-top:1px}
+.keiko .pRow .pk {flex:none;display:flex;gap:6px;align-items:center}
+.keiko .pRow.done .pt b {text-decoration:line-through;color:#B0A68F}
+.keiko .chipA {font-size:10.5px;font-weight:800;border-radius:999px;padding:7px 11px;background:rgba(21,32,47,.09);color:var(--ink);cursor:pointer;border:0;font-family:var(--f)}
+.keiko .chipA.dk {background:var(--card);border:1px solid var(--card-line);color:var(--text-2)}
+.keiko .chipA:active {transform:scale(.96)}
+.keiko .tbc {font-size:9.5px;font-weight:800;letter-spacing:.06em;border-radius:999px;padding:5px 9px;background:var(--amber-soft);color:var(--amber);text-transform:uppercase}
+.keiko .slot {background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:12px;margin-bottom:9px;box-shadow:var(--shadow)}
+.keiko .slot .sh {display:flex;align-items:baseline;gap:8px}
+.keiko .slot .st2 {font-size:11px;font-weight:800;color:var(--amber);flex:none}
+.keiko .slot .sn {flex:1;font-size:13.5px;font-weight:800;color:var(--text);min-width:0}
+.keiko .slot .sx {color:var(--text-3);cursor:pointer;flex:none}
+.keiko .slot .sa {display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
+.keiko .slot.off {opacity:.5}
+.keiko .dayCar {display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;margin:2px 0 6px}
+.keiko .dayCar::-webkit-scrollbar {display:none}
+.keiko .dcard {flex:0 0 122px;background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-md);padding:10px}
+.keiko .dcard .dk2 {font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--text-3);text-transform:uppercase}
+.keiko .dcard .dv2 {font-size:11.5px;font-weight:700;color:var(--text-2);margin-top:5px;line-height:1.45}
+.keiko .bigRing {--p:0;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(rgb(var(--pA)) calc(var(--p)*1%),rgba(255,255,255,.18) 0);flex:none}
+.keiko .bigRing i {width:48px;height:48px;border-radius:50%;background:rgba(4,9,18,.4);display:grid;place-items:center;font-style:normal;font-size:12.5px;font-weight:800;color:#fff}
+.keiko .vhRow {display:flex;align-items:center;gap:13px}
+.keiko .wHero {display:flex;gap:13px;background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:11px;margin-bottom:12px;box-shadow:var(--shadow)}
+.keiko .wHero .cover {flex:none;width:92px;height:130px}
+.keiko .wHero .wt {flex:1;min-width:0;display:flex;flex-direction:column}
+.keiko .wHero .wt .k3 {font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--text-3);text-transform:uppercase}
+.keiko .wHero .wt b {font-size:15px;font-weight:800;color:var(--text);margin-top:4px}
+.keiko .wHero .wt small {font-size:11px;font-weight:700;color:var(--text-3);margin-top:3px}
+.keiko .wHero .wt .wa {display:flex;gap:6px;margin-top:auto;padding-top:8px}
+.keiko .linkRow {display:flex;align-items:center;gap:9px;padding:10px 2px;border-bottom:1px solid var(--card-line);font-size:12.5px;font-weight:700;color:var(--text-2);cursor:pointer}
+.keiko .linkRow:last-child {border-bottom:0}
+.keiko .linkRow span {margin-left:auto;color:var(--text-3)}
+.keiko .msgCard {background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:13px;margin-bottom:9px}
+.keiko .msgCard p {font-size:12.5px;font-weight:600;color:var(--text-2);line-height:1.55;font-style:italic}
+.keiko .msgCard .sa {display:flex;gap:6px;margin-top:10px}
 
 
 /* ---- adattamenti minimi app (NON valori visivi del mockup) ----

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keiko — CAPITOLATO v2 · definitivo</title>
+<title>Keiko — CAPITOLATO v2.3</title>
 <!--
   KEIKO — DEMO rev.6 (per la serata di presentazione 😄)
   Novità: 3 "personalità" colore che ruotano (random all'apertura, pull-to-refresh per
@@ -791,6 +791,54 @@
   .cg button.tod{background:var(--accent);color:#fff}
   .cg button i{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgb(var(--pA));font-style:normal}
   .calHint{font-size:11px;font-weight:700;color:var(--text-3);padding-top:12px;text-align:center}
+
+  /* ==== INTERNI v2.3 — stesso linguaggio della home ==== */
+  .vHero{position:relative;border-radius:var(--r-xl);overflow:hidden;padding:15px;min-height:118px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--shadow);margin-bottom:14px}
+  .vHero .shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(4,9,18,.55),transparent 62%)}
+  .vHero>*{position:relative}
+  .vHero .vk{font-size:10.5px;font-weight:800;letter-spacing:.12em;color:#F5D9AE;text-transform:uppercase}
+  .vHero h4{font-size:19px;font-weight:800;color:#fff;margin-top:4px}
+  .vHero .vs2{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.86);margin-top:3px}
+  .vHero .vActs{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+  .pRow{display:flex;align-items:center;gap:11px;background:var(--paper);border-radius:var(--r-md);padding:11px 12px;margin-bottom:8px;box-shadow:0 4px 14px rgba(0,0,0,.15);cursor:pointer}
+  .pRow .pi{font-size:20px;flex:none}
+  .pRow .pt{flex:1;min-width:0}
+  .pRow .pt b{display:block;font-size:13px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pRow .pt small{display:block;font-size:10.5px;font-weight:700;color:var(--ink-2);margin-top:1px}
+  .pRow .pk{flex:none;display:flex;gap:6px;align-items:center}
+  .pRow.done .pt b{text-decoration:line-through;color:#B0A68F}
+  .chipA{font-size:10.5px;font-weight:800;border-radius:999px;padding:7px 11px;background:rgba(21,32,47,.09);color:var(--ink);cursor:pointer;border:0;font-family:var(--f)}
+  .chipA.dk{background:var(--card);border:1px solid var(--card-line);color:var(--text-2)}
+  .chipA:active{transform:scale(.96)}
+  .tbc{font-size:9.5px;font-weight:800;letter-spacing:.06em;border-radius:999px;padding:5px 9px;background:var(--amber-soft);color:var(--amber);text-transform:uppercase}
+  .slot{background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:12px;margin-bottom:9px;box-shadow:var(--shadow)}
+  .slot .sh{display:flex;align-items:baseline;gap:8px}
+  .slot .st2{font-size:11px;font-weight:800;color:var(--amber);flex:none}
+  .slot .sn{flex:1;font-size:13.5px;font-weight:800;color:var(--text);min-width:0}
+  .slot .sx{color:var(--text-3);cursor:pointer;flex:none}
+  .slot .sa{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
+  .slot.off{opacity:.5}
+  .dayCar{display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;margin:2px 0 6px}
+  .dayCar::-webkit-scrollbar{display:none}
+  .dcard{flex:0 0 122px;background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-md);padding:10px}
+  .dcard .dk2{font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--text-3);text-transform:uppercase}
+  .dcard .dv2{font-size:11.5px;font-weight:700;color:var(--text-2);margin-top:5px;line-height:1.45}
+  .bigRing{--p:0;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(rgb(var(--pA)) calc(var(--p)*1%),rgba(255,255,255,.18) 0);flex:none}
+  .bigRing i{width:48px;height:48px;border-radius:50%;background:rgba(4,9,18,.4);display:grid;place-items:center;font-style:normal;font-size:12.5px;font-weight:800;color:#fff}
+  .vhRow{display:flex;align-items:center;gap:13px}
+  .wHero{display:flex;gap:13px;background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:11px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .wHero .cover{flex:none;width:92px;height:130px}
+  .wHero .wt{flex:1;min-width:0;display:flex;flex-direction:column}
+  .wHero .wt .k3{font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--text-3);text-transform:uppercase}
+  .wHero .wt b{font-size:15px;font-weight:800;color:var(--text);margin-top:4px}
+  .wHero .wt small{font-size:11px;font-weight:700;color:var(--text-3);margin-top:3px}
+  .wHero .wt .wa{display:flex;gap:6px;margin-top:auto;padding-top:8px}
+  .linkRow{display:flex;align-items:center;gap:9px;padding:10px 2px;border-bottom:1px solid var(--card-line);font-size:12.5px;font-weight:700;color:var(--text-2);cursor:pointer}
+  .linkRow:last-child{border-bottom:0}
+  .linkRow span{margin-left:auto;color:var(--text-3)}
+  .msgCard{background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:13px;margin-bottom:9px}
+  .msgCard p{font-size:12.5px;font-weight:600;color:var(--text-2);line-height:1.55;font-style:italic}
+  .msgCard .sa{display:flex;gap:6px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -1070,28 +1118,70 @@
   <!-- vista itinerario -->
   <div class="view" id="tripView">
     <div class="viewHead">
-      <button class="back" onclick="closeTrip()">‹</button>
+      <button class="back" onclick="closeTrip()">&lsaquo;</button>
       <h2>Weekend a Roma</h2>
-      <span class="vs">AGGIORNATO ORA ✓</span>
+      <span class="vs">PRONTO &check;</span>
     </div>
     <div class="viewBody">
-      <div class="itDay">
-        <div class="dd">Venerdì 12</div>
-        <div class="itStop"><span class="h">21:10</span><div><div class="t">Arrivo a Termini 🚄</div><div class="s">Metro B fino a Circo Massimo, poi 10 min</div></div></div>
-        <div class="itStop"><span class="h">21:45</span><div><div class="t">Check-in Hotel Santa Cecilia</div><div class="s">Trastevere · conferma #H2291</div></div></div>
+      <div class="vHero">
+        <div class="art" style="position:absolute;inset:0;background:radial-gradient(110% 80% at 85% -6%,rgba(214,178,110,.5) 0%,transparent 55%),linear-gradient(168deg,#7A4A22 0%,#3A2410 60%,#1B1007 100%)"></div>
+        <div class="shade"></div>
+        <span class="vk">Itinerario &middot; 4&ndash;5 luglio</span>
+        <h4>Concerto di Ultimo, e Roma attorno</h4>
+        <div class="vs2">Hotel in centro &middot; rientro domenica &middot; tutto confermato</div>
+        <div class="vActs">
+          <button class="chipA" onclick="shimmer(this.closest('.vHero'),'Itinerario fresco: tutto confermato ✅')">&#128260; Aggiorna</button>
+          <button class="chipA" onclick="toast('Messaggio copiato — incollalo dove vuoi 💬')">&#128172; Messaggio pronto</button>
+        </div>
       </div>
-      <div class="itDay">
-        <div class="dd">Sabato 13</div>
-        <div class="itStop"><span class="h">9:30</span><div><div class="t">Colosseo 🏛️</div><div class="s">Biglietti saltafila già presi</div></div></div>
-        <div class="itStop"><span class="h">13:00</span><div><div class="t">Pranzo a Monti</div><div class="s">Alternative pronte se pieno</div></div></div>
-        <div class="itStop"><span class="h">19:30</span><div><div class="t">Sera a Trastevere 🌆</div><div class="s">Passeggiata + cena libera</div></div></div>
+
+      <div class="agLbl">La sequenza &middot; tocca &#8964; per i dettagli</div>
+      <div class="slot">
+        <div class="sh"><span class="st2">SAB ~14:00</span><span class="sn">Check-in Hotel 87</span><span class="sx" onclick="toast('Via del Tritone 87 · conferma #H2291')">&#8964;</span></div>
+        <div class="sa"><button class="chipA dk" onclick="toast('Cosa cambio di questo slot? ✏️')">&#9998; Modifica</button></div>
       </div>
-      <div class="itDay">
-        <div class="dd">Domenica 14</div>
-        <div class="itStop"><span class="h">9:00</span><div><div class="t">Musei Vaticani</div><div class="s">Ingresso prenotato · 2 h 30</div></div></div>
-        <div class="itStop"><span class="h">18:40</span><div><div class="t">Treno del ritorno 🚄</div><div class="s">Termini → Centrale · posti 11C-11D</div></div></div>
+      <div class="slot">
+        <div class="sh"><span class="st2">SAB 14:30&ndash;16:30</span><span class="sn">Il Gabriello</span><span class="sx" onclick="toast('Pranzo romano vicino all\'hotel')">&#8964;</span></div>
+        <div class="sa">
+          <button class="chipA dk" onclick="toast('Alternativa 2 di 3: Colline Emiliane 🔁')">&#128260; Cambia (1/3)</button>
+          <button class="chipA dk" onclick="toast('Cosa cambio? ✏️')">&#9998; Modifica</button>
+        </div>
       </div>
-      <button class="btn line" style="width:100%" onclick="toast('Scambio tappa: dimmi cosa cambiamo 🔁')">Scambia una tappa</button>
+      <div class="slot">
+        <div class="sh"><span class="st2">SAB 20:30</span><span class="sn">Concerto Ultimo &middot; Tor Vergata</span><span class="sx" onclick="toast('Biglietti ×2 pronti · metro C')">&#8964;</span></div>
+        <div class="sa">
+          <button class="chipA dk" onclick="toast('Apro i biglietti 🎟')">&#127903; Biglietti</button>
+          <span class="tbc">notifica tappa &middot; presto</span>
+        </div>
+      </div>
+      <div class="slot">
+        <div class="sh"><span class="st2">DOM 9:00&ndash;12:00</span><span class="sn">Mercato di Porta Portese</span><span class="sx" onclick="toast('Domenica mattina, 15 min a piedi')">&#8964;</span></div>
+        <div class="sa">
+          <button class="chipA dk" onclick="toast('Alternativa 2 di 3: Trastevere con calma 🔁')">&#128260; Cambia (1/3)</button>
+          <button class="chipA dk" onclick="toast('Cosa cambio? ✏️')">&#9998; Modifica</button>
+        </div>
+      </div>
+      <div class="slot">
+        <div class="sh"><span class="st2">DOM 15:50</span><span class="sn">Treno Termini &rarr; Milano Centrale</span><span class="sx" onclick="closeTrip();openEvent('treno')">&#8964;</span></div>
+        <div class="sa"><button class="chipA dk" onclick="closeTrip();openEvent('treno')">&#127915; Vedi biglietto</button></div>
+      </div>
+
+      <div class="agLbl">Da sapere &amp; link</div>
+      <div class="slot">
+        <div class="linkRow" onclick="toast('Apro Maps: hotel 🗺️')">&#128205; Hotel 87 &mdash; Via del Tritone<span>&rsaquo;</span></div>
+        <div class="linkRow" onclick="toast('Apro la mappa del concerto 🗺️')">&#127903; Tor Vergata &mdash; come arrivare<span>&rsaquo;</span></div>
+        <div class="linkRow" onclick="toast('Meteo weekend: sole, 24&#8211;27° ☀️')">&#9728; Meteo del weekend<span>&rsaquo;</span></div>
+      </div>
+
+      <div class="agLbl">Messaggio pronto</div>
+      <div class="msgCard">
+        <p>&laquo;Weekend romano! Sabato arriviamo verso le 14, concerto la sera a Tor Vergata, domenica Porta Portese e pranzo a Testaccio. Rientro col treno delle 15:50 🚄&raquo;</p>
+        <div class="sa">
+          <button class="chipA dk" onclick="toast('Copiato ✓')">&#128203; Copia</button>
+          <button class="chipA dk" onclick="toast('Apro WhatsApp 💬')">&#128172; WhatsApp</button>
+        </div>
+      </div>
+      <button class="btn line" style="width:100%" onclick="toast('Quale tappa cambiamo? 🔁')">Scambia una tappa</button>
     </div>
   </div>
 
@@ -1119,29 +1209,36 @@
   <div class="view" id="dietView">
     <div class="viewHead">
       <button class="back" onclick="closeDiet()">&lsaquo;</button>
-      <h2>Dieta &middot; la settimana</h2>
+      <h2>Dieta</h2>
       <span class="vs">1.130 KCAL OGGI</span>
     </div>
     <div class="viewBody">
-      <div class="itDay">
-        <div class="dd">Oggi &middot; venerd&igrave;</div>
-        <div class="itStop"><span class="h">&#129379;</span><div><div class="t">Colazione &mdash; yogurt e avena</div><div class="s">320 kcal</div></div><span class="doneTag">FATTA &check;</span></div>
-        <div class="itStop"><span class="h">&#127831;</span><div><div class="t">Pranzo &mdash; riso, pollo e zucchine</div><div class="s">810 kcal</div></div><span class="doneTag">FATTO &check;</span></div>
-        <div class="itStop"><span class="h">&#127837;</span><div><div class="t">Cena &mdash; fuori, da Enzo al 29</div><div class="s">scelta libera &#128521; &middot; con Giulia</div></div></div>
+      <div class="vHero">
+        <div class="art" style="position:absolute;inset:0;background:radial-gradient(110% 80% at 85% -6%,rgba(240,178,74,.42) 0%,transparent 55%),linear-gradient(168deg,#6E4A18 0%,#33210A 60%,#170F05 100%)"></div>
+        <div class="shade"></div>
+        <span class="vk">Oggi &middot; venerd&igrave;</span>
+        <h4>Giornata leggera, cena fuori</h4>
+        <div class="vs2">1.130 kcal finora &middot; obiettivo 2.100</div>
+        <div class="vActs">
+          <button class="chipA" onclick="toast('Passami la foto della settimana 📷')">&#128247; Carica settimana</button>
+          <button class="chipA" onclick="toast('Quale pasto scambiamo? 🔁')">&#128260; Scambia un pasto</button>
+        </div>
       </div>
-      <div class="itDay">
-        <div class="dd">Sabato</div>
-        <div class="itStop"><span class="h">&#129370;</span><div><div class="t">Colazione &mdash; uova e pane integrale</div><div class="s">390 kcal</div></div></div>
-        <div class="itStop"><span class="h">&#129385;</span><div><div class="t">Pranzo &mdash; manzo, patate e insalata</div><div class="s">720 kcal</div></div></div>
-        <div class="itStop"><span class="h">&#127829;</span><div><div class="t">Cena &mdash; libera</div><div class="s">sgarro pianificato</div></div></div>
+
+      <div class="agLbl">I pasti di oggi &middot; tocca per spuntare</div>
+      <div class="pRow done" onclick="this.classList.toggle('done')"><span class="pi">&#129379;</span><div class="pt"><b>Colazione &mdash; yogurt e avena</b><small>320 kcal</small></div><div class="pk"><button class="chipA" onclick="event.stopPropagation();toast('Alternativa: uova e pane 🔁')">&#128260;</button></div></div>
+      <div class="pRow done" onclick="this.classList.toggle('done')"><span class="pi">&#127831;</span><div class="pt"><b>Pranzo &mdash; riso, pollo e zucchine</b><small>810 kcal</small></div><div class="pk"><button class="chipA" onclick="event.stopPropagation();toast('Alternativa: manzo e patate 🔁')">&#128260;</button></div></div>
+      <div class="pRow" onclick="this.classList.toggle('done')"><span class="pi">&#127837;</span><div class="pt"><b>Cena &mdash; fuori, da Enzo al 29</b><small>scelta libera 😉 &middot; con Giulia</small></div><div class="pk"><button class="chipA" onclick="event.stopPropagation();closeDiet();openEvent('cena')">&rsaquo;</button></div></div>
+
+      <div class="agLbl">Prossimi giorni</div>
+      <div class="dayCar">
+        <div class="dcard"><div class="dk2">Sabato</div><div class="dv2">Uova e pane &middot; manzo e patate &middot; sgarro &#127829;</div></div>
+        <div class="dcard"><div class="dk2">Domenica</div><div class="dv2">Pancake &middot; orata e verdure &middot; insalatona</div></div>
+        <div class="dcard"><div class="dk2">Luned&igrave;</div><div class="dv2">Yogurt &middot; pasta e tonno &middot; pollo</div></div>
       </div>
-      <div class="itDay">
-        <div class="dd">Domenica</div>
-        <div class="itStop"><span class="h">&#129374;</span><div><div class="t">Colazione &mdash; pancake proteici</div><div class="s">450 kcal</div></div></div>
-        <div class="itStop"><span class="h">&#128031;</span><div><div class="t">Pranzo &mdash; orata e verdure</div><div class="s">640 kcal</div></div></div>
-        <div class="itStop"><span class="h">&#129367;</span><div><div class="t">Cena &mdash; insalatona</div><div class="s">480 kcal &middot; leggera, poi GP &#128516;</div></div></div>
+      <div class="sa" style="display:flex;gap:6px;margin-top:6px">
+        <span class="tbc">report settimanale &middot; presto</span>
       </div>
-      <button class="btn line" style="width:100%" onclick="toast('Quale pasto scambiamo? \ud83d\udd01')">Scambia un pasto</button>
     </div>
   </div>
 
@@ -1153,23 +1250,42 @@
       <span class="vs">&#128293; 3 DI FILA</span>
     </div>
     <div class="viewBody">
-      <div class="itDay">
-        <div class="dd">Oggi &middot; venerd&igrave; &mdash; Push day &middot; tocca per spuntare</div>
-        <div class="itStop tap" onclick="this.classList.toggle('done')"><span class="h">4&times;8</span><div><div class="t">Panca piana</div></div></div>
-        <div class="itStop tap" onclick="this.classList.toggle('done')"><span class="h">3&times;10</span><div><div class="t">Panca inclinata</div></div></div>
-        <div class="itStop tap" onclick="this.classList.toggle('done')"><span class="h">4&times;8</span><div><div class="t">Lento avanti</div></div></div>
-        <div class="itStop tap" onclick="this.classList.toggle('done')"><span class="h">3&times;12</span><div><div class="t">Alzate laterali</div></div></div>
-        <div class="itStop tap" onclick="this.classList.toggle('done')"><span class="h">3&times;10</span><div><div class="t">French press</div></div></div>
-        <div class="itStop tap" onclick="this.classList.toggle('done')"><span class="h">3&times;12</span><div><div class="t">Pushdown</div></div></div>
+      <div class="vHero">
+        <div class="art" style="position:absolute;inset:0;background:radial-gradient(110% 80% at 88% -6%,rgba(130,168,215,.46) 0%,transparent 52%),linear-gradient(168deg,#2A4568 0%,#16273F 55%,#0D1728 100%)"></div>
+        <div class="shade"></div>
+        <div class="vhRow">
+          <div class="bigRing" id="gRing" style="--p:0"><i id="gRingTxt">0/6</i></div>
+          <div>
+            <span class="vk">Push day &middot; 45 min</span>
+            <h4>Oggi si spinge</h4>
+            <div class="vs2">Panca, spalle, tricipiti</div>
+          </div>
+        </div>
+        <div class="vActs">
+          <button class="chipA" onclick="toast('Segnato: allenamento fatto ✓💪')">&check; Fatto oggi</button>
+          <button class="chipA" onclick="toast('Ti alleni un altro giorno? Lo riprogrammo 📆')">&#128198; Riprogramma</button>
+        </div>
       </div>
-      <div class="itDay">
-        <div class="dd">La settimana</div>
-        <div class="itStop"><span class="h">lun</span><div><div class="t">Push day</div></div><span class="doneTag">FATTO &check;</span></div>
-        <div class="itStop"><span class="h">mer</span><div><div class="t">Pull day</div></div><span class="doneTag">FATTO &check;</span></div>
-        <div class="itStop"><span class="h">sab</span><div><div class="t">Riposo</div></div><span class="restTag">&mdash;</span></div>
-        <div class="itStop"><span class="h">dom</span><div><div class="t">Cardio leggero</div><div class="s">30 min &middot; prima del GP</div></div></div>
+
+      <div class="agLbl">Esercizi &middot; tocca per spuntare</div>
+      <div class="pRow" onclick="gEx(this)"><span class="pi">&#127947;</span><div class="pt"><b>Panca piana</b><small>4&times;8 &middot; 60 kg</small></div></div>
+      <div class="pRow" onclick="gEx(this)"><span class="pi">&#127947;</span><div class="pt"><b>Panca inclinata</b><small>3&times;10</small></div></div>
+      <div class="pRow" onclick="gEx(this)"><span class="pi">&#127947;</span><div class="pt"><b>Lento avanti</b><small>4&times;8</small></div></div>
+      <div class="pRow" onclick="gEx(this)"><span class="pi">&#127947;</span><div class="pt"><b>Alzate laterali</b><small>3&times;12</small></div></div>
+      <div class="pRow" onclick="gEx(this)"><span class="pi">&#127947;</span><div class="pt"><b>French press</b><small>3&times;10</small></div></div>
+      <div class="pRow" onclick="gEx(this)"><span class="pi">&#127947;</span><div class="pt"><b>Pushdown</b><small>3&times;12</small></div></div>
+
+      <div class="agLbl">La settimana</div>
+      <div class="dayCar">
+        <div class="dcard"><div class="dk2">Lun</div><div class="dv2">Push day &middot; fatto &check;</div></div>
+        <div class="dcard"><div class="dk2">Mer</div><div class="dv2">Pull day &middot; fatto &check;</div></div>
+        <div class="dcard"><div class="dk2">Sab</div><div class="dv2">Riposo &#127769;</div></div>
+        <div class="dcard"><div class="dk2">Dom</div><div class="dv2">Cardio 30 min</div></div>
       </div>
-      <button class="btn line" style="width:100%" onclick="toast('Ti alleni un altro giorno? Lo riprogrammo \ud83d\udcc6')">Sposta l&#39;allenamento</button>
+      <div class="sa" style="display:flex;gap:6px;margin-top:6px">
+        <span class="tbc">scambio allenamenti &middot; presto</span>
+        <span class="tbc">report mensile &middot; presto</span>
+      </div>
     </div>
   </div>
 
@@ -1181,12 +1297,21 @@
       <span class="vs">4 TITOLI</span>
     </div>
     <div class="viewBody">
-      <div class="pGrid">
-        <div class="film" onclick="this.classList.toggle('seen');toast(this.classList.contains('seen')?'Visto \u2713':'Ok, resta in lista')">
-          <div class="cover dune"><span class="age">da 12 giorni</span><span class="ttl">Dune<br>Parte Due</span></div>
-          <div class="seenMark">&#9989;</div>
-          <div class="plat">Stasera &middot; <b>Sky 21:15</b></div>
+      <div class="wHero" onclick="toast('Dune: Parte Due — Sky Cinema, 21:15 🎬')">
+        <div class="cover dune"><span class="age">da 12 giorni</span><span class="ttl">Dune<br>Parte Due</span></div>
+        <div class="wt">
+          <span class="k3">Stasera per te</span>
+          <b>Dune: Parte Due</b>
+          <small>Sky Cinema &middot; 21:15 &middot; 2h46 &middot; ti aspetta da 12 giorni &#128064;</small>
+          <div class="wa">
+            <button class="chipA dk" onclick="event.stopPropagation();toast('Visto ✓ Com\'era?')">&check; Visto</button>
+            <button class="chipA dk" onclick="event.stopPropagation();toast('Su Sky Cinema e NOW 📺')">&#9654; Dove vederlo</button>
+          </div>
         </div>
+      </div>
+
+      <div class="agLbl">La lista</div>
+      <div class="pGrid">
         <div class="film" onclick="this.classList.toggle('seen');toast(this.classList.contains('seen')?'Visto \u2713':'Ok, resta in lista')">
           <div class="cover opp"><span class="ttl">Oppenheimer</span></div>
           <div class="seenMark">&#9989;</div>
@@ -1197,10 +1322,17 @@
           <div class="seenMark">&#9989;</div>
           <div class="plat"><b>Disney+</b> &middot; 10 ep.</div>
         </div>
-        <div class="addFilm" onclick="toast('Scrivi il titolo come ti viene e ci penso io \u2728')">
+        <div class="addFilm" onclick="toast('Scrivi il titolo come ti viene e ci penso io ✨')">
           <b>&#65291;</b>
           Aggiungi un titolo<br>anche solo &laquo;quel film di Nolan&raquo;
         </div>
+        <div class="addFilm" onclick="toast('Stasera ti direi Dune: sei in casa e hai Sky ✨')">
+          <b>&#10024;</b>
+          Consiglio di Keiko<br>in base alla tua serata
+        </div>
+      </div>
+      <div class="sa" style="display:flex;gap:6px;margin-top:10px">
+        <span class="tbc">notifiche uscite &middot; presto</span>
       </div>
     </div>
   </div>
@@ -1524,6 +1656,14 @@
   }
   function closePeek(){$('peekBox').classList.remove('open')}
   document.addEventListener('click',e=>{if(!e.target.closest('.week'))closePeek()});
+
+  /* ---- palestra (vista interna) ---- */
+  function gEx(el){
+    el.classList.toggle('done');
+    const done=document.querySelectorAll('#gymView .pRow.done').length;
+    const r=$('gRing');if(r){r.style.setProperty('--p',done/6*100);$('gRingTxt').textContent=done+'/6'}
+    if(done===6)toast('Push day chiuso. Grande 💪🔥');
+  }
 
   /* ---- palestra ---- */
   function startGym(e){

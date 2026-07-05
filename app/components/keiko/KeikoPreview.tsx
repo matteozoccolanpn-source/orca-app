@@ -143,6 +143,7 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
     setMoodTaps((n) => n + 1);
     const next = !alt;
     setAlt(next);
+    try { localStorage.setItem("keiko-mood", next ? "day" : "night"); } catch { /* no-op */ }
     setAnimMood(true);
     toast(next ? "Mood giorno ☀️" : "Mood notte 🌙");
     setTimeout(() => setAnimMood(false), 700);
