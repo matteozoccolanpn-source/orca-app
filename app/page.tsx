@@ -1,5 +1,6 @@
 import SwipeShell from "./components/SwipeShell";
-import KeikoHome from "./components/keiko/KeikoHome";
+import KeikoPreview from "./components/keiko/KeikoPreview";
+import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist } from "@/lib/supabase";
 import { signOut } from "@/auth";
 
@@ -32,18 +33,17 @@ export default async function Home({
   }
 
   if (v2) {
-    return (
-      <KeikoHome
-        events={events}
-        trips={trips}
-        todos={todos}
-        watchCount={watchlist.filter((w) => !w.seen).length}
-        diet={diet?.week ?? null}
-        workout={workout?.week ?? null}
-        trainedDays={trainedDays}
-        logoutAction={logout}
-      />
-    );
+    // TAPPA 2 — dati veri sulla UI congelata (KeikoPreview). Mapping in keikoLive.
+    const live = mapLive({
+      events,
+      todos,
+      diet: diet?.week ?? null,
+      workout: workout?.week ?? null,
+      trainedDays,
+      trips,
+      watch: watchlist,
+    });
+    return <KeikoPreview live={live} />;
   }
 
   return (

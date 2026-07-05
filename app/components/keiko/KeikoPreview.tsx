@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import CaptureSheet from "@/components/CaptureSheet";
+import { type LiveEvent, type LiveHome, mapsUrl } from "./keikoLive";
 import "../../keiko.css";
 
 /* ==================================================================== *
@@ -38,9 +40,21 @@ const Whale = () => (
 
 /* ---- DATI FINTI (dal mockup) ---- */
 type Ev = {
-  art: string; artH: number; glyph: string; live: string; title: string;
-  narr: string; paper: string; src: string; tips: string[]; acts: [string, string][];
+  art: string; artH: number; glyph?: string; live: string; title: string;
+  narr: string; paper: string; src: string; tips: string[]; acts: [string, string][]; mapsQ?: string;
 };
+
+// live: costruisce il contenuto del pannello dai campi reali dell'evento.
+function liveToPanel(e: LiveEvent): Ev {
+  const paper = e.route
+    ? `<div class="bigTkt"><div class="row1"><div class="qrbox"></div><div><div class="tt">${e.title}</div><div class="ss">${e.location || "biglietto"}</div></div></div><div class="meta2"><div class="m2"><div class="k2">Ora</div><div class="v2">${e.time}</div></div><div class="m2"><div class="k2">Da</div><div class="v2">${e.route.dep}</div></div><div class="m2"><div class="k2">A</div><div class="v2">${e.route.arr}</div></div></div></div>`
+    : `<div class="bigTkt"><div class="row1"><div style="font-size:34px">${e.emoji}</div><div><div class="tt">${e.title}</div><div class="ss">${e.location || ""}</div></div></div><div class="meta2"><div class="m2"><div class="k2">Ora</div><div class="v2">${e.time}</div></div></div></div>`;
+  return {
+    art: e.art, artH: 205, live: e.panelLive, title: e.panelTitle,
+    narr: e.location ? `${e.catLabel} · ${e.location}.` : "",
+    paper, src: "", tips: [], acts: [["acc", "📍 Maps"]], mapsQ: e.mapsQ,
+  };
+}
 const EVENTS: Record<string, Ev> = {
   treno: {
     art: "train", artH: 250, glyph: "🚄", live: "OGGI · TRENO", title: "Parti alle 18:05.",
@@ -84,20 +98,23 @@ const EVENTS: Record<string, Ev> = {
   },
 };
 
-export default function KeikoPreview() {
+export default function KeikoPreview({ live }: { live?: LiveHome }) {
+  const isLive = !!live;
   const [alt, setAlt] = useState(false);
   const [animMood, setAnimMood] = useState(false);
+  const [capture, setCapture] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [evKey, setEvKey] = useState<string | null>(null);
   const [evFull, setEvFull] = useState(false);
   const [views, setViews] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState(0);
   const [peekKey, setPeekKey] = useState<string | null>(null);
+  const [selDay, setSelDay] = useState<string | null>(null);
   const [exOpen, setExOpen] = useState(false);
   const [exDone, setExDone] = useState<boolean[]>(Array(6).fill(false));
   const [cd, setCd] = useState("—");
   const [cdD, setCdD] = useState("stasera");
-  const [calYM, setCalYM] = useState({ y: 2026, m: 6 }); // 6 = luglio (base del mockup)
+  const [calYM, setCalYM] = useState(live ? { y: live.cal.y, m: live.cal.m } : { y: 2026, m: 6 }); // mese base (mockup: luglio 2026)
   const toastT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const screenRef = useRef<HTMLDivElement>(null);
 
@@ -162,18 +179,26 @@ export default function KeikoPreview() {
   };
 
   const dim = evKey !== null || ["dayPanel", "addSheet", "actSheet", "shareSheet", "confirmSheet", "calPanel"].some((id) => views[id]);
-  const ev = evKey ? EVENTS[evKey] : null;
+  const liveEv = live && evKey ? ([...live.heroEvents, ...live.upcoming].find((e) => e.id === evKey) ?? null) : null;
+  const ev = live ? (liveEv ? liveToPanel(liveEv) : null) : (evKey ? EVENTS[evKey] : null);
+  const panelIcon = live ? (liveEv?.iconKey ?? "treno") : (evKey ?? "treno");
 
-  // settimana scorrevole: due settimane (dal mockup v2.1). [nome, giorno, dotClass?]
-  const days: [string, number, string?][] = [
+  // settimana: finta (2 settimane dal mockup) o vera (14 giorni da oggi).
+  const fakeDays: [string, number, string?][] = [
     ["gio", 2], ["ven", 3, "d12"], ["sab", 4], ["dom", 5, "d1"], ["lun", 6], ["mar", 7, "d2"], ["mer", 8],
     ["gio", 9], ["ven", 10], ["sab", 11, "d1"], ["dom", 12], ["lun", 13], ["mar", 14], ["mer", 15],
   ];
+  const weekDays = live
+    ? live.week.map((x) => ({ w: x.w, n: x.n, key: x.key, today: x.today, d1: x.d1, d2: x.d2 }))
+    : fakeDays.map(([w, n, dc]) => ({ w, n, key: `${w} ${n}`, today: n === 3, d1: dc === "d1" || dc === "d12", d2: dc === "d2" || dc === "d12" }));
 
   // calendario mensile
   const MONTHS = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
-  const isBaseMonth = calYM.y === 2026 && calYM.m === 6; // luglio 2026 = mese con i dati finti
-  const calDots = isBaseMonth ? [3, 5, 11, 19] : [];
+  const calBaseY = live ? live.cal.y : 2026;
+  const calBaseM = live ? live.cal.m : 6;
+  const isBaseMonth = calYM.y === calBaseY && calYM.m === calBaseM;
+  const calDots = isBaseMonth ? (live ? live.cal.dots : [3, 5, 11, 19]) : [];
+  const calTodayN = live ? new Date().getDate() : 3; // giorno evidenziato nel mese base
   const calLead = (new Date(calYM.y, calYM.m, 1).getDay() + 6) % 7; // celle vuote iniziali (lun=0)
   const calDaysN = new Date(calYM.y, calYM.m + 1, 0).getDate();
   const shiftMonth = (d: number) => setCalYM(({ y, m }) => { const t = m + d; return { y: y + Math.floor(t / 12), m: ((t % 12) + 12) % 12 }; });
@@ -200,35 +225,44 @@ export default function KeikoPreview() {
         {/* settimana — scorrevole su più settimane (v2.1), peek fuori dallo scroll */}
         <div className="weekWrap">
           <div className="week" id="week">
-            {days.map(([w, n, dotCls]) => {
-              const key = `${w} ${n}`;
-              const dots = dotCls === "d12" ? (<><i className="d1" /><i className="d2" /></>) : dotCls === "d1" ? <i className="d1" /> : dotCls === "d2" ? <i className="d2" /> : null;
-              return (
-                <div key={key} className={`day${n === 3 ? " today" : ""}`} onClick={() => setPeekKey(peekKey === key ? null : key)}>
-                  <span>{w}</span><b>{n}</b><span className="dots">{dots}</span>
-                </div>
-              );
-            })}
+            {weekDays.map((d) => (
+              <div key={d.key} className={`day${d.today ? " today" : ""}`} onClick={() => setPeekKey(peekKey === d.key ? null : d.key)}>
+                <span>{d.w}</span><b>{d.n}</b><span className="dots">{d.d1 && <i className="d1" />}{d.d2 && <i className="d2" />}</span>
+              </div>
+            ))}
           </div>
           <div className={`peek${peekKey ? " open" : ""}`} id="peekBox">
-            <h5 id="peekTitle">{peekKey ? (peekData[peekKey]?.t ?? peekKey) : "Venerdì 3"}</h5>
+            <h5 id="peekTitle">{peekKey ? ((live ? live.byDay[peekKey]?.title : peekData[peekKey]?.t) ?? peekKey) : "Venerdì 3"}</h5>
             <div id="peekRows">
-              {peekKey && peekData[peekKey]
-                ? peekData[peekKey].r.map((x, i) => <div key={i} className="row" dangerouslySetInnerHTML={{ __html: x }} />)
-                : peekKey ? <div className="row">Giornata libera 🌿</div> : null}
+              {(() => {
+                if (!peekKey) return null;
+                const rows = live ? (live.byDay[peekKey]?.rows ?? []) : (peekData[peekKey]?.r ?? []);
+                return rows.length ? rows.map((x, i) => <div key={i} className="row" dangerouslySetInnerHTML={{ __html: x }} />) : <div className="row">Giornata libera 🌿</div>;
+              })()}
             </div>
-            <button className="openBtn" onClick={() => { openV("dayPanel"); setPeekKey(null); }}>Apri il giorno →</button>
+            <button className="openBtn" onClick={() => { setSelDay(peekKey); openV("dayPanel"); setPeekKey(null); }}>Apri il giorno →</button>
           </div>
         </div>
 
         {/* kicker — la data apre il calendario mensile (v2.1) */}
         <div className="kick">
-          <div className="over kickCal" onClick={openCal}>Venerdì 3 luglio · Roma 24° ☀️ <span className="calGo">›</span></div>
-          <h1>Ciao Matteo 👋</h1>
-          <div className="lede">Stasera Roma con Giulia: treno alle 18:05, poi cena da Enzo.</div>
+          <div className="over kickCal" onClick={openCal}>{live ? live.kickDate : "Venerdì 3 luglio · Roma 24° ☀️"} <span className="calGo">›</span></div>
+          <h1>{live ? live.greeting : "Ciao Matteo 👋"}</h1>
+          <div className="lede">{live ? live.lede : "Stasera Roma con Giulia: treno alle 18:05, poi cena da Enzo."}</div>
         </div>
 
-        {/* hero */}
+        {/* hero — solo eventi di oggi (regola). Live: dai dati veri, compatta il resto. */}
+        {isLive && live.heroEvents.length > 0 && (
+          <>
+            <div className="heroRow" id="heroRow">
+              {live.heroEvents.map((e) => (
+                <HeroLive key={e.id} e={e} onOpen={() => openEvent(e.id)} onActs={() => openV("actSheet")} />
+              ))}
+            </div>
+            {live.heroEvents.length > 1 && <div className="dotsRow">{live.heroEvents.map((e, i) => <i key={e.id} className={i === 0 ? "on" : ""} />)}</div>}
+          </>
+        )}
+        {!isLive && (<>
         <div className="heroRow" id="heroRow">
           <div className="hero rise" onClick={() => openEvent("treno")}>
             <div className="art train" />
@@ -275,8 +309,22 @@ export default function KeikoPreview() {
           </div>
         </div>
         <div className="dotsRow" id="heroDots"><i className="on" /><i /></div>
+        </>)}
 
         {/* in arrivo */}
+        {isLive && live.upcoming.length > 0 && (
+          <>
+            <div className="sec rise" onClick={() => openV("agendaView")}>
+              <h3>In arrivo <span className="cnt">· {live.upcoming.length}</span> <span className="ch">›</span></h3>
+              {live.upcoming[0] && <div className="sub">{live.upcoming[0].rel} c&apos;è <em>{live.upcoming[0].title}</em></div>}
+            </div>
+            <div className="miniRow" id="miniRow">
+              {live.upcoming.map((e) => <MiniLive key={e.id} e={e} onOpen={() => openEvent(e.id)} onActs={() => openV("actSheet")} />)}
+            </div>
+            {live.upcoming.length > 1 && <div className="dotsRow">{live.upcoming.map((e, i) => <i key={e.id} className={i === 0 ? "on" : ""} />)}</div>}
+          </>
+        )}
+        {!isLive && (<>
         <div className="sec rise" onClick={() => openV("agendaView")}>
           <h3>In arrivo <span className="cnt">· 3</span> <span className="ch">›</span></h3>
           <div className="sub">domenica c&apos;è il <em>GP di Silverstone</em></div>
@@ -311,8 +359,21 @@ export default function KeikoPreview() {
           </div>
         </div>
         <div className="dotsRow" id="miniDots"><i className="on" /><i /><i /></div>
+        </>)}
 
         {/* oggi per te */}
+        {isLive && (live.gym || live.diet) && (
+          <>
+            <div className="sec minor rise">
+              <h3>Oggi per te <span className="ch">›</span></h3>
+            </div>
+            <div className="grid2">
+              {live.gym && <GymTileLive g={live.gym} />}
+              {live.diet && <DietTileLive d={live.diet} />}
+            </div>
+          </>
+        )}
+        {!isLive && (<>
         <div className="sec minor rise" onClick={() => { setTab(2); openV("gymView"); }}>
           <h3>Oggi per te <span className="ch">›</span></h3>
           <div className="sub">push day · stasera <em>cena fuori con Giulia</em></div>
@@ -353,15 +414,44 @@ export default function KeikoPreview() {
             <span className="go" onClick={(e) => { e.stopPropagation(); setTab(1); openV("dietView"); }}>La settimana ›</span>
           </div>
         </div>
+        </>)}
 
-        {/* il consiglio: pull-quote */}
+        {/* il consiglio: pull-quote — editoriale, nessuna sorgente reale → solo preview */}
+        {!isLive && (
         <div className="quote rise">
           <span className="k">Keiko consiglia</span>
           <p>Occhio: stasera si scende a 16° — <em>portati una giacca</em>, il rientro è dopo mezzanotte.</p>
           <button onClick={() => toast("Promemoria alle 17:10, prima di uscire ✓")}>Ricordamelo quando esco</button>
         </div>
+        )}
 
-        {/* moduli contestuali */}
+        {/* moduli contestuali — live: Da guardare + Viaggio dai dati veri (link alle pagine) */}
+        {isLive ? (
+          <>
+            {live.watch && (
+              <a className="ctxCard rise" href="/guarda">
+                <div className="th film"><span>DA GUARDARE</span></div>
+                <div className="w">
+                  <div className="k">Stasera guardi</div>
+                  <div className="t">{live.watch.title ?? "La tua lista"}</div>
+                  <div className="s">{live.watch.sub}</div>
+                </div>
+                <span className="ch">›</span>
+              </a>
+            )}
+            {live.trip && (
+              <a className="ctxCard rise" href="/viaggio">
+                <div className="th roma"><span>{live.trip.range || "VIAGGIO"}</span></div>
+                <div className="w">
+                  <div className="k">Prossimo viaggio</div>
+                  <div className="t">{live.trip.title}</div>
+                  <div className="s">{live.trip.sub}</div>
+                </div>
+                <span className="ch">›</span>
+              </a>
+            )}
+          </>
+        ) : (<>
         <div className="ctxCard rise" onClick={() => { setTab(3); openV("watchView"); }}>
           <div className="th film"><span>SKY 21:15</span></div>
           <div className="w">
@@ -380,8 +470,10 @@ export default function KeikoPreview() {
           </div>
           <span className="ch">›</span>
         </div>
+        </>)}
 
-        {/* il ricordo */}
+        {/* il ricordo — editoriale, nessuna sorgente reale → solo preview */}
+        {!isLive && (
         <div className="memory rise" onClick={() => toast("12 foto di quel weekend 📸")}>
           <div className="ph" />
           <div>
@@ -389,6 +481,7 @@ export default function KeikoPreview() {
             <div className="t">Il weekend a Portogruaro con Giulia — il primo treno preso insieme.</div>
           </div>
         </div>
+        )}
 
         <div className="spacer" />
       </div>
@@ -399,17 +492,17 @@ export default function KeikoPreview() {
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><path d="M3 11.5 12 4l9 7.5" /><path d="M5 10v10h14V10" /></svg>
           Home
         </div>
-        <div className={`tab${tab === 1 ? " on" : ""}`} onClick={() => { setTab(1); openV("dietView"); }}>
+        <div className={`tab${tab === 1 ? " on" : ""}`} onClick={isLive ? () => { window.location.href = "/salute"; } : () => { setTab(1); openV("dietView"); }}>
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><path d="M12 3a7 7 0 0 1 7 7c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 7-7Z" /><circle cx="12" cy="10" r="2.5" /></svg>
           Dieta
         </div>
-        <div className="fab" onClick={() => openV("addSheet")}>＋</div>
-        <div className={`tab${tab === 2 ? " on" : ""}`} onClick={() => { setTab(2); openV("gymView"); }}>
+        <div className="fab" onClick={isLive ? () => setCapture(true) : () => openV("addSheet")}>＋</div>
+        <div className={`tab${tab === 2 ? " on" : ""}`} onClick={isLive ? () => { window.location.href = "/allenamento"; } : () => { setTab(2); openV("gymView"); }}>
           <span className="tdot" />
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><path d="M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12" /></svg>
           Sport
         </div>
-        <div className={`tab${tab === 3 ? " on" : ""}`} onClick={() => { setTab(3); openV("watchView"); }}>
+        <div className={`tab${tab === 3 ? " on" : ""}`} onClick={isLive ? () => { window.location.href = "/guarda"; } : () => { setTab(3); openV("watchView"); }}>
           <span className="tdot" />
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="m10 9 5 3-5 3z" /></svg>
           Guarda
@@ -425,7 +518,7 @@ export default function KeikoPreview() {
           <div className="evArt" id="evArt" style={{ height: ev ? Math.round((ev.artH || 230) * .9) : 207 }}>
             <div className={`art ${ev?.art ?? ""}`} id="evArtBg" />
             <div className="shade" />
-            <span className="glyph" id="evGlyph">{ev && <CatIcon k={evKey!} />}</span>
+            <span className="glyph" id="evGlyph">{ev && <CatIcon k={panelIcon} />}</span>
             <span className="live" id="evLive">{ev?.live}</span>
             <h2 id="evTitle">{ev?.title}</h2>
           </div>
@@ -438,7 +531,12 @@ export default function KeikoPreview() {
             </div>
             <div className="evActs" id="evActs">
               {ev?.acts.map(([variant, label], i) => (
-                <button key={i} className={`btn ${variant}`} onClick={() => { if (label.includes("itinerario")) { closeEvent(); openV("tripView"); } else if (label.includes("Condividi")) { openV("shareSheet"); } else toast(label); }}>{label}</button>
+                <button key={i} className={`btn ${variant}`} onClick={() => {
+                  if (label.includes("Maps") && ev.mapsQ) { window.open(mapsUrl(ev.mapsQ), "_blank"); return; }
+                  if (label.includes("itinerario")) { closeEvent(); if (isLive) window.location.href = "/viaggio"; else openV("tripView"); return; }
+                  if (label.includes("Condividi")) { openV("shareSheet"); return; }
+                  toast(label);
+                }}>{label}</button>
               ))}
             </div>
           </div>
@@ -478,9 +576,24 @@ export default function KeikoPreview() {
         <div className="viewHead">
           <button className="back" onClick={() => closeV("agendaView")}>‹</button>
           <h2>In arrivo</h2>
-          <span className="vs">5 EVENTI</span>
+          <span className="vs">{isLive ? `${live.agenda.reduce((n, g) => n + g.events.length, 0)} EVENTI` : "5 EVENTI"}</span>
         </div>
         <div className="viewBody">
+          {isLive ? live.agenda.map((g, gi) => (
+            <div key={gi} style={{ display: "contents" }}>
+              <div className="agLbl">{g.label}</div>
+              {g.events.map((e) => (
+                <div key={e.id} className="agRow" onClick={() => openEvent(e.id)}>
+                  <div className={`art ${e.art}`} style={{ position: "absolute", inset: 0 }} />
+                  <div className="pshade" />
+                  <span className="when">{e.when}</span>
+                  <span className="cat2"><CatIcon k={e.iconKey} />{e.catLabel}</span>
+                  <span className="t">{e.title}</span>
+                  {e.location && <span className="info">{e.location}</span>}
+                </div>
+              ))}
+            </div>
+          )) : (<>
           <div className="agLbl">Oggi</div>
           <div className="agRow" onClick={() => openEvent("treno")}><div className="art train" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">18:05</span><span className="cat2"><CatIcon k="treno" />Treno</span><span className="t">Frecciarossa per Roma</span><span className="info">Binario 14 · carrozza 7</span></div>
           <div className="agRow" onClick={() => openEvent("cena")}><div className="art dinner" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">21:45</span><span className="cat2"><CatIcon k="cena" />Cena</span><span className="t">Con Giulia, da Enzo al 29</span><span className="info">Trastevere · tavolo per 2</span></div>
@@ -490,6 +603,7 @@ export default function KeikoPreview() {
           <div className="agRow" onClick={() => openEvent("volo")}><div className="art flightA" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">ven 11 · 6:00</span><span className="cat2"><CatIcon k="volo" />Volo · Ryanair</span><span className="t">Milano → Londra</span><span className="info">Check-in da giovedì · ci pensa Keiko</span></div>
           <div className="agLbl">Più avanti</div>
           <div className="agRow" onClick={() => openEvent("concerto")}><div className="art concertA" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">sab 19 · 21:00</span><span className="cat2"><CatIcon k="concerto" />Concerto · San Siro</span><span className="t">Cremonini, con Giulia</span><span className="info">2 biglietti pronti · anello verde</span></div>
+          </>)}
         </div>
       </div>
 
@@ -586,12 +700,23 @@ export default function KeikoPreview() {
       <div className={`dayPanel${views.dayPanel ? " open" : ""}`} id="dayPanel">
         <div className="dayHead">
           <div>
-            <h3>Venerdì 3 luglio</h3>
-            <span>2 eventi · 3 to-do · 1 fatto</span>
+            <h3>{isLive ? ((selDay && live.byDay[selDay]?.title) || "Giornata") : "Venerdì 3 luglio"}</h3>
+            <span>{isLive ? (selDay && live.byDay[selDay] ? `${live.byDay[selDay].rows.length} in programma` : "giornata libera 🌿") : "2 eventi · 3 to-do · 1 fatto"}</span>
           </div>
           <button className="evClose" onClick={() => closeV("dayPanel")} style={{ position: "relative", top: 0, right: 0 }}>✕</button>
         </div>
         <div className="dayBody">
+          {isLive ? (
+            <>
+              {(selDay && live.byDay[selDay]?.rows.length)
+                ? live.byDay[selDay].rows.map((r, i) => <div key={i} className="evtRow" dangerouslySetInnerHTML={{ __html: r }} />)
+                : <div className="secLabel">Giornata libera 🌿</div>}
+              <div className="addTodo">
+                <input placeholder="Scrivi e ci pensa Keiko… “palestra alle 19”" />
+                <button onClick={() => toast("Preso in carico ✓")}>＋</button>
+              </div>
+            </>
+          ) : (<>
           <div className="secLabel">Eventi</div>
           <div className="evtRow" onClick={() => { closeV("dayPanel"); openEvent("treno"); }}>🚄 <span><b>18:05</b> · <span className="et">Frecciarossa per Roma</span></span></div>
           <div className="evtRow" onClick={() => { closeV("dayPanel"); openEvent("cena"); }}>🍝 <span><b>21:45</b> · <span className="et">Cena con Giulia</span></span></div>
@@ -603,6 +728,7 @@ export default function KeikoPreview() {
             <input placeholder="Scrivi e ci pensa Keiko… “palestra alle 19”" />
             <button onClick={() => toast("Preso in carico ✓")}>＋</button>
           </div>
+          </>)}
         </div>
       </div>
 
@@ -622,7 +748,7 @@ export default function KeikoPreview() {
           {Array.from({ length: calDaysN }).map((_, i) => {
             const d = i + 1;
             return (
-              <button key={d} className={isBaseMonth && d === 3 ? "tod" : ""} onClick={() => { closeCal(); openV("dayPanel"); }}>
+              <button key={d} className={isBaseMonth && d === calTodayN ? "tod" : ""} onClick={() => { setSelDay(`${calYM.y}-${String(calYM.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`); closeCal(); openV("dayPanel"); }}>
                 {d}{calDots.includes(d) ? <i /> : null}
               </button>
             );
@@ -673,7 +799,91 @@ export default function KeikoPreview() {
 
       {/* toast */}
       <div className={`toast${toastMsg ? " show" : ""}`} id="toast"><span id="toastMsg">{toastMsg}</span><button className="tact" id="toastAct" style={{ display: "none" }} /></div>
+
+      {/* live: cattura reale (＋) */}
+      {isLive && <CaptureSheet open={capture} onClose={() => setCapture(false)} />}
     </div>
+  );
+}
+
+/* ---------- componenti "live" (dati veri) ---------- */
+function HeroLive({ e, onOpen, onActs }: { e: LiveEvent; onOpen: () => void; onActs: () => void }) {
+  return (
+    <div className="hero rise" onClick={onOpen}>
+      <div className={`art ${e.art}`} />
+      <div className="shade" />
+      <button className="more" onClick={(ev) => { ev.stopPropagation(); onActs(); }}>⋯</button>
+      <div className="head">
+        <span className="catL"><span className="pulse" /><CatIcon k={e.iconKey} />{e.catLabel} · {e.rel}</span>
+        <h2>{e.heroTitle}</h2>
+        {e.meta && <div className="meta">{e.meta}</div>}
+      </div>
+      {e.route ? (
+        <div className={`tkt${e.isFlight ? " isFlight" : ""}`}>
+          <div className="route">
+            <div className="times">{e.time}<i /></div>
+            <div className="stn"><span>{e.route.dep}</span><span>{e.route.arr}</span></div>
+          </div>
+          <div className="side">
+            <a className="maps" href={mapsUrl(e.mapsQ)} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}><Pin /> Maps</a>
+          </div>
+        </div>
+      ) : (
+        <div className="resv">
+          <span className="h">{e.time}</span>
+          <div className="w"><div className="t">{e.location || e.catLabel}</div></div>
+          <a className="go" href={mapsUrl(e.mapsQ)} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}><Pin /> Maps</a>
+        </div>
+      )}
+    </div>
+  );
+}
+function MiniLive({ e, onOpen, onActs }: { e: LiveEvent; onOpen: () => void; onActs: () => void }) {
+  return (
+    <div className="mini rise" onClick={onOpen}>
+      <div className={`art ${e.art}`} style={{ position: "absolute", inset: 0 }} />
+      <div className="pshade" />
+      <span className="when">{e.when}</span>
+      <button className="more" onClick={(ev) => { ev.stopPropagation(); onActs(); }}>⋯</button>
+      <span className="cat2"><CatIcon k={e.iconKey} />{e.catLabel}</span>
+      <span className="t">{e.title}</span>
+      {e.location && <span className="info">{e.location}</span>}
+    </div>
+  );
+}
+function GymTileLive({ g }: { g: NonNullable<LiveHome["gym"]> }) {
+  return (
+    <a className="tile glowable rise" href="/allenamento" style={{ color: "inherit", textDecoration: "none" }}>
+      <div className="gymTop">
+        <div className="ring" style={{ "--p": g.trainedToday ? 100 : 0 } as React.CSSProperties}><i>{g.trainedToday ? "✓" : String(g.total)}</i></div>
+        <div>
+          <div className="k">Palestra</div>
+          <div className="v">{g.title}</div>
+        </div>
+      </div>
+      <div className="wk">{g.week.map((d, i) => <i key={i} className={d.on ? "on" : d.today ? "today" : ""}>{d.letter}</i>)}</div>
+      <div className="exPrev">{g.rest ? "Giornata di riposo 🌙" : g.first ? <>Si parte con <b>{g.first}</b></> : "Allenamento pronto"}</div>
+      <span className="go">Vai 💪</span>
+    </a>
+  );
+}
+function DietTileLive({ d }: { d: NonNullable<LiveHome["diet"]> }) {
+  return (
+    <a className="tile glowable gB rise" href="/salute" style={{ color: "inherit", textDecoration: "none" }}>
+      <div className="k">Dieta</div>
+      <div className="v">Oggi</div>
+      {d.nextPasto ? (
+        <div className="mealNext">
+          <span className="emo">🍽️</span>
+          <div>
+            <div className="t">{d.nextPasto}</div>
+            <div className="s">{d.nextOpt ?? "—"}</div>
+          </div>
+        </div>
+      ) : <div className="mealsDone">Nessun piano per oggi</div>}
+      {d.done.length > 0 && <div className="mealsDone">Altri: <b>{d.done.join(" · ")}</b></div>}
+      <span className="go">La settimana ›</span>
+    </a>
   );
 }
 
