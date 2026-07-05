@@ -1,0 +1,712 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import "../../keiko.css";
+
+/* ==================================================================== *
+ * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
+ * Portata 1:1 (stesse classi, stessa struttura DOM). I dati stanno negli
+ * oggetti qui sotto: in TAPPA 2 si sostituisce la sorgente, non la UI/CSS.
+ * ==================================================================== */
+
+/* ---- icone categoria (i .ci del mockup) ---- */
+function CatIcon({ k }: { k: string }) {
+  const p: Record<string, React.ReactNode> = {
+    treno: (<><rect x="6" y="3" width="12" height="12" rx="3" /><path d="M6 9h12M9 15l-2 5M15 15l2 5M9.5 12h.01M14.5 12h.01" /></>),
+    cena: (<path d="M7 3v6a2 2 0 0 0 2 2v10M11 3v6a2 2 0 0 1-2 2M17 3c-1.8 1.6-2.5 4.2-2.5 6.5 0 1.8.9 2.5 2.5 2.5v9" />),
+    gp: (<path d="M5.5 21V4c3.6-1.8 7.4 1.8 11 0v10.5c-3.6 1.8-7.4-1.8-11 0" strokeLinejoin="round" />),
+    volo: (<path d="M21 12 3.5 5l2.7 6.3L3.5 19 21 12Z" strokeLinejoin="round" />),
+    concerto: (<><rect x="9" y="2.5" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></>),
+  };
+  return (
+    <svg className="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      {p[k]}
+    </svg>
+  );
+}
+const Pin = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" width="11" height="11">
+    <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10Z" /><circle cx="12" cy="10.5" r="2" />
+  </svg>
+);
+const Whale = () => (
+  <svg viewBox="0 0 100 72" fill="currentColor">
+    <path fillRule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z" />
+    <path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z" />
+  </svg>
+);
+
+/* ---- DATI FINTI (dal mockup) ---- */
+type Ev = {
+  art: string; artH: number; glyph: string; live: string; title: string;
+  narr: string; paper: string; src: string; tips: string[]; acts: [string, string][];
+};
+const EVENTS: Record<string, Ev> = {
+  treno: {
+    art: "train", artH: 250, glyph: "🚄", live: "OGGI · TRENO", title: "Parti alle 18:05.",
+    narr: 'Binario 14, carrozza 7, posto <b>11D</b>. Esci alle <em>17:20</em>: M2 fino a Centrale e 8 minuti a piedi. Alle <b>21:10</b> sei a Termini — ti aspettano <b>24°</b> e Giulia 😄',
+    paper: '<div class="bigTkt"><div class="row1"><div class="qrbox"></div><div><div class="tt">Trenitalia · Frecciarossa 9423</div><div class="ss">PNR X4KJ2M · mostra al controllore</div></div></div><div class="meta2"><div class="m2"><div class="k2">Partenza</div><div class="v2">18:05</div></div><div class="m2"><div class="k2">Binario</div><div class="v2">14</div></div><div class="m2"><div class="k2">Posto</div><div class="v2">7 · 11D</div></div></div></div>',
+    src: "Binario e orari aggiornati 2 minuti fa",
+    tips: ["🚇 Ultima metro per il rientro: 00:12", "🎒 Carrozza 7 è in testa al treno", "🥤 A bordo niente carrello: prendi l'acqua prima"],
+    acts: [["acc", "📍 Maps"], ["line", "💬 WhatsApp"], ["line", "🧭 Vedi itinerario"]],
+  },
+  cena: {
+    art: "dinner", artH: 205, glyph: "🍝", live: "STASERA · CENA", title: "Alle 21:45 con Giulia.",
+    narr: '<b>Da Enzo al 29</b>, Trastevere — dieci minuti a piedi da Termini, valigia compresa. Tavolo per due, sala interna. Se il treno ritarda, <em>Keiko avvisa il ristorante</em>.',
+    paper: '<div class="bigTkt"><div class="row1"><div style="font-size:34px">🍝</div><div><div class="tt">Prenotazione · Da Enzo al 29</div><div class="ss">via dei Vascellari 29, Roma · conferma #R482</div></div></div><div class="meta2"><div class="m2"><div class="k2">Ora</div><div class="v2">21:45</div></div><div class="m2"><div class="k2">Persone</div><div class="v2">2</div></div><div class="m2"><div class="k2">Sala</div><div class="v2">Interna</div></div></div></div>',
+    src: "Prenotazione confermata · controllata 1 ora fa",
+    tips: ["🍝 Da Enzo vai di carbonara, fidati", "💶 Solo contanti — c'è un ATM a 100 m", "🍨 Dopo: gelato da Otaleg, 200 m a piedi"],
+    acts: [["acc", "📍 Maps"], ["line", "💬 Scrivi a Giulia"], ["line", "🕘 Sposta"]],
+  },
+  volo: {
+    art: "flightA", artH: 205, glyph: "✈️", live: "VEN 11 · VOLO", title: "Londra, si parte alle 6:00.",
+    narr: 'Ryanair <b>FR1546</b> da Malpensa T2. Sveglia presto: esci alle <em>4:10</em>. Il check-in apre giovedì — <em>ci pensa Keiko</em> e la carta d\'imbarco comparirà qui.',
+    paper: '<div class="bigTkt"><div class="row1"><div class="qrbox"></div><div><div class="tt">Carta d\'imbarco · FR1546</div><div class="ss">disponibile da giovedì · Keiko ti avvisa</div></div></div><div class="meta2"><div class="m2"><div class="k2">Da</div><div class="v2">MXP T2</div></div><div class="m2"><div class="k2">A</div><div class="v2">STN</div></div><div class="m2"><div class="k2">Ore</div><div class="v2">6:00</div></div></div></div>',
+    src: "Orari volo aggiornati 10 minuti fa",
+    tips: ["🎒 Solo bagaglio a mano: 40×20×25", "⏰ Sveglia consigliata: 3:40", "🛂 Gate noto 2 h prima — ti avviso io"],
+    acts: [["acc", "✅ Check-in"], ["line", "📍 Maps"]],
+  },
+  concerto: {
+    art: "concertA", artH: 205, glyph: "🎤", live: "SAB 19 · CONCERTO", title: "Cremonini a San Siro.",
+    narr: 'Anello verde, ingresso 7 — si entra dalle <b>19:00</b>, con Giulia. I biglietti sono qui sotto, <em>già pronti da mostrare</em>.',
+    paper: '<div class="bigTkt"><div class="row1"><div class="qrbox"></div><div><div class="tt">2 × Biglietto · San Siro</div><div class="ss">Anello verde · ingresso 7 · fila 12</div></div></div><div class="meta2"><div class="m2"><div class="k2">Apertura</div><div class="v2">19:00</div></div><div class="m2"><div class="k2">Inizio</div><div class="v2">21:00</div></div><div class="m2"><div class="k2">Posti</div><div class="v2">12A · 12B</div></div></div></div>',
+    src: "Biglietti verificati ieri",
+    tips: ["🚪 Cancelli aperti dalle 19:00", "🧥 La sera scende a 16°: giacca", "🚇 Ultima metro dopo il concerto: 00:12"],
+    acts: [["acc", "📍 Maps"], ["line", "📤 Condividi"]],
+  },
+  gp: {
+    art: "sportA", artH: 165, glyph: "🏎️", live: "DOM · 16:00 · SKY", title: "Silverstone, si corre alle 16.",
+    narr: 'Su <b>Sky Sport F1</b>. Norris ci arriva da leader del mondiale — sotto la classifica aggiornata.',
+    paper: '<div class="standBox"><div class="standing"><span class="pos">1</span><div><div class="nm">L. Norris</div><div class="tm">McLaren</div></div><span class="pt">212 pt</span></div><div class="standing"><span class="pos">2</span><div><div class="nm">M. Verstappen</div><div class="tm">Red Bull</div></div><span class="pt">198 pt</span></div><div class="standing"><span class="pos">3</span><div><div class="nm">C. Leclerc</div><div class="tm">Ferrari</div></div><span class="pt">184 pt</span></div></div>',
+    src: "Classifica aggiornata 5 minuti fa",
+    tips: ["📺 Sky Sport F1 · canale 207", "⏱ Qualifiche sabato 15:00", "🥗 Cena leggera pre-gara 😄"],
+    acts: [["acc", "🔔 Ricordamelo"], ["line", "🏁 Classifica"]],
+  },
+};
+
+export default function KeikoPreview() {
+  const [alt, setAlt] = useState(false);
+  const [animMood, setAnimMood] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [evKey, setEvKey] = useState<string | null>(null);
+  const [evFull, setEvFull] = useState(false);
+  const [views, setViews] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState(0);
+  const [peekKey, setPeekKey] = useState<string | null>(null);
+  const [exOpen, setExOpen] = useState(false);
+  const [exDone, setExDone] = useState<boolean[]>(Array(6).fill(false));
+  const [cd, setCd] = useState("—");
+  const [cdD, setCdD] = useState("stasera");
+  const [calYM, setCalYM] = useState({ y: 2026, m: 6 }); // 6 = luglio (base del mockup)
+  const toastT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const screenRef = useRef<HTMLDivElement>(null);
+
+  // iOS Safari non fa scattare il "click" su <div> con handler React (delegato):
+  // un listener touchstart vuoto sul document abilita i click su ogni elemento.
+  useEffect(() => {
+    const noop = () => {};
+    document.addEventListener("touchstart", noop, { passive: true });
+    return () => document.removeEventListener("touchstart", noop);
+  }, []);
+
+  const toast = (msg: string) => {
+    setToastMsg(msg);
+    clearTimeout(toastT.current);
+    toastT.current = setTimeout(() => setToastMsg(null), 1900);
+  };
+  const toggleMood = () => {
+    const next = !alt;
+    setAlt(next);
+    setAnimMood(true);
+    toast(next ? "Mood giorno ☀️" : "Mood notte 🌙");
+    setTimeout(() => setAnimMood(false), 700);
+  };
+  const openCal = () => openV("calPanel");
+  const closeCal = () => closeV("calPanel");
+  const openEvent = (k: string) => { setEvKey(k); setEvFull(false); };
+  const closeEvent = () => setEvKey(null);
+  const openV = (id: string) => setViews((v) => ({ ...v, [id]: true }));
+  const closeV = (id: string) => setViews((v) => ({ ...v, [id]: false }));
+  const homeTab = () => { setViews({}); setEvKey(null); setTab(0); };
+
+  // countdown identico al mockup
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const dep = new Date(); dep.setHours(18, 5, 0, 0);
+      const m = Math.floor((dep.getTime() - now.getTime()) / 60000);
+      setCd("M2 verso Centrale · " + (m > 0 ? `treno tra ${Math.floor(m / 60)} h ${m % 60} m` : "buon viaggio! 🚄"));
+      const din = new Date(); din.setHours(21, 45, 0, 0);
+      const md = Math.floor((din.getTime() - now.getTime()) / 60000);
+      setCdD(md > 0 ? `tra ${Math.floor(md / 60)} h ${md % 60} m` : "in corso 🍝");
+    };
+    tick();
+    const iv = setInterval(tick, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const exToggle = (i: number) => {
+    setExDone((d) => {
+      const n = [...d]; n[i] = !n[i];
+      const done = n.filter(Boolean).length;
+      if (done === 6) toast("Push day chiuso. Grande 💪🔥");
+      return n;
+    });
+  };
+  const doneCount = exDone.filter(Boolean).length;
+
+  const peekData: Record<string, { t: string; r: string[] }> = {
+    "ven 3": { t: "Venerdì 3", r: ["<b>18:05</b> 🚄 Frecciarossa per Roma", "<b>21:45</b> 🍝 Cena con Giulia", "<b>17:30</b> ✓ Ritira il pacco"] },
+    "dom 5": { t: "Domenica 5", r: ["<b>16:00</b> 🏎️ GP Gran Bretagna · Sky"] },
+    "mar 7": { t: "Martedì 7", r: ["<b>15:00</b> ✓ Richiama il dentista"] },
+  };
+
+  const dim = evKey !== null || ["dayPanel", "addSheet", "actSheet", "shareSheet", "confirmSheet", "calPanel"].some((id) => views[id]);
+  const ev = evKey ? EVENTS[evKey] : null;
+
+  // settimana scorrevole: due settimane (dal mockup v2.1). [nome, giorno, dotClass?]
+  const days: [string, number, string?][] = [
+    ["gio", 2], ["ven", 3, "d12"], ["sab", 4], ["dom", 5, "d1"], ["lun", 6], ["mar", 7, "d2"], ["mer", 8],
+    ["gio", 9], ["ven", 10], ["sab", 11, "d1"], ["dom", 12], ["lun", 13], ["mar", 14], ["mer", 15],
+  ];
+
+  // calendario mensile
+  const MONTHS = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+  const isBaseMonth = calYM.y === 2026 && calYM.m === 6; // luglio 2026 = mese con i dati finti
+  const calDots = isBaseMonth ? [3, 5, 11, 19] : [];
+  const calLead = (new Date(calYM.y, calYM.m, 1).getDay() + 6) % 7; // celle vuote iniziali (lun=0)
+  const calDaysN = new Date(calYM.y, calYM.m + 1, 0).getDate();
+  const shiftMonth = (d: number) => setCalYM(({ y, m }) => { const t = m + d; return { y: y + Math.floor(t / 12), m: ((t % 12) + 12) % 12 }; });
+
+  return (
+    <div className={`keiko${alt ? " alt" : ""}${animMood ? " animMood" : ""}`} id="phone">
+      <div className="screen" id="screen" ref={screenRef}>
+
+        {/* barra alta */}
+        <div className="topbar">
+          <span className="logo" onClick={() => screenRef.current?.scrollTo({ top: 0, behavior: "smooth" })}><Whale /></span>
+          <div className="ask" onClick={() => openV("askFull")}>
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <b>Cerca in Keiko</b>
+          </div>
+          <div className="icoBtn" onClick={toggleMood} title="Mood chiaro/scuro">
+            <span className="moodIco">
+              <svg className="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19" /></svg>
+              <svg className="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5Z" strokeLinejoin="round" /></svg>
+            </span>
+          </div>
+        </div>
+
+        {/* settimana — scorrevole su più settimane (v2.1), peek fuori dallo scroll */}
+        <div className="weekWrap">
+          <div className="week" id="week">
+            {days.map(([w, n, dotCls]) => {
+              const key = `${w} ${n}`;
+              const dots = dotCls === "d12" ? (<><i className="d1" /><i className="d2" /></>) : dotCls === "d1" ? <i className="d1" /> : dotCls === "d2" ? <i className="d2" /> : null;
+              return (
+                <div key={key} className={`day${n === 3 ? " today" : ""}`} onClick={() => setPeekKey(peekKey === key ? null : key)}>
+                  <span>{w}</span><b>{n}</b><span className="dots">{dots}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className={`peek${peekKey ? " open" : ""}`} id="peekBox">
+            <h5 id="peekTitle">{peekKey ? (peekData[peekKey]?.t ?? peekKey) : "Venerdì 3"}</h5>
+            <div id="peekRows">
+              {peekKey && peekData[peekKey]
+                ? peekData[peekKey].r.map((x, i) => <div key={i} className="row" dangerouslySetInnerHTML={{ __html: x }} />)
+                : peekKey ? <div className="row">Giornata libera 🌿</div> : null}
+            </div>
+            <button className="openBtn" onClick={() => { openV("dayPanel"); setPeekKey(null); }}>Apri il giorno →</button>
+          </div>
+        </div>
+
+        {/* kicker — la data apre il calendario mensile (v2.1) */}
+        <div className="kick">
+          <div className="over kickCal" onClick={openCal}>Venerdì 3 luglio · Roma 24° ☀️ <span className="calGo">›</span></div>
+          <h1>Ciao Matteo 👋</h1>
+          <div className="lede">Stasera Roma con Giulia: treno alle 18:05, poi cena da Enzo.</div>
+        </div>
+
+        {/* hero */}
+        <div className="heroRow" id="heroRow">
+          <div className="hero rise" onClick={() => openEvent("treno")}>
+            <div className="art train" />
+            <div className="shade" />
+            <button className="more" onClick={(e) => { e.stopPropagation(); openV("actSheet"); }}>⋯</button>
+            <div className="head">
+              <span className="catL"><span className="pulse" /><CatIcon k="treno" />Treno · oggi</span>
+              <h2>Frecciarossa per Roma</h2>
+              <div className="meta">2 h 55 min · arrivo 21:10 a Termini</div>
+              <div className="nowLine" onClick={(e) => { e.stopPropagation(); toast("Apro Maps: da casa a Milano Centrale 🗺️"); }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1"><path d="M12 3 19.5 20.5 12 16.5 4.5 20.5 12 3Z" strokeLinejoin="round" /></svg>
+                <span id="cd">{cd}</span>
+              </div>
+            </div>
+            <div className="tkt">
+              <div className="route">
+                <div className="times">18:05<i />21:10</div>
+                <div className="stn"><span>MI Centrale</span><span>RM Termini</span></div>
+              </div>
+              <div className="side">
+                <span className="maps" onClick={(e) => { e.stopPropagation(); toast("Apro Maps: percorso per Centrale 🗺️"); }}><Pin /> Maps</span>
+                <span className="p">Carr. 7 · 11D</span>
+                <span className="p" style={{ opacity: .7 }}>agg. 2′ fa</span>
+              </div>
+            </div>
+          </div>
+          <div className="hero rise" onClick={() => openEvent("cena")}>
+            <div className="art dinner" />
+            <div className="shade" />
+            <button className="more" onClick={(e) => { e.stopPropagation(); openV("actSheet"); }}>⋯</button>
+            <div className="head">
+              <span className="catL"><span className="pulse" /><CatIcon k="cena" />Cena · <span id="cdD">{cdD}</span></span>
+              <h2>Cena con Giulia</h2>
+              <div className="meta">Da Enzo al 29 · Trastevere · tavolo confermato</div>
+            </div>
+            <div className="resv">
+              <span className="h">21:45</span>
+              <div className="w">
+                <div className="t">Tavolo per 2</div>
+                <div className="s">via dei Vascellari 29 · Roma</div>
+              </div>
+              <span className="go" onClick={(e) => { e.stopPropagation(); toast("Apro Maps 🗺️"); }}><Pin /> Maps</span>
+            </div>
+          </div>
+        </div>
+        <div className="dotsRow" id="heroDots"><i className="on" /><i /></div>
+
+        {/* in arrivo */}
+        <div className="sec rise" onClick={() => openV("agendaView")}>
+          <h3>In arrivo <span className="cnt">· 3</span> <span className="ch">›</span></h3>
+          <div className="sub">domenica c&apos;è il <em>GP di Silverstone</em></div>
+        </div>
+        <div className="miniRow" id="miniRow">
+          <div className="mini rise" onClick={() => openEvent("gp")}>
+            <div className="art sportA" style={{ position: "absolute", inset: 0 }} />
+            <div className="pshade" />
+            <span className="when">tra 2 giorni · 16:00</span>
+            <button className="more" onClick={(e) => { e.stopPropagation(); openV("actSheet"); }}>⋯</button>
+            <span className="cat2"><CatIcon k="gp" />Formula 1 · Sky</span>
+            <span className="t">GP Gran Bretagna 🇬🇧</span>
+            <span className="info">Silverstone · <em>Norris in testa</em></span>
+          </div>
+          <div className="mini rise" onClick={() => openEvent("volo")}>
+            <div className="art flightA" style={{ position: "absolute", inset: 0 }} />
+            <div className="pshade" />
+            <span className="when">ven 11 · 6:00</span>
+            <button className="more" onClick={(e) => { e.stopPropagation(); openV("actSheet"); }}>⋯</button>
+            <span className="cat2"><CatIcon k="volo" />Volo · FR1546</span>
+            <span className="t">Milano → Londra</span>
+            <span className="info">MXP T2 · <em>check-in da giovedì</em></span>
+          </div>
+          <div className="mini rise" onClick={() => openEvent("concerto")}>
+            <div className="art concertA" style={{ position: "absolute", inset: 0 }} />
+            <div className="pshade" />
+            <span className="when">sab 19 · 21:00</span>
+            <button className="more" onClick={(e) => { e.stopPropagation(); openV("actSheet"); }}>⋯</button>
+            <span className="cat2"><CatIcon k="concerto" />Concerto · San Siro</span>
+            <span className="t">Cremonini, con Giulia</span>
+            <span className="info">Anello verde · <em>2 biglietti pronti</em></span>
+          </div>
+        </div>
+        <div className="dotsRow" id="miniDots"><i className="on" /><i /><i /></div>
+
+        {/* oggi per te */}
+        <div className="sec minor rise" onClick={() => { setTab(2); openV("gymView"); }}>
+          <h3>Oggi per te <span className="ch">›</span></h3>
+          <div className="sub">push day · stasera <em>cena fuori con Giulia</em></div>
+        </div>
+        <div className="grid2">
+          <div className="tile glowable rise">
+            <button className="more soft" onClick={(e) => { e.stopPropagation(); openV("actSheet"); }}>⋯</button>
+            <div className="gymTop">
+              <div className="ring" id="ring" style={{ "--p": doneCount / 6 * 100 } as React.CSSProperties}><i id="ringTxt">{doneCount}/6</i></div>
+              <div>
+                <div className="k">Palestra</div>
+                <div className="v">Push day</div>
+              </div>
+            </div>
+            <div className="wk">
+              <i className="on">L</i><i>M</i><i className="on">M</i><i>G</i><i className="today">V</i><i>S</i><i>D</i>
+            </div>
+            {!exOpen && <div className="exPrev" id="exPrev">Si parte con <b>panca 4×8</b>,<br />poi lento avanti — 45 min</div>}
+            <div className={`exList${exOpen ? " open" : ""}`} id="exList">
+              {["Panca piana 4×8", "Panca inclinata 3×10", "Lento avanti 4×8", "Alzate laterali 3×12", "French press 3×10", "Pushdown 3×12"].map((x, i) => (
+                <div key={i} className={`ex${exDone[i] ? " done" : ""}`} onClick={() => exToggle(i)}><span className="c">✓</span>{x}</div>
+              ))}
+            </div>
+            <span className="go" id="gymGo" onClick={(e) => { e.stopPropagation(); setExOpen((o) => !o); }}>{exOpen ? "Chiudi ↑" : "Vai 💪"}</span>
+          </div>
+          <div className="tile glowable gB rise">
+            <button className="more soft" onClick={(e) => { e.stopPropagation(); openV("actSheet"); }}>⋯</button>
+            <div className="k">Dieta</div>
+            <div className="v">Stasera si esce</div>
+            <div className="mealNext" onClick={() => toast("Buona serata, salutami Giulia 🥂")}>
+              <span className="emo">🍝</span>
+              <div>
+                <div className="t">Cena fuori</div>
+                <div className="s">Da Enzo al 29 · scelta libera 😉</div>
+              </div>
+            </div>
+            <div className="mealsDone">Fatti: <b>colazione ✓ pranzo ✓</b><br />1.130 kcal finora</div>
+            <span className="go" onClick={(e) => { e.stopPropagation(); setTab(1); openV("dietView"); }}>La settimana ›</span>
+          </div>
+        </div>
+
+        {/* il consiglio: pull-quote */}
+        <div className="quote rise">
+          <span className="k">Keiko consiglia</span>
+          <p>Occhio: stasera si scende a 16° — <em>portati una giacca</em>, il rientro è dopo mezzanotte.</p>
+          <button onClick={() => toast("Promemoria alle 17:10, prima di uscire ✓")}>Ricordamelo quando esco</button>
+        </div>
+
+        {/* moduli contestuali */}
+        <div className="ctxCard rise" onClick={() => { setTab(3); openV("watchView"); }}>
+          <div className="th film"><span>SKY 21:15</span></div>
+          <div className="w">
+            <div className="k">Stasera guardi</div>
+            <div className="t">Dune: Parte Due</div>
+            <div className="s">ti aspetta da <em>12 giorni</em> · 4 in lista</div>
+          </div>
+          <span className="ch">›</span>
+        </div>
+        <div className="ctxCard rise" onClick={() => openV("tripView")}>
+          <div className="th roma"><span>12–14 SET</span></div>
+          <div className="w">
+            <div className="k">Prossimo viaggio</div>
+            <div className="t">Weekend a Roma</div>
+            <div className="s">tra <em>70 giorni</em> · itinerario pronto ✓</div>
+          </div>
+          <span className="ch">›</span>
+        </div>
+
+        {/* il ricordo */}
+        <div className="memory rise" onClick={() => toast("12 foto di quel weekend 📸")}>
+          <div className="ph" />
+          <div>
+            <div className="k">Un anno fa</div>
+            <div className="t">Il weekend a Portogruaro con Giulia — il primo treno preso insieme.</div>
+          </div>
+        </div>
+
+        <div className="spacer" />
+      </div>
+
+      {/* tab bar */}
+      <div className="tabbar">
+        <div className={`tab${tab === 0 ? " on" : ""}`} onClick={homeTab}>
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><path d="M3 11.5 12 4l9 7.5" /><path d="M5 10v10h14V10" /></svg>
+          Home
+        </div>
+        <div className={`tab${tab === 1 ? " on" : ""}`} onClick={() => { setTab(1); openV("dietView"); }}>
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><path d="M12 3a7 7 0 0 1 7 7c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 7-7Z" /><circle cx="12" cy="10" r="2.5" /></svg>
+          Dieta
+        </div>
+        <div className="fab" onClick={() => openV("addSheet")}>＋</div>
+        <div className={`tab${tab === 2 ? " on" : ""}`} onClick={() => { setTab(2); openV("gymView"); }}>
+          <span className="tdot" />
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><path d="M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12" /></svg>
+          Sport
+        </div>
+        <div className={`tab${tab === 3 ? " on" : ""}`} onClick={() => { setTab(3); openV("watchView"); }}>
+          <span className="tdot" />
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="m10 9 5 3-5 3z" /></svg>
+          Guarda
+        </div>
+      </div>
+
+      {/* dim + pannello evento */}
+      <div className={`dim${dim ? " open" : ""}`} id="dim" onClick={() => { setEvKey(null); setViews((v) => ({ ...v, dayPanel: false, addSheet: false, actSheet: false, shareSheet: false, confirmSheet: false, calPanel: false })); }} />
+      <div className={`evPanel${evKey ? " open" : ""}${evFull ? " full" : ""}`} id="evPanel">
+        <span className="evGrab" onClick={() => setEvFull((f) => !f)} />
+        <button className="evClose" onClick={closeEvent}>✕</button>
+        <div className="evScroll" id="evScroll">
+          <div className="evArt" id="evArt" style={{ height: ev ? Math.round((ev.artH || 230) * .9) : 207 }}>
+            <div className={`art ${ev?.art ?? ""}`} id="evArtBg" />
+            <div className="shade" />
+            <span className="glyph" id="evGlyph">{ev && <CatIcon k={evKey!} />}</span>
+            <span className="live" id="evLive">{ev?.live}</span>
+            <h2 id="evTitle">{ev?.title}</h2>
+          </div>
+          <div className="evBody">
+            <div className="evNarr" id="evNarr" dangerouslySetInnerHTML={{ __html: ev?.narr ?? "" }} />
+            <div className="evPaper" id="evPaper" dangerouslySetInnerHTML={{ __html: ev?.paper ?? "" }} />
+            <div className="srcNote" id="evSrc">{ev?.src ? <><i />{ev.src}</> : null}</div>
+            <div className="tips" id="evTips">
+              {ev?.tips.map((t, i) => <span key={i} className="tip" onClick={() => toast("Segnato ✓")}>{t}</span>)}
+            </div>
+            <div className="evActs" id="evActs">
+              {ev?.acts.map(([variant, label], i) => (
+                <button key={i} className={`btn ${variant}`} onClick={() => { if (label.includes("itinerario")) { closeEvent(); openV("tripView"); } else if (label.includes("Condividi")) { openV("shareSheet"); } else toast(label); }}>{label}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* vista itinerario */}
+      <div className={`view${views.tripView ? " open" : ""}`} id="tripView">
+        <div className="viewHead">
+          <button className="back" onClick={() => closeV("tripView")}>‹</button>
+          <h2>Weekend a Roma</h2>
+          <span className="vs">AGGIORNATO ORA ✓</span>
+        </div>
+        <div className="viewBody">
+          <div className="itDay">
+            <div className="dd">Venerdì 12</div>
+            <div className="itStop"><span className="h">21:10</span><div><div className="t">Arrivo a Termini 🚄</div><div className="s">Metro B fino a Circo Massimo, poi 10 min</div></div></div>
+            <div className="itStop"><span className="h">21:45</span><div><div className="t">Check-in Hotel Santa Cecilia</div><div className="s">Trastevere · conferma #H2291</div></div></div>
+          </div>
+          <div className="itDay">
+            <div className="dd">Sabato 13</div>
+            <div className="itStop"><span className="h">9:30</span><div><div className="t">Colosseo 🏛️</div><div className="s">Biglietti saltafila già presi</div></div></div>
+            <div className="itStop"><span className="h">13:00</span><div><div className="t">Pranzo a Monti</div><div className="s">Alternative pronte se pieno</div></div></div>
+            <div className="itStop"><span className="h">19:30</span><div><div className="t">Sera a Trastevere 🌆</div><div className="s">Passeggiata + cena libera</div></div></div>
+          </div>
+          <div className="itDay">
+            <div className="dd">Domenica 14</div>
+            <div className="itStop"><span className="h">9:00</span><div><div className="t">Musei Vaticani</div><div className="s">Ingresso prenotato · 2 h 30</div></div></div>
+            <div className="itStop"><span className="h">18:40</span><div><div className="t">Treno del ritorno 🚄</div><div className="s">Termini → Centrale · posti 11C-11D</div></div></div>
+          </div>
+          <button className="btn line" style={{ width: "100%" }} onClick={() => toast("Scambio tappa: dimmi cosa cambiamo 🔁")}>Scambia una tappa</button>
+        </div>
+      </div>
+
+      {/* vista agenda */}
+      <div className={`view${views.agendaView ? " open" : ""}`} id="agendaView">
+        <div className="viewHead">
+          <button className="back" onClick={() => closeV("agendaView")}>‹</button>
+          <h2>In arrivo</h2>
+          <span className="vs">5 EVENTI</span>
+        </div>
+        <div className="viewBody">
+          <div className="agLbl">Oggi</div>
+          <div className="agRow" onClick={() => openEvent("treno")}><div className="art train" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">18:05</span><span className="cat2"><CatIcon k="treno" />Treno</span><span className="t">Frecciarossa per Roma</span><span className="info">Binario 14 · carrozza 7</span></div>
+          <div className="agRow" onClick={() => openEvent("cena")}><div className="art dinner" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">21:45</span><span className="cat2"><CatIcon k="cena" />Cena</span><span className="t">Con Giulia, da Enzo al 29</span><span className="info">Trastevere · tavolo per 2</span></div>
+          <div className="agLbl">Questo weekend</div>
+          <div className="agRow" onClick={() => openEvent("gp")}><div className="art sportA" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">dom · 16:00</span><span className="cat2"><CatIcon k="gp" />Formula 1 · Sky</span><span className="t">GP Gran Bretagna 🇬🇧</span><span className="info">Norris in testa al mondiale</span></div>
+          <div className="agLbl">Prossima settimana</div>
+          <div className="agRow" onClick={() => openEvent("volo")}><div className="art flightA" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">ven 11 · 6:00</span><span className="cat2"><CatIcon k="volo" />Volo · Ryanair</span><span className="t">Milano → Londra</span><span className="info">Check-in da giovedì · ci pensa Keiko</span></div>
+          <div className="agLbl">Più avanti</div>
+          <div className="agRow" onClick={() => openEvent("concerto")}><div className="art concertA" style={{ position: "absolute", inset: 0 }} /><div className="pshade" /><span className="when">sab 19 · 21:00</span><span className="cat2"><CatIcon k="concerto" />Concerto · San Siro</span><span className="t">Cremonini, con Giulia</span><span className="info">2 biglietti pronti · anello verde</span></div>
+        </div>
+      </div>
+
+      {/* vista dieta */}
+      <div className={`view${views.dietView ? " open" : ""}`} id="dietView">
+        <div className="viewHead">
+          <button className="back" onClick={() => { closeV("dietView"); setTab(0); }}>‹</button>
+          <h2>Dieta · la settimana</h2>
+          <span className="vs">1.130 KCAL OGGI</span>
+        </div>
+        <div className="viewBody">
+          <div className="itDay">
+            <div className="dd">Oggi · venerdì</div>
+            <div className="itStop"><span className="h">🥣</span><div><div className="t">Colazione — yogurt e avena</div><div className="s">320 kcal</div></div><span className="doneTag">FATTA ✓</span></div>
+            <div className="itStop"><span className="h">🍗</span><div><div className="t">Pranzo — riso, pollo e zucchine</div><div className="s">810 kcal</div></div><span className="doneTag">FATTO ✓</span></div>
+            <div className="itStop"><span className="h">🍝</span><div><div className="t">Cena — fuori, da Enzo al 29</div><div className="s">scelta libera 😉 · con Giulia</div></div></div>
+          </div>
+          <div className="itDay">
+            <div className="dd">Sabato</div>
+            <div className="itStop"><span className="h">🥚</span><div><div className="t">Colazione — uova e pane integrale</div><div className="s">390 kcal</div></div></div>
+            <div className="itStop"><span className="h">🥩</span><div><div className="t">Pranzo — manzo, patate e insalata</div><div className="s">720 kcal</div></div></div>
+            <div className="itStop"><span className="h">🍕</span><div><div className="t">Cena — libera</div><div className="s">sgarro pianificato</div></div></div>
+          </div>
+          <div className="itDay">
+            <div className="dd">Domenica</div>
+            <div className="itStop"><span className="h">🥞</span><div><div className="t">Colazione — pancake proteici</div><div className="s">450 kcal</div></div></div>
+            <div className="itStop"><span className="h">🐟</span><div><div className="t">Pranzo — orata e verdure</div><div className="s">640 kcal</div></div></div>
+            <div className="itStop"><span className="h">🥗</span><div><div className="t">Cena — insalatona</div><div className="s">480 kcal · leggera, poi GP 😄</div></div></div>
+          </div>
+          <button className="btn line" style={{ width: "100%" }} onClick={() => toast("Quale pasto scambiamo? 🔁")}>Scambia un pasto</button>
+        </div>
+      </div>
+
+      {/* vista allenamento */}
+      <div className={`view${views.gymView ? " open" : ""}`} id="gymView">
+        <div className="viewHead">
+          <button className="back" onClick={() => { closeV("gymView"); setTab(0); }}>‹</button>
+          <h2>Allenamento</h2>
+          <span className="vs">🔥 3 DI FILA</span>
+        </div>
+        <div className="viewBody">
+          <div className="itDay">
+            <div className="dd">Oggi · venerdì — Push day · tocca per spuntare</div>
+            {[["4×8", "Panca piana"], ["3×10", "Panca inclinata"], ["4×8", "Lento avanti"], ["3×12", "Alzate laterali"], ["3×10", "French press"], ["3×12", "Pushdown"]].map(([h, t], i) => (
+              <ItStopTap key={i} h={h} t={t} />
+            ))}
+          </div>
+          <div className="itDay">
+            <div className="dd">La settimana</div>
+            <div className="itStop"><span className="h">lun</span><div><div className="t">Push day</div></div><span className="doneTag">FATTO ✓</span></div>
+            <div className="itStop"><span className="h">mer</span><div><div className="t">Pull day</div></div><span className="doneTag">FATTO ✓</span></div>
+            <div className="itStop"><span className="h">sab</span><div><div className="t">Riposo</div></div><span className="restTag">—</span></div>
+            <div className="itStop"><span className="h">dom</span><div><div className="t">Cardio leggero</div><div className="s">30 min · prima del GP</div></div></div>
+          </div>
+          <button className="btn line" style={{ width: "100%" }} onClick={() => toast("Ti alleni un altro giorno? Lo riprogrammo 📆")}>Sposta l&apos;allenamento</button>
+        </div>
+      </div>
+
+      {/* vista da guardare */}
+      <div className={`view${views.watchView ? " open" : ""}`} id="watchView">
+        <div className="viewHead">
+          <button className="back" onClick={() => { closeV("watchView"); setTab(0); }}>‹</button>
+          <h2>Da guardare</h2>
+          <span className="vs">4 TITOLI</span>
+        </div>
+        <div className="viewBody">
+          <div className="pGrid">
+            <FilmCard cover="dune" age="da 12 giorni" title={<>Dune<br />Parte Due</>} plat={<>Stasera · <b>Sky 21:15</b></>} toast={toast} />
+            <FilmCard cover="opp" title={<>Oppenheimer</>} plat={<><b>Netflix</b> · 3 h</>} toast={toast} />
+            <FilmCard cover="bear" age="nuova stagione" title={<>The Bear<br />S4</>} plat={<><b>Disney+</b> · 10 ep.</>} toast={toast} />
+            <div className="addFilm" onClick={() => toast("Scrivi il titolo come ti viene e ci penso io ✨")}>
+              <b>＋</b>
+              Aggiungi un titolo<br />anche solo «quel film di Nolan»
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ask Keiko */}
+      <div className={`askFull${views.askFull ? " open" : ""}`} id="askFull">
+        <button className="evClose" onClick={() => closeV("askFull")}>✕</button>
+        <div className="bar">
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input id="askIn" placeholder="Cerca… «cena», «volo», «GP»" />
+        </div>
+        <div id="askRes" />
+        <h6>Aperti di recente</h6>
+        <div className="recent" onClick={() => toast("“Il regalo l'hai preso ieri ✓”")}><span className="e">🎁</span><span className="t">Cosa manca per il compleanno di Giulia?</span><span className="r">ieri</span></div>
+        <div className="recent" onClick={() => toast("“Itinerario aggiornato con l'hotel ✓”")}><span className="e">🧭</span><span className="t">Aggiungi l&apos;hotel all&apos;itinerario di Roma</span><span className="r">mar</span></div>
+        <div className="recent" onClick={() => toast("“Push day alle 18, fatto ✓”")}><span className="e">💪</span><span className="t">Sposta l&apos;allenamento alle 18</span><span className="r">lun</span></div>
+      </div>
+
+      {/* overlay giorno */}
+      <div className={`dayPanel${views.dayPanel ? " open" : ""}`} id="dayPanel">
+        <div className="dayHead">
+          <div>
+            <h3>Venerdì 3 luglio</h3>
+            <span>2 eventi · 3 to-do · 1 fatto</span>
+          </div>
+          <button className="evClose" onClick={() => closeV("dayPanel")} style={{ position: "relative", top: 0, right: 0 }}>✕</button>
+        </div>
+        <div className="dayBody">
+          <div className="secLabel">Eventi</div>
+          <div className="evtRow" onClick={() => { closeV("dayPanel"); openEvent("treno"); }}>🚄 <span><b>18:05</b> · <span className="et">Frecciarossa per Roma</span></span></div>
+          <div className="evtRow" onClick={() => { closeV("dayPanel"); openEvent("cena"); }}>🍝 <span><b>21:45</b> · <span className="et">Cena con Giulia</span></span></div>
+          <div className="secLabel">To-do · <small>trascina: destra fatto, sinistra elimina</small></div>
+          <Todo txt="Ritira il pacco in posta" chips={<><span className="chip warm">🕔 17:30</span><span className="chip">📍 Maps</span></>} />
+          <Todo txt="Chiama il dentista" starred chips={<><span className="chip warm">🕒 15:00</span><span className="chip">📞 Chiama</span></>} />
+          <Todo txt="Compra il regalo per Giulia" done />
+          <div className="addTodo">
+            <input placeholder="Scrivi e ci pensa Keiko… “palestra alle 19”" />
+            <button onClick={() => toast("Preso in carico ✓")}>＋</button>
+          </div>
+        </div>
+      </div>
+
+      {/* calendario mensile — apre dal saluto; ‹ › navigano i mesi (enhancement in-app) */}
+      <div className={`calPanel${views.calPanel ? " open" : ""}`} id="calPanel">
+        <div className="calHead">
+          <h3>
+            <span className="calGo" style={{ padding: "0 10px", cursor: "pointer" }} onClick={() => shiftMonth(-1)}>‹</span>
+            {MONTHS[calYM.m][0].toUpperCase() + MONTHS[calYM.m].slice(1)} {calYM.y}
+            <span className="calGo" style={{ padding: "0 10px", cursor: "pointer" }} onClick={() => shiftMonth(1)}>›</span>
+          </h3>
+          <button className="evClose" style={{ position: "relative", top: 0, right: 0 }} onClick={closeCal}>✕</button>
+        </div>
+        <div className="cg" id="calGrid">
+          {["lu", "ma", "me", "gi", "ve", "sa", "do"].map((d) => <span key={d} className="h">{d}</span>)}
+          {Array.from({ length: calLead }).map((_, i) => <span key={`e${i}`} />)}
+          {Array.from({ length: calDaysN }).map((_, i) => {
+            const d = i + 1;
+            return (
+              <button key={d} className={isBaseMonth && d === 3 ? "tod" : ""} onClick={() => { closeCal(); openV("dayPanel"); }}>
+                {d}{calDots.includes(d) ? <i /> : null}
+              </button>
+            );
+          })}
+        </div>
+        <div className="calHint">Tocca un giorno per vederlo e aggiungere to-do — anche tra tre settimane.</div>
+      </div>
+
+      {/* foglio aggiunta */}
+      <div className={`sheet${views.addSheet ? " open" : ""}`} id="addSheet">
+        <h6>Aggiungi</h6>
+        <div className="addBar">
+          <input id="addIn" placeholder="Scrivi… «cena giovedì 20:30 da Marco»" />
+          <button className="iconB" onClick={() => toast("Passami lo screenshot 📷")} title="Foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z" strokeLinejoin="round" /><circle cx="12" cy="13" r="3.5" /></svg></button>
+          <button className="iconB" onClick={() => toast("Dimmi tutto 🎤")} title="Voce"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="2.5" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></svg></button>
+        </div>
+        <div className="addHint">Scrivi e invio — oppure foto del biglietto o voce, qui accanto.</div>
+        <button className="btn acc" style={{ width: "100%" }} onClick={() => { toast("Preso in carico ✓"); closeV("addSheet"); }}>Invia a Keiko</button>
+      </div>
+
+      {/* action sheet */}
+      <div className={`sheet${views.actSheet ? " open" : ""}`} id="actSheet">
+        <button className="srow" onClick={() => { toast("Quando lo spostiamo? 📆"); closeV("actSheet"); }}>📆 Sposta</button>
+        <button className="srow" onClick={() => { closeV("actSheet"); openV("shareSheet"); }}>📤 Condividi</button>
+        <button className="srow danger" onClick={() => { closeV("actSheet"); openV("confirmSheet"); }}>🗑️ Elimina</button>
+      </div>
+
+      {/* condivisione */}
+      <div className={`sheet${views.shareSheet ? " open" : ""}`} id="shareSheet">
+        <h6>Condividi con</h6>
+        <div className="shareRow">
+          <div className="shareP" onClick={() => { toast("Inviato a Giulia 💌"); closeV("shareSheet"); }}><span className="av">👩🏻</span><span>Giulia</span></div>
+          <div className="shareP" onClick={() => { toast("Inviato a Marco ✓"); closeV("shareSheet"); }}><span className="av">👨🏻</span><span>Marco</span></div>
+          <div className="shareP" onClick={() => { toast("Inviato a mamma ✓"); closeV("shareSheet"); }}><span className="av">👩🏻‍🦳</span><span>Mamma</span></div>
+          <div className="shareP" onClick={() => { toast("Link copiato 🔗"); closeV("shareSheet"); }}><span className="av">🔗</span><span>Copia link</span></div>
+        </div>
+      </div>
+
+      {/* conferma eliminazione */}
+      <div className={`sheet${views.confirmSheet ? " open" : ""}`} id="confirmSheet">
+        <h6>Lo eliminiamo?</h6>
+        <div className="confirmTxt">Sparisce dal calendario e dai promemoria. Puoi sempre ripescarlo chiedendolo a Keiko.</div>
+        <div className="confirmBtns">
+          <button className="btn line" onClick={() => closeV("confirmSheet")}>Annulla</button>
+          <button className="btn red" onClick={() => { toast("Eliminato 🗑️"); closeV("confirmSheet"); }}>Elimina</button>
+        </div>
+      </div>
+
+      {/* toast */}
+      <div className={`toast${toastMsg ? " show" : ""}`} id="toast"><span id="toastMsg">{toastMsg}</span><button className="tact" id="toastAct" style={{ display: "none" }} /></div>
+    </div>
+  );
+}
+
+/* ---- piccoli componenti locali ---- */
+function ItStopTap({ h, t }: { h: string; t: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div className={`itStop tap${done ? " done" : ""}`} onClick={() => setDone((d) => !d)}>
+      <span className="h">{h}</span><div><div className="t">{t}</div></div>
+    </div>
+  );
+}
+function FilmCard({ cover, age, title, plat, toast }: { cover: string; age?: string; title: React.ReactNode; plat: React.ReactNode; toast: (m: string) => void }) {
+  const [seen, setSeen] = useState(false);
+  return (
+    <div className={`film${seen ? " seen" : ""}`} onClick={() => { setSeen((s) => !s); toast(!seen ? "Visto ✓" : "Ok, resta in lista"); }}>
+      <div className={`cover ${cover}`}>{age && <span className="age">{age}</span>}<span className="ttl">{title}</span></div>
+      <div className="seenMark">✅</div>
+      <div className="plat">{plat}</div>
+    </div>
+  );
+}
+function Todo({ txt, chips, starred, done }: { txt: string; chips?: React.ReactNode; starred?: boolean; done?: boolean }) {
+  const [d, setD] = useState(!!done);
+  const [st, setSt] = useState(!!starred);
+  return (
+    <div className={`todo${st ? " starred" : ""}${d ? " done" : ""}`} onClick={() => setD((x) => !x)}>
+      <span className="check">✓</span>
+      <div>
+        <div className="txt">{txt}</div>
+        {chips && <div className="chips">{chips}</div>}
+      </div>
+      <span className="star" onClick={(e) => { e.stopPropagation(); setSt((x) => !x); }}>★</span>
+    </div>
+  );
+}
