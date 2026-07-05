@@ -59,6 +59,7 @@ export type LiveHome = {
   week: { w: string; n: number; key: string; today: boolean; d1: boolean; d2: boolean }[];
   cal: { y: number; m: number; dots: number[] };
   byDay: Record<string, { title: string; rows: string[] }>;
+  days: Record<string, { title: string; counts: { eventi: number; todo: number; fatti: number }; events: { id: string; emoji?: string; time: string; title: string }[]; todos: { id: string; text: string; done: boolean; star: boolean; time?: string; location?: string; phone?: string }[] }>;
   heroEvents: LiveEvent[];
   upcoming: LiveEvent[];
   agenda: { label: string; events: LiveEvent[] }[];
@@ -115,6 +116,15 @@ export function mapLive(data: {
       ...(tdByDay.get(k) ?? []).map((t) => `${t.done ? "✓" : "◦"} ${t.time ? `<b>${t.time}</b> ` : ""}${t.text}`),
     ];
     byDay[k] = { title: `${WD_LONG[d.getDay()]} ${d.getDate()}`, rows };
+  }
+
+  // dati giorno tipizzati (per il DayPanel v2.3, azioni to-do reali)
+  const days: LiveHome["days"] = {};
+  for (const k of allKeys) {
+    const evs = (evByDay.get(k) ?? []).sort((a, b) => a.datetime.localeCompare(b.datetime)).map((e) => ({ id: e.id, emoji: e.emoji, time: hhmm(e.datetime), title: e.title }));
+    const tds = (tdByDay.get(k) ?? []).map((t) => ({ id: t.id, text: t.text, done: t.done, star: t.star, time: t.time ?? undefined, location: t.location ?? undefined, phone: t.phone ?? undefined }));
+    const d = new Date(k + "T00:00:00");
+    days[k] = { title: `${WD_LONG[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`, counts: { eventi: evs.length, todo: tds.filter((t) => !t.done).length, fatti: tds.filter((t) => t.done).length }, events: evs, todos: tds };
   }
 
   // --- calendario: mese corrente, pallini sui giorni con eventi/to-do ---
@@ -197,7 +207,7 @@ export function mapLive(data: {
 
   return {
     kickDate, greeting: "Ciao Matteo 👋", lede,
-    week, cal: { y: today.getFullYear(), m: today.getMonth(), dots: calDots }, byDay,
+    week, cal: { y: today.getFullYear(), m: today.getMonth(), dots: calDots }, byDay, days,
     heroEvents, upcoming, agenda, gym, diet, trip, watch,
   };
 }
