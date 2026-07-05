@@ -179,9 +179,21 @@ export function mapLive(data: {
 
   // --- kicker ---
   const kickDate = `${WD_LONG[today.getDay()]} ${today.getDate()} ${MONTHS[today.getMonth()]}`;
-  const lede = heroEvents.length
-    ? (heroEvents[0].rel === "oggi" ? `Oggi ${heroEvents[0].title.toLowerCase()}${heroEvents.length > 1 ? ` e altri ${heroEvents.length - 1}` : ""}.` : `Prossimo: ${heroEvents[0].title}.`)
-    : "Giornata libera 🌿";
+  // voce: "Prossimo: treno per {destinazione}, {giorno} alle {ora}" (dest = titolo breve).
+  const h0 = heroSrc[0] ?? null;
+  let lede = "Giornata libera 🌿";
+  if (h0) {
+    const t = h0.type?.toLowerCase();
+    const route = t === "train" || t === "flight" ? routeStations(h0.title, h0.location) : null;
+    const dest = route ? route.arr : (h0.location || h0.title);
+    const cat = typeLabel(h0.type).toLowerCase();
+    const soggetto = route ? `${cat} per ${dest}` : h0.title;
+    const time = hhmm(h0.datetime);
+    const d0 = new Date(h0.datetime); const k0 = dayKey(d0);
+    const tom = new Date(today); tom.setDate(today.getDate() + 1);
+    const giorno = k0 === todayKey ? "oggi" : k0 === dayKey(tom) ? "domani" : WD_LONG[d0.getDay()].toLowerCase();
+    lede = k0 === todayKey ? `Oggi: ${soggetto}, alle ${time}` : `Prossimo: ${soggetto}, ${giorno} alle ${time}`;
+  }
 
   return {
     kickDate, greeting: "Ciao Matteo 👋", lede,

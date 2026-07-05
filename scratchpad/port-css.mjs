@@ -130,6 +130,10 @@ const TAIL = `
 /* il font arrotondato del mockup viaggia su html/body (scaffold, scartato dal
    port): lo rimettiamo qui perché la .keiko lo erediti (approvato: look telefono). */
 .keiko { font-family: var(--f); }
+/* i tasti della topbar sono <button> reali (il click nativo scatta sempre su
+   iOS Safari, dove <div onClick> delegato di React a volte no): neutralizza il
+   chrome di default del button, il resto lo dà .icoBtn. */
+.keiko button.icoBtn { -webkit-appearance: none; appearance: none; font: inherit; padding: 0; }
 
 /* ---- REGOLE BASE (docs/UI-REGOLE-BASE.md) — vincolanti su ogni card ----
    Ogni card stacca dal fondo col trio completo; le art senza bordo nel mockup

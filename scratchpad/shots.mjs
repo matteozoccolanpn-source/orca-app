@@ -42,13 +42,13 @@ const gray = (page, on) => page.evaluate((g) => { document.documentElement.style
   await gray(page, true); await shot(page, 'home-scuro-grigi.png'); await gray(page, false);
 
   // chiaro: click sul tasto mood (sole/luna)
-  await page.click('.icoBtn');
+  await page.click('[title="Mood chiaro/scuro"]');
   await page.waitForTimeout(2200);
   await shot(page, 'home-chiaro.png');
   await gray(page, true); await shot(page, 'home-chiaro-grigi.png'); await gray(page, false);
 
   // pannello treno: torna scuro, apri il primo hero
-  await page.click('.icoBtn');
+  await page.click('[title="Mood chiaro/scuro"]');
   await page.waitForTimeout(2200);
   await page.click('#heroRow .hero h2');
   await page.waitForSelector('.evPanel.open', { timeout: 3000 });
@@ -65,11 +65,11 @@ const gray = (page, on) => page.evaluate((g) => { document.documentElement.style
   const phone = await page.$('#phone');
   await phone.screenshot({ path: path.join(outDir, 'mockup-scuro.png') });
 
-  await page.click('.icoBtn');
+  await page.click('[title="Mood chiaro/scuro"]');
   await page.waitForTimeout(2200);
   await phone.screenshot({ path: path.join(outDir, 'mockup-chiaro.png') });
 
-  await page.click('.icoBtn');
+  await page.click('[title="Mood chiaro/scuro"]');
   await page.waitForTimeout(2200);
   await page.click('#heroRow .hero h2');
   await page.waitForTimeout(700);

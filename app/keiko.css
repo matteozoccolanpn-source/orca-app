@@ -184,8 +184,8 @@
     radial-gradient(110% 80% at 88% -6%,rgba(95,175,220,.5) 0%,transparent 52%),
     linear-gradient(168deg,#1A5578 0%,#0B2A40 60%,#071A29 100%)}
 .keiko .art.concertA {background:
-    radial-gradient(110% 80% at 88% -6%,rgba(165,120,225,.48) 0%,transparent 52%),
-    linear-gradient(168deg,#4A2A80 0%,#241345 60%,#120A24 100%)}
+    radial-gradient(110% 80% at 88% -6%,rgba(240,130,175,.45) 0%,transparent 52%),
+    linear-gradient(168deg,#7A2148 0%,#3A1024 60%,#190812 100%)}
 .keiko .art.sportA {background:
     radial-gradient(110% 80% at 88% -6%,rgba(235,110,85,.5) 0%,transparent 52%),
     linear-gradient(168deg,#7E2A1E 0%,#3A1510 60%,#1B0906 100%)}
@@ -723,6 +723,10 @@
 /* il font arrotondato del mockup viaggia su html/body (scaffold, scartato dal
    port): lo rimettiamo qui perché la .keiko lo erediti (approvato: look telefono). */
 .keiko { font-family: var(--f); }
+/* i tasti della topbar sono <button> reali (il click nativo scatta sempre su
+   iOS Safari, dove <div onClick> delegato di React a volte no): neutralizza il
+   chrome di default del button, il resto lo dà .icoBtn. */
+.keiko button.icoBtn { -webkit-appearance: none; appearance: none; font: inherit; padding: 0; }
 
 /* ---- REGOLE BASE (docs/UI-REGOLE-BASE.md) — vincolanti su ogni card ----
    Ogni card stacca dal fondo col trio completo; le art senza bordo nel mockup

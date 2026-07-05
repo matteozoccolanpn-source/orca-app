@@ -5,6 +5,11 @@ import CaptureSheet from "@/components/CaptureSheet";
 import { type LiveEvent, type LiveHome, mapsUrl } from "./keikoLive";
 import "../../keiko.css";
 
+// Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
+// compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
+// sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
+const BUILD = "v2.2-mood-fix";
+
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
  * Portata 1:1 (stesse classi, stessa struttura DOM). I dati stanno negli
@@ -110,6 +115,8 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
   const [tab, setTab] = useState(0);
   const [peekKey, setPeekKey] = useState<string | null>(null);
   const [selDay, setSelDay] = useState<string | null>(null);
+  const [debug, setDebug] = useState(false);
+  const [moodTaps, setMoodTaps] = useState(0);
   const [exOpen, setExOpen] = useState(false);
   const [exDone, setExDone] = useState<boolean[]>(Array(6).fill(false));
   const [cd, setCd] = useState("—");
@@ -123,6 +130,7 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
   useEffect(() => {
     const noop = () => {};
     document.addEventListener("touchstart", noop, { passive: true });
+    try { if (new URLSearchParams(window.location.search).has("debug")) setDebug(true); } catch { /* noop */ }
     return () => document.removeEventListener("touchstart", noop);
   }, []);
 
@@ -132,6 +140,7 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
     toastT.current = setTimeout(() => setToastMsg(null), 1900);
   };
   const toggleMood = () => {
+    setMoodTaps((n) => n + 1);
     const next = !alt;
     setAlt(next);
     setAnimMood(true);
@@ -214,12 +223,15 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
             <b>Cerca in Keiko</b>
           </div>
-          <div className="icoBtn" onClick={toggleMood} title="Mood chiaro/scuro">
+          <button type="button" className="icoBtn" onClick={openCal} title="Calendario">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
+          </button>
+          <button type="button" className="icoBtn" onClick={toggleMood} title="Mood chiaro/scuro">
             <span className="moodIco">
               <svg className="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19" /></svg>
               <svg className="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5Z" strokeLinejoin="round" /></svg>
             </span>
-          </div>
+          </button>
         </div>
 
         {/* settimana — scorrevole su più settimane (v2.1), peek fuori dallo scroll */}
@@ -796,6 +808,13 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
           <button className="btn red" onClick={() => { toast("Eliminato 🗑️"); closeV("confirmSheet"); }}>Elimina</button>
         </div>
       </div>
+
+      {/* debug on-device (?debug): build ricevuto + tap registrati + stato mood */}
+      {debug && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 200, background: "#000", color: "#3f6", font: "12px ui-monospace,monospace", padding: "5px 8px", textAlign: "center", letterSpacing: ".02em" }}>
+          build {BUILD} · tap {moodTaps} · mood {alt ? "CHIARO ☀️" : "SCURO 🌙"}
+        </div>
+      )}
 
       {/* toast */}
       <div className={`toast${toastMsg ? " show" : ""}`} id="toast"><span id="toastMsg">{toastMsg}</span><button className="tact" id="toastAct" style={{ display: "none" }} /></div>
