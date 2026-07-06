@@ -133,7 +133,12 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
   useEffect(() => {
     const noop = () => {};
     document.addEventListener("touchstart", noop, { passive: true });
-    try { if (new URLSearchParams(window.location.search).has("debug")) setDebug(true); } catch { /* noop */ }
+    try {
+      if (new URLSearchParams(window.location.search).has("debug")) setDebug(true);
+      // apertura pannello evento da altra pagina: /?v2#ev=<ticketId> (es. "Vedi biglietto" da /viaggio)
+      const m = window.location.hash.match(/^#ev=(.+)$/);
+      if (m) { setEvKey(decodeURIComponent(m[1])); history.replaceState(null, "", window.location.pathname + window.location.search); }
+    } catch { /* noop */ }
     return () => document.removeEventListener("touchstart", noop);
   }, []);
 

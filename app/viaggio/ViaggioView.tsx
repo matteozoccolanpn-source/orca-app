@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import KeikoShell, { useKeikoToast } from "@/app/components/keiko/KeikoShell";
-import type { TripPlanRow } from "@/lib/supabase";
+import type { TripPlanRow, TicketDetail } from "@/lib/supabase";
 
 /* ------------------------------------------------------------------ *
  * /viaggio — vista Itinerario (v2.3). Portata 1:1 da #tripView del
@@ -49,12 +49,21 @@ const smooth = (): ScrollBehavior =>
 
 const oneLine: React.CSSProperties = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
-export default function ViaggioView({ trips }: { trips: TripPlanRow[] }) {
+// Euristica slot→biglietto: se il testo dello slot nomina un tipo evento e il
+// viaggio ha un ticket di quel tipo → link "Vedi biglietto". Nessun match = niente chip.
+const TYPE_KW: [string, string][] = [["treno", "train"], ["freccia", "train"], ["volo", "flight"], ["aereo", "flight"], ["concerto", "concert"], ["hotel", "hotel"], ["check-in", "hotel"], ["check in", "hotel"]];
+function matchTicket(step: Slot, tickets: TicketDetail[]): TicketDetail | undefined {
+  const hay = `${step.quando ?? ""} ${step.cosa ?? ""} ${step.opzioni?.[0]?.cosa ?? ""}`.toLowerCase();
+  for (const [kw, type] of TYPE_KW) if (hay.includes(kw)) { const t = tickets.find((x) => x.type?.toLowerCase() === type); if (t) return t; }
+  return undefined;
+}
+
+export default function ViaggioView({ trips, tickets }: { trips: TripPlanRow[]; tickets: TicketDetail[] }) {
   // Titolo del guscio = città del viaggio più vicino (i piani sono ordinati per data).
   const title = trips.length > 0 ? trips[0].city : "Itinerario";
   return (
     <KeikoShell title={title} badge={trips.length > 0 ? "PRONTO ✓" : undefined} backHref="/?v2">
-      {trips.length === 0 ? <EmptyState /> : trips.map((t) => <TripBlock key={t.id} trip={t} />)}
+      {trips.length === 0 ? <EmptyState /> : trips.map((t) => <TripBlock key={t.id} trip={t} tickets={tickets} />)}
     </KeikoShell>
   );
 }
@@ -70,7 +79,7 @@ function EmptyState() {
   );
 }
 
-function TripBlock({ trip }: { trip: TripPlanRow }) {
+function TripBlock({ trip, tickets }: { trip: TripPlanRow; tickets: TicketDetail[] }) {
   const router = useRouter();
   const toast = useKeikoToast();
   const plan = (trip.plan ?? {}) as Plan;
@@ -140,9 +149,10 @@ function TripBlock({ trip }: { trip: TripPlanRow }) {
       {slot.length > 0 && (
         <>
           <div className="agLbl">La sequenza &middot; tocca &#8964; per i dettagli</div>
-          {slot.map((s, i) => (
-            <SlotRow key={i} step={s} clusterKey={trip.cluster_key} index={i} />
-          ))}
+          {slot.map((s, i) => {
+            const tripTickets = tickets.filter((t) => trip.ticket_ids?.includes(t.id));
+            return <SlotRow key={i} step={s} clusterKey={trip.cluster_key} index={i} ticket={matchTicket(s, tripTickets)} />;
+          })}
         </>
       )}
 
@@ -167,7 +177,7 @@ function TripBlock({ trip }: { trip: TripPlanRow }) {
 
 /* Una tappa: .sh (orario + nome + ⌄) · dettaglio espandibile · .sa con
    Cambia (alternative locali), Modifica (edit-slot via Claude), tbc. */
-function SlotRow({ step, clusterKey, index }: { step: Slot; clusterKey: string; index: number }) {
+function SlotRow({ step, clusterKey, index, ticket }: { step: Slot; clusterKey: string; index: number; ticket?: TicketDetail }) {
   const router = useRouter();
   const toast = useKeikoToast();
   // Retro-compatibilità: senza "opzioni", uso cosa/nota come opzione unica.
@@ -284,6 +294,9 @@ function SlotRow({ step, clusterKey, index }: { step: Slot; clusterKey: string; 
         <button className="chipA dk" onClick={() => setEditing((e) => !e)}>
           &#9998; Modifica
         </button>
+        {ticket && (
+          <a className="chipA dk" href={`/?v2#ev=${ticket.id}`}>&#127903; Vedi biglietto</a>
+        )}
         <span
           className="tbc"
           role="button"
