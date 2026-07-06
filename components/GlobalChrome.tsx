@@ -6,13 +6,14 @@ import HeyKeikoBar from "./HeyKeikoBar";
 import AddButton from "./AddButton";
 
 /* Chrome globale della vecchia app (barra "Chiedi a Keiko" flottante + FAB ＋).
- * Sulla home v2 (redesign) NON va montata: lì la superficie è la tab bar nuova.
- * Vale sia per la home dietro `?v2` sia per le rotte /v2/* (es. /v2/preview).
- * Conditional render (non cancelliamo i componenti: restano per le altre pagine). */
+ * Dopo l'inversione dell'interruttore la home NUOVA è il default: la chrome
+ * vecchia va montata SOLO sulla home vecchia, cioè `/?classic`. Ovunque altro
+ * (home nuova, /v2/*, pagine interne v2.3) NON va montata: superficie = tab bar
+ * nuova / KeikoShell. Conditional render: i componenti restano per la vecchia home. */
 function Inner() {
   const params = useSearchParams();
   const pathname = usePathname();
-  if (params.has("v2") || pathname.startsWith("/v2")) return null;
+  if (!(pathname === "/" && params.has("classic"))) return null;
   return (
     <>
       <HeyKeikoBar />

@@ -41,7 +41,7 @@ export default function RootLayout({
       className={`dark ${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Applica il tema salvato prima del primo paint (niente flash). */}
         <script
           dangerouslySetInnerHTML={{

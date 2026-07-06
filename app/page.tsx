@@ -14,8 +14,9 @@ export default async function Home({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  // Interruttore redesign: `?v2` mostra la nuova home Keiko, altrimenti quella attuale.
-  const v2 = "v2" in (await searchParams);
+  // Interruttore redesign (invertito): la home NUOVA (KeikoPreview) è il default su /.
+  // La vecchia resta su /?classic. /?v2 resta come alias del default per i link esistenti.
+  const classic = "classic" in (await searchParams);
   const [events, diet, workout, trainedDays, trips, todos, watchlist] = await Promise.all([
     getUpcomingTickets(),
     getDietPlan(),
@@ -32,32 +33,33 @@ export default async function Home({
     await signOut({ redirectTo: "/login" });
   }
 
-  if (v2) {
-    // TAPPA 2 — dati veri sulla UI congelata (KeikoPreview). Mapping in keikoLive.
-    const live = mapLive({
-      events,
-      todos,
-      diet: diet?.week ?? null,
-      workout: workout?.week ?? null,
-      trainedDays,
-      trips,
-      watch: watchlist,
-    });
-    return <KeikoPreview live={live} />;
+  // Home vecchia: solo dietro /?classic (non cancellata, resta raggiungibile).
+  if (classic) {
+    return (
+      <SwipeShell
+        events={events}
+        trips={trips}
+        todos={todos}
+        watchCount={watchlist.filter((w) => !w.seen).length}
+        diet={diet?.week ?? null}
+        dietUpdatedAt={diet?.updatedAt ?? null}
+        workout={workout?.week ?? null}
+        workoutUpdatedAt={workout?.updatedAt ?? null}
+        trainedDays={trainedDays}
+        logoutAction={logout}
+      />
+    );
   }
 
-  return (
-    <SwipeShell
-      events={events}
-      trips={trips}
-      todos={todos}
-      watchCount={watchlist.filter((w) => !w.seen).length}
-      diet={diet?.week ?? null}
-      dietUpdatedAt={diet?.updatedAt ?? null}
-      workout={workout?.week ?? null}
-      workoutUpdatedAt={workout?.updatedAt ?? null}
-      trainedDays={trainedDays}
-      logoutAction={logout}
-    />
-  );
+  // Default (e alias /?v2): home nuova con dati veri. Mapping in keikoLive.
+  const live = mapLive({
+    events,
+    todos,
+    diet: diet?.week ?? null,
+    workout: workout?.week ?? null,
+    trainedDays,
+    trips,
+    watch: watchlist,
+  });
+  return <KeikoPreview live={live} />;
 }
