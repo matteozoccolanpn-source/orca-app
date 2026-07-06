@@ -470,10 +470,13 @@ export interface WatchItem {
   info: string | null;   // es. "Commedia 2016 · su Netflix"
   link: string | null;
   seen: boolean;
+  poster: string | null; // URL copertina (TMDB) — additivo; null se non ancora popolato
 }
 
 /** Tutta la watchlist: prima i "da vedere" (più recenti in alto), poi i visti. */
 export async function getWatchlist(): Promise<WatchItem[]> {
+  // NB: `poster` non è ancora una colonna del DB → non lo si seleziona (romperebbe
+  // la query). Il campo resta nel tipo (null) finché Matteo aggiunge colonna + pipeline.
   const { data, error } = await admin()
     .from("watchlist")
     .select("id, title, kind, info, link, seen")
@@ -490,6 +493,7 @@ export async function getWatchlist(): Promise<WatchItem[]> {
     info: (r.info as string | null) ?? null,
     link: (r.link as string | null) ?? null,
     seen: r.seen === true,
+    poster: null, // colonna non ancora nel DB (vedi nota sopra)
   }));
 }
 
@@ -508,6 +512,7 @@ export async function addWatchItem(f: { title: string; kind?: string; info?: str
     info: (r.info as string | null) ?? null,
     link: (r.link as string | null) ?? null,
     seen: r.seen === true,
+    poster: (r.poster as string | null) ?? null,
   };
 }
 
