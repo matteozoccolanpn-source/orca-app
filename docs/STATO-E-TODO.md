@@ -90,3 +90,29 @@ to-do eventi smart con info TV e classifica, ordine orario, add in background).
 Restano: **D** (serve mini-piano tracking uso) e **F** (watchlist).
 
 ⚠️ Aperto: chi schedula /api/cron/tick ogni ~15 min? vercel.json ha solo reminders 7:00.
+
+**F FATTA** (2026-07-03 sera): sezione "Da guardare" (card home + /guarda, consigli AI
+con catalogo cache 2 fasi, visto/elimina). v2 segnata: notifiche uscite (stile TV Time).
+
+## ROADMAP AL TEST (fidanzata e amici) — decisa con Matteo 2026-07-03
+
+Quattro macro-momenti, in quest'ordine:
+
+**1A. UI da rifare completamente** (IL blocco n.1 — merita una chat dedicata)
+Metodo scelto: niente Figma, si lavora in Claude con processo a 3 passi:
+  1. Moodboard: Matteo porta screenshot di 3-4 app che ama + parole chiave spirito Keiko
+     + cosa odia dell'attuale.
+  2. 2-3 concept alternativi come mockup HTML usa-e-getta → si sceglie il mood.
+  3. Design system (token, tipografia, componenti) → migrazione UNA PAGINA PER VOLTA
+     su branch separato (Keiko attuale resta usabile).
+**1B. Le "99 migliorie"**: lista di piccoli fix su tutte le sezioni — si apre DOPO
+     il concept vincente, si lavora verso la fine del redesign.
+
+**2. Privacy** (lezione ad hoc: GDPR, informativa, dati→Claude/Anthropic, cancellazione).
+   Gemella del login: la protezione vera è la RLS per-utente.
+   Qui dentro anche il consolidamento tecnico: cron tick, coda plot >60s.
+
+**3A. Login multi-utente**: user_id su tutte le tabelle + RLS per utente + policy.
+**3B. Profilo/personalizzazione**: tabella profile (gusti/preferenze) iniettata nei
+     prompt dei resolver → consigli tarati sulla persona.
+**3C. Onboarding primo accesso**: spiegazione/utilizzo per chi si iscrive.

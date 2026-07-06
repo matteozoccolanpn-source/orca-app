@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Concept logo</title>
+<!--
+  4 concept di logo per Keiko. Ognuno mostrato su scuro e chiaro, con wordmark
+  e alle taglie piccole (icona PWA / tab bar / favicon). Sono punti di partenza:
+  scelto il concept, si raffina in separata sede come deciso.
+-->
+<style>
+  :root{
+    --ink:#15202F; --paper:#F4F1E8; --night:#12203A; --accent:#5A9DFF; --teal:#0E8F87;
+    --f:ui-rounded,-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0A1322;font-family:var(--f);color:#BFCCE0;padding:36px 20px 60px;display:flex;flex-direction:column;align-items:center;gap:26px}
+  h1{color:#F4F1E8;font-size:22px;font-weight:800;letter-spacing:-.01em}
+  .hint{font-size:12.5px;color:#7E8CA5;text-align:center;max-width:520px;line-height:1.6}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;width:100%;max-width:1300px}
+  .card{background:#12203A;border:1px solid rgba(165,195,240,.12);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:14px}
+  .card h2{color:#F4F1E8;font-size:15px;font-weight:800}
+  .card p{font-size:12px;color:#8496B3;line-height:1.55;min-height:54px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px 10px}
+  .tile.dark{background:var(--night);border:1px solid rgba(165,195,240,.14)}
+  .tile.light{background:var(--paper)}
+  .tile svg{width:64px;height:64px}
+  .tile.dark svg{color:#F4F1E8}
+  .tile.light svg{color:var(--ink)}
+  .wm{font-weight:800;font-size:17px;letter-spacing:.02em}
+  .tile.dark .wm{color:#F4F1E8}
+  .tile.light .wm{color:var(--ink)}
+  .sizes{display:flex;align-items:center;gap:16px;background:#0D1728;border-radius:14px;padding:12px 16px}
+  .sizes span{font-size:10px;color:#7E8CA5;font-weight:700}
+  .sizes svg{color:#F4F1E8}
+  .appicon{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(160deg,#2A4568,#12203A)}
+  .appicon svg{width:34px;height:34px;color:#F4F1E8}
+</style>
+</head>
+<body>
+
+<h1>Keiko — 4 strade per il logo</h1>
+<div class="hint">Regola condivisa: logo + scritta "Keiko" e basta. Tutti funzionano in un colore solo
+(si adattano a scuro/chiaro e alle personalità). Guarda soprattutto le taglie piccole: un logo vive lì.</div>
+
+<div class="grid">
+
+  <!-- 1 · CODA -->
+  <div class="card">
+    <h2>1 · Coda — la balena che saluta</h2>
+    <p>La coda che emerge: il gesto più riconoscibile della balena, calmo e amichevole.
+    Geometrica, funziona enorme e a 16px. La più "istituzionale" delle quattro.</p>
+    <div class="tiles">
+      <div class="tile dark">
+        <svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 66 C40 66 33 57 24 57 C18 57 14 60 10 64 C11 52 19 44 30 43 C26 36 26 28 30 20 C36 26 40 34 40 42 C43 40 47 39 50 39 C53 39 57 40 60 42 C60 34 64 26 70 20 C74 28 74 36 70 43 C81 44 89 52 90 64 C86 60 82 57 76 57 C67 57 60 66 50 66 Z"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+      <div class="tile light">
+        <svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 66 C40 66 33 57 24 57 C18 57 14 60 10 64 C11 52 19 44 30 43 C26 36 26 28 30 20 C36 26 40 34 40 42 C43 40 47 39 50 39 C53 39 57 40 60 42 C60 34 64 26 70 20 C74 28 74 36 70 43 C81 44 89 52 90 64 C86 60 82 57 76 57 C67 57 60 66 50 66 Z"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 66 C40 66 33 57 24 57 C18 57 14 60 10 64 C11 52 19 44 30 43 C26 36 26 28 30 20 C36 26 40 34 40 42 C43 40 47 39 50 39 C53 39 57 40 60 42 C60 34 64 26 70 20 C74 28 74 36 70 43 C81 44 89 52 90 64 C86 60 82 57 76 57 C67 57 60 66 50 66 Z"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="currentColor"><path d="M50 66 C40 66 33 57 24 57 C18 57 14 60 10 64 C11 52 19 44 30 43 C26 36 26 28 30 20 C36 26 40 34 40 42 C43 40 47 39 50 39 C53 39 57 40 60 42 C60 34 64 26 70 20 C74 28 74 36 70 43 C81 44 89 52 90 64 C86 60 82 57 76 57 C67 57 60 66 50 66 Z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100" fill="currentColor"><path d="M50 66 C40 66 33 57 24 57 C18 57 14 60 10 64 C11 52 19 44 30 43 C26 36 26 28 30 20 C36 26 40 34 40 42 C43 40 47 39 50 39 C53 39 57 40 60 42 C60 34 64 26 70 20 C74 28 74 36 70 43 C81 44 89 52 90 64 C86 60 82 57 76 57 C67 57 60 66 50 66 Z"/></svg>
+      <span>icona app · 28px · 16px</span>
+    </div>
+  </div>
+
+  <!-- 2 · DORSO -->
+  <div class="card">
+    <h2>2 · Dorso — l'onda che respira</h2>
+    <p>Il dorso della balena che affiora, a tratto morbido: un'onda con lo sfiato.
+    Minimale e "premium", vive benissimo accanto al testo. La più elegante.</p>
+    <div class="tiles">
+      <div class="tile dark">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"><path d="M12 66 C22 46 44 38 60 46 C68 50 72 56 80 56"/><path d="M80 56 C77 63 70 66 63 64"/><path d="M63 40 C63 34 66 30 70 28"/><path d="M74 42 C74 37 77 33 82 31"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+      <div class="tile light">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"><path d="M12 66 C22 46 44 38 60 46 C68 50 72 56 80 56"/><path d="M80 56 C77 63 70 66 63 64"/><path d="M63 40 C63 34 66 30 70 28"/><path d="M74 42 C74 37 77 33 82 31"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"><path d="M12 66 C22 46 44 38 60 46 C68 50 72 56 80 56"/><path d="M80 56 C77 63 70 66 63 64"/><path d="M63 40 C63 34 66 30 70 28"/><path d="M74 42 C74 37 77 33 82 31"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"><path d="M12 66 C22 46 44 38 60 46 C68 50 72 56 80 56"/><path d="M80 56 C77 63 70 66 63 64"/><path d="M63 40 C63 34 66 30 70 28"/><path d="M74 42 C74 37 77 33 82 31"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round"><path d="M12 66 C22 46 44 38 60 46 C68 50 72 56 80 56"/><path d="M80 56 C77 63 70 66 63 64"/></svg>
+      <span>icona app · 28px · 16px</span>
+    </div>
+  </div>
+
+  <!-- 3 · GOCCIA -->
+  <div class="card">
+    <h2>3 · Goccia — la balena nascosta</h2>
+    <p>Una forma piena e tonda: balena vista di profilo ridotta all'essenziale, occhio incluso.
+    Amichevole come una mascotte ma pulita — la più "app quotidiana".</p>
+    <div class="tiles">
+      <div class="tile dark">
+        <svg viewBox="0 0 100 100" fill="currentColor"><path d="M14 56 C14 40 30 30 48 30 C64 30 74 38 78 46 C82 42 88 40 93 41 C91 46 88 50 84 53 C88 56 91 60 93 65 C88 66 82 64 78 60 C74 68 64 76 48 76 C30 76 14 70 14 56 Z"/><circle cx="32" cy="50" r="4.5" fill="var(--night)" class="eye"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+      <div class="tile light">
+        <svg viewBox="0 0 100 100" fill="currentColor"><path d="M14 56 C14 40 30 30 48 30 C64 30 74 38 78 46 C82 42 88 40 93 41 C91 46 88 50 84 53 C88 56 91 60 93 65 C88 66 82 64 78 60 C74 68 64 76 48 76 C30 76 14 70 14 56 Z"/><circle cx="32" cy="50" r="4.5" fill="var(--paper)"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M14 56 C14 40 30 30 48 30 C64 30 74 38 78 46 C82 42 88 40 93 41 C91 46 88 50 84 53 C88 56 91 60 93 65 C88 66 82 64 78 60 C74 68 64 76 48 76 C30 76 14 70 14 56 Z"/><circle cx="32" cy="50" r="4.5" fill="#12203A"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="currentColor"><path d="M14 56 C14 40 30 30 48 30 C64 30 74 38 78 46 C82 42 88 40 93 41 C91 46 88 50 84 53 C88 56 91 60 93 65 C88 66 82 64 78 60 C74 68 64 76 48 76 C30 76 14 70 14 56 Z"/><circle cx="32" cy="50" r="4.5" fill="#0D1728"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100" fill="currentColor"><path d="M14 56 C14 40 30 30 48 30 C64 30 74 38 78 46 C82 42 88 40 93 41 C91 46 88 50 84 53 C88 56 91 60 93 65 C88 66 82 64 78 60 C74 68 64 76 48 76 C30 76 14 70 14 56 Z"/></svg>
+      <span>icona app · 28px · 16px</span>
+    </div>
+  </div>
+
+  <!-- 4 · SEGNO K -->
+  <div class="card">
+    <h2>4 · Il segno — K con la coda</h2>
+    <p>Un monogramma: la K di Keiko il cui braccio inferiore finisce in una coda di balena.
+    La più "brand": distintiva, cresce bene nel tempo, perfetta per il favicon.</p>
+    <div class="tiles">
+      <div class="tile dark">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"><path d="M30 18 L30 82"/><path d="M68 20 L34 52 L58 74"/><path d="M58 74 C62 68 68 66 74 68 M58 74 C64 76 68 80 70 86"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+      <div class="tile light">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"><path d="M30 18 L30 82"/><path d="M68 20 L34 52 L58 74"/><path d="M58 74 C62 68 68 66 74 68 M58 74 C64 76 68 80 70 86"/></svg>
+        <span class="wm">Keiko</span>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><path d="M30 18 L30 82"/><path d="M68 20 L34 52 L58 74"/><path d="M58 74 C62 68 68 66 74 68 M58 74 C64 76 68 80 70 86"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><path d="M30 18 L30 82"/><path d="M68 20 L34 52 L58 74"/><path d="M58 74 C62 68 68 66 74 68 M58 74 C64 76 68 80 70 86"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M30 18 L30 82"/><path d="M68 20 L34 52 L58 74"/></svg>
+      <span>icona app · 28px · 16px</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Icona app (maskable: il sistema arrotonda gli angoli) -->
+  <rect width="512" height="512" fill="#0B0F14"/>
+  <g transform="translate(76 128) scale(3.6)" fill="#F4F1E8">
+    <path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/>
+    <path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/>
+  </g>
+</svg>

@@ -221,65 +221,10 @@
 }
 
 /* =====================================================================
-   KEIKO REDESIGN — Fase 3 · step 0
-   Design token estratti dal capitolato visivo approvato (keiko-final.html).
-   TUTTO è confinato nello scope `.keiko`: questi nomi (--card, --fs-xs,
-   --r-xl, --gap…) COLLIDONO con quelli dell'app, ma essendo dichiarati qui
-   dentro sovrascrivono SOLO il sottoalbero `.keiko` (la nuova home). Le
-   pagine attuali non stanno sotto `.keiko`, quindi restano intatte.
-
-   • 2 mood: `.keiko` = notte (default) · `.keiko.day` = giorno
-   • 3 personalità: default Oceano · `[data-pers="tramonto|laguna"]`
-   • scala tipografica 11→24 · --gap · raggi
+   KEIKO REDESIGN — i token e le classi della nuova home stanno in app/keiko.css
+   (portati 1:1 dal mockup). La vecchia chrome globale (barra chat + ＋) non
+   viene montata su v2 via conditional render (components/GlobalChrome.tsx).
    ===================================================================== */
-.keiko {
-  /* ---- MOOD NOTTE (default) ---- */
-  --bg:#12203A; --bg-2:#182948; --card:#1E3153;
-  --card-line:rgba(165,195,240,.11);
-  --text:#F4F1E8; --text-2:#BFCCE0; --text-3:#8496B3;
-  --accent:#5A9DFF; --accent-soft:rgba(90,157,255,.18);
-  --amber:#F0B24A; --amber-soft:rgba(240,178,74,.16);
-  --shadow:0 16px 36px rgba(2,8,20,.45);
-  --bar:rgba(14,24,44,.9);
-
-  /* ---- PERSONALITÀ (default = Oceano). --pA/--pB sono terne RGB. ---- */
-  --pA:90,157,255; --pB:255,138,92;
-  --glowA:rgba(var(--pA),.34); --glowB:rgba(var(--pB),.30);
-  --bloomA:rgba(var(--pA),.72); --bloomB:rgba(var(--pB),.58); --bloomC:rgba(var(--pA),.34);
-  --ambient:
-    radial-gradient(78% 50% at 90% -4%, var(--bloomB) 0%, transparent 62%),
-    radial-gradient(108% 60% at 38% -12%, var(--bloomA) 0%, transparent 66%),
-    linear-gradient(to bottom, var(--bloomC) 0%, transparent 46%);
-
-  /* ---- SCALA TIPOGRAFICA 11→24 ---- */
-  --fs-xs:11px; --fs-sm:13px; --fs-md:15px; --fs-lg:19px; --fs-xl:24px;
-
-  /* ---- SPAZI / RAGGI / OGGETTI DI CARTA ---- */
-  --gap:12px;
-  --r-xl:26px; --r-lg:20px; --r-md:14px; --r-pill:999px;
-  --paper:#FBF8F0; --ink:#15202F; --ink-2:#8A7E68;
-
-  /* font arrotondato di sistema (definito ma non applicato in questo step) */
-  --f:ui-rounded,-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
-}
-
-/* ---- MOOD GIORNO ---- */
-.keiko.day {
-  --bg:#EAE3D3; --bg-2:#F1EBDD; --card:#F8F4E9;
-  --card-line:rgba(75,62,40,.12);
-  --text:#241E12; --text-2:#655B48; --text-3:#998C74;
-  --accent:#0E8F87; --accent-soft:rgba(14,143,135,.14);
-  --amber:#C77E08; --amber-soft:rgba(199,126,8,.14);
-  --shadow:0 10px 26px rgba(70,55,25,.13);
-  --bar:rgba(248,244,233,.92);
-  --glowA:rgba(var(--pA),.24); --glowB:rgba(var(--pB),.20);
-  --bloomA:rgba(var(--pA),.52); --bloomB:rgba(var(--pB),.42); --bloomC:rgba(var(--pA),.22);
-}
-
-/* ---- 3 PERSONALITÀ colore (impostabili via data-pers) ---- */
-.keiko[data-pers="oceano"]  { --pA:90,157,255;  --pB:255,138,92; }   /* 🌊 */
-.keiko[data-pers="tramonto"]{ --pA:255,158,100; --pB:201,139,255; }  /* 🌅 */
-.keiko[data-pers="laguna"]  { --pA:53,196,181;  --pB:255,209,102; }  /* 🪸 */
 
 .tnum { font-variant-numeric: tabular-nums; }
 

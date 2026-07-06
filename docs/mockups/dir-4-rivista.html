@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Direzione 4 · RIVISTA</title>
+<!--
+  DIREZIONE 4 — "RIVISTA" (Airbnb / Apple Journal / Readwise)
+  Ogni giorno è una pagina di rivista: grande fotografia (qui simulata, in-app foto vere
+  della destinazione), grande tipografia serif, storytelling. La home cambia ogni giorno.
+  Un ricordo di un anno fa, un consiglio, la giornata come sommario elegante.
+-->
+<style>
+  :root{
+    --bg:#F7F4EE; --line:#E5DFD2; --text:#211D15; --text-2:#6E6758; --text-3:#A79E8C;
+    --acc:#B4541E; /* terracotta editoriale */
+    --serif:"New York",ui-serif,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#E9E4D9;font-family:var(--sans)}
+  body{display:flex;flex-direction:column;align-items:center;padding:28px 12px;gap:18px}
+  .manifesto{max-width:390px;color:#8A8272;font-size:12.5px;line-height:1.55;text-align:center}
+  .manifesto b{color:#211D15;font-size:15px;letter-spacing:.14em;display:block;margin-bottom:6px}
+
+  .phone{
+    position:relative;width:390px;height:844px;background:var(--bg);
+    border-radius:44px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 30px 70px rgba(70,55,25,.22);display:flex;flex-direction:column;
+  }
+  .screen{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 24px}
+  .screen::-webkit-scrollbar{display:none}
+
+  .masthead{display:flex;align-items:center;justify-content:space-between;padding:24px 0 0}
+  .mark{width:22px;height:16px;color:var(--text-2)}
+  .kick{font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.18em;text-transform:uppercase}
+
+  h1{font-family:var(--serif);font-size:38px;font-weight:600;letter-spacing:-.01em;color:var(--text);line-height:1.08;margin-top:30px}
+  .lede{font-family:var(--serif);font-size:19px;font-style:italic;color:var(--text-2);margin-top:12px;line-height:1.45}
+
+  /* la fotografia (in-app: foto vera della destinazione) */
+  .photo{
+    margin-top:24px;height:300px;border-radius:6px;position:relative;overflow:hidden;cursor:pointer;
+    background:
+      radial-gradient(90% 60% at 50% 108%,#E8A33D 0%,rgba(232,163,61,.35) 34%,transparent 62%),
+      linear-gradient(to top,#31220F 0%,#6E4A22 34%,#B4784233 60%,transparent 78%),
+      linear-gradient(175deg,#BFD4E6 0%,#D9C9A8 45%,#8A5B2C 100%);
+  }
+  .photo::before{ /* skyline */
+    content:"";position:absolute;left:0;right:0;bottom:0;height:120px;
+    background:
+      radial-gradient(58px 58px at 50% 118px,transparent 55px,#221607 56px) ,
+      linear-gradient(to top,#221607 44px,transparent 44px);
+  }
+  .photo .cap{
+    position:absolute;left:16px;bottom:14px;color:#F7F4EE;z-index:2;
+  }
+  .photo .cap .c1{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;opacity:.85}
+  .photo .cap .c2{font-family:var(--serif);font-size:24px;font-weight:600;margin-top:3px}
+  .photo .chip{
+    position:absolute;right:14px;bottom:14px;z-index:2;background:rgba(247,244,238,.94);color:var(--text);
+    font-size:12.5px;font-weight:600;border-radius:99px;padding:8px 13px;font-variant-numeric:tabular-nums;
+  }
+  .credit{font-size:10.5px;color:var(--text-3);padding:8px 2px 0;letter-spacing:.04em}
+
+  /* sommario della giornata: indice da rivista */
+  .idx{margin-top:34px}
+  .idx h2{font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.18em;text-transform:uppercase;padding-bottom:4px}
+  .ir{display:flex;align-items:baseline;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .ir:last-child{border-bottom:0}
+  .ir .n{font-family:var(--serif);font-size:14px;color:var(--acc);width:20px;font-variant-numeric:tabular-nums}
+  .ir .t{flex:1;font-family:var(--serif);font-size:18px;color:var(--text)}
+  .ir .m{font-size:13px;color:var(--text-3);font-variant-numeric:tabular-nums}
+  .ir.done .t{color:var(--text-3);text-decoration:line-through}
+
+  /* il consiglio: pull-quote */
+  .quote{
+    margin-top:36px;border-top:2px solid var(--text);padding-top:18px;
+  }
+  .quote .k{font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.18em;text-transform:uppercase}
+  .quote p{font-family:var(--serif);font-size:22px;line-height:1.4;color:var(--text);margin-top:10px}
+  .quote p em{font-style:italic;color:var(--acc)}
+  .quote .a{margin-top:14px}
+  .quote button{
+    font-family:var(--sans);font-size:13px;font-weight:600;border:1px solid var(--text);
+    background:none;color:var(--text);border-radius:99px;padding:10px 16px;cursor:pointer;
+  }
+
+  /* ricordo */
+  .memory{
+    margin-top:36px;display:flex;gap:14px;align-items:center;cursor:pointer;
+    border:1px solid var(--line);border-radius:6px;padding:12px;background:#FFFDF8;
+  }
+  .memory .ph{
+    width:64px;height:64px;border-radius:4px;flex:none;
+    background:linear-gradient(160deg,#7FA8C9 0%,#37648C 55%,#1C3550 100%);
+    position:relative;overflow:hidden;
+  }
+  .memory .ph::after{content:"";position:absolute;bottom:0;left:0;right:0;height:22px;background:linear-gradient(to top,#12233A,transparent)}
+  .memory .k{font-size:10.5px;font-weight:600;color:var(--text-3);letter-spacing:.14em;text-transform:uppercase}
+  .memory .t{font-family:var(--serif);font-size:16px;color:var(--text);margin-top:3px;line-height:1.3}
+
+  /* stasera: nota a piè di pagina */
+  .tonight{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:baseline;gap:10px;cursor:pointer}
+  .tonight .k{font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.14em;text-transform:uppercase;flex:none}
+  .tonight .t{font-family:var(--serif);font-size:16px;color:var(--text)}
+  .tonight .t em{font-style:italic;color:var(--acc)}
+
+  .colophon{padding:30px 0 130px;text-align:center;font-size:10.5px;color:var(--text-3);letter-spacing:.2em;text-transform:uppercase}
+
+  .bar{
+    position:absolute;left:0;right:0;bottom:0;padding:12px 20px calc(20px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 65%,transparent);
+  }
+  .field{
+    display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:99px;
+    background:#FFFDF8;padding:13px 18px;box-shadow:0 1px 3px rgba(70,55,25,.06);
+  }
+  .field input{flex:1;border:0;outline:0;background:none;font-size:14.5px;color:var(--text);font-family:var(--sans)}
+  .field input::placeholder{color:var(--text-3)}
+
+  .toast{
+    position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;
+    background:var(--text);color:var(--bg);font-size:12px;font-weight:600;
+    padding:10px 16px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap;
+  }
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="manifesto">
+  <b>DIREZIONE 4 · RIVISTA</b>
+  Airbnb, Journal, Readwise: ogni giorno è una pagina di rivista. Foto grande (in-app:
+  vera, della destinazione), serif, un ricordo, un consiglio. La home che cambia ogni giorno.
+</div>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="masthead">
+      <svg class="mark" viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg>
+      <span class="kick">Sabato 4 luglio · N. 185</span>
+    </div>
+
+    <h1>Buonasera,<br>Matteo.</h1>
+    <div class="lede">Roma ti aspetta — stasera si canta a Tor Vergata.</div>
+
+    <div class="photo" onclick="toast('Il concerto — biglietti ×2 pronti')">
+      <div class="cap">
+        <div class="c1">Stasera · 20:30</div>
+        <div class="c2">Ultimo, Tor Vergata</div>
+      </div>
+      <span class="chip">esci 19:40</span>
+    </div>
+    <div class="credit">ROMA · TOR VERGATA — in-app: fotografia vera della destinazione</div>
+
+    <div class="idx">
+      <h2>La tua giornata</h2>
+      <div class="ir done" onclick="this.classList.toggle('done')"><span class="n">I</span><span class="t">Allenamento — lungo lento</span><span class="m">fatto</span></div>
+      <div class="ir" onclick="this.classList.toggle('done')"><span class="n">II</span><span class="t">Il pacco in posta</span><span class="m">17:30</span></div>
+      <div class="ir" onclick="toast('Biglietti ×2 · metro C · 20:12')"><span class="n">III</span><span class="t">Il concerto</span><span class="m">20:30</span></div>
+    </div>
+
+    <div class="quote">
+      <span class="k">Keiko consiglia</span>
+      <p>Stasera scende a sedici gradi: <em>porta una giacca</em> — il rientro è dopo mezzanotte.</p>
+      <div class="a"><button onclick="toast('Promemoria alle 19:30 ✓')">Ricordamelo quando esco</button></div>
+    </div>
+
+    <div class="memory" onclick="toast('12 foto di quel weekend')">
+      <div class="ph"></div>
+      <div>
+        <div class="k">Un anno fa</div>
+        <div class="t">Il weekend a Portogruaro con Giulia — il primo treno preso insieme.</div>
+      </div>
+    </div>
+
+    <div class="tonight" onclick="toast('Da guardare — 4 in lista')">
+      <span class="k">Dopo</span>
+      <span class="t">Se rientri presto: <em>Dune, Parte Due</em> · Sky, 21:15</span>
+    </div>
+
+    <div class="colophon">Keiko · il calendario della tua vita</div>
+  </div>
+
+  <div class="bar">
+    <div class="field">
+      <input placeholder="Racconta a Keiko — «cena giovedì da Marco»">
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  let tt;
+  function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1600)}
+</script>
+</body>
+</html>
