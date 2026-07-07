@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { auth } from "@/auth";
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { endpoint } = await req.json();
   if (!endpoint) return NextResponse.json({ error: "Missing endpoint" }, { status: 400 });
 
