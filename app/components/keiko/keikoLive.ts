@@ -8,15 +8,26 @@ const WD_SHORT = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
 const WD_LONG = ["Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"];
 const MONTHS = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
 
+/* FIX FUSO (bug "orari 2 ore indietro"): questo codice gira sul SERVER
+ * (Vercel), che vive in UTC. I getter locali (getHours, getDay, getDate…)
+ * leggevano quindi l'ora UTC, non quella italiana. rome() restituisce una
+ * Data "spostata" così che i getter locali leggano l'ora di Roma ovunque
+ * giri il codice (Mac in sviluppo o Vercel in produzione). Stesso trucco
+ * di lib/supabase.ts. Nota: la variabile TZ su Vercel è riservata, quindi
+ * il fuso va gestito qui nel codice. */
+function rome(d: Date): Date {
+  return new Date(d.toLocaleString("en-US", { timeZone: "Europe/Rome" }));
+}
+
 export function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function hhmm(iso: string): string {
-  const d = new Date(iso);
+  const d = rome(new Date(iso));
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 function relDay(iso: string, today: Date): string {
-  const d = new Date(iso);
+  const d = rome(new Date(iso));
   const k = dayKey(d);
   if (k === dayKey(today)) return "oggi";
   const tom = new Date(today); tom.setDate(today.getDate() + 1);
@@ -24,7 +35,7 @@ function relDay(iso: string, today: Date): string {
   return `${WD_SHORT[d.getDay()]} ${d.getDate()}`;
 }
 function countdownDays(iso: string, today: Date): number {
-  const a = new Date(iso); a.setHours(0, 0, 0, 0);
+  const a = rome(new Date(iso)); a.setHours(0, 0, 0, 0);
   const b = new Date(today); b.setHours(0, 0, 0, 0);
   return Math.round((a.getTime() - b.getTime()) / 86400000);
 }
@@ -91,12 +102,13 @@ export function mapLive(data: {
   events: Ticket[]; todos: Todo[]; diet: DietWeek | null; workout: WorkoutWeek | null;
   trainedDays: string[]; trips: TripPlanRow[]; watch: WatchItem[];
 }): LiveHome {
-  const today = new Date();
+  // rome(): "oggi" è l'oggi italiano anche se il server è in UTC (vedi sopra).
+  const today = rome(new Date());
   const todayKey = dayKey(today);
 
   // --- settimana: 14 giorni da oggi, con pallini eventi (d1) / to-do (d2) ---
   const evByDay = new Map<string, Ticket[]>();
-  for (const e of data.events) { const k = dayKey(new Date(e.datetime)); (evByDay.get(k) ?? evByDay.set(k, []).get(k)!).push(e); }
+  for (const e of data.events) { const k = dayKey(rome(new Date(e.datetime))); (evByDay.get(k) ?? evByDay.set(k, []).get(k)!).push(e); }
   const tdByDay = new Map<string, Todo[]>();
   for (const t of data.todos) (tdByDay.get(t.day) ?? tdByDay.set(t.day, []).get(t.day)!).push(t);
 
@@ -139,7 +151,7 @@ export function mapLive(data: {
     .filter((x) => x.t >= Date.now())
     .sort((a, b) => a.t - b.t)
     .map((x) => x.e);
-  const todayEvents = future.filter((e) => dayKey(new Date(e.datetime)) === todayKey);
+  const todayEvents = future.filter((e) => dayKey(rome(new Date(e.datetime))) === todayKey);
   const heroSrc = todayEvents.length > 0 ? todayEvents : future.slice(0, 1);
   const heroIds = new Set(heroSrc.map((e) => e.id));
   const upcomingSrc = future.filter((e) => !heroIds.has(e.id));
@@ -199,7 +211,7 @@ export function mapLive(data: {
     const cat = typeLabel(h0.type).toLowerCase();
     const soggetto = route ? `${cat} per ${dest}` : h0.title;
     const time = hhmm(h0.datetime);
-    const d0 = new Date(h0.datetime); const k0 = dayKey(d0);
+    const d0 = rome(new Date(h0.datetime)); const k0 = dayKey(d0);
     const tom = new Date(today); tom.setDate(today.getDate() + 1);
     const giorno = k0 === todayKey ? "oggi" : k0 === dayKey(tom) ? "domani" : WD_LONG[d0.getDay()].toLowerCase();
     lede = k0 === todayKey ? `Oggi: ${soggetto}, alle ${time}` : `Prossimo: ${soggetto}, ${giorno} alle ${time}`;
