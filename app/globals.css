@@ -256,7 +256,6 @@ html:not(.dark) .keiko-bubble { display: none; }
     background-color: var(--background);
     background-image: var(--screen-bg);
     background-attachment: fixed;
-    scroll-behavior: smooth;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
   }

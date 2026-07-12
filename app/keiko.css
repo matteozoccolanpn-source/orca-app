@@ -787,7 +787,7 @@
    visibili) invece dell'IntersectionObserver, incompatibile con i re-render React. */
 @keyframes k_rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @keyframes k_glow { from { opacity: 0; } to { opacity: 1; } }
-.keiko .rise { opacity: 1; transform: none; animation: k_rise .7s cubic-bezier(.2,.8,.2,1) both; }
+.keiko .rise { opacity: 1; transform: none; animation: k_rise .4s cubic-bezier(.2,.8,.2,1) both; }
 .keiko .glowable::before { opacity: 1; animation: k_glow 1s ease .35s both; }
 
 /* Hotel: categoria non nel mockup — gradiente fornito dal committente (oro caldo
