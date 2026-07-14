@@ -587,6 +587,26 @@ export interface Todo {
   linkLabel: string | null; // etichetta del bottone link
 }
 
+/** Ricerca base per la barra "Cerca in Keiko": eventi + to-do che contengono i termini.
+ * Query semplice ilike su Supabase (title/location per gli eventi, text/location per i to-do). */
+export async function searchEventsTodos(terms: string[]): Promise<{
+  events: { id: string; title: string; type: string; datetime: string; location: string | null }[];
+  todos: { id: string; text: string; day: string; time: string | null; location: string | null }[];
+}> {
+  const safe = terms.map((t) => t.replace(/[%,()]/g, "").trim()).filter((t) => t.length > 1);
+  if (safe.length === 0) return { events: [], todos: [] };
+  const evOr = safe.flatMap((t) => [`title.ilike.%${t}%`, `location.ilike.%${t}%`]).join(",");
+  const tdOr = safe.flatMap((t) => [`text.ilike.%${t}%`, `location.ilike.%${t}%`]).join(",");
+  const [ev, td] = await Promise.all([
+    admin().from("tickets").select("id, title, type, datetime, location").or(evOr).order("datetime", { ascending: true }).limit(8),
+    admin().from("todos").select("id, text, day, time, location").or(tdOr).order("day", { ascending: true }).limit(8),
+  ]);
+  return {
+    events: (ev.data ?? []).map((r) => ({ id: r.id as string, title: (r.title as string) ?? "", type: (r.type as string) ?? "", datetime: (r.datetime as string) ?? "", location: (r.location as string) ?? null })),
+    todos: (td.data ?? []).map((r) => ({ id: r.id as string, text: (r.text as string) ?? "", day: (r.day as string) ?? "", time: (r.time as string) ?? null, location: (r.location as string) ?? null })),
+  };
+}
+
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */
 export async function getTodos(): Promise<Todo[]> {
   const { data, error } = await admin()

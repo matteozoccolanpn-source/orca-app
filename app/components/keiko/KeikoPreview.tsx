@@ -12,7 +12,7 @@ import "../../keiko.css";
 // Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
 // compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
 // sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
-const BUILD = "v2.3-dark-fixed";
+const BUILD = "v2.4-search";
 
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
@@ -114,6 +114,12 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
   const [editVal, setEditVal] = useState<EventFormValue | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [askQ, setAskQ] = useState("");
+  const [askBusy, setAskBusy] = useState(false);
+  const [askRes, setAskRes] = useState<{
+    events: { id: string; title: string; type: string; datetime: string; location: string | null }[];
+    todos: { id: string; text: string; day: string; time: string | null; location: string | null }[];
+  } | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [evKey, setEvKey] = useState<string | null>(null);
   const [evFull, setEvFull] = useState(false);
@@ -151,6 +157,29 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
     toastT.current = setTimeout(() => setToastMsg(null), 1900);
   };
   // Tema scuro unico: il vecchio toggle "mood chiaro/scuro" è stato rimosso.
+  // Ricerca base "Cerca in Keiko": interroga /api/search sui tuoi eventi + to-do.
+  function fmtWhen(dt: string) {
+    try { return new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" }).format(new Date(dt)); }
+    catch { return dt; }
+  }
+  function fmtDay(d: string, t: string | null) {
+    try {
+      const s = new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/Rome" }).format(new Date(`${d}T12:00:00`));
+      return t ? `${s} · ${t}` : s;
+    } catch { return d; }
+  }
+  async function runSearch(qArg?: string) {
+    const q = (qArg ?? askQ).trim();
+    if (!q) return;
+    setAskBusy(true);
+    try {
+      const r = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q }) });
+      const data = await r.json();
+      setAskRes(r.ok ? data : { events: [], todos: [] });
+    } catch { setAskRes({ events: [], todos: [] }); }
+    finally { setAskBusy(false); }
+  }
+
   const openCal = () => openV("calPanel");
   const closeCal = () => closeV("calPanel");
   const openEvent = (k: string) => { setEvKey(k); setEvFull(false); };
@@ -738,16 +767,43 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
 
       {/* Ask Keiko */}
       <div className={`askFull${views.askFull ? " open" : ""}`} id="askFull">
-        <button className="evClose" onClick={() => closeV("askFull")}>✕</button>
+        <button className="evClose" onClick={() => { closeV("askFull"); setAskQ(""); setAskRes(null); }}>✕</button>
         <div className="bar">
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          <input id="askIn" placeholder="Cerca… «cena», «volo», «GP»" />
+          <input value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }} placeholder="Chiedimi… «quando ho la cena con Giulia?»" />
         </div>
-        <div id="askRes" />
-        <h6>Aperti di recente</h6>
-        <div className="recent" onClick={() => toast("“Il regalo l'hai preso ieri ✓”")}><span className="e">🎁</span><span className="t">Cosa manca per il compleanno di Giulia?</span><span className="r">ieri</span></div>
-        <div className="recent" onClick={() => toast("“Itinerario aggiornato con l'hotel ✓”")}><span className="e">🧭</span><span className="t">Aggiungi l&apos;hotel all&apos;itinerario di Roma</span><span className="r">mar</span></div>
-        <div className="recent" onClick={() => toast("“Push day alle 18, fatto ✓”")}><span className="e">💪</span><span className="t">Sposta l&apos;allenamento alle 18</span><span className="r">lun</span></div>
+
+        {askBusy && <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "12px 4px 0" }}>Cerco…</p>}
+
+        {!askBusy && askRes && (askRes.events.length > 0 || askRes.todos.length > 0) ? (
+          <div style={{ marginTop: 8 }}>
+            {askRes.events.map((e) => (
+              <div key={e.id} className="recent" onClick={() => { closeV("askFull"); openEvent(e.id); }}>
+                <span className="e">📅</span><span className="t">{e.title}</span><span className="r">{fmtWhen(e.datetime)}</span>
+              </div>
+            ))}
+            {askRes.todos.map((t) => (
+              <div key={t.id} className="recent">
+                <span className="e">✅</span><span className="t">{t.text}</span><span className="r">{fmtDay(t.day, t.time)}</span>
+              </div>
+            ))}
+          </div>
+        ) : !askBusy && (
+          <>
+            {askRes && (
+              <div style={{ margin: "14px 2px 4px" }}>
+                <p style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)", fontWeight: 700, margin: 0 }}>Per ora non ci arrivo 😊</p>
+                <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "4px 0 0" }}>A breve Keiko saprà rispondere a tutto — intanto la tua domanda me la segno.</p>
+              </div>
+            )}
+            <h6>Prova a chiedere</h6>
+            {["quando ho la cena con Giulia?", "quando parte il treno?", "quando gioca la Roma?"].map((s) => (
+              <div key={s} className="recent" onClick={() => { setAskQ(s); runSearch(s); }}>
+                <span className="e">💬</span><span className="t">{s}</span><span className="r">›</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Profilo: nome (per i saluti) + logout. Tema scuro unico, nessun toggle. */}
