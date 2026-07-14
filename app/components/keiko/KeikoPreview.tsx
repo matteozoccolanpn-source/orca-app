@@ -798,8 +798,8 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
           <>
             {askRes ? (
               <div style={{ margin: "16px 2px 6px" }}>
-                <p style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)", fontWeight: 700, margin: 0 }}>Nessun risultato per «{askQ}».</p>
-                <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "6px 0 0" }}>Prova con un nome, un luogo o il tipo (es. «cena», «volo», «hotel»).</p>
+                <p style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)", fontWeight: 700, margin: 0 }}>Su questa non ho ancora una risposta 😊</p>
+                <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "6px 0 0" }}>A breve Keiko saprà rispondere anche a domande così — intanto me la segno, così miglioriamo. Per ora posso cercarti eventi e impegni per nome, luogo o tipo («cena», «volo», «hotel»).</p>
               </div>
             ) : (
               <>
