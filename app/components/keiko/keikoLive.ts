@@ -60,7 +60,7 @@ function routeStations(title: string, location: string | null): { dep: string; a
 
 export type LiveEvent = {
   id: string; type: string; art: string; emoji: string; iconKey: string;
-  catLabel: string; when: string; rel: string; time: string;
+  catLabel: string; when: string; rel: string; time: string; datetime: string;
   title: string; heroTitle: string; meta: string; location: string; mapsQ: string;
   route: { dep: string; arr: string } | null; isFlight: boolean;
   panelLive: string; panelTitle: string;
@@ -90,7 +90,7 @@ function toEvent(e: Ticket, today: Date): LiveEvent {
     : e.title;
   return {
     id: e.id, type: e.type, art: artClass(e.type), emoji: e.emoji, iconKey: catIconKey(e.type),
-    catLabel: typeLabel(e.type), when: `${rel} · ${time}`, rel, time,
+    catLabel: typeLabel(e.type), when: `${rel} · ${time}`, rel, time, datetime: e.datetime,
     title: e.title, heroTitle, meta: e.location || "", location: e.location || "", mapsQ: e.location || e.title,
     route, isFlight: t === "flight",
     panelLive: `${rel.toUpperCase()} · ${typeLabel(e.type).toUpperCase()}`,

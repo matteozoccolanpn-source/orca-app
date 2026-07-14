@@ -6,12 +6,13 @@ import CaptureSheet from "@/components/CaptureSheet";
 import AgendaView from "./AgendaView";
 import DayPanel from "./DayPanel";
 import { type LiveEvent, type LiveHome, mapsUrl } from "./keikoLive";
+import { EventForm, toDatetime, splitDatetime, type EventFormValue } from "@/app/components/EventForm";
 import "../../keiko.css";
 
 // Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
 // compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
 // sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
-const BUILD = "v2.2-mood-fix";
+const BUILD = "v2.3-dark-fixed";
 
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
@@ -106,11 +107,13 @@ const EVENTS: Record<string, Ev> = {
   },
 };
 
-export default function KeikoPreview({ live }: { live?: LiveHome }) {
+export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; logoutAction?: () => Promise<void> }) {
   const isLive = !!live;
-  const [alt, setAlt] = useState(false);
-  const [animMood, setAnimMood] = useState(false);
   const [capture, setCapture] = useState(false);
+  const [name, setName] = useState("");
+  const [editVal, setEditVal] = useState<EventFormValue | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [evKey, setEvKey] = useState<string | null>(null);
   const [evFull, setEvFull] = useState(false);
@@ -119,7 +122,6 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
   const [peekKey, setPeekKey] = useState<string | null>(null);
   const [selDay, setSelDay] = useState<string | null>(null);
   const [debug, setDebug] = useState(false);
-  const [moodTaps, setMoodTaps] = useState(0);
   const [exOpen, setExOpen] = useState(false);
   const [exDone, setExDone] = useState<boolean[]>(Array(6).fill(false));
   const [cd, setCd] = useState("—");
@@ -135,6 +137,7 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
     document.addEventListener("touchstart", noop, { passive: true });
     try {
       if (new URLSearchParams(window.location.search).has("debug")) setDebug(true);
+      const nm = localStorage.getItem("keiko-name"); if (nm) setName(nm);
       // apertura pannello evento da altra pagina: /?v2#ev=<ticketId> (es. "Vedi biglietto" da /viaggio)
       const m = window.location.hash.match(/^#ev=(.+)$/);
       if (m) { setEvKey(decodeURIComponent(m[1])); history.replaceState(null, "", window.location.pathname + window.location.search); }
@@ -147,19 +150,40 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
     clearTimeout(toastT.current);
     toastT.current = setTimeout(() => setToastMsg(null), 1900);
   };
-  const toggleMood = () => {
-    setMoodTaps((n) => n + 1);
-    const next = !alt;
-    setAlt(next);
-    try { localStorage.setItem("keiko-mood", next ? "day" : "night"); } catch { /* no-op */ }
-    setAnimMood(true);
-    toast(next ? "Mood giorno ☀️" : "Mood notte 🌙");
-    setTimeout(() => setAnimMood(false), 700);
-  };
+  // Tema scuro unico: il vecchio toggle "mood chiaro/scuro" è stato rimosso.
   const openCal = () => openV("calPanel");
   const closeCal = () => closeV("calPanel");
   const openEvent = (k: string) => { setEvKey(k); setEvFull(false); };
   const closeEvent = () => setEvKey(null);
+
+  // Sposta / Modifica evento reale: pre-riempie il form dai dati veri e salva su /api/update.
+  function openEdit(e: LiveEvent) {
+    const { date, time } = splitDatetime(e.datetime);
+    setEditId(e.id);
+    setEditVal({ title: e.title, type: e.type, date, time, location: e.location, reference: "" });
+  }
+  function closeEdit() { setEditVal(null); setEditId(null); }
+  async function saveEdit() {
+    if (!editVal || !editId) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch("/api/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          id: editId, title: editVal.title, type: editVal.type,
+          datetime: toDatetime(editVal), location: editVal.location, reference: editVal.reference,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      closeEdit(); closeEvent(); toast("Aggiornato ✓"); router.refresh();
+    } catch {
+      window.alert("Non sono riuscito a salvare, riprova");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
   const openV = (id: string) => setViews((v) => ({ ...v, [id]: true }));
   const closeV = (id: string) => setViews((v) => ({ ...v, [id]: false }));
   const homeTab = () => { setViews({}); setEvKey(null); setTab(0); };
@@ -238,7 +262,7 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
   const shiftMonth = (d: number) => setCalYM(({ y, m }) => { const t = m + d; return { y: y + Math.floor(t / 12), m: ((t % 12) + 12) % 12 }; });
 
   return (
-    <div className={`keiko${alt ? " alt" : ""}${animMood ? " animMood" : ""}`} id="phone">
+    <div className="keiko" id="phone">
       <div className="screen" id="screen" ref={screenRef}>
 
         {/* barra alta */}
@@ -251,11 +275,8 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
           <button type="button" className="icoBtn" onClick={openCal} title="Calendario">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
           </button>
-          <button type="button" className="icoBtn" onClick={toggleMood} title="Mood chiaro/scuro">
-            <span className="moodIco">
-              <svg className="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19" /></svg>
-              <svg className="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5Z" strokeLinejoin="round" /></svg>
-            </span>
+          <button type="button" className="icoBtn" onClick={() => openV("profile")} title="Profilo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-3.6 3.6-6 8-6s8 2.4 8 6" /></svg>
           </button>
         </div>
 
@@ -575,6 +596,9 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
                   toast(label);
                 }}>{label}</button>
               ))}
+              {live && liveEv && (
+                <button className="btn line" onClick={() => openEdit(liveEv)}>🕘 Sposta / Modifica</button>
+              )}
             </div>
           </div>
         </div>
@@ -726,6 +750,26 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
         <div className="recent" onClick={() => toast("“Push day alle 18, fatto ✓”")}><span className="e">💪</span><span className="t">Sposta l&apos;allenamento alle 18</span><span className="r">lun</span></div>
       </div>
 
+      {/* Profilo: nome (per i saluti) + logout. Tema scuro unico, nessun toggle. */}
+      <div className={`askFull${views.profile ? " open" : ""}`} id="profileView">
+        <button className="evClose" onClick={() => closeV("profile")}>✕</button>
+        <h6 style={{ marginTop: 44 }}>Profilo</h6>
+        <div className="bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-3.6 3.6-6 8-6s8 2.4 8 6" /></svg>
+          <input
+            value={name}
+            onChange={(e) => { setName(e.target.value); try { localStorage.setItem("keiko-name", e.target.value); } catch { /* no-op */ } }}
+            placeholder="Il tuo nome"
+          />
+        </div>
+        <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "8px 4px 0" }}>Keiko lo usa per salutarti in home.</p>
+        {logoutAction && (
+          <form action={logoutAction} style={{ marginTop: 28 }}>
+            <button type="submit" className="btn line" style={{ width: "100%" }}>Esci</button>
+          </form>
+        )}
+      </div>
+
       {/* overlay giorno — live: componente A5 (DayPanel, to-do reali via /api/todos); preview: finto */}
       {live ? (
         <DayPanel
@@ -807,7 +851,7 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
 
       {/* action sheet */}
       <div className={`sheet${views.actSheet ? " open" : ""}`} id="actSheet">
-        <button className="srow" onClick={() => { toast("Quando lo spostiamo? 📆"); closeV("actSheet"); }}>📆 Sposta</button>
+        {/* "Sposta" reale ora nel pannello evento (bottone Modifica) */}
         <button className="srow" onClick={() => { closeV("actSheet"); openV("shareSheet"); }}>📤 Condividi</button>
         <button className="srow danger" onClick={() => { closeV("actSheet"); openV("confirmSheet"); }}>🗑️ Elimina</button>
       </div>
@@ -836,7 +880,17 @@ export default function KeikoPreview({ live }: { live?: LiveHome }) {
       {/* debug on-device (?debug): build ricevuto + tap registrati + stato mood */}
       {debug && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 200, background: "#000", color: "#3f6", font: "12px ui-monospace,monospace", padding: "5px 8px", textAlign: "center", letterSpacing: ".02em" }}>
-          build {BUILD} · tap {moodTaps} · mood {alt ? "CHIARO ☀️" : "SCURO 🌙"}
+          build {BUILD}
+        </div>
+      )}
+
+      {/* Sheet Sposta / Modifica evento (reale: salva su /api/update) */}
+      {editVal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "flex-end" }} onClick={closeEdit}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "var(--bg-2)", borderTopLeftRadius: "var(--r-xl)", borderTopRightRadius: "var(--r-xl)", padding: "18px 16px calc(env(safe-area-inset-bottom) + 22px)", maxHeight: "90vh", overflowY: "auto" }}>
+            <h3 style={{ fontSize: "var(--fs-lg)", fontWeight: 800, color: "var(--text)", margin: "4px 2px 14px" }}>Sposta / Modifica</h3>
+            <EventForm value={editVal} onChange={setEditVal} onCancel={closeEdit} onSave={saveEdit} saving={savingEdit} saveLabel="Salva" intro="Cambia data, ora e dettagli dell'evento" />
+          </div>
         </div>
       )}
 

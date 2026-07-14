@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -70,6 +70,14 @@ export default function AllenamentoView({
   const todayExercises = todayDay?.esercizi ?? [];
   const todayIsTraining = todayExercises.length > 0;
   const trainedToday = trained.has(todayIso);
+
+  // Ricarica le spunte esercizi di oggi salvate in locale (così persistono al refresh).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`keiko-workout-checked-${todayIso}`);
+      if (raw) setChecked(new Set<number>(JSON.parse(raw)));
+    } catch { /* no-op */ }
+  }, [todayIso]);
 
   // Anello progressi: esercizi spuntati su totale di oggi.
   const total = todayExercises.length;
@@ -149,14 +157,18 @@ export default function AllenamentoView({
     toast("Ti alleni un altro giorno? Lo riprogrammo 📆");
   }
 
-  // Spunta un esercizio (locale) → aggiorna l'anello.
+  // Spunta un esercizio → persiste in locale e, se completi tutto, segna il giorno come allenato.
   function toggleExercise(i: number) {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i);
-      else next.add(i);
-      return next;
-    });
+    const next = new Set(checked);
+    if (next.has(i)) next.delete(i);
+    else next.add(i);
+    setChecked(next);
+    try { localStorage.setItem(`keiko-workout-checked-${todayIso}`, JSON.stringify([...next])); } catch { /* no-op */ }
+    const doneNow = [...next].filter((n) => n < total).length;
+    if (total > 0 && doneNow === total && !trained.has(todayIso)) {
+      toggleTrained(todayIso);
+      toast("Allenamento completato ✓💪");
+    }
   }
 
   async function handleDelete() {

@@ -61,5 +61,5 @@ export default async function Home({
     trips,
     watch: watchlist,
   });
-  return <KeikoPreview live={live} />;
+  return <KeikoPreview live={live} logoutAction={logout} />;
 }

@@ -93,7 +93,7 @@ export async function updateTicketById(id: string, fields: TicketUpdate): Promis
   const patch: Record<string, string> = {};
   if (fields.title    !== undefined) patch.title    = fields.title;
   if (fields.type     !== undefined) patch.type     = fields.type;
-  if (fields.datetime !== undefined) patch.datetime = fields.datetime;
+  if (fields.datetime !== undefined) patch.datetime = romeNaiveToUtcIso(fields.datetime);
   if (fields.location !== undefined) patch.location = fields.location;
   if (fields.reference !== undefined && fields.reference.length > 0)
     patch.reference = fields.reference;

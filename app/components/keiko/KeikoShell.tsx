@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import "../../keiko.css";
 
 /* ------------------------------------------------------------------ *
@@ -24,17 +24,8 @@ export default function KeikoShell({
   backHref?: string;
   children: React.ReactNode;
 }) {
-  const [alt, setAlt] = useState(false);
   const [toast, setToast] = useState<{ msg: string; action?: string; onAction?: () => void } | null>(null);
   const tRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  useEffect(() => {
-    try {
-      const p = new URLSearchParams(window.location.search).get("mood");
-      if (p === "chiaro" || p === "scuro") setAlt(p === "chiaro");
-      else setAlt(localStorage.getItem("keiko-mood") === "day");
-    } catch { /* no-op */ }
-  }, []);
 
   const showToast = (msg: string, action?: string, onAction?: () => void) => {
     setToast({ msg, action, onAction });
@@ -44,7 +35,7 @@ export default function KeikoShell({
 
   return (
     <ToastCtx.Provider value={showToast}>
-      <div className={`keiko${alt ? " alt" : ""}`}>
+      <div className="keiko">
         <div className="view open">
           <div className="viewHead">
             <a className="back" href={backHref} aria-label="Indietro">‹</a>

@@ -42,11 +42,13 @@ export default function RootLayout({
     >
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        {/* Applica il tema salvato prima del primo paint (niente flash). */}
+        {/* Tema scuro UNICO: forza .dark prima del primo paint e cancella
+           eventuali preferenze "chiaro" salvate (keiko-theme/keiko-mood),
+           così l'app non può più ribaltarsi in chiaro. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('keiko-theme');if(t==='light'){document.documentElement.classList.remove('dark')}else if(t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}})()",
+              "(function(){try{document.documentElement.classList.add('dark');localStorage.removeItem('keiko-theme');localStorage.removeItem('keiko-mood');}catch(e){}})()",
           }}
         />
         {/* DEV ONLY — Keiko è una PWA: in sviluppo un service worker residuo

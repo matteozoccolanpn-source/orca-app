@@ -42,3 +42,5 @@ next-env.d.ts
 
 # artefatti tool di verifica (screenshot MCP)
 .playwright-mcp/
+.claude/
+.claude/
