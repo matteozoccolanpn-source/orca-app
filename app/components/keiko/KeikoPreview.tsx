@@ -12,7 +12,7 @@ import "../../keiko.css";
 // Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
 // compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
 // sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
-const BUILD = "v2.5-search-delete";
+const BUILD = "v2.6-search-backup";
 
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
@@ -781,11 +781,13 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
 
         {!askBusy && askRes && (askRes.events.length > 0 || askRes.todos.length > 0) ? (
           <div style={{ marginTop: 8 }}>
+            {askRes.events.length > 0 && <h6>Eventi</h6>}
             {askRes.events.map((e) => (
               <div key={e.id} className="recent" onClick={() => { closeV("askFull"); openEvent(e.id); }}>
                 <span className="e">📅</span><span className="t">{e.title}</span><span className="r">{fmtWhen(e.datetime)}</span>
               </div>
             ))}
+            {askRes.todos.length > 0 && <h6>To-do</h6>}
             {askRes.todos.map((t) => (
               <div key={t.id} className="recent">
                 <span className="e">✅</span><span className="t">{t.text}</span><span className="r">{fmtDay(t.day, t.time)}</span>

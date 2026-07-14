@@ -607,6 +607,12 @@ export async function searchEventsTodos(terms: string[]): Promise<{
   };
 }
 
+/** Backup ricerche: registra cosa cerca l'utente (e se abbiamo trovato). Tabella `search_log`. */
+export async function logSearch(q: string, found: boolean): Promise<void> {
+  const { error } = await admin().from("search_log").insert({ q, found });
+  if (error) console.warn("[search_log] insert fallito (creare la tabella?):", error.message);
+}
+
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */
 export async function getTodos(): Promise<Todo[]> {
   const { data, error } = await admin()

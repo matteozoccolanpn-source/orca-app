@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { searchEventsTodos } from '@/lib/supabase'
+import { searchEventsTodos, logSearch } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,10 +34,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const res = await searchEventsTodos(terms)
-    // "Ce la ricordiamo": se non troviamo nulla, logghiamo la domanda per capire cosa serve.
-    if (res.events.length === 0 && res.todos.length === 0) {
-      console.log('[search miss]', JSON.stringify(q))
-    }
+    const found = res.events.length > 0 || res.todos.length > 0
+    // Backup: registriamo ogni domanda (e se abbiamo trovato) su Supabase, per capire cosa serve.
+    await logSearch(q, found)
     return NextResponse.json(res)
   } catch (e) {
     console.error('Search error:', e)
