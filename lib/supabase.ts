@@ -3,6 +3,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { detectClusters, type TicketInput } from "./incastri";
 
+export interface EventEnrichment {
+  summary: string;
+  links: { label: string; url: string }[];
+  updatedAt: string;
+}
+
 export interface Ticket {
   id: string;
   emoji: string;
@@ -10,6 +16,7 @@ export interface Ticket {
   datetime: string;
   location: string;
   type: string;
+  enrichment?: EventEnrichment | null;
 }
 
 export interface TicketUpdate {
@@ -57,26 +64,42 @@ function admin() {
  */
 export async function getUpcomingTickets(): Promise<Ticket[]> {
   try {
-    const { data, error } = await admin()
+    const now = new Date().toISOString();
+    // Prova col campo enrichment; se la colonna non esiste ancora, riprova senza,
+    // così la home NON si rompe finché non crei la colonna `enrichment` su Supabase.
+    let rows: Record<string, unknown>[];
+    const first = await admin()
       .from("tickets")
-      .select("id, title, type, datetime, location")
-      .gt("datetime", new Date().toISOString())
+      .select("id, title, type, datetime, location, enrichment")
+      .gt("datetime", now)
       .not("title", "ilike", "%[PABLO]%")
       .order("datetime", { ascending: true })
       .limit(20);
-
-    if (error) {
-      console.error("Supabase: failed to fetch upcoming tickets:", error.message);
-      return [];
+    if (first.error) {
+      const retry = await admin()
+        .from("tickets")
+        .select("id, title, type, datetime, location")
+        .gt("datetime", now)
+        .not("title", "ilike", "%[PABLO]%")
+        .order("datetime", { ascending: true })
+        .limit(20);
+      if (retry.error) {
+        console.error("Supabase: failed to fetch upcoming tickets:", retry.error.message);
+        return [];
+      }
+      rows = (retry.data ?? []) as unknown as Record<string, unknown>[];
+    } else {
+      rows = (first.data ?? []) as unknown as Record<string, unknown>[];
     }
 
-    return (data ?? []).map((row) => ({
+    return rows.map((row) => ({
       id:       row.id as string,
       emoji:    emojiForType(row.type as string | undefined),
       title:    (row.title as string) ?? "Untitled",
       datetime: (row.datetime as string) ?? "",
       location: (row.location as string) ?? "",
       type:     ((row.type as string) ?? "").toLowerCase(),
+      enrichment: (row.enrichment as EventEnrichment | null) ?? null,
     }));
   } catch (err) {
     console.error("Supabase: failed to fetch upcoming tickets:", err);
@@ -611,6 +634,19 @@ export async function searchEventsTodos(terms: string[]): Promise<{
 export async function logSearch(q: string, found: boolean): Promise<void> {
   const { error } = await admin().from("search_log").insert({ q, found });
   if (error) console.warn("[search_log] insert fallito (creare la tabella?):", error.message);
+}
+
+/** Campi minimi di un evento per l'arricchimento AI. */
+export async function getTicketForEnrich(id: string): Promise<{ title: string; type: string; datetime: string | null; location: string | null } | null> {
+  const { data, error } = await admin().from("tickets").select("title, type, datetime, location").eq("id", id).single();
+  if (error || !data) return null;
+  return { title: data.title as string, type: (data.type as string) ?? "", datetime: (data.datetime as string) ?? null, location: (data.location as string) ?? null };
+}
+
+/** Salva l'arricchimento AI (summary + link) sull'evento. Colonna `enrichment` jsonb. */
+export async function saveTicketEnrichment(id: string, enrichment: EventEnrichment): Promise<void> {
+  const { error } = await admin().from("tickets").update({ enrichment }).eq("id", id);
+  if (error) console.warn("[enrichment] save fallito (colonna `enrichment` creata?):", error.message);
 }
 
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */

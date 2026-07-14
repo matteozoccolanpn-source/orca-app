@@ -2,7 +2,7 @@
 // (KeikoPreview) sa già disegnare. Regola: "mostra ciò che esiste, compatta
 // ciò che manca". Il CSS non si tocca: se un dato non c'è, si adatta il contenuto.
 // Testi fissi da docs/UI-VOICE.md; barra "Cerca in Keiko" dal mockup.
-import type { Ticket, DietWeek, WorkoutWeek, TripPlanRow, Todo, WatchItem } from "@/lib/supabase";
+import type { Ticket, DietWeek, WorkoutWeek, TripPlanRow, Todo, WatchItem, EventEnrichment } from "@/lib/supabase";
 
 const WD_SHORT = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
 const WD_LONG = ["Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"];
@@ -64,6 +64,7 @@ export type LiveEvent = {
   title: string; heroTitle: string; meta: string; location: string; mapsQ: string;
   route: { dep: string; arr: string } | null; isFlight: boolean;
   panelLive: string; panelTitle: string;
+  enrichment: EventEnrichment | null;
 };
 export type LiveHome = {
   kickDate: string; greeting: string; lede: string;
@@ -95,6 +96,7 @@ function toEvent(e: Ticket, today: Date): LiveEvent {
     route, isFlight: t === "flight",
     panelLive: `${rel.toUpperCase()} · ${typeLabel(e.type).toUpperCase()}`,
     panelTitle: heroTitle,
+    enrichment: e.enrichment ?? null,
   };
 }
 
