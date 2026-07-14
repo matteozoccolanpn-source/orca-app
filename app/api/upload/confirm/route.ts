@@ -36,11 +36,16 @@ export async function POST(req: NextRequest) {
     // status tornato pending) si rigenerano DA SOLI, dopo la risposta:
     // after() fa partire il lavoro pesante senza far aspettare l'utente.
     after(async () => {
-      // Arricchimento AI dell'evento appena creato (link/info da ricerca web).
-      try {
-        await enrichEvent(id)
-      } catch (e) {
-        console.error('enrichEvent in background fallita:', e)
+      // Arricchimento AI automatico SOLO per i tipi che ne beneficiano (concerti,
+      // musei, hotel, voli): risparmio. Gli altri (cena, ecc.) restano su richiesta
+      // col bottone "Aggiorna info da Keiko" nel pannello evento.
+      const AUTO_ENRICH = new Set(['concert', 'museum', 'hotel', 'flight'])
+      if (AUTO_ENRICH.has((type ?? '').toLowerCase())) {
+        try {
+          await enrichEvent(id)
+        } catch (e) {
+          console.error('enrichEvent in background fallita:', e)
+        }
       }
       try {
         await autoEnrichNewTrips()

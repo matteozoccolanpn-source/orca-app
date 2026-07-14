@@ -12,7 +12,7 @@ import "../../keiko.css";
 // Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
 // compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
 // sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
-const BUILD = "v2.9-event-enrich";
+const BUILD = "v2.10-enrich-tune";
 
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
@@ -116,6 +116,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
   const [savingEdit, setSavingEdit] = useState(false);
   const [actId, setActId] = useState<string | null>(null);
   const [enriching, setEnriching] = useState(false);
+  const [enrichOpen, setEnrichOpen] = useState(true);
   const [askQ, setAskQ] = useState("");
   const [askBusy, setAskBusy] = useState(false);
   const [askRes, setAskRes] = useState<{
@@ -653,17 +654,24 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
 
             {live && liveEv && (
               <div style={{ marginTop: 16 }}>
-                <h6 style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-3)", fontWeight: 800, margin: "0 2px 8px" }}>Trovato da Keiko ✨</h6>
-                {liveEv.enrichment?.summary && (
-                  <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", lineHeight: 1.5, margin: "0 2px 10px" }}>{liveEv.enrichment.summary}</p>
+                <button type="button" onClick={() => setEnrichOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "none", border: 0, padding: 0, cursor: "pointer" }}>
+                  <span style={{ fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-3)", fontWeight: 800 }}>Trovato da Keiko ✨</span>
+                  <span style={{ marginLeft: "auto", color: "var(--text-3)", fontSize: 13, transform: enrichOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
+                </button>
+                {enrichOpen && (
+                  <div style={{ marginTop: 8 }}>
+                    {liveEv.enrichment?.summary && (
+                      <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", lineHeight: 1.5, margin: "0 2px 10px" }}>{liveEv.enrichment.summary}</p>
+                    )}
+                    {(liveEv.enrichment?.links ?? []).map((l, i) => (
+                      <a key={i} href={l.url} target="_blank" rel="noreferrer" className="btn line" style={{ display: "flex", width: "100%", marginBottom: 8, textDecoration: "none", justifyContent: "flex-start" }}>🔗 {l.label}</a>
+                    ))}
+                    {!liveEv.enrichment && (
+                      <p style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 10px" }}>Keiko può cercare online info e link utili su questo evento.</p>
+                    )}
+                    <button className="btn line" style={{ width: "100%" }} disabled={enriching} onClick={() => refreshEnrich(liveEv.id)}>{enriching ? "Cerco online…" : "🔄 Aggiorna info da Keiko"}</button>
+                  </div>
                 )}
-                {(liveEv.enrichment?.links ?? []).map((l, i) => (
-                  <a key={i} href={l.url} target="_blank" rel="noreferrer" className="btn line" style={{ display: "flex", width: "100%", marginBottom: 8, textDecoration: "none", justifyContent: "flex-start" }}>🔗 {l.label}</a>
-                ))}
-                {!liveEv.enrichment && (
-                  <p style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 10px" }}>Keiko può cercare online info e link utili su questo evento.</p>
-                )}
-                <button className="btn line" style={{ width: "100%" }} disabled={enriching} onClick={() => refreshEnrich(liveEv.id)}>{enriching ? "Cerco online…" : "🔄 Aggiorna info da Keiko"}</button>
               </div>
             )}
           </div>
