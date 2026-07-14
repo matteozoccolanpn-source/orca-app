@@ -12,7 +12,7 @@ import "../../keiko.css";
 // Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
 // compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
 // sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
-const BUILD = "v2.4-search";
+const BUILD = "v2.5-search-delete";
 
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
@@ -114,6 +114,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
   const [editVal, setEditVal] = useState<EventFormValue | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [actId, setActId] = useState<string | null>(null);
   const [askQ, setAskQ] = useState("");
   const [askBusy, setAskBusy] = useState(false);
   const [askRes, setAskRes] = useState<{
@@ -343,7 +344,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
           <>
             <div className="heroRow" id="heroRow">
               {live.heroEvents.map((e) => (
-                <HeroLive key={e.id} e={e} onOpen={() => openEvent(e.id)} onActs={() => openV("actSheet")} />
+                <HeroLive key={e.id} e={e} onOpen={() => openEvent(e.id)} onActs={() => { setActId(e.id); openV("actSheet"); }} />
               ))}
             </div>
             {live.heroEvents.length > 1 && <div className="dotsRow">{live.heroEvents.map((e, i) => <i key={e.id} className={i === 0 ? "on" : ""} />)}</div>}
@@ -406,7 +407,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
               {live.upcoming[0] && <div className="sub">{live.upcoming[0].rel} c&apos;è <em>{live.upcoming[0].title}</em></div>}
             </div>
             <div className="miniRow" id="miniRow">
-              {live.upcoming.map((e) => <MiniLive key={e.id} e={e} onOpen={() => openEvent(e.id)} onActs={() => openV("actSheet")} />)}
+              {live.upcoming.map((e) => <MiniLive key={e.id} e={e} onOpen={() => openEvent(e.id)} onActs={() => { setActId(e.id); openV("actSheet"); }} />)}
             </div>
             {live.upcoming.length > 1 && <div className="dotsRow">{live.upcoming.map((e, i) => <i key={e.id} className={i === 0 ? "on" : ""} />)}</div>}
           </>
@@ -628,6 +629,9 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
               {live && liveEv && (
                 <button className="btn line" onClick={() => openEdit(liveEv)}>🕘 Sposta / Modifica</button>
               )}
+              {live && liveEv && (
+                <button className="btn line" style={{ color: "#E2705F" }} onClick={() => { setActId(liveEv.id); openV("confirmSheet"); }}>🗑️ Elimina</button>
+              )}
             </div>
           </div>
         </div>
@@ -770,7 +774,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
         <button className="evClose" onClick={() => { closeV("askFull"); setAskQ(""); setAskRes(null); }}>✕</button>
         <div className="bar">
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          <input value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }} placeholder="Chiedimi… «quando ho la cena con Giulia?»" />
+          <input value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }} placeholder="Cerca tra eventi e impegni…" />
         </div>
 
         {askBusy && <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "12px 4px 0" }}>Cerco…</p>}
@@ -790,18 +794,24 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
           </div>
         ) : !askBusy && (
           <>
-            {askRes && (
-              <div style={{ margin: "14px 2px 4px" }}>
-                <p style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)", fontWeight: 700, margin: 0 }}>Per ora non ci arrivo 😊</p>
-                <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "4px 0 0" }}>A breve Keiko saprà rispondere a tutto — intanto la tua domanda me la segno.</p>
+            {askRes ? (
+              <div style={{ margin: "16px 2px 6px" }}>
+                <p style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)", fontWeight: 700, margin: 0 }}>Nessun risultato per «{askQ}».</p>
+                <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "6px 0 0" }}>Prova con un nome, un luogo o il tipo (es. «cena», «volo», «hotel»).</p>
               </div>
+            ) : (
+              <>
+                <h6>I tuoi prossimi</h6>
+                {[...(live?.heroEvents ?? []), ...(live?.upcoming ?? [])].slice(0, 5).map((e) => (
+                  <div key={e.id} className="recent" onClick={() => { closeV("askFull"); openEvent(e.id); }}>
+                    <span className="e">{e.emoji}</span><span className="t">{e.title}</span><span className="r">{e.when}</span>
+                  </div>
+                ))}
+                {[...(live?.heroEvents ?? []), ...(live?.upcoming ?? [])].length === 0 && (
+                  <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "10px 2px 0" }}>Scrivi qui per cercare tra i tuoi eventi e impegni.</p>
+                )}
+              </>
             )}
-            <h6>Prova a chiedere</h6>
-            {["quando ho la cena con Giulia?", "quando parte il treno?", "quando gioca la Roma?"].map((s) => (
-              <div key={s} className="recent" onClick={() => { setAskQ(s); runSearch(s); }}>
-                <span className="e">💬</span><span className="t">{s}</span><span className="r">›</span>
-              </div>
-            ))}
           </>
         )}
       </div>
@@ -929,7 +939,14 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
         <div className="confirmTxt">Sparisce dal calendario e dai promemoria. Puoi sempre ripescarlo chiedendolo a Keiko.</div>
         <div className="confirmBtns">
           <button className="btn line" onClick={() => closeV("confirmSheet")}>Annulla</button>
-          <button className="btn red" onClick={() => { toast("Eliminato 🗑️"); closeV("confirmSheet"); }}>Elimina</button>
+          <button className="btn red" onClick={async () => {
+            if (!actId) { closeV("confirmSheet"); return; }
+            try {
+              const res = await fetch("/api/delete", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ id: actId }) });
+              if (!res.ok) throw new Error();
+              toast("Eliminato 🗑️"); closeV("confirmSheet"); setEvKey(null); setActId(null); router.refresh();
+            } catch { window.alert("Non sono riuscito a eliminare, riprova"); }
+          }}>Elimina</button>
         </div>
       </div>
 

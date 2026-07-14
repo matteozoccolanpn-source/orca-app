@@ -152,10 +152,7 @@ export default function AllenamentoView({
     toast(willBe ? "Segnato: allenamento fatto ✓💪" : "Riaperto");
   }
 
-  // "📆 Riprogramma" — nessun backend: mostra il messaggio come nel mockup.
-  function riprogramma() {
-    toast("Ti alleni un altro giorno? Lo riprogrammo 📆");
-  }
+  // "Riprogramma / sposta sessione" arriverà su Supabase (post-demo): niente bottone finto per ora.
 
   // Spunta un esercizio → persiste in locale e, se completi tutto, segna il giorno come allenato.
   function toggleExercise(i: number) {
@@ -231,7 +228,6 @@ export default function AllenamentoView({
                     ✓ Fatto oggi
                   </button>
                 )}
-                <button className="chipA" onClick={riprogramma}>📆 Riprogramma</button>
               </div>
             </div>
 
