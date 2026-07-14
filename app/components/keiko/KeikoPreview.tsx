@@ -12,7 +12,7 @@ import "../../keiko.css";
 // Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
 // compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
 // sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
-const BUILD = "v2.6-search-backup";
+const BUILD = "v2.7-ask-ai";
 
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
@@ -121,6 +121,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
     events: { id: string; title: string; type: string; datetime: string; location: string | null }[];
     todos: { id: string; text: string; day: string; time: string | null; location: string | null }[];
   } | null>(null);
+  const [askAnswer, setAskAnswer] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [evKey, setEvKey] = useState<string | null>(null);
   const [evFull, setEvFull] = useState(false);
@@ -172,13 +173,19 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
   async function runSearch(qArg?: string) {
     const q = (qArg ?? askQ).trim();
     if (!q) return;
-    setAskBusy(true);
+    setAskBusy(true); setAskAnswer(null); setAskRes(null);
     try {
-      const r = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q }) });
-      const data = await r.json();
-      setAskRes(r.ok ? data : { events: [], todos: [] });
-    } catch { setAskRes({ events: [], todos: [] }); }
-    finally { setAskBusy(false); }
+      // In parallelo: risposta AI di Keiko + collegamenti rapidi (eventi/to-do).
+      const [ai, search] = await Promise.all([
+        fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q }) }).then((r) => r.json()).catch(() => ({ answer: "" })),
+        fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q }) }).then((r) => r.json()).catch(() => ({ events: [], todos: [] })),
+      ]);
+      setAskAnswer(typeof ai?.answer === "string" && ai.answer ? ai.answer : "Su questa non ho ancora una risposta 😊 — me la segno, così miglioriamo.");
+      setAskRes({ events: search?.events ?? [], todos: search?.todos ?? [] });
+    } catch {
+      setAskAnswer("Ho avuto un intoppo, riprova tra un attimo.");
+      setAskRes({ events: [], todos: [] });
+    } finally { setAskBusy(false); }
   }
 
   const openCal = () => openV("calPanel");
@@ -771,48 +778,46 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
 
       {/* Ask Keiko */}
       <div className={`askFull${views.askFull ? " open" : ""}`} id="askFull">
-        <button className="evClose" onClick={() => { closeV("askFull"); setAskQ(""); setAskRes(null); }}>✕</button>
+        <button className="evClose" onClick={() => { closeV("askFull"); setAskQ(""); setAskRes(null); setAskAnswer(null); }}>✕</button>
         <div className="bar">
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          <input value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }} placeholder="Cerca tra eventi e impegni…" />
+          <input value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }} placeholder="Chiedi a Keiko… es. «che allenamento ho oggi?»" />
         </div>
 
-        {askBusy && <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "12px 4px 0" }}>Cerco…</p>}
+        {askBusy && <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "12px 4px 0" }}>Keiko sta pensando…</p>}
 
-        {!askBusy && askRes && (askRes.events.length > 0 || askRes.todos.length > 0) ? (
-          <div style={{ marginTop: 8 }}>
-            {askRes.events.length > 0 && <h6>Eventi</h6>}
+        {!askBusy && askAnswer && (
+          <div style={{ marginTop: 12, background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: "12px 14px", color: "var(--text)", fontSize: "var(--fs-sm)", fontWeight: 600, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+            {askAnswer}
+          </div>
+        )}
+
+        {!askBusy && askRes && (askRes.events.length > 0 || askRes.todos.length > 0) && (
+          <div style={{ marginTop: 12 }}>
+            <h6>Collegamenti</h6>
             {askRes.events.map((e) => (
               <div key={e.id} className="recent" onClick={() => { closeV("askFull"); openEvent(e.id); }}>
                 <span className="e">📅</span><span className="t">{e.title}</span><span className="r">{fmtWhen(e.datetime)}</span>
               </div>
             ))}
-            {askRes.todos.length > 0 && <h6>To-do</h6>}
             {askRes.todos.map((t) => (
               <div key={t.id} className="recent">
                 <span className="e">✅</span><span className="t">{t.text}</span><span className="r">{fmtDay(t.day, t.time)}</span>
               </div>
             ))}
           </div>
-        ) : !askBusy && (
+        )}
+
+        {!askBusy && !askAnswer && !askRes && (
           <>
-            {askRes ? (
-              <div style={{ margin: "16px 2px 6px" }}>
-                <p style={{ color: "var(--text-2)", fontSize: "var(--fs-sm)", fontWeight: 700, margin: 0 }}>Su questa non ho ancora una risposta 😊</p>
-                <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "6px 0 0" }}>A breve Keiko saprà rispondere anche a domande così — intanto me la segno, così miglioriamo. Per ora posso cercarti eventi e impegni per nome, luogo o tipo («cena», «volo», «hotel»).</p>
+            <h6>I tuoi prossimi</h6>
+            {[...(live?.heroEvents ?? []), ...(live?.upcoming ?? [])].slice(0, 5).map((e) => (
+              <div key={e.id} className="recent" onClick={() => { closeV("askFull"); openEvent(e.id); }}>
+                <span className="e">{e.emoji}</span><span className="t">{e.title}</span><span className="r">{e.when}</span>
               </div>
-            ) : (
-              <>
-                <h6>I tuoi prossimi</h6>
-                {[...(live?.heroEvents ?? []), ...(live?.upcoming ?? [])].slice(0, 5).map((e) => (
-                  <div key={e.id} className="recent" onClick={() => { closeV("askFull"); openEvent(e.id); }}>
-                    <span className="e">{e.emoji}</span><span className="t">{e.title}</span><span className="r">{e.when}</span>
-                  </div>
-                ))}
-                {[...(live?.heroEvents ?? []), ...(live?.upcoming ?? [])].length === 0 && (
-                  <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "10px 2px 0" }}>Scrivi qui per cercare tra i tuoi eventi e impegni.</p>
-                )}
-              </>
+            ))}
+            {[...(live?.heroEvents ?? []), ...(live?.upcoming ?? [])].length === 0 && (
+              <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "10px 2px 0" }}>Scrivi qui per chiedere a Keiko o cercare tra i tuoi dati.</p>
             )}
           </>
         )}
