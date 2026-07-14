@@ -12,7 +12,7 @@ import "../../keiko.css";
 // Marcatore di build: cambiare a ogni fix da verificare sul telefono. Con `?debug`
 // compare in alto (build + tap + mood): se il telefono NON mostra questo valore,
 // sta ricevendo un bundle vecchio (service worker/cache), non il fix appena fatto.
-const BUILD = "v2.7-ask-ai";
+const BUILD = "v2.8-ask-tz";
 
 /* ==================================================================== *
  * KEIKO — TAPPA 1: home nuova con DATI FINTI del mockup keiko-final.html
@@ -782,6 +782,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
         <div className="bar">
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.6"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }} placeholder="Chiedi a Keiko… es. «che allenamento ho oggi?»" />
+          <button type="button" onClick={() => runSearch()} aria-label="Chiedi a Keiko" disabled={askBusy || !askQ.trim()} style={{ flex: "none", width: 34, height: 34, borderRadius: "50%", border: 0, background: "var(--accent)", color: "#fff", fontSize: 17, fontWeight: 800, cursor: "pointer", display: "grid", placeItems: "center", opacity: (askBusy || !askQ.trim()) ? 0.4 : 1 }}>↑</button>
         </div>
 
         {askBusy && <p style={{ color: "var(--text-3)", fontSize: "var(--fs-xs)", margin: "12px 4px 0" }}>Keiko sta pensando…</p>}

@@ -31,7 +31,15 @@ export async function POST(req: NextRequest) {
     ])
 
     const context = {
-      eventi: events.map((e) => ({ titolo: e.title, tipo: e.type, quando: e.datetime, luogo: e.location })),
+      eventi: events.map((e) => ({
+        titolo: e.title,
+        tipo: e.type,
+        // Orario già convertito in ora di Roma, così l'AI non sbaglia il fuso.
+        quando: e.datetime
+          ? new Date(e.datetime).toLocaleString('it-IT', { timeZone: 'Europe/Rome', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+          : null,
+        luogo: e.location,
+      })),
       todo: todos.map((t) => ({ testo: t.text, giorno: t.day, ora: t.time, luogo: t.location, fatto: t.done })),
       dieta_settimana: diet?.week ?? null,
       allenamento_settimana: workout?.week ?? null,
