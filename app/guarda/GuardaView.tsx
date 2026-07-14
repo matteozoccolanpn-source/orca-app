@@ -271,9 +271,6 @@ function Body({
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-        <span className="tbc">notifiche uscite &middot; presto</span>
-      </div>
     </>
   );
 }

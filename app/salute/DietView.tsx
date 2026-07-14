@@ -201,16 +201,6 @@ function DietBody({ week, updatedAt }: { week: DietWeek | null; updatedAt: strin
       {/* ---------- TBC + elimina ---------- */}
       {hasDiet && (
         <>
-          <div className="sa" style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <button
-              type="button"
-              className="tbc"
-              style={{ border: 0, cursor: "pointer", fontFamily: "var(--f)" }}
-              onClick={() => toast("Ci sto lavorando 🔧")}
-            >
-              report settimanale · presto
-            </button>
-          </div>
           <DeleteButton
             onDone={() => router.refresh()}
             onError={(m) => toast(m)}

@@ -305,7 +305,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
         {/* kicker — la data apre il calendario mensile (v2.1) */}
         <div className="kick">
           <div className="over kickCal" onClick={openCal}>{live ? live.kickDate : "Venerdì 3 luglio · Roma 24° ☀️"} <span className="calGo">›</span></div>
-          <h1>{live ? live.greeting : "Ciao Matteo 👋"}</h1>
+          <h1>{name ? `Ciao ${name} 👋` : (live ? live.greeting : "Ciao Matteo 👋")}</h1>
           <div className="lede">{live ? live.lede : "Stasera Roma con Giulia: treno alle 18:05, poi cena da Enzo."}</div>
         </div>
 
@@ -886,10 +886,12 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
 
       {/* Sheet Sposta / Modifica evento (reale: salva su /api/update) */}
       {editVal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "flex-end" }} onClick={closeEdit}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "var(--bg-2)", borderTopLeftRadius: "var(--r-xl)", borderTopRightRadius: "var(--r-xl)", padding: "18px 16px calc(env(safe-area-inset-bottom) + 22px)", maxHeight: "90vh", overflowY: "auto" }}>
-            <h3 style={{ fontSize: "var(--fs-lg)", fontWeight: 800, color: "var(--text)", margin: "4px 2px 14px" }}>Sposta / Modifica</h3>
-            <EventForm value={editVal} onChange={setEditVal} onCancel={closeEdit} onSave={saveEdit} saving={savingEdit} saveLabel="Salva" intro="Cambia data, ora e dettagli dell'evento" />
+        <div style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,.55)", backdropFilter: "blur(2px)", display: "flex", alignItems: "flex-end" }} onClick={closeEdit}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", fontFamily: "var(--f)", background: "var(--bg-2)", border: "1px solid var(--card-line)", borderBottom: "none", borderTopLeftRadius: "var(--r-xl)", borderTopRightRadius: "var(--r-xl)", padding: "10px 18px calc(env(safe-area-inset-bottom) + 24px)", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 -30px 70px rgba(0,0,0,.5)" }}>
+            <div style={{ width: 40, height: 4, borderRadius: 999, background: "var(--card-line)", margin: "0 auto 14px" }} />
+            <h3 style={{ fontSize: "var(--fs-lg)", fontWeight: 800, color: "var(--text)", margin: "0 2px 2px" }}>Sposta / Modifica</h3>
+            <p style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 16px" }}>Cambia data, ora e dettagli dell&apos;evento.</p>
+            <EventForm value={editVal} onChange={setEditVal} onCancel={closeEdit} onSave={saveEdit} saving={savingEdit} saveLabel="Salva" intro="" />
           </div>
         </div>
       )}

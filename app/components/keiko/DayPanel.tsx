@@ -236,7 +236,6 @@ function TodoRow({
             {todo.phone && (
               <a className="chip" href={`tel:${todo.phone}`} onClick={(e) => e.stopPropagation()}>📞 Chiama</a>
             )}
-            {todo.time && <span className="tbc">notifica · presto</span>}
           </div>
         )}
       </div>

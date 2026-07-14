@@ -286,11 +286,6 @@ export default function AllenamentoView({
               })}
             </div>
 
-            {/* ---------- In arrivo (TBC, sempre visibili) ---------- */}
-            <div className="sa" style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-              <span className="tbc">scambio allenamenti · presto</span>
-              <span className="tbc">report mensile · presto</span>
-            </div>
 
             {/* ---------- Gestione scheda (funzioni reali preservate) ---------- */}
             <div style={{ display: "flex", gap: 8, marginTop: 20 }}>

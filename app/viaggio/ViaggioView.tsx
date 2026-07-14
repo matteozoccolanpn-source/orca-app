@@ -297,21 +297,6 @@ function SlotRow({ step, clusterKey, index, ticket }: { step: Slot; clusterKey: 
         {ticket && (
           <a className="chipA dk" href={`/?v2#ev=${ticket.id}`}>&#127903; Vedi biglietto</a>
         )}
-        <span
-          className="tbc"
-          role="button"
-          tabIndex={0}
-          onClick={() => toast("Ci sto lavorando \u{1F527}")}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              toast("Ci sto lavorando \u{1F527}");
-            }
-          }}
-          style={{ cursor: "pointer" }}
-        >
-          notifica tappa &middot; presto
-        </span>
       </div>
 
       {editing && (
