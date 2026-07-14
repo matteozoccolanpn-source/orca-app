@@ -16,7 +16,7 @@ import {
   Check,
   Pencil,
 } from "lucide-react";
-import type { WorkoutWeek } from "@/lib/supabase";
+import type { WorkoutWeek, WorkoutExercise } from "@/lib/supabase";
 import { DAY_ORDER, DAY_FULL } from "@/app/components/DietMeal";
 import { WorkoutDayCard, currentWeekDates, todayISO } from "@/app/components/WorkoutDay";
 import { useKeikoToast } from "@/app/components/keiko/KeikoShell";
@@ -60,6 +60,10 @@ export default function AllenamentoView({
   const [trained, setTrained] = useState<Set<string>>(new Set(trainedDays));
   // Spunta esercizi di oggi: locale/effimero (non c'è backend per singolo esercizio).
   const [checked, setChecked] = useState<Set<number>>(new Set());
+  // Modifica scheda (B): sposta sessione, togli/sostituisci/aggiungi esercizi.
+  const [editMode, setEditMode] = useState(false);
+  const [draft, setDraft] = useState<WorkoutExercise[]>([]);
+  const [savingWeek, setSavingWeek] = useState(false);
   const weekDates = currentWeekDates();
 
   // Oggi (dati reali)
@@ -168,6 +172,48 @@ export default function AllenamentoView({
     }
   }
 
+  function startEdit() {
+    setDraft(todayExercises.map((e) => ({ ...e })));
+    setEditMode(true);
+  }
+  async function saveWeek(newWeek: WorkoutWeek) {
+    setSavingWeek(true);
+    try {
+      const res = await fetch("/api/workout/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ week: newWeek }),
+      });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      window.alert("Non sono riuscito a salvare, riprova");
+    } finally {
+      setSavingWeek(false);
+    }
+  }
+  // Salva gli esercizi modificati di oggi.
+  async function commitExercises() {
+    const cleaned = draft.map((e) => ({ nome: e.nome.trim(), dettaglio: e.dettaglio ?? "" })).filter((e) => e.nome);
+    const newWeek: WorkoutWeek = { ...(week ?? {}), [todayKey]: { titolo: todayDay?.titolo, esercizi: cleaned } };
+    await saveWeek(newWeek);
+    setEditMode(false);
+    toast("Scheda aggiornata ✓");
+  }
+  // Sposta/scambia la sessione di oggi con un altro giorno.
+  async function moveSessionTo(target: string) {
+    if (!week) return;
+    const newWeek: WorkoutWeek = { ...week };
+    const cur = newWeek[todayKey] ?? { esercizi: [] };
+    const dst = newWeek[target] ?? { esercizi: [] };
+    newWeek[target] = cur;
+    newWeek[todayKey] = dst;
+    await saveWeek(newWeek);
+    setEditMode(false);
+    toast(`Sessione spostata a ${target} ✓`);
+  }
+
   async function handleDelete() {
     if (!window.confirm("Eliminare la scheda salvata? L'azione non si può annullare.")) return;
     setDeleting(true);
@@ -254,6 +300,34 @@ export default function AllenamentoView({
                     </div>
                   );
                 })}
+              </>
+            )}
+
+            {/* ---------- Modifica scheda (B): sposta sessione, esercizi ---------- */}
+            {hasPlan && todayIsTraining && (
+              <>
+                <button className="btn line" style={{ width: "100%", marginTop: 12 }} onClick={() => (editMode ? setEditMode(false) : startEdit())}>
+                  {editMode ? "Chiudi modifica" : "✏️ Modifica la sessione di oggi"}
+                </button>
+                {editMode && (
+                  <div style={{ marginTop: 10, background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: 12 }}>
+                    <div className="agLbl" style={{ padding: "0 2px 8px" }}>Sposta a un altro giorno</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                      {DAY_ORDER.filter((k) => k !== todayKey).map((k) => (
+                        <button key={k} className="chipA" disabled={savingWeek} onClick={() => moveSessionTo(k)} style={{ textTransform: "capitalize" }}>{k}</button>
+                      ))}
+                    </div>
+                    <div className="agLbl" style={{ padding: "0 2px 8px" }}>Esercizi</div>
+                    {draft.map((ex, i) => (
+                      <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                        <input value={ex.nome} onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))} placeholder="Esercizio" style={{ flex: 1, background: "var(--paper)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: "8px 10px", color: "var(--ink)", fontFamily: "var(--f)", fontSize: "var(--fs-sm)" }} />
+                        <button type="button" aria-label="Togli" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} style={{ border: 0, background: "none", color: "var(--text-3)", fontSize: 18, cursor: "pointer", minWidth: 26 }}>✕</button>
+                      </div>
+                    ))}
+                    <button className="btn line" style={{ width: "100%", marginBottom: 8 }} onClick={() => setDraft((d) => [...d, { nome: "", dettaglio: "" }])}>+ Aggiungi esercizio</button>
+                    <button className="btn acc" style={{ width: "100%" }} disabled={savingWeek} onClick={commitExercises}>{savingWeek ? "Salvo…" : "Salva modifiche"}</button>
+                  </div>
+                )}
               </>
             )}
 
