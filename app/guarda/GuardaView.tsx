@@ -194,7 +194,9 @@ function Body({
           tabIndex={0}
         >
           <div className={`cover ${coverOf(list.indexOf(hero))}`} style={HERO_COVER}>
-            <span className="ttl" style={CLAMP2}>{hero.title}</span>
+            {hero.poster
+              ? <img src={hero.poster} alt={hero.title} style={POSTER_IMG} />
+              : <span className="ttl" style={CLAMP2}>{hero.title}</span>}
           </div>
           <div className="wt">
             <span className="k3">Stasera per te</span>
@@ -235,8 +237,10 @@ function Body({
             tabIndex={0}
             style={{ minWidth: 0 }}
           >
-            <div className={`cover ${coverOf(list.indexOf(item))}`}>
-              <span className="ttl" style={CLAMP3}>{item.title}</span>
+            <div className={`cover ${coverOf(list.indexOf(item))}`} style={{ position: "relative" }}>
+              {item.poster
+                ? <img src={item.poster} alt={item.title} style={POSTER_IMG} />
+                : <span className="ttl" style={CLAMP3}>{item.title}</span>}
             </div>
             <div className="seenMark">{"✅"}</div>
             <button
@@ -286,6 +290,14 @@ const HERO_COVER: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   padding: 10,
+};
+// locandina reale (TMDB): copre il gradiente quando presente
+const POSTER_IMG: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
 };
 const CLAMP2: React.CSSProperties = {
   display: "-webkit-box",
