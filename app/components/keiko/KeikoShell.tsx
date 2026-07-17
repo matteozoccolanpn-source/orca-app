@@ -17,7 +17,7 @@ const ToastCtx = createContext<(msg: string, action?: string, onAction?: () => v
 export function useKeikoToast() { return useContext(ToastCtx); }
 
 export default function KeikoShell({
-  title, badge, backHref = "/?v2", children,
+  title, badge, backHref = "/", children,
 }: {
   title: string;
   badge?: string;

@@ -151,7 +151,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   }
 
   return (
-    <KeikoShell title="Da guardare" badge={badge} backHref="/?v2">
+    <KeikoShell title="Da guardare" badge={badge} backHref="/">
       <Body
         list={list}
         onToggleSeen={toggleSeen}

@@ -38,7 +38,7 @@ export default async function AllenamentoPage() {
     <KeikoShell
       title="Allenamento"
       badge={streak > 0 ? `🔥 ${streak} DI FILA` : undefined}
-      backHref="/?v2"
+      backHref="/"
     >
       <AllenamentoView
         week={plan?.week ?? null}
