@@ -9,7 +9,7 @@ import type { ReactNode, CSSProperties } from "react";
 type Variant = "hero" | "square" | "mini" | "poster";
 
 const RATIO: Record<Variant, string> = {
-  hero: "16 / 10",
+  hero: "16 / 9",
   square: "1 / 1",
   mini: "16 / 11",
   poster: "2 / 3",
@@ -24,6 +24,7 @@ export default function SmartMedia({
   title,
   meta,
   display = false,
+  glyph,
   onClick,
   style,
   topRight,
@@ -36,17 +37,19 @@ export default function SmartMedia({
   title: string;
   meta?: ReactNode;
   display?: boolean;         // titolo in Fraunces (solo hero)
+  glyph?: string;            // emoji grande sfumata quando non c'è foto
   onClick?: () => void;
   style?: CSSProperties;
   topRight?: ReactNode;      // es. ⋯ o anello progressi
 }) {
   return (
-    <div className="ds-card" style={{ aspectRatio: RATIO[variant], ...style }} onClick={onClick}>
+    <div className={`ds-card ${variant}`} style={{ aspectRatio: RATIO[variant], ...style }} onClick={onClick}>
       {image ? (
         <img className="ds-ph" src={image} alt="" loading="lazy" decoding="async" />
       ) : (
         <div className="ds-ph" style={{ background: `var(--k-cat-${category})` }} />
       )}
+      {!image && glyph && <div className="ds-glyph" aria-hidden>{glyph}</div>}
       <div className="ds-scrim" />
       {chip && <div className={`ds-chip${chipAmber ? " amber" : ""}`}>{chip}</div>}
       {topRight}

@@ -24,8 +24,12 @@
 - Testo su foto: **sempre** con scrim (§4) + `text-shadow: 0 1px 10px rgba(0,0,0,.55)`. Target minimo AA (4.5:1) *dopo* lo scrim, testato sulle foto peggiori (cielo/piatto chiaro).
 
 ## 3. Tipografia (gerarchia governata)
+**Scala modulare (~1.25, applicabile a tutte le schede):** `26 / 22 / 18 / 16 / 14 / 13 / 11`.
+- 26 = saluto (Fraunces 600) · 22 = titolo hero (Fraunces 600) · 18 = H2 grande · 16 = titolo card (Inter 600) · 14 = corpo/numeri settimana · 13 = meta/data/riepilogo (Inter 500, muted) · 11 = label uppercase (VEN, badge, nav).
+- **Ritmo verticale** a multipli di 4/8: 4 (data→saluto), 8 (saluto→riepilogo), 20 (riepilogo→settimana), 24 (settimana→hero), 28 (hero→sezione), 12 (heading→griglia).
+
 Due font, ruoli **fissi**:
-- **Fraunces** (serif display, 600) → SOLO: `h1` saluto (33px) e **titolo hero** (22px, max 2 righe). Niente altro.
+- **Fraunces** (serif display, 600) → SOLO: `h1` saluto (26px) e **titolo hero** (22px, max 2 righe). Niente altro.
 - **Inter** → tutto il resto.
   - Titolo card (non-hero): Inter **700**, 16px (mini) / 15px (mod) / 13px (poster) — **1 riga + ellissi**.
   - Metadati: Inter **600**, 12.5px, `--text-2`.
@@ -42,9 +46,9 @@ Struttura fissa: `foto (o gradiente) → scrim → chip categoria (alto-sx) → 
 - **Indicatori tondi (anello/ring)**: track esterno + **centro PIENO opaco** (`#141017`), mai centro semitrasparente — altrimenti sembra un buco sulla foto.
 - Padding contenuto: 15px.
 - **Altezze/ratio** (niente 1:1 pieno):
-  - Hero: **16:10**.
+  - Hero: **16:9** (non più 16:10 — riduce il vuoto), padding contenuto **20px**.
   - Mini (carosello): **16:11**, min-width **214px** (regge il titolo).
-  - Modulo (griglia 2col): 1:1, max-height 158px.
+  - Modulo (griglia 2col): **4:3** (non 1:1 — comprime meglio le foto orizzontali).
   - Poster (film): **2:3**, width 116px.
 - **Chip categoria**: `rgba(10,10,12,.5)` + blur 8 + bordo `rgba(255,255,255,.16)`. Variante `amber` per lo stato "adesso/oggi".
 - **Fallback senza foto** (obbligatorio): usare i gradienti categoria `--cat-*` (cena/volo/concerto/sport/default) al posto della foto. Mai una card "vuota/buco".

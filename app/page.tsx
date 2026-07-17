@@ -1,5 +1,6 @@
 import SwipeShell from "./components/SwipeShell";
 import KeikoPreview from "./components/keiko/KeikoPreview";
+import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist } from "@/lib/supabase";
 import { signOut } from "@/auth";
@@ -16,7 +17,9 @@ export default async function Home({
 }) {
   // Interruttore redesign (invertito): la home NUOVA (KeikoPreview) è il default su /.
   // La vecchia resta su /?classic. /?v2 resta come alias del default per i link esistenti.
-  const classic = "classic" in (await searchParams);
+  const sp = await searchParams;
+  const classic = "classic" in sp;
+  const v4 = "v4" in sp;   // nuova Home redesign (Fase 2), additiva
   const [events, diet, workout, trainedDays, trips, todos, watchlist] = await Promise.all([
     getUpcomingTickets(),
     getDietPlan(),
@@ -61,5 +64,6 @@ export default async function Home({
     trips,
     watch: watchlist,
   });
+  if (v4) return <KeikoHomeV4 live={live} />;
   return <KeikoPreview live={live} logoutAction={logout} />;
 }
