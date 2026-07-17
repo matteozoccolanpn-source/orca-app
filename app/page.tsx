@@ -15,11 +15,12 @@ export default async function Home({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  // Interruttore redesign (invertito): la home NUOVA (KeikoPreview) è il default su /.
-  // La vecchia resta su /?classic. /?v2 resta come alias del default per i link esistenti.
+  // Home di default = REDESIGN v4 (KeikoHomeV4). Paracadute non cancellati:
+  //   /?v2      → KeikoPreview (la Home usata finora)
+  //   /?classic → SwipeShell   (la primissima Home)
   const sp = await searchParams;
   const classic = "classic" in sp;
-  const v4 = "v4" in sp;   // nuova Home redesign (Fase 2), additiva
+  const v2 = "v2" in sp;   // paracadute: Home precedente
   const [events, diet, workout, trainedDays, trips, todos, watchlist] = await Promise.all([
     getUpcomingTickets(),
     getDietPlan(),
@@ -64,6 +65,8 @@ export default async function Home({
     trips,
     watch: watchlist,
   });
-  if (v4) return <KeikoHomeV4 live={live} logoutAction={logout} />;
-  return <KeikoPreview live={live} logoutAction={logout} />;
+  // Paracadute: la Home precedente resta raggiungibile su /?v2.
+  if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
+  // Default: la nuova Home redesign.
+  return <KeikoHomeV4 live={live} logoutAction={logout} />;
 }
