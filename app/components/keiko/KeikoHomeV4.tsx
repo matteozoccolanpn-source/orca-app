@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CaptureSheet from "@/components/CaptureSheet";
 import EventSheet from "./EventSheet";
+import AskSheet from "./AskSheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
@@ -18,6 +19,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
   const router = useRouter();
   const [capture, setCapture] = useState(false);
   const [selEv, setSelEv] = useState<LiveEvent | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
 
   const heroEv = live.heroEvents[0] ?? live.upcoming[0] ?? null;
   const inArrivo = (heroEv ? live.upcoming : live.upcoming.slice(1)).slice(0, 6);
@@ -46,7 +48,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
           kei<span style={{ color: "var(--k-accent)" }}>ko</span>
         </span>
         <div
-          onClick={() => go("/?v2")}
+          onClick={() => { if (!demo) setAskOpen(true); }}
           style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "10px 14px", color: "var(--k-text-3)", fontSize: 13.5, fontWeight: 500, cursor: "pointer" }}
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -130,7 +132,8 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
       </nav>
 
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
-      {selEv && <EventSheet ev={selEv} onClose={() => setSelEv(null)} />}
+      {selEv && <EventSheet ev={selEv} onClose={() => setSelEv(null)} demo={demo} />}
+      {askOpen && <AskSheet onClose={() => setAskOpen(false)} />}
     </div>
   );
 }
