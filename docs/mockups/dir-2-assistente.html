@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Direzione 2 · ASSISTENTE</title>
+<!--
+  DIREZIONE 2 — "ASSISTENTE" (AI-first)
+  La home non è fatta di sezioni: è fatta di DECISIONI. Keiko parla per primo,
+  ogni blocco è un momento con un'azione. Le card si risolvono quando decidi
+  (prova "Sì, avvisala"). Un colore, zero glow, zero poster, zero FAB.
+-->
+<style>
+  :root{
+    --bg:#101D33; --line:rgba(160,190,235,.14); --card:#182742;
+    --text:#F2EFE7; --text-2:#AFBDD6; --text-3:#7C8CA8;
+    --acc:#5A9DFF; --paper:#F7F3E9; --ink:#17202E;
+    --f:ui-rounded,-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#0A1322;font-family:var(--f)}
+  body{display:flex;flex-direction:column;align-items:center;padding:28px 12px;gap:18px}
+  .manifesto{max-width:390px;color:#7E8CA5;font-size:12.5px;line-height:1.55;text-align:center}
+  .manifesto b{color:#F2EFE7;font-size:15px;letter-spacing:.14em;display:block;margin-bottom:6px}
+
+  .phone{
+    position:relative;width:390px;height:844px;background:var(--bg);
+    border-radius:44px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 30px 70px rgba(0,0,0,.5);display:flex;flex-direction:column;
+  }
+  .screen{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 22px}
+  .screen::-webkit-scrollbar{display:none}
+
+  .top{display:flex;align-items:center;justify-content:space-between;padding:24px 0 0}
+  .mark{width:24px;height:17px;color:var(--text-2)}
+  .day{font-size:12px;font-weight:700;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+  .day span{color:var(--acc)}
+
+  h1{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--text);margin-top:30px}
+
+  /* il filo del discorso */
+  .flow{margin-top:8px;padding-bottom:8px}
+  .beat{position:relative;padding:22px 0 0}
+  .beat::before{content:"";position:absolute;left:5px;top:0;height:22px;width:1.5px;background:var(--line)}
+  .beat:first-child::before{display:none}
+
+  .say{font-size:20px;font-weight:600;line-height:1.4;color:var(--text)}
+  .say small{display:block;font-size:14px;font-weight:500;color:var(--text-2);margin-top:6px;line-height:1.5}
+  .say .hl{color:var(--acc);font-variant-numeric:tabular-nums}
+
+  .acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .b{
+    border:0;border-radius:999px;padding:11px 16px;font-family:var(--f);font-size:13.5px;font-weight:700;cursor:pointer;
+  }
+  .b.p{background:var(--paper);color:var(--ink)}
+  .b.g{background:transparent;border:1px solid var(--line);color:var(--text-2)}
+
+  /* momento risolto */
+  .beat.done .say,.beat.done .say small{color:var(--text-3)}
+  .beat.done .acts{display:none}
+  .done-note{display:none;margin-top:10px;font-size:13.5px;font-weight:700;color:var(--acc)}
+  .beat.done .done-note{display:block}
+
+  /* il giorno, ripiegato in fondo (una riga per cosa) */
+  .later{margin-top:34px;border-top:1px solid var(--line);padding-top:18px}
+  .later h2{font-size:12px;font-weight:700;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase}
+  .lrow{display:flex;gap:12px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .lrow:last-child{border-bottom:0}
+  .lrow .h{font-size:13px;font-weight:700;color:var(--text-3);width:44px;font-variant-numeric:tabular-nums}
+  .lrow .t{flex:1;font-size:15px;font-weight:600;color:var(--text-2)}
+  .lrow .a{color:var(--text-3)}
+
+  .breath{height:120px}
+
+  /* in basso: la conversazione continua (unica UI persistente) */
+  .bar{
+    position:absolute;left:0;right:0;bottom:0;padding:12px 18px calc(20px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 70%,transparent);
+  }
+  .field{
+    display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:16px;
+    background:var(--card);padding:13px 16px;
+  }
+  .field input{flex:1;border:0;outline:0;background:none;font-size:15px;color:var(--text);font-family:var(--f)}
+  .field input::placeholder{color:var(--text-3)}
+  .field .send{border:0;background:none;color:var(--acc);font-weight:800;font-size:14px;cursor:pointer;font-family:var(--f)}
+
+  .toast{
+    position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;
+    background:var(--paper);color:var(--ink);font-size:12px;font-weight:700;
+    padding:10px 16px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap;
+  }
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="manifesto">
+  <b>DIREZIONE 2 · ASSISTENTE</b>
+  La home è fatta di decisioni, non di sezioni. Keiko parla per primo e ogni momento
+  ha un'azione — prova «Sì, avvisala». Il planner sparisce: resta l'assistente.
+</div>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="top">
+      <svg class="mark" viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg>
+      <span class="day" onclick="toast('Il calendario resta a un tap')">sab 4 · <span>agenda ›</span></span>
+    </div>
+
+    <h1>Buonasera Matteo</h1>
+
+    <div class="flow">
+
+      <div class="beat">
+        <div class="say">Fra <span class="hl" id="cd">42 minuti</span> esci per il concerto.
+          <small>Tor Vergata · con la metro C arrivi alle 20:12.</small>
+        </div>
+        <div class="acts">
+          <button class="b p" onclick="toast('Apro Maps 🗺️')">Percorso</button>
+          <button class="b g" onclick="toast('Biglietti pronti da mostrare')">Biglietti ×2</button>
+        </div>
+      </div>
+
+      <div class="beat">
+        <div class="say">Hai ancora tempo per un caffè.
+          <small>Bar Nero, 3 minuti dalla fermata — chiude alle 20.</small>
+        </div>
+        <div class="acts">
+          <button class="b g" onclick="toast('Aggiunto al percorso ☕')">Passaci</button>
+        </div>
+      </div>
+
+      <div class="beat">
+        <div class="say">Stasera scende a 16°.
+          <small>Porta una giacca — il rientro è dopo mezzanotte.</small>
+        </div>
+      </div>
+
+      <div class="beat" id="giulia">
+        <div class="say">Avviso Giulia che arrivi alle <span class="hl">20:15</span>?</div>
+        <div class="acts">
+          <button class="b p" onclick="resolve('giulia','Fatto — «Arrivo alle 20:15» ✓')">Sì, avvisala</button>
+          <button class="b g" onclick="resolve('giulia','Ok, non la avviso')">No</button>
+        </div>
+        <div class="done-note" id="giulia-note"></div>
+      </div>
+
+    </div>
+
+    <div class="later">
+      <h2>Più tardi · tutto sotto controllo</h2>
+      <div class="lrow" onclick="toast('Concerto — dettagli')"><span class="h">20:30</span><span class="t">Ultimo, Tor Vergata</span><span class="a">›</span></div>
+      <div class="lrow" onclick="toast('Domani — treno del ritorno')"><span class="h">dom</span><span class="t">Treno del ritorno · 17:50</span><span class="a">›</span></div>
+      <div class="lrow" onclick="toast('Palestra riprogrammata a lunedì ✓')"><span class="h">·</span><span class="t">Palestra spostata a lunedì — ho fatto io</span><span class="a">✓</span></div>
+    </div>
+
+    <div class="breath"></div>
+  </div>
+
+  <div class="bar">
+    <div class="field">
+      <input placeholder="Rispondi o chiedi…">
+      <button class="send" onclick="toast('Ci penso io ✓')">Invia</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  let tt;
+  function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1600)}
+  function resolve(id,msg){
+    const b=document.getElementById(id);
+    b.classList.add('done');
+    document.getElementById(id+'-note').textContent=msg;
+  }
+  function tick(){
+    const now=new Date(),dep=new Date();dep.setHours(19,40,0,0);
+    const m=Math.max(0,Math.floor((dep-now)/60000));
+    document.getElementById('cd').textContent=m>60?`${Math.floor(m/60)} h ${m%60} m`:`${m} minuti`;
+  }
+  tick();setInterval(tick,30000);
+</script>
+</body>
+</html>

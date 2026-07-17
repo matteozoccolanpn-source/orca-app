@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Direzione 1 · QUIETE</title>
+<!--
+  DIREZIONE 1 — "QUIETE" (Apple Calendar / Things / Journal)
+  Rumore -60%: design quasi invisibile. Un solo componente-card (il Prossimo),
+  tutto il resto è tipografia, righe e aria. Un solo colore d'accento, usato due volte.
+  Niente glow, niente poster, niente FAB: in basso c'è solo il campo di Keiko.
+-->
+<style>
+  :root{
+    --bg:#FAF8F5; --line:#E8E4DC; --text:#1C1A16; --text-2:#6E695F; --text-3:#A39D90;
+    --acc:#3D7BD6; --done:#B9B3A6;
+    --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#ECE9E3;font-family:var(--f)}
+  body{display:flex;flex-direction:column;align-items:center;padding:28px 12px;gap:18px}
+  .manifesto{max-width:390px;color:#8A857A;font-size:12.5px;line-height:1.55;text-align:center}
+  .manifesto b{color:#1C1A16;font-size:15px;letter-spacing:.14em;display:block;margin-bottom:6px}
+
+  .phone{
+    position:relative;width:390px;height:844px;background:var(--bg);
+    border-radius:44px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 30px 70px rgba(60,50,30,.18);display:flex;flex-direction:column;
+  }
+  .screen{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 26px}
+  .screen::-webkit-scrollbar{display:none}
+
+  /* testata: solo il necessario */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:26px 0 0}
+  .mark{width:22px;height:16px;color:var(--text-3)}
+  .date{font-size:12px;font-weight:600;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase}
+
+  h1{font-size:28px;font-weight:700;letter-spacing:-.02em;color:var(--text);margin-top:34px}
+
+  /* IL componente: il Prossimo (unica card della pagina) */
+  .next{
+    margin-top:28px;border:1px solid var(--line);border-radius:18px;padding:22px;cursor:pointer;
+    background:#fff;box-shadow:0 1px 2px rgba(60,50,30,.04);
+  }
+  .next .k{font-size:12px;font-weight:600;color:var(--text-3);letter-spacing:.05em;text-transform:uppercase}
+  .next .city{font-size:34px;font-weight:700;letter-spacing:-.02em;color:var(--text);margin-top:10px}
+  .next .row{display:flex;align-items:baseline;justify-content:space-between;margin-top:4px}
+  .next .what{font-size:15px;color:var(--text-2)}
+  .next .time{font-size:34px;font-weight:700;letter-spacing:-.01em;color:var(--acc);font-variant-numeric:tabular-nums}
+  .next .cd{font-size:13px;color:var(--text-2);margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .next .cd b{color:var(--text);font-weight:600}
+
+  /* sezioni: solo tipografia e righe */
+  .sec{margin-top:40px}
+  .sec h2{font-size:13px;font-weight:600;color:var(--text-3);letter-spacing:.05em;text-transform:uppercase;padding-bottom:6px}
+  .row2{
+    display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);cursor:pointer;
+  }
+  .row2:last-child{border-bottom:0}
+  .ck{
+    width:22px;height:22px;border-radius:50%;border:1.5px solid var(--text-3);flex:none;
+    display:grid;place-items:center;color:transparent;font-size:12px;transition:all .15s;
+  }
+  .row2.done .ck{background:var(--done);border-color:var(--done);color:#fff}
+  .row2 .t{flex:1;font-size:16px;color:var(--text);font-weight:500}
+  .row2.done .t{color:var(--text-3);text-decoration:line-through}
+  .row2 .m{font-size:14px;color:var(--text-3);font-variant-numeric:tabular-nums}
+
+  .link{display:flex;align-items:baseline;gap:10px;padding:15px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .link:last-child{border-bottom:0}
+  .link .t{flex:1;font-size:16px;font-weight:500;color:var(--text)}
+  .link .m{font-size:14px;color:var(--text-3)}
+  .link .a{color:var(--text-3)}
+
+  .breath{height:130px}
+
+  /* in basso: solo Keiko (niente FAB, niente tab) */
+  .bar{
+    position:absolute;left:0;right:0;bottom:0;padding:12px 20px calc(20px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 65%,transparent);
+  }
+  .field{
+    display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;
+    background:#fff;padding:13px 16px;box-shadow:0 1px 3px rgba(60,50,30,.05);
+  }
+  .field svg{width:15px;height:15px;stroke:var(--text-3);flex:none}
+  .field input{flex:1;border:0;outline:0;background:none;font-size:15px;color:var(--text);font-family:var(--f)}
+  .field input::placeholder{color:var(--text-3)}
+
+  .toast{
+    position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;
+    background:var(--text);color:var(--bg);font-size:12px;font-weight:600;
+    padding:10px 16px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .3s;
+  }
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="manifesto">
+  <b>DIREZIONE 1 · QUIETE</b>
+  Apple Calendar, Things, Journal: il design che sparisce. Una sola card, un solo accento,
+  il resto è tipografia e aria. Non spettacolare — ma è quella che usi tra sei mesi.
+</div>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="top">
+      <svg class="mark" viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg>
+      <span class="date">Sabato 4 luglio</span>
+    </div>
+
+    <h1>Buonasera Matteo</h1>
+
+    <!-- l'unica card -->
+    <div class="next" onclick="toast('Apro il biglietto')">
+      <div class="k">Prossimo</div>
+      <div class="city">Roma</div>
+      <div class="row">
+        <span class="what">Concerto · Ultimo, Tor Vergata</span>
+        <span class="time">20:30</span>
+      </div>
+      <div class="cd">Esci alle <b>19:40</b> · <span id="cd">—</span></div>
+    </div>
+
+    <!-- oggi: righe, non card -->
+    <div class="sec">
+      <h2>Oggi</h2>
+      <div class="row2 done" onclick="this.classList.toggle('done')"><span class="ck">✓</span><span class="t">Allenamento — lungo lento</span><span class="m">fatto</span></div>
+      <div class="row2" onclick="this.classList.toggle('done')"><span class="ck">✓</span><span class="t">Ritira il pacco in posta</span><span class="m">17:30</span></div>
+      <div class="row2" onclick="this.classList.toggle('done')"><span class="ck">✓</span><span class="t">Concerto — Ultimo</span><span class="m">20:30</span></div>
+    </div>
+
+    <!-- per te: appare solo quando serve -->
+    <div class="sec">
+      <h2>Per te</h2>
+      <div class="link" onclick="toast('Da guardare')"><span class="t">Dune: Parte Due</span><span class="m">stasera · Sky 21:15</span><span class="a">›</span></div>
+      <div class="link" onclick="toast('Itinerario')"><span class="t">Weekend a Roma</span><span class="m">tra 70 giorni</span><span class="a">›</span></div>
+    </div>
+
+    <div class="breath"></div>
+  </div>
+
+  <div class="bar">
+    <div class="field">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input placeholder="Scrivi a Keiko — «cena giovedì 20:30»">
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  let tt;
+  function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1500)}
+  function tick(){
+    const now=new Date(),dep=new Date();dep.setHours(20,30,0,0);
+    const m=Math.max(0,Math.floor((dep-now)/60000));
+    document.getElementById('cd').textContent=m>0?`mancano ${Math.floor(m/60)} h ${m%60} m`:'in corso';
+  }
+  tick();setInterval(tick,30000);
+</script>
+</body>
+</html>

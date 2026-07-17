@@ -220,6 +220,12 @@
   --sidebar-ring: var(--accent-strong);
 }
 
+/* =====================================================================
+   KEIKO REDESIGN — i token e le classi della nuova home stanno in app/keiko.css
+   (portati 1:1 dal mockup). La vecchia chrome globale (barra chat + ＋) non
+   viene montata su v2 via conditional render (components/GlobalChrome.tsx).
+   ===================================================================== */
+
 .tnum { font-variant-numeric: tabular-nums; }
 
 /* Bollicine decorative della Home (profondità mare) — puro CSS, dal mock.
@@ -250,7 +256,6 @@ html:not(.dark) .keiko-bubble { display: none; }
     background-color: var(--background);
     background-image: var(--screen-bg);
     background-attachment: fixed;
-    scroll-behavior: smooth;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
   }

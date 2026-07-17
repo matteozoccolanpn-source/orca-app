@@ -49,10 +49,33 @@ export function toDatetime(value: Pick<EventFormValue, 'date' | 'time'>): string
   return `${value.date}T${value.time}:00`
 }
 
-/** Splits an ISO-ish datetime into the `date` / `time` fields the form expects. */
+/** Splits an ISO-ish datetime into the `date` / `time` fields the form expects.
+ *
+ * FIX FUSO (bug "modifica sposta l'orario di -2h"): il DB restituisce l'istante
+ * in UTC (es. "…T15:30:00+00:00" per le 17:30 italiane). Spezzare la stringa
+ * grezza mostrava l'ora UTC nel form; al salvataggio quell'ora veniva riletta
+ * come ora italiana → ogni modifica spostava l'evento indietro di 2 ore.
+ * Ora, se la stringa ha un fuso (Z o +hh:mm), convertiamo in ora di Roma
+ * PRIMA di spezzarla. Se è "naive" (senza fuso, es. output del parser),
+ * è già ora locale da parete e si spezza com'era. */
 export function splitDatetime(datetime: string): { date: string; time: string } {
-  const [date = '', timeFull = '12:00'] = (datetime ?? '').split('T')
-  return { date, time: timeFull.slice(0, 5) }
+  const raw = datetime ?? ''
+  const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(raw)
+  const d = new Date(raw)
+  if (!hasOffset || isNaN(d.getTime())) {
+    const [date = '', timeFull = '12:00'] = raw.split('T')
+    return { date, time: timeFull.slice(0, 5) }
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(d)
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? ''
+  return {
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    time: `${get('hour')}:${get('minute')}`,
+  }
 }
 
 /**

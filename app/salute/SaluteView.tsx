@@ -17,6 +17,7 @@ import {
 import type { DietWeek } from "@/lib/supabase";
 import { DAY_ORDER, DAY_FULL, todayDietKey, MealRow } from "@/app/components/DietMeal";
 import HealthTabs from "@/app/components/HealthTabs";
+import DietView from "./DietView";
 
 // Salva nel piano lo scambio di un alimento su una precisa opzione
 // (giorno → indice pasto → indice opzione). Vive qui perché SaluteView ha
@@ -25,7 +26,23 @@ type CommitSwap = (day: string, mealIndex: number, optionIndex: number, newText:
 
 type State = "idle" | "parsing" | "success" | "error";
 
+// La rotta /salute usa la vista v2.3 (DietView, dentro KeikoShell). L'uso
+// "embedded" (vecchia home SwipeShell) resta sulla vista legacy qui sotto,
+// così la home vecchia continua a funzionare invariata.
 export default function SaluteView({
+  week,
+  updatedAt,
+  embedded = false,
+}: {
+  week: DietWeek | null;
+  updatedAt: string | null;
+  embedded?: boolean;
+}) {
+  if (!embedded) return <DietView week={week} updatedAt={updatedAt} />;
+  return <SaluteLegacy week={week} updatedAt={updatedAt} embedded={embedded} />;
+}
+
+function SaluteLegacy({
   week,
   updatedAt,
   embedded = false,

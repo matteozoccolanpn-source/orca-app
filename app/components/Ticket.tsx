@@ -68,7 +68,7 @@ function getSecondaryAction(type: string): SecondaryAction | null {
 }
 
 const EXPAND_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const SPRING = { type: "spring" as const, stiffness: 400, damping: 40 };
+const SPRING = { type: "spring" as const, stiffness: 550, damping: 42 };
 
 export default function Ticket({
   id,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,12 +16,18 @@ import {
   Check,
   Pencil,
 } from "lucide-react";
-import type { WorkoutWeek } from "@/lib/supabase";
-import { DAY_ORDER } from "@/app/components/DietMeal";
+import type { WorkoutWeek, WorkoutExercise } from "@/lib/supabase";
+import { DAY_ORDER, DAY_FULL } from "@/app/components/DietMeal";
+
+const DAY_LABEL: Record<string, string> = { lun: "Lunedì", mar: "Martedì", mer: "Mercoledì", gio: "Giovedì", ven: "Venerdì", sab: "Sabato", dom: "Domenica" };
 import { WorkoutDayCard, currentWeekDates, todayISO } from "@/app/components/WorkoutDay";
-import HealthTabs from "@/app/components/HealthTabs";
+import { useKeikoToast } from "@/app/components/keiko/KeikoShell";
 
 type State = "idle" | "parsing" | "success" | "error";
+
+// Gradiente hero allenamento — copiato 1:1 da keiko-final.html (#gymView .art).
+const GYM_ART =
+  "radial-gradient(110% 80% at 88% -6%,rgba(130,168,215,.46) 0%,transparent 52%),linear-gradient(168deg,#2A4568 0%,#16273F 55%,#0D1728 100%)";
 
 export default function AllenamentoView({
   week,
@@ -35,6 +41,7 @@ export default function AllenamentoView({
   embedded?: boolean;
 }) {
   const router = useRouter();
+  const toast = useKeikoToast();
   const [images, setImages] = useState<File[]>([]);
   const [pdf, setPdf] = useState<File | null>(null);
   const [state, setState] = useState<State>("idle");
@@ -53,7 +60,41 @@ export default function AllenamentoView({
 
   // Monitoraggio: spunte ottimistiche in un Set locale.
   const [trained, setTrained] = useState<Set<string>>(new Set(trainedDays));
+  // Spunta esercizi di oggi: locale/effimero (non c'è backend per singolo esercizio).
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+  // Modifica scheda (B): sposta sessione, togli/sostituisci/aggiungi esercizi.
+  const [editMode, setEditMode] = useState(false);
+  const [selDay, setSelDay] = useState<string>("");
+  const [draft, setDraft] = useState<WorkoutExercise[]>([]);
+  const [savingWeek, setSavingWeek] = useState(false);
   const weekDates = currentWeekDates();
+
+  // Oggi (dati reali)
+  const todayIso = todayISO();
+  const todayDate = weekDates.find((d) => d.isToday);
+  const todayKey = todayDate?.key ?? "";
+  const todayDay = week?.[todayKey];
+  const todayExercises = todayDay?.esercizi ?? [];
+  const todayIsTraining = todayExercises.length > 0;
+  const trainedToday = trained.has(todayIso);
+
+  // Giorno attivo per la modifica: default oggi, selezionabile dal carosello.
+  const activeDay = selDay || todayKey;
+  const activeDayData = week?.[activeDay];
+  const activeExercises = activeDayData?.esercizi ?? [];
+
+  // Ricarica le spunte esercizi di oggi salvate in locale (così persistono al refresh).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`keiko-workout-checked-${todayIso}`);
+      if (raw) setChecked(new Set<number>(JSON.parse(raw)));
+    } catch { /* no-op */ }
+  }, [todayIso]);
+
+  // Anello progressi: esercizi spuntati su totale di oggi.
+  const total = todayExercises.length;
+  const doneCount = total > 0 ? [...checked].filter((i) => i < total).length : 0;
+  const ringP = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   function resetSelection() {
     setImages([]);
@@ -116,6 +157,71 @@ export default function AllenamentoView({
     }
   }
 
+  // "✓ Fatto oggi" del vHero → riusa /api/workout/log sul giorno di oggi.
+  function fattoOggi() {
+    const willBe = !trained.has(todayIso);
+    toggleTrained(todayIso);
+    toast(willBe ? "Segnato: allenamento fatto ✓💪" : "Riaperto");
+  }
+
+  // "Riprogramma / sposta sessione" arriverà su Supabase (post-demo): niente bottone finto per ora.
+
+  // Spunta un esercizio → persiste in locale e, se completi tutto, segna il giorno come allenato.
+  function toggleExercise(i: number) {
+    const next = new Set(checked);
+    if (next.has(i)) next.delete(i);
+    else next.add(i);
+    setChecked(next);
+    try { localStorage.setItem(`keiko-workout-checked-${todayIso}`, JSON.stringify([...next])); } catch { /* no-op */ }
+    const doneNow = [...next].filter((n) => n < total).length;
+    if (total > 0 && doneNow === total && !trained.has(todayIso)) {
+      toggleTrained(todayIso);
+      toast("Allenamento completato ✓💪");
+    }
+  }
+
+  function startEdit() {
+    setDraft(activeExercises.map((e) => ({ ...e })));
+    setEditMode(true);
+  }
+  async function saveWeek(newWeek: WorkoutWeek) {
+    setSavingWeek(true);
+    try {
+      const res = await fetch("/api/workout/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ week: newWeek }),
+      });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      window.alert("Non sono riuscito a salvare, riprova");
+    } finally {
+      setSavingWeek(false);
+    }
+  }
+  // Salva gli esercizi modificati di oggi.
+  async function commitExercises() {
+    const cleaned = draft.map((e) => ({ nome: e.nome.trim(), dettaglio: e.dettaglio ?? "" })).filter((e) => e.nome);
+    const newWeek: WorkoutWeek = { ...(week ?? {}), [activeDay]: { titolo: activeDayData?.titolo, esercizi: cleaned } };
+    await saveWeek(newWeek);
+    setEditMode(false);
+    toast("Scheda aggiornata ✓");
+  }
+  // Sposta/scambia la sessione di oggi con un altro giorno.
+  async function moveSessionTo(target: string) {
+    if (!week) return;
+    const newWeek: WorkoutWeek = { ...week };
+    const cur = newWeek[activeDay] ?? { esercizi: [] };
+    const dst = newWeek[target] ?? { esercizi: [] };
+    newWeek[target] = cur;
+    newWeek[activeDay] = dst;
+    await saveWeek(newWeek);
+    setEditMode(false);
+    toast(`Spostato a ${DAY_LABEL[target] ?? target} ✓`);
+  }
+
   async function handleDelete() {
     if (!window.confirm("Eliminare la scheda salvata? L'azione non si può annullare.")) return;
     setDeleting(true);
@@ -135,15 +241,309 @@ export default function AllenamentoView({
     }
   }
 
-  return (
-    <div className="relative mx-auto min-h-[100dvh] w-full max-w-lg">
-      <div style={{ padding: "var(--s3) var(--gutter) calc(env(safe-area-inset-bottom) + 150px)" }}>
-        {!embedded && (
-          <div className="pt-[var(--s2)]">
-            <HealthTabs active="allenamento" />
+  /* ============================================================= *
+   * VISTA v2.3 (standalone, dentro KeikoShell → scope .keiko)
+   * ============================================================= */
+  if (!embedded) {
+    const todayName = DAY_FULL[todayKey] ?? "Oggi";
+    const titolo = todayDay?.titolo?.trim();
+    const preview = todayExercises.slice(0, 3).map((e) => e.nome).join(" · ");
+    const extra = todayExercises.length > 3 ? ` · +${todayExercises.length - 3}` : "";
+
+    return (
+      <>
+        {hasPlan ? (
+          <>
+            {/* ---------- Hero: oggi ---------- */}
+            <div className="vHero">
+              <div className="art" style={{ position: "absolute", inset: 0, background: GYM_ART }} />
+              <div className="shade" />
+              <div className="vhRow">
+                {todayIsTraining && (
+                  <div className="bigRing" style={{ ["--p" as string]: ringP } as React.CSSProperties}>
+                    <i>{doneCount}/{total}</i>
+                  </div>
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <span className="vk">Oggi · {todayName}</span>
+                  <h4 style={ELLIPSIS}>{todayIsTraining ? titolo || "Allenamento di oggi" : "Oggi riposo"}</h4>
+                  <div className="vs2" style={ELLIPSIS}>
+                    {todayIsTraining ? preview + extra : "Giornata di recupero"}
+                  </div>
+                </div>
+              </div>
+              <div className="vActs">
+                {todayIsTraining && (
+                  <button
+                    className="chipA"
+                    onClick={fattoOggi}
+                    style={trainedToday ? { background: "var(--accent)", color: "#fff" } : undefined}
+                  >
+                    ✓ Fatto oggi
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ---------- Esercizi di oggi ---------- */}
+            {todayIsTraining && (
+              <>
+                <div className="agLbl">Esercizi · tocca per spuntare</div>
+                {todayExercises.map((ex, i) => {
+                  const d = checked.has(i);
+                  return (
+                    <div
+                      key={i}
+                      className={`pRow${d ? " done" : ""}`}
+                      role="button"
+                      aria-pressed={d}
+                      onClick={() => toggleExercise(i)}
+                    >
+                      <Dumbbell className="pi" style={{ width: 20, height: 20, color: "var(--accent)" }} />
+                      <div className="pt">
+                        <b>{ex.nome}</b>
+                        {ex.dettaglio && <small>{ex.dettaglio}</small>}
+                      </div>
+                      {d && <Check style={{ width: 17, height: 17, flex: "none", color: "var(--accent)" }} />}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* ---------- La settimana ---------- */}
+            <div className="agLbl">La settimana</div>
+            <div className="dayCar">
+              {weekDates.map((d) => {
+                const day = week?.[d.key];
+                const rest = !(day?.esercizi?.length);
+                const t = trained.has(d.iso);
+                const dv2 = rest
+                  ? "Riposo 🌙"
+                  : t
+                    ? `${day!.titolo?.trim() || "Allenamento"} · fatto ✓`
+                    : day!.titolo?.trim() || `${day!.esercizi.length} esercizi`;
+                return (
+                  <div
+                    key={d.iso}
+                    className="dcard"
+                    onClick={() => { setSelDay(d.key); setEditMode(false); }}
+                    style={{ cursor: "pointer", ...(d.key === activeDay ? { borderColor: "var(--accent)", boxShadow: "0 0 0 1.5px var(--accent)" } : {}) }}
+                  >
+                    <div className="dk2">{d.dn}</div>
+                    <div className="dv2">{dv2}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ---------- Modifica / sposta il giorno selezionato (B) ---------- */}
+            {hasPlan && (
+              <>
+                <button className="btn line" style={{ width: "100%", marginTop: 12 }} onClick={() => (editMode ? setEditMode(false) : startEdit())}>
+                  {editMode ? "Chiudi modifica" : `✏️ Modifica ${DAY_LABEL[activeDay] ?? activeDay}${activeDay === todayKey ? " (oggi)" : ""}`}
+                </button>
+                {editMode && (
+                  <div style={{ marginTop: 10, background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: 12 }}>
+                    <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 10px" }}>Giorno: <b style={{ color: "var(--text)" }}>{DAY_LABEL[activeDay] ?? activeDay}</b>. Tocca un altro giorno nel carosello qui sopra per cambiarlo.</div>
+                    <div className="agLbl" style={{ padding: "0 2px 8px" }}>Sposta / scambia con</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                      {DAY_ORDER.filter((k) => k !== activeDay).map((k) => (
+                        <button key={k} className="chipA" disabled={savingWeek} onClick={() => moveSessionTo(k)}>{DAY_LABEL[k] ?? k}</button>
+                      ))}
+                    </div>
+                    <div className="agLbl" style={{ padding: "0 2px 8px" }}>Esercizi</div>
+                    {draft.map((ex, i) => (
+                      <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                        <input value={ex.nome} onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))} placeholder="Esercizio" style={{ flex: 1, background: "var(--paper)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: "8px 10px", color: "var(--ink)", fontFamily: "var(--f)", fontSize: "var(--fs-sm)" }} />
+                        <button type="button" aria-label="Togli" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} style={{ border: 0, background: "none", color: "var(--text-3)", fontSize: 18, cursor: "pointer", minWidth: 26 }}>✕</button>
+                      </div>
+                    ))}
+                    {draft.length === 0 && <p style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 8px" }}>Giorno di riposo — aggiungi esercizi per creare una sessione.</p>}
+                    <button className="btn line" style={{ width: "100%", marginBottom: 8 }} onClick={() => setDraft((d) => [...d, { nome: "", dettaglio: "" }])}>+ Aggiungi esercizio</button>
+                    <button className="btn acc" style={{ width: "100%" }} disabled={savingWeek} onClick={commitExercises}>{savingWeek ? "Salvo…" : "Salva modifiche"}</button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ---------- Gestione scheda (funzioni reali preservate) ---------- */}
+            <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+              <button className="btn line" style={{ flex: 1 }} onClick={() => setShowUpload((s) => !s)}>
+                <Pencil style={{ width: 14, height: 14 }} /> Aggiorna scheda
+              </button>
+              <button
+                className="btn line"
+                style={{ flex: 1, color: "#E25549", borderColor: "rgba(226,85,73,.42)" }}
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                <Trash2 style={{ width: 14, height: 14 }} /> {deleting ? "Elimino…" : "Elimina scheda"}
+              </button>
+            </div>
+            {updatedAt && (
+              <div style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: "var(--text-3)", textAlign: "right" }}>
+                scheda del {formatUpdated(updatedAt)}
+              </div>
+            )}
+            {showUpload && renderUploadKeiko()}
+          </>
+        ) : (
+          /* ---------- Nessuna scheda ---------- */
+          <>
+            <div className="vHero">
+              <div className="art" style={{ position: "absolute", inset: 0, background: GYM_ART }} />
+              <div className="shade" />
+              <span className="vk">Allenamento</span>
+              <h4 style={{ marginTop: 4 }}>Ancora nessuna scheda</h4>
+              <div className="vs2">Carica la foto o il PDF: te la leggo io</div>
+              <div className="vActs">
+                <button className="chipA" onClick={() => setShowUpload(true)}>📷 Carica la scheda</button>
+              </div>
+            </div>
+            {showUpload && renderUploadKeiko()}
+          </>
+        )}
+      </>
+    );
+  }
+
+  /* Blocco upload in stile Keiko (usato dalla vista v2.3). */
+  function renderUploadKeiko() {
+    return (
+      <div
+        style={{
+          marginTop: 14,
+          background: "var(--card)",
+          border: "1px solid var(--card-line)",
+          borderRadius: "var(--r-lg)",
+          boxShadow: "var(--shadow)",
+          padding: 16,
+        }}
+      >
+        {state === "idle" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text)" }}>
+                {hasPlan ? "Aggiorna la scheda" : "Carica la scheda"}
+              </div>
+              {hasPlan && (
+                <button
+                  type="button"
+                  onClick={() => setShowUpload(false)}
+                  aria-label="Chiudi"
+                  style={{
+                    display: "grid",
+                    placeItems: "center",
+                    width: 28,
+                    height: 28,
+                    borderRadius: 999,
+                    background: "var(--bg-2)",
+                    color: "var(--text-2)",
+                    border: 0,
+                    cursor: "pointer",
+                  }}
+                >
+                  <X style={{ width: 14, height: 14 }} />
+                </button>
+              )}
+            </div>
+            <p style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2, lineHeight: 1.45, fontWeight: 600 }}>
+              Foto della scheda e/o un PDF: ci penso io a leggerla.
+            </p>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <KSource
+                Icon={ImagePlus}
+                label={images.length > 0 ? `${images.length} foto` : "Foto"}
+                active={images.length > 0}
+                onClick={() => imgRef.current?.click()}
+              />
+              <KSource
+                Icon={FileText}
+                label={pdf ? "PDF pronto" : "PDF"}
+                active={pdf !== null}
+                onClick={() => pdfRef.current?.click()}
+              />
+            </div>
+
+            <input
+              ref={imgRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => setImages(e.target.files ? Array.from(e.target.files) : [])}
+            />
+            <input
+              ref={pdfRef}
+              type="file"
+              accept="application/pdf"
+              style={{ display: "none" }}
+              onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
+            />
+
+            {hasSomething && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                {images.length > 0 && (
+                  <KChip label={`${images.length} foto`} onClear={() => { setImages([]); if (imgRef.current) imgRef.current.value = ""; }} />
+                )}
+                {pdf && (
+                  <KChip label={pdf.name} onClear={() => { setPdf(null); if (pdfRef.current) pdfRef.current.value = ""; }} />
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={!hasSomething}
+              className="btn acc"
+              style={{ width: "100%", marginTop: 16, opacity: hasSomething ? 1 : 0.4 }}
+            >
+              <Sparkles style={{ width: 16, height: 16 }} /> Leggi la scheda
+            </button>
+          </>
+        )}
+
+        {state === "parsing" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "28px 0" }}>
+            <Loader2 className="animate-spin" style={{ width: 26, height: 26, color: "var(--accent)" }} />
+            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Keiko sta leggendo…</p>
           </div>
         )}
 
+        {state === "success" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "28px 0", textAlign: "center" }}>
+            <CheckCircle2 style={{ width: 40, height: 40, color: "var(--accent)" }} />
+            <p style={{ fontSize: 13, fontWeight: 800, color: "var(--text)" }}>Scheda aggiornata</p>
+            {note && <p style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.45 }}>{note}</p>}
+          </div>
+        )}
+
+        {state === "error" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "28px 0", textAlign: "center" }}>
+            <AlertCircle style={{ width: 36, height: 36, color: "#E25549" }} />
+            <p style={{ fontSize: 13, color: "var(--text-2)" }}>{errorMsg}</p>
+            <button
+              type="button"
+              onClick={() => setState("idle")}
+              style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", background: "none", border: 0, textDecoration: "underline", cursor: "pointer" }}
+            >
+              Riprova
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ============================================================= *
+   * VISTA EMBEDDED (home vecchia / SwipeShell — invariata)
+   * ============================================================= */
+  return (
+    <div className="relative mx-auto min-h-[100dvh] w-full max-w-lg">
+      <div style={{ padding: "var(--s3) var(--gutter) calc(env(safe-area-inset-bottom) + 150px)" }}>
         {/* ---------- Intestazione (+ Aggiorna scheda se il piano c'è) ---------- */}
         <header className="flex items-start justify-between pb-[var(--s2)] pt-[var(--s3)]">
           <div>
@@ -427,9 +827,80 @@ export default function AllenamentoView({
 
 /* ------------------------------------------------------------------ */
 
+const ELLIPSIS: React.CSSProperties = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+
 // Il giorno "oggi" tra i 7 della settimana corrente (chiave lun..dom).
 function todayKeyFromWeek(weekDates: { key: string; isToday: boolean }[]): string {
   return weekDates.find((d) => d.isToday)?.key ?? "";
+}
+
+/* Sorgente file in stile Keiko (vista v2.3). */
+function KSource({
+  Icon,
+  label,
+  active,
+  onClick,
+}: {
+  Icon: typeof ImagePlus;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="active:scale-[0.97]"
+      style={{
+        flex: 1,
+        minHeight: 72,
+        borderRadius: "var(--r-md)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        background: active ? "var(--accent-soft)" : "var(--bg-2)",
+        border: active ? "1px solid var(--accent)" : "1px dashed var(--card-line)",
+        color: active ? "var(--accent)" : "var(--text-3)",
+        cursor: "pointer",
+      }}
+    >
+      <Icon style={{ width: 22, height: 22 }} />
+      <span style={{ fontSize: 11, fontWeight: 800 }}>{label}</span>
+    </button>
+  );
+}
+
+/* Chip file scelto in stile Keiko (vista v2.3). */
+function KChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        maxWidth: "100%",
+        alignItems: "center",
+        gap: 6,
+        background: "var(--bg-2)",
+        border: "1px solid var(--card-line)",
+        borderRadius: 999,
+        padding: "5px 6px 5px 11px",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "var(--text)",
+      }}
+    >
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label="Rimuovi"
+        style={{ display: "grid", placeItems: "center", width: 20, height: 20, flex: "none", borderRadius: 999, background: "var(--accent-soft)", color: "var(--text-2)", border: 0, cursor: "pointer" }}
+      >
+        <X style={{ width: 12, height: 12 }} />
+      </button>
+    </span>
+  );
 }
 
 function SourceButton({

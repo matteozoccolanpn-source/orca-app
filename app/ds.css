@@ -1,0 +1,76 @@
+/* =====================================================================
+   KEIKO — Design System v4 (redesign). FONTE UNICA di token + card.
+   Scoped su .ds così è ADDITIVO: non tocca la UI attuale finché non la
+   sostituiamo schermata per schermata. Valori = docs/DESIGN-SYSTEM.md.
+   ===================================================================== */
+.ds {
+  --k-bg: #0C0E13;
+  --k-surface: #171922;
+  --k-surface-2: #1E2029;
+  --k-line: rgba(255, 255, 255, .08);
+  --k-text: #F3EFE8;
+  --k-text-2: #D0D4DA;   /* metadati — soglia AA su nero */
+  --k-text-3: #BCC1C9;   /* terziario / nav inattiva — contrasto AA sicuro */
+  --k-accent: #FFB84D;   /* firma Keiko */
+  --k-accent-ink: #20170A;
+  --k-ok: #8FE0A0;
+  --k-radius: 20px;
+  --k-shadow: 0 1px 2px rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.4);
+
+  /* scrim a DUE lati, tarato su foto chiare */
+  --k-scrim: linear-gradient(180deg, rgba(6,6,8,.5) 0%, rgba(6,6,8,.14) 20%, rgba(6,6,8,.5) 56%, rgba(6,6,8,.9) 82%, rgba(6,6,8,.99) 100%);
+  --k-tshadow: 0 1px 3px rgba(0,0,0,.6), 0 1px 12px rgba(0,0,0,.5);
+
+  /* fallback gradiente per categoria (card senza foto) */
+  --k-cat-cena: linear-gradient(150deg, #d8693d, #5e2414);
+  --k-cat-volo: linear-gradient(150deg, #1f93b6, #0f4257);
+  --k-cat-treno: linear-gradient(150deg, #2f74b8, #143a66);
+  --k-cat-concerto: linear-gradient(150deg, #b63f93, #3e1340);
+  --k-cat-sport: linear-gradient(150deg, #c9603f, #3a160c);
+  --k-cat-hotel: linear-gradient(150deg, #7a54da, #2a1c66);
+  --k-cat-museo: linear-gradient(150deg, #3f7d6e, #123a30);
+  --k-cat-festa: linear-gradient(150deg, #d64f8a, #4a1230);
+  --k-cat-lavoro: linear-gradient(150deg, #4a5a7a, #1c2334);
+  --k-cat-dieta: linear-gradient(150deg, #4f9a52, #143a16);
+  --k-cat-film: linear-gradient(150deg, #6a4aa0, #241436);
+  --k-cat-viaggio: linear-gradient(150deg, #c9863f, #3a2410);
+  --k-cat-default: linear-gradient(150deg, #5a5f8a, #232743);
+
+  color: var(--k-text);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* titolo display: SOLO hero + saluto */
+.ds-display { font-family: var(--font-fraunces), Georgia, serif; font-weight: 600; letter-spacing: -.02em; }
+
+/* ---- Card unica (un solo linguaggio) ---- */
+.ds-card { position: relative; border-radius: var(--k-radius); overflow: hidden; border: 1px solid rgba(0,0,0,.5); background: var(--k-cat-default); box-shadow: var(--k-shadow); transition: transform .16s ease, box-shadow .16s ease; }
+.ds-card:active { transform: scale(.985); }
+/* hairline di luce sopra la foto (bordo "fisico", non flat) */
+.ds-card::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255,255,255,.10); pointer-events: none; z-index: 3; }
+.ds-card > img.ds-ph, .ds-card > .ds-ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; background-size: cover; background-position: center 40%; }
+.ds-scrim { position: absolute; inset: 0; background: var(--k-scrim); pointer-events: none; }
+
+.ds-chip { position: absolute; top: 12px; left: 12px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; background: rgba(12,12,15,.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 600; letter-spacing: .2px; text-shadow: var(--k-tshadow); }
+.ds-chip.amber { background: var(--k-accent); color: var(--k-accent-ink); border-color: transparent; text-shadow: none; }
+
+.ds-cbody { position: absolute; left: 0; right: 0; bottom: 0; padding: 15px; }
+.ds-cbody h3 { font-weight: 600; font-size: 16px; line-height: 1.18; letter-spacing: -.01em; text-shadow: var(--k-tshadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+.ds-meta { display: flex; align-items: center; gap: 7px; margin-top: 6px; font-size: 13px; color: var(--k-text-2); font-weight: 500; text-shadow: var(--k-tshadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-meta .k { color: var(--k-accent); font-weight: 700; }
+
+/* scala titoli per variante (gerarchia progressiva, non tutto uguale) */
+.ds-card.hero .ds-cbody { padding: 20px; }
+.ds-card.hero .ds-cbody h3 { font-size: 26px; line-height: 1.08; font-weight: 600; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ds-card.mini .ds-cbody h3 { font-size: 16px; }
+.ds-card.square .ds-cbody h3 { font-size: 16px; }
+.ds-card.poster .ds-cbody h3 { font-size: 13px; }
+
+/* glifo grande sfumato: riempie gli hero/card senza foto (livello 0) */
+.ds-glyph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 60px; opacity: .16; pointer-events: none; }
+.ds-card.hero .ds-glyph { font-size: 84px; }
+
+/* ---- Bottoni base ---- */
+.ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; padding: 10px 16px; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; border: 1px solid var(--k-line); background: transparent; color: var(--k-text); }
+.ds-btn.primary { background: var(--k-accent); color: var(--k-accent-ink); border-color: transparent; }
+.ds-btn.danger { color: #E2705F; border-color: rgba(226,112,95,.35); }

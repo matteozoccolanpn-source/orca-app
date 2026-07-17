@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Direzione 3 · PLANCIA</title>
+<!--
+  DIREZIONE 3 — "PLANCIA" (Linear / Raycast / Superhuman)
+  Dashboard premium: alta densità, altissima leggibilità, quasi zero immagini.
+  Righe tabellari, etichette mono, un solo accento. La barra ⌘K è l'AI (command palette).
+  Niente FAB: le azioni sono comandi.
+-->
+<style>
+  :root{
+    --bg:#0E1013; --panel:#131619; --line:#24282E; --line-2:#1A1D22;
+    --text:#E8EAED; --text-2:#9BA3AE; --text-3:#5F6772;
+    --acc:#5A9DFF; --ok:#3DD68C; --warn:#F0B24A;
+    --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#08090B;font-family:var(--f)}
+  body{display:flex;flex-direction:column;align-items:center;padding:28px 12px;gap:18px}
+  .manifesto{max-width:390px;color:#7A828D;font-size:12.5px;line-height:1.55;text-align:center}
+  .manifesto b{color:#E8EAED;font-size:15px;letter-spacing:.14em;display:block;margin-bottom:6px}
+
+  .phone{
+    position:relative;width:390px;height:844px;background:var(--bg);
+    border-radius:44px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 30px 70px rgba(0,0,0,.55);display:flex;flex-direction:column;
+  }
+  .screen{flex:1;overflow-y:auto;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+
+  /* command bar = l'AI */
+  .cmd{
+    margin:22px 16px 0;display:flex;align-items:center;gap:10px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  }
+  .cmd svg{width:15px;height:15px;stroke:var(--text-3);flex:none}
+  .cmd .ph{flex:1;font-size:14px;color:var(--text-3)}
+  .cmd kbd{font-family:var(--mono);font-size:11px;color:var(--text-2);background:var(--line-2);border:1px solid var(--line);border-radius:5px;padding:3px 6px}
+
+  .head{display:flex;align-items:baseline;justify-content:space-between;padding:26px 16px 4px}
+  .head h1{font-size:15px;font-weight:600;color:var(--text)}
+  .head .mono{font-family:var(--mono);font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em}
+
+  .lbl{font-family:var(--mono);font-size:10.5px;color:var(--text-3);letter-spacing:.1em;text-transform:uppercase;padding:22px 16px 8px}
+
+  /* la riga: l'unico componente */
+  .r{
+    display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line-2);cursor:pointer;
+  }
+  .r:hover{background:var(--panel)}
+  .r .t{font-family:var(--mono);font-size:12.5px;color:var(--text-2);width:48px;flex:none;font-variant-numeric:tabular-nums}
+  .r .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .r .main{flex:1;min-width:0}
+  .r .n{font-size:14.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .r .s{font-size:12px;color:var(--text-3);margin-top:1px}
+  .r .tag{font-family:var(--mono);font-size:10.5px;color:var(--text-2);border:1px solid var(--line);border-radius:5px;padding:3px 7px;flex:none}
+  .r .tag.ok{color:var(--ok);border-color:rgba(61,214,140,.3)}
+  .r .tag.acc{color:var(--acc);border-color:rgba(90,157,255,.3)}
+  .big .t{font-size:15px;color:var(--acc);font-weight:600}
+  .big .n{font-size:16px}
+
+  /* insight: una riga che ragiona */
+  .ins{
+    margin:6px 16px 0;border:1px solid var(--line);border-left:2px solid var(--acc);border-radius:8px;
+    background:var(--panel);padding:13px 14px;
+  }
+  .ins .k{font-family:var(--mono);font-size:10px;color:var(--acc);letter-spacing:.1em;text-transform:uppercase}
+  .ins .t{font-size:13.5px;color:var(--text-2);margin-top:6px;line-height:1.5}
+  .ins .t b{color:var(--text);font-weight:600}
+  .ins .a{display:flex;gap:8px;margin-top:10px}
+  .ins button{font-family:var(--f);font-size:12px;font-weight:600;border:1px solid var(--line);background:none;color:var(--text-2);border-radius:7px;padding:7px 12px;cursor:pointer}
+  .ins button.p{background:var(--acc);border-color:var(--acc);color:#0B1220}
+
+  /* quick actions: comandi, non bottoni giganti */
+  .qa{display:flex;gap:8px;padding:10px 16px 0;flex-wrap:wrap}
+  .qa span{
+    font-size:12.5px;font-weight:600;color:var(--text-2);border:1px solid var(--line);
+    border-radius:8px;padding:9px 12px;cursor:pointer;background:var(--panel);
+  }
+  .breath{height:110px}
+
+  /* palette ⌘K */
+  .pal{position:absolute;inset:0;z-index:50;background:rgba(4,5,7,.7);display:none;padding:70px 18px 0}
+  .pal.open{display:block}
+  .palBox{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.6)}
+  .palBox input{width:100%;border:0;outline:0;background:none;padding:16px;font-size:15px;color:var(--text);font-family:var(--f);border-bottom:1px solid var(--line)}
+  .palBox input::placeholder{color:var(--text-3)}
+  .pi{display:flex;align-items:center;gap:11px;padding:12px 16px;cursor:pointer;font-size:14px;color:var(--text-2);font-weight:500}
+  .pi:hover{background:var(--line-2)}
+  .pi kbd{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--text-3)}
+  .toast{
+    position:absolute;left:50%;bottom:40px;transform:translateX(-50%);z-index:70;
+    background:var(--text);color:var(--bg);font-size:12px;font-weight:600;
+    padding:10px 16px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap;
+  }
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="manifesto">
+  <b>DIREZIONE 3 · PLANCIA</b>
+  Linear, Raycast, Superhuman: densità alta, leggibilità altissima, zero immagini.
+  Un solo componente (la riga), etichette mono, e la barra in alto è l'AI: tocca ⌘K.
+</div>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="cmd" onclick="openPal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="ph">Chiedi o comanda…</span>
+      <kbd>⌘K</kbd>
+    </div>
+
+    <div class="head">
+      <h1>Buonasera, Matteo</h1>
+      <span class="mono">SAB 4 LUG · 3 IN CODA</span>
+    </div>
+
+    <div class="lbl">Today</div>
+    <div class="r big" onclick="toast('Dettaglio: biglietti ×2, metro C, esci 19:40')">
+      <span class="t">20:30</span>
+      <div class="main"><div class="n">Ultimo — Tor Vergata, Roma</div><div class="s">esci 19:40 · metro C · 16° stasera</div></div>
+      <span class="tag acc" id="cd">—</span>
+    </div>
+    <div class="r" onclick="this.querySelector('.tag').textContent='DONE ✓';this.querySelector('.tag').className='tag ok'">
+      <span class="t">17:30</span>
+      <div class="main"><div class="n">Ritira il pacco</div><div class="s">ufficio postale, via Vigevano</div></div>
+      <span class="tag">TODO</span>
+    </div>
+    <div class="r">
+      <span class="t">—</span>
+      <div class="main"><div class="n">Allenamento — lungo lento</div><div class="s">completato stamattina</div></div>
+      <span class="tag ok">DONE ✓</span>
+    </div>
+
+    <div class="lbl">Next</div>
+    <div class="r" onclick="toast('Treno del ritorno — carrozza 7')">
+      <span class="t">dom</span>
+      <div class="main"><div class="n">Treno Roma → Milano</div><div class="s">17:50 · Termini · binario in arrivo</div></div>
+      <span class="tag">17:50</span>
+    </div>
+    <div class="r" onclick="toast('GP — classifica: Norris 212')">
+      <span class="t">dom</span>
+      <div class="main"><div class="n">GP Gran Bretagna</div><div class="s">Sky F1 · Norris in testa</div></div>
+      <span class="tag">16:00</span>
+    </div>
+    <div class="r" onclick="toast('Check-in: ci penso io giovedì')">
+      <span class="t">ven</span>
+      <div class="main"><div class="n">Volo Milano → Londra</div><div class="s">FR1546 · check-in da giovedì</div></div>
+      <span class="tag acc">AUTO</span>
+    </div>
+
+    <div class="lbl">Insight</div>
+    <div class="ins">
+      <span class="k">Keiko suggerisce</span>
+      <div class="t">Hai dormito <b>5 h 40</b> e domani il rientro è tardi: <b>sposto la palestra a lunedì?</b></div>
+      <div class="a">
+        <button class="p" onclick="toast('Fatto: palestra → lunedì 18:00 ✓')">Applica</button>
+        <button onclick="toast('Ok, resta domenica')">Ignora</button>
+      </div>
+    </div>
+
+    <div class="lbl">Quick actions</div>
+    <div class="qa">
+      <span onclick="openPal()">+ Evento</span>
+      <span onclick="toast('A che ora? Scrivilo in ⌘K')">Sposta cena</span>
+      <span onclick="toast('Stasera: Dune, Sky 21:15')">Stasera in TV</span>
+      <span onclick="toast('Itinerario Roma pronto ✓')">Viaggio ›</span>
+    </div>
+
+    <div class="breath"></div>
+  </div>
+
+  <!-- palette -->
+  <div class="pal" id="pal" onclick="if(event.target===this)closePal()">
+    <div class="palBox">
+      <input id="palIn" placeholder="Scrivi: «cena giovedì 20:30 da Marco»">
+      <div class="pi" onclick="toast('Preso in carico ✓');closePal()">➕ Crea evento da testo<kbd>↵</kbd></div>
+      <div class="pi" onclick="toast('Passami lo screenshot 📷');closePal()">📷 Da screenshot<kbd>⌘V</kbd></div>
+      <div class="pi" onclick="toast('Ti ascolto 🎤');closePal()">🎙 A voce<kbd>⌘D</kbd></div>
+      <div class="pi" onclick="toast('Agenda ›');closePal()">📅 Vai all'agenda<kbd>G A</kbd></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  let tt;
+  function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1600)}
+  function openPal(){document.getElementById('pal').classList.add('open');setTimeout(()=>document.getElementById('palIn').focus(),100)}
+  function closePal(){document.getElementById('pal').classList.remove('open')}
+  function tick(){
+    const now=new Date(),dep=new Date();dep.setHours(19,40,0,0);
+    const m=Math.max(0,Math.floor((dep-now)/60000));
+    document.getElementById('cd').textContent=m>0?`T−${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`:'NOW';
+  }
+  tick();setInterval(tick,30000);
+</script>
+</body>
+</html>

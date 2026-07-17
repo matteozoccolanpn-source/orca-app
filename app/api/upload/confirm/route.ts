@@ -3,6 +3,7 @@ import { after } from 'next/server'
 import { auth } from '@/auth'
 import { createTicket, syncTripPlans } from '@/lib/supabase'
 import { autoEnrichNewTrips } from '@/lib/trip-enrich'
+import { enrichEvent } from '@/lib/event-enrich'
 
 // La rigenerazione del plot (web-search) può durare: alziamo il tetto.
 export const maxDuration = 300
@@ -35,6 +36,17 @@ export async function POST(req: NextRequest) {
     // status tornato pending) si rigenerano DA SOLI, dopo la risposta:
     // after() fa partire il lavoro pesante senza far aspettare l'utente.
     after(async () => {
+      // Arricchimento AI automatico SOLO per i tipi che ne beneficiano (concerti,
+      // musei, hotel, voli): risparmio. Gli altri (cena, ecc.) restano su richiesta
+      // col bottone "Aggiorna info da Keiko" nel pannello evento.
+      const AUTO_ENRICH = new Set(['concert', 'museum', 'hotel', 'flight'])
+      if (AUTO_ENRICH.has((type ?? '').toLowerCase())) {
+        try {
+          await enrichEvent(id)
+        } catch (e) {
+          console.error('enrichEvent in background fallita:', e)
+        }
+      }
       try {
         await autoEnrichNewTrips()
       } catch (e) {

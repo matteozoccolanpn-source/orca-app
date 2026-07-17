@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Varianti della Coda</title>
+<!--
+  5 varianti del concept 1 (la coda), più istituzionali.
+  Nota chiave del brief: deve capirsi che è UN'ORCA — i due segni che dicono "orca"
+  sono la pinna dorsale alta e il bianco/nero. Le varianti giocano su questi.
+-->
+<style>
+  :root{
+    --ink:#15202F; --paper:#F4F1E8; --night:#12203A;
+    --f:ui-rounded,-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0A1322;font-family:var(--f);color:#BFCCE0;padding:36px 20px 60px;display:flex;flex-direction:column;align-items:center;gap:26px}
+  h1{color:#F4F1E8;font-size:22px;font-weight:800;letter-spacing:-.01em}
+  .hint{font-size:12.5px;color:#7E8CA5;text-align:center;max-width:560px;line-height:1.6}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;width:100%;max-width:1300px}
+  .card{background:#12203A;border:1px solid rgba(165,195,240,.12);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:14px}
+  .card h2{color:#F4F1E8;font-size:15px;font-weight:800}
+  .card p{font-size:12px;color:#8496B3;line-height:1.55;min-height:52px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:22px 10px}
+  .tile.dark{background:var(--night);border:1px solid rgba(165,195,240,.14)}
+  .tile.light{background:var(--paper)}
+  .tile svg{width:64px;height:64px}
+  .tile.dark svg{color:#F4F1E8}
+  .tile.light svg{color:var(--ink)}
+  .wm{font-weight:800;font-size:17px;letter-spacing:.04em}
+  .tile.dark .wm{color:#F4F1E8}
+  .tile.light .wm{color:var(--ink)}
+  .sizes{display:flex;align-items:center;gap:16px;background:#0D1728;border-radius:14px;padding:12px 16px}
+  .sizes span{font-size:10px;color:#7E8CA5;font-weight:700;margin-left:auto}
+  .sizes svg{color:#F4F1E8}
+  .appicon{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(160deg,#2A4568,#12203A)}
+  .appicon svg{width:36px;height:36px;color:#F4F1E8}
+</style>
+</head>
+<body>
+
+<h1>La Coda — 5 varianti più istituzionali</h1>
+<div class="hint">Il problema del concept 1: bello ma non dice "orca". I due segni che nel mondo dicono orca
+sono la <b>pinna dorsale alta</b> e il <b>bianco/nero</b>. Qui: la coda rifinita (A), e poi le strade che aggiungono
+l'identità orca. Tutte si chiudono in basso, sopra la scritta.</div>
+
+<div class="grid">
+
+  <!-- A · coda rifinita -->
+  <div class="card">
+    <h2>A · Coda pura, rifinita</h2>
+    <p>Il concept 1 ridisegnato: simmetria perfetta, curve tese, base più larga che "atterra"
+    sulla scritta. Istituzionale ma resta una balena generica.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></svg><span class="wm">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></svg><span class="wm">Keiko</span></div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="currentColor"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100" fill="currentColor"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></svg>
+      <span>56 · 28 · 16 px</span>
+    </div>
+  </div>
+
+  <!-- B · dorsale -->
+  <div class="card">
+    <h2>B · La Dorsale — il profilo dell'orca</h2>
+    <p>Dorso che affiora chiuso in basso + la pinna dorsale alta: è LA sagoma dell'orca,
+    riconoscibile anche a 16px. Sobria, quasi un marchio nautico.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M8 76 C18 61 32 54 50 54 C68 54 82 61 92 76 Z"/><path d="M45 56 C44 38 49 22 61 12 C61 28 58 44 53 56 Z"/></svg><span class="wm">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M8 76 C18 61 32 54 50 54 C68 54 82 61 92 76 Z"/><path d="M45 56 C44 38 49 22 61 12 C61 28 58 44 53 56 Z"/></svg><span class="wm">Keiko</span></div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100" fill="currentColor"><path d="M8 76 C18 61 32 54 50 54 C68 54 82 61 92 76 Z"/><path d="M45 56 C44 38 49 22 61 12 C61 28 58 44 53 56 Z"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="currentColor"><path d="M8 76 C18 61 32 54 50 54 C68 54 82 61 92 76 Z"/><path d="M45 56 C44 38 49 22 61 12 C61 28 58 44 53 56 Z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100" fill="currentColor"><path d="M8 76 C18 61 32 54 50 54 C68 54 82 61 92 76 Z"/><path d="M45 56 C44 38 49 22 61 12 C61 28 58 44 53 56 Z"/></svg>
+      <span>56 · 28 · 16 px</span>
+    </div>
+  </div>
+
+  <!-- C · sigillo -->
+  <div class="card">
+    <h2>C · Il Sigillo — coda nel cerchio</h2>
+    <p>La coda dentro un anello: il registro più istituzionale possibile (stemmi, marchi storici).
+    Perfetta per timbri, favicon, watermark sul biglietto di carta.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="6"/><path fill="currentColor" d="M50 66 C42 66 37 60 30 60 C26 60 22 62 19 65 C20 55 27 48 36 47 C33 41 33 34 36 28 C42 33 45 39 45 46 C47 45 48 44 50 44 C52 44 53 45 55 46 C55 39 58 33 64 28 C67 34 67 41 64 47 C73 48 80 55 81 65 C78 62 74 60 70 60 C63 60 58 66 50 66 Z"/></svg><span class="wm">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="6"/><path fill="currentColor" d="M50 66 C42 66 37 60 30 60 C26 60 22 62 19 65 C20 55 27 48 36 47 C33 41 33 34 36 28 C42 33 45 39 45 46 C47 45 48 44 50 44 C52 44 53 45 55 46 C55 39 58 33 64 28 C67 34 67 41 64 47 C73 48 80 55 81 65 C78 62 74 60 70 60 C63 60 58 66 50 66 Z"/></svg><span class="wm">Keiko</span></div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="7"/><path fill="currentColor" d="M50 66 C42 66 37 60 30 60 C26 60 22 62 19 65 C20 55 27 48 36 47 C33 41 33 34 36 28 C42 33 45 39 45 46 C47 45 48 44 50 44 C52 44 53 45 55 46 C55 39 58 33 64 28 C67 34 67 41 64 47 C73 48 80 55 81 65 C78 62 74 60 70 60 C63 60 58 66 50 66 Z"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="8"/><path fill="currentColor" d="M50 66 C42 66 37 60 30 60 C26 60 22 62 19 65 C20 55 27 48 36 47 C33 41 33 34 36 28 C42 33 45 39 45 46 C47 45 48 44 50 44 C52 44 53 45 55 46 C55 39 58 33 64 28 C67 34 67 41 64 47 C73 48 80 55 81 65 C78 62 74 60 70 60 C63 60 58 66 50 66 Z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="10"/><path fill="currentColor" d="M50 66 C42 66 37 60 30 60 C26 60 22 62 19 65 C20 55 27 48 36 47 C33 41 33 34 36 28 C42 33 45 39 45 46 C47 45 48 44 50 44 C52 44 53 45 55 46 C55 39 58 33 64 28 C67 34 67 41 64 47 C73 48 80 55 81 65 C78 62 74 60 70 60 C63 60 58 66 50 66 Z"/></svg>
+      <span>56 · 28 · 16 px</span>
+    </div>
+  </div>
+
+  <!-- D · bicolore -->
+  <div class="card">
+    <h2>D · Bianco e nero — la coda orca</h2>
+    <p>La stessa coda della A, ma tagliata dal bianco del ventre: il bicolore È l'orca.
+    Il taglio resta leggibile anche in un colore solo (diventa un vuoto).</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 100"><defs><clipPath id="tD1"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></clipPath></defs><path fill="currentColor" d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/><path clip-path="url(#tD1)" fill="#12203A" d="M2 60 C25 50 75 50 98 60 L98 78 L2 78 Z"/></svg><span class="wm">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 100"><defs><clipPath id="tD2"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></clipPath></defs><path fill="currentColor" d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/><path clip-path="url(#tD2)" fill="#F4F1E8" d="M2 60 C25 50 75 50 98 60 L98 78 L2 78 Z"/></svg><span class="wm">Keiko</span></div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100"><defs><clipPath id="tD3"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></clipPath></defs><path fill="currentColor" d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/><path clip-path="url(#tD3)" fill="#1B2A44" d="M2 60 C25 50 75 50 98 60 L98 78 L2 78 Z"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="currentColor"><path d="M50 72 C39 72 32 63 22 63 C15 63 10 66 6 71 C7 57 16 48 29 47 C24 39 24 29 29 21 C37 27 41 36 41 45 C44 43 47 42 50 42 C53 42 56 43 59 45 C59 36 63 27 71 21 C76 29 76 39 71 47 C84 48 93 57 94 71 C90 66 85 63 78 63 C68 63 61 72 50 72 Z"/></svg>
+      <span>56 · 28 px (a 16 diventa la A)</span>
+    </div>
+  </div>
+
+  <!-- E · orca intera -->
+  <div class="card">
+    <h2>E · L'Orca — sagoma con la macchia</h2>
+    <p>Orca intera minimale: dorsale alta + macchia bianca sull'occhio, il segno che
+    scioglie ogni dubbio. La più "logo animale" — istituzionale se resta geometrica.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 100"><path fill="currentColor" d="M10 62 C16 48 32 40 50 40 C58 40 66 42 72 46 C78 42 85 40 92 41 C90 47 86 52 81 55 C80 62 74 68 64 70 C48 74 20 72 10 62 Z"/><path fill="currentColor" d="M44 42 C43 30 47 18 56 10 C57 22 54 34 50 42 Z"/><ellipse cx="76" cy="49" rx="6.5" ry="3.4" fill="#12203A" transform="rotate(-18 76 49)"/></svg><span class="wm">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 100"><path fill="currentColor" d="M10 62 C16 48 32 40 50 40 C58 40 66 42 72 46 C78 42 85 40 92 41 C90 47 86 52 81 55 C80 62 74 68 64 70 C48 74 20 72 10 62 Z"/><path fill="currentColor" d="M44 42 C43 30 47 18 56 10 C57 22 54 34 50 42 Z"/><ellipse cx="76" cy="49" rx="6.5" ry="3.4" fill="#F4F1E8" transform="rotate(-18 76 49)"/></svg><span class="wm">Keiko</span></div>
+    </div>
+    <div class="sizes">
+      <div class="appicon"><svg viewBox="0 0 100 100"><path fill="currentColor" d="M10 62 C16 48 32 40 50 40 C58 40 66 42 72 46 C78 42 85 40 92 41 C90 47 86 52 81 55 C80 62 74 68 64 70 C48 74 20 72 10 62 Z"/><path fill="currentColor" d="M44 42 C43 30 47 18 56 10 C57 22 54 34 50 42 Z"/><ellipse cx="76" cy="49" rx="6.5" ry="3.4" fill="#1B2A44" transform="rotate(-18 76 49)"/></svg></div>
+      <svg width="28" height="28" viewBox="0 0 100 100"><path fill="currentColor" d="M10 62 C16 48 32 40 50 40 C58 40 66 42 72 46 C78 42 85 40 92 41 C90 47 86 52 81 55 C80 62 74 68 64 70 C48 74 20 72 10 62 Z"/><path fill="currentColor" d="M44 42 C43 30 47 18 56 10 C57 22 54 34 50 42 Z"/><ellipse cx="76" cy="49" rx="6.5" ry="3.4" fill="#0D1728" transform="rotate(-18 76 49)"/></svg>
+      <svg width="16" height="16" viewBox="0 0 100 100"><path fill="currentColor" d="M10 62 C16 48 32 40 50 40 C58 40 66 42 72 46 C78 42 85 40 92 41 C90 47 86 52 81 55 C80 62 74 68 64 70 C48 74 20 72 10 62 Z"/><path fill="currentColor" d="M44 42 C43 30 47 18 56 10 C57 22 54 34 50 42 Z"/></svg>
+      <span>56 · 28 · 16 px</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

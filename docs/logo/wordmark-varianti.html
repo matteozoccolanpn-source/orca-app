@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Wordmark</title>
+<style>
+  :root{--ink:#15202F;--paper:#F4F1E8;--night:#12203A;
+    --f:'DM Sans',ui-rounded,-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0A1322;font-family:var(--f);color:#BFCCE0;padding:36px 20px 60px;display:flex;flex-direction:column;align-items:center;gap:24px}
+  h1{color:#F4F1E8;font-size:22px;font-weight:800}
+  .hint{font-size:12.5px;color:#7E8CA5;text-align:center;max-width:520px;line-height:1.6}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;width:100%;max-width:1240px}
+  .card{background:#12203A;border:1px solid rgba(165,195,240,.12);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px}
+  .card h2{color:#F4F1E8;font-size:14px;font-weight:800}
+  .card p{font-size:11.5px;color:#8496B3;line-height:1.5;min-height:34px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:26px 10px}
+  .tile.dark{background:var(--night);border:1px solid rgba(165,195,240,.14);color:#F4F1E8}
+  .tile.light{background:var(--paper);color:var(--ink)}
+  .tile svg{width:62px;height:45px}
+  .w1{font-size:15px;font-weight:700;letter-spacing:.38em;text-indent:.38em;text-transform:uppercase}
+  .w2{font-size:15px;font-weight:500;letter-spacing:.55em;text-indent:.55em;text-transform:uppercase}
+  .w3{font-size:19px;font-weight:600;letter-spacing:.01em}
+  .w4{font-size:13px;font-weight:800;letter-spacing:.22em;text-indent:.22em;text-transform:uppercase;opacity:.92}
+</style>
+</head>
+<body>
+<h1>La scritta — 4 tagli istituzionali</h1>
+<div class="hint">Stesso marchio (il timbro), quattro modi di scrivere Keiko. L'istituzionalità nella tipografia
+vive di tre cose: maiuscole, spaziatura larga, peso controllato.</div>
+<div class="grid">
+  <div class="card">
+    <h2>W1 · Maiuscolo classico</h2>
+    <p>Caps, peso 700, tracking ampio: il registro dei marchi storici. Solido, senza tempo.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w1">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w1">Keiko</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>W2 · Maiuscolo arioso</h2>
+    <p>Caps, peso medio, tracking larghissimo: editoriale, da rivista. Elegante ma più fragile da piccola.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w2">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w2">Keiko</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>W3 · Minuscolo sobrio</h2>
+    <p>"Keiko" com'è, ma peso 600 e zero giochi: la sobrietà delle big tech. La più vicina all'attuale.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w3">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w3">Keiko</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>W4 · Maiuscolo compatto</h2>
+    <p>Caps piccole, peso pieno, tracking misurato: da etichetta/sigillo. Perfetta accanto al marchio in orizzontale.</p>
+    <div class="tiles">
+      <div class="tile dark"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w4">Keiko</span></div>
+      <div class="tile light"><svg viewBox="0 0 100 72" fill="currentColor"><path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/><path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/></svg><span class="w4">Keiko</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

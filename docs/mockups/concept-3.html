@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keiko — Concept 3 · FONDALE</title>
+<!--
+  CONCEPT 3 — "FONDALE"
+  Personalità: radicale, editoriale, notturna — un magazine sul fondo dell'oceano.
+  Dai disegni prende la gerarchia (hero → oggi → prossimi → giornata → stasera → viaggi)
+  ma la reinterpreta come UN UNICO FLUSSO del giorno: tipografia gigante, timeline, niente scatole.
+  Perfetta per: chi vuole che Keiko non assomigli a NESSUN'ALTRA app sul telefono.
+-->
+<style>
+  :root{
+    --bg:#0E0C09;             /* nero soft caldo */
+    --bg-2:#171310;
+    --line:rgba(232,163,61,.14);
+    --hair:rgba(240,232,218,.09);
+    --text:#F0E8DA;
+    --text-2:#A99F8D;
+    --text-3:#6B6355;
+    --amber:#E8A33D;          /* ambra evoluta */
+    --amber-deep:#B4741A;
+    --r-pill:999px;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;
+    --disp:"New York","Georgia",serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#060504;font-family:var(--sans)}
+  body{display:flex;flex-direction:column;align-items:center;padding:28px 12px;gap:18px}
+
+  .manifesto{max-width:390px;color:#8A8070;font-size:12.5px;line-height:1.55;text-align:center}
+  .manifesto b{color:#F0E8DA;font-size:15px;letter-spacing:.14em;display:block;margin-bottom:6px}
+
+  .phone{
+    position:relative;width:390px;height:844px;background:var(--bg);
+    border-radius:44px;overflow:hidden;border:1px solid rgba(232,163,61,.18);
+    box-shadow:0 40px 90px rgba(0,0,0,.7);display:flex;flex-direction:column;
+  }
+  .screen{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+
+  /* ------- barra alta ------- */
+  .topbar{
+    position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;
+    padding:18px 18px 12px;
+    background:linear-gradient(to bottom,rgba(14,12,9,.97) 65%,rgba(14,12,9,0));
+    backdrop-filter:blur(14px);
+  }
+  .logo{font-family:var(--disp);font-size:20px;font-weight:700;color:var(--amber);letter-spacing:.02em}
+  .ask{
+    flex:1;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);
+    padding:8px 2px;color:var(--text-3);font-size:13px;font-style:italic;font-family:var(--disp);
+  }
+  .ask .k{color:var(--amber);font-style:normal;font-family:var(--sans);font-size:14px}
+  .topbar .cal{color:var(--text-2);font-size:11px;font-weight:700;letter-spacing:.14em;cursor:pointer;
+    border:1px solid var(--line);border-radius:var(--r-pill);padding:7px 12px}
+
+  /* ------- settimana: nastro numerico ------- */
+  .week{display:flex;gap:0;padding:6px 18px 0;border-bottom:1px solid var(--hair)}
+  .day{
+    flex:1;text-align:center;padding:8px 0 12px;cursor:pointer;position:relative;
+    font-family:var(--disp);font-size:17px;color:var(--text-3);
+  }
+  .day small{display:block;font-family:var(--sans);font-size:9px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:3px}
+  .day.today{color:var(--amber);font-weight:700}
+  .day.today::after{content:"";position:absolute;left:25%;right:25%;bottom:-1px;height:2px;background:var(--amber)}
+  .day .dot{position:absolute;top:6px;right:12px;width:4px;height:4px;border-radius:50%;background:var(--amber-deep)}
+
+  /* ------- titolone del giorno ------- */
+  .masthead{padding:26px 18px 6px}
+  .masthead .kicker{font-size:10.5px;letter-spacing:.22em;color:var(--amber);font-weight:700;text-transform:uppercase}
+  .masthead h1{font-family:var(--disp);font-size:44px;line-height:1.02;color:var(--text);font-weight:700;letter-spacing:-.01em;margin-top:8px}
+  .masthead .sotto{font-size:13px;color:var(--text-2);margin-top:10px;line-height:1.5}
+  .masthead .sotto b{color:var(--amber)}
+
+  /* ------- flusso timeline ------- */
+  .flow{position:relative;padding:14px 18px 0 54px}
+  .flow::before{content:"";position:absolute;left:30px;top:0;bottom:0;width:1px;background:var(--line)}
+  .stop{position:relative;margin-bottom:26px}
+  .stop .time{
+    position:absolute;left:-44px;top:2px;width:34px;text-align:right;
+    font-size:11px;font-weight:700;color:var(--text-3);letter-spacing:.02em;
+  }
+  .stop .node{position:absolute;left:-27.5px;top:5px;width:7px;height:7px;border-radius:50%;background:var(--text-3);transform:translateX(-50%)}
+  .stop.hot .node{background:var(--amber);box-shadow:0 0 0 5px rgba(232,163,61,.15)}
+  .stop.hot .time{color:var(--amber)}
+
+  /* hero radicale: blocco editoriale full-bleed */
+  .heroX{
+    position:relative;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;
+    background:
+      radial-gradient(120% 100% at 100% 0%,rgba(232,163,61,.22) 0%,transparent 50%),
+      linear-gradient(160deg,#221A0E 0%,#12100C 70%);
+    padding:18px;
+  }
+  .heroX .cat{font-size:10px;letter-spacing:.22em;color:var(--amber);font-weight:700;text-transform:uppercase}
+  .heroX h2{font-family:var(--disp);font-size:31px;line-height:1.05;color:var(--text);margin-top:8px;font-weight:700}
+  .heroX .meta{font-size:12.5px;color:var(--text-2);margin-top:9px;line-height:1.6}
+  .heroX .glyph{position:absolute;top:14px;right:14px;font-size:44px;opacity:.9}
+  .heroX .acts{display:flex;gap:8px;margin-top:16px}
+  .bx{
+    border:1px solid var(--amber);border-radius:var(--r-pill);background:var(--amber);color:#14100A;
+    font-family:var(--sans);font-size:12.5px;font-weight:800;padding:10px 16px;cursor:pointer;
+  }
+  .bx.ghost{background:transparent;color:var(--amber)}
+
+  .stop h3{font-family:var(--disp);font-size:20px;color:var(--text);font-weight:700;line-height:1.15;cursor:pointer}
+  .stop .meta{font-size:12px;color:var(--text-2);margin-top:4px;line-height:1.5}
+  .stop .chiplets{display:flex;gap:6px;margin-top:8px}
+  .chip{
+    font-size:11px;font-weight:700;padding:4px 11px;border-radius:var(--r-pill);
+    border:1px solid var(--line);color:var(--amber);cursor:pointer;
+  }
+  .chip.mut{color:var(--text-2);border-color:var(--hair)}
+
+  /* sezioni sotto il flusso */
+  .rubrica{padding:8px 18px 0}
+  .rubHead{
+    display:flex;align-items:baseline;justify-content:space-between;
+    border-top:1px solid var(--hair);padding:16px 0 12px;
+  }
+  .rubHead h4{font-size:10.5px;letter-spacing:.22em;color:var(--text-3);font-weight:700;text-transform:uppercase}
+  .rubHead span{font-size:11px;color:var(--amber);font-weight:700;cursor:pointer}
+
+  /* prossimi: lista editoriale numerata */
+  .next{display:flex;align-items:baseline;gap:14px;padding:9px 0;cursor:pointer}
+  .next .n{font-family:var(--disp);font-size:22px;color:var(--amber-deep);width:26px;flex:none;font-weight:700}
+  .next .t{font-family:var(--disp);font-size:17px;color:var(--text);font-weight:700}
+  .next .s{font-size:11.5px;color:var(--text-3);margin-top:2px}
+  .next .when{margin-left:auto;text-align:right;font-size:11px;color:var(--text-2);font-weight:700;flex:none}
+
+  /* giornata: due colonne testuali */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .duo>div{padding:4px 0 14px}
+  .duo>div:first-child{border-right:1px solid var(--hair);padding-right:14px}
+  .duo>div:last-child{padding-left:14px}
+  .duo .k{font-size:10px;letter-spacing:.18em;color:var(--amber);font-weight:700;text-transform:uppercase}
+  .duo .v{font-family:var(--disp);font-size:19px;color:var(--text);font-weight:700;margin-top:6px;line-height:1.15}
+  .duo .d{font-size:11.5px;color:var(--text-2);margin-top:6px;line-height:1.55}
+  .duo .go{display:inline-block;font-size:11px;color:var(--amber);font-weight:800;margin-top:9px;cursor:pointer}
+
+  /* stasera + viaggio: righe editoriali */
+  .strip{display:flex;align-items:center;gap:14px;padding:12px 0;cursor:pointer}
+  .strip .emo{font-size:26px;flex:none}
+  .strip .t{font-family:var(--disp);font-size:18px;color:var(--text);font-weight:700}
+  .strip .s{font-size:11.5px;color:var(--text-3);margin-top:2px}
+  .strip .arr{margin-left:auto;color:var(--amber);font-size:20px}
+
+  .spacer{height:104px}
+
+  /* ------- barra bassa: testo puro ------- */
+  .tabbar{
+    position:absolute;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;gap:26px;
+    padding:14px 0 26px;background:linear-gradient(to top,rgba(6,5,4,.95) 55%,transparent);
+  }
+  .tab{font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--text-3);cursor:pointer;text-transform:uppercase}
+  .tab.on{color:var(--amber);border-bottom:2px solid var(--amber);padding-bottom:3px}
+
+  /* ------- dettaglio evento ------- */
+  .sheetFull{position:absolute;inset:0;z-index:40;background:var(--bg);display:none;flex-direction:column;animation:up .32s cubic-bezier(.2,.8,.2,1)}
+  .sheetFull.open{display:flex}
+  @keyframes up{from{transform:translateY(6%);opacity:0}to{transform:none;opacity:1}}
+  .detTop{
+    position:relative;flex:none;padding:64px 22px 26px;border-bottom:1px solid var(--line);
+    background:
+      radial-gradient(130% 110% at 100% 0%,rgba(232,163,61,.25) 0%,transparent 55%),
+      linear-gradient(165deg,#241B0D 0%,#0E0C09 80%);
+  }
+  .close{position:absolute;top:18px;right:18px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text-2);font-size:15px;cursor:pointer}
+  .detTop .cat{font-size:10px;letter-spacing:.24em;color:var(--amber);font-weight:800;text-transform:uppercase}
+  .detTop h2{font-family:var(--disp);font-size:38px;line-height:1.04;color:var(--text);font-weight:700;margin-top:10px}
+  .detTop .sub{font-size:13px;color:var(--text-2);margin-top:10px}
+  .detBody{padding:6px 22px 30px;overflow-y:auto}
+  .fact{display:flex;justify-content:space-between;align-items:baseline;padding:15px 0;border-bottom:1px solid var(--hair)}
+  .fact .k{font-size:10.5px;letter-spacing:.16em;color:var(--text-3);font-weight:700;text-transform:uppercase}
+  .fact .v{font-family:var(--disp);font-size:20px;color:var(--text);font-weight:700}
+  .fact .v em{font-style:normal;color:var(--amber)}
+  .qr{margin-top:18px;border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;align-items:center;gap:14px}
+  .qr .box{width:70px;height:70px;flex:none;border-radius:4px;background:
+    repeating-linear-gradient(0deg,#F0E8DA 0 6px,#0E0C09 6px 12px),
+    repeating-linear-gradient(90deg,#F0E8DA 0 6px,rgba(240,232,218,.6) 6px 12px);
+    background-blend-mode:screen}
+  .qr .t{font-family:var(--disp);color:var(--text);font-weight:700;font-size:15px}
+  .qr .s{color:var(--text-3);font-size:11.5px;margin-top:3px}
+  .detActs{display:flex;gap:8px;margin-top:16px}
+  .detActs .bx{flex:1}
+
+  /* ------- overlay giorno ------- */
+  .dim{position:absolute;inset:0;z-index:45;background:rgba(4,3,2,.72);display:none}
+  .dim.open{display:block}
+  .daySheet{
+    position:absolute;left:0;right:0;bottom:0;z-index:50;max-height:80%;
+    background:var(--bg-2);border-top:1px solid var(--amber);display:none;flex-direction:column;
+    animation:up .3s cubic-bezier(.2,.8,.2,1);
+  }
+  .daySheet.open{display:flex}
+  .grab{width:40px;height:3px;border-radius:99px;background:var(--text-3);opacity:.5;margin:12px auto 4px}
+  .dayHead{padding:10px 22px 12px;border-bottom:1px solid var(--hair)}
+  .dayHead h3{font-family:var(--disp);font-size:26px;font-weight:700;color:var(--text)}
+  .dayHead span{font-size:11px;color:var(--amber);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+  .dayBody{overflow-y:auto;padding:6px 22px 30px}
+  .secLabel{font-size:10px;letter-spacing:.22em;font-weight:800;color:var(--text-3);text-transform:uppercase;padding:16px 0 6px}
+  .todo{display:flex;align-items:flex-start;gap:13px;padding:12px 0;border-bottom:1px solid var(--hair)}
+  .check{
+    width:22px;height:22px;border-radius:50%;border:1.5px solid var(--text-3);flex:none;cursor:pointer;
+    display:grid;place-items:center;color:transparent;font-size:12px;margin-top:1px;
+  }
+  .todo.done .check{background:var(--amber);border-color:var(--amber);color:#14100A}
+  .todo .txt{flex:1;font-family:var(--disp);font-size:16.5px;font-weight:700;color:var(--text)}
+  .todo.done .txt{color:var(--text-3);text-decoration:line-through}
+  .chips{display:flex;gap:6px;margin-top:6px}
+  .todo .star{color:var(--text-3);font-size:15px;cursor:pointer;margin-top:2px}
+  .todo.starred .star{color:var(--amber)}
+  .evtLine{display:flex;gap:12px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--hair)}
+  .evtLine .h{font-size:12px;color:var(--amber);font-weight:800;width:44px;flex:none}
+  .evtLine .t{font-family:var(--disp);font-size:16px;color:var(--text);font-weight:700}
+  .addTodo{display:flex;gap:10px;margin-top:16px;border-bottom:1px solid var(--line);padding-bottom:8px;align-items:center}
+  .addTodo input{flex:1;background:none;border:0;outline:0;color:var(--text);font-size:14px;font-family:var(--disp);font-style:italic}
+  .addTodo input::placeholder{color:var(--text-3)}
+  .addTodo button{border:0;border-radius:var(--r-pill);background:var(--amber);color:#14100A;font-weight:800;padding:8px 15px;font-size:13px;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="manifesto">
+  <b>CONCEPT 3 · FONDALE</b>
+  Radicale ed editoriale: la home è il racconto del tuo giorno — timeline, serif giganti, ambra su nero caldo.
+  La gerarchia dei tuoi disegni c'è tutta, ma niente card-scatola: solo tipografia, fili e aria.
+  Perfetta se Keiko non deve assomigliare a nessun'altra app sul telefono.
+</div>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="topbar">
+      <span class="logo">Keiko</span>
+      <div class="ask"><span class="k">⌕</span> chiedi qualsiasi cosa…</div>
+      <span class="cal" onclick="openDay()">LUG</span>
+    </div>
+
+    <div class="week">
+      <div class="day"><small>gio</small>2</div>
+      <div class="day today" onclick="openDay()"><small>ven</small>3<span class="dot"></span></div>
+      <div class="day"><small>sab</small>4</div>
+      <div class="day" onclick="openDay()"><small>dom</small>5<span class="dot"></span></div>
+      <div class="day"><small>lun</small>6</div>
+      <div class="day"><small>mar</small>7</div>
+      <div class="day"><small>mer</small>8<span class="dot"></span></div>
+    </div>
+
+    <div class="masthead">
+      <span class="kicker">Venerdì 3 luglio</span>
+      <h1>Oggi si va<br>a Roma.</h1>
+      <div class="sotto">Un treno alle <b>18:05</b>, una cena alle <b>20:30</b> e tre cose da chiudere prima di partire.</div>
+    </div>
+
+    <!-- flusso del giorno -->
+    <div class="flow">
+      <div class="stop hot">
+        <span class="time">18:05</span>
+        <span class="node"></span>
+        <div class="heroX" onclick="openDetail()">
+          <span class="glyph">🚄</span>
+          <span class="cat">Treno · tra 3 ore</span>
+          <h2>Frecciarossa<br>per Roma</h2>
+          <div class="meta">Milano Centrale → Termini · Binario 14 · Carrozza 7, posto 11D</div>
+          <div class="acts">
+            <button class="bx">Biglietto</button>
+            <button class="bx ghost">Quando uscire</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stop">
+        <span class="time">20:30</span>
+        <span class="node"></span>
+        <h3>Cena da Marco</h3>
+        <div class="meta">Trattoria del Borgo, Navigli</div>
+        <div class="chiplets"><span class="chip">Maps</span><span class="chip mut">Sposta</span></div>
+      </div>
+
+      <div class="stop">
+        <span class="time">17:30</span>
+        <span class="node"></span>
+        <h3>Ritira il pacco in posta</h3>
+        <div class="meta">Ufficio postale di via Vigevano · prima del treno</div>
+        <div class="chiplets"><span class="chip">Maps</span><span class="chip mut">Fatto ✓</span></div>
+      </div>
+    </div>
+
+    <!-- prossimi -->
+    <div class="rubrica">
+      <div class="rubHead"><h4>In arrivo</h4><span onclick="openDay()">calendario →</span></div>
+      <div class="next">
+        <span class="n">01</span>
+        <div><div class="t">GP Gran Bretagna 🏎️</div><div class="s">F1 · Silverstone · su Sky · classifica →</div></div>
+        <div class="when">DOM 5<br>16:00</div>
+      </div>
+      <div class="next">
+        <span class="n">02</span>
+        <div><div class="t">Volo per Londra ✈️</div><div class="s">Ryanair FR1546 · Malpensa T2</div></div>
+        <div class="when">VEN 11<br>6:00</div>
+      </div>
+      <div class="next">
+        <span class="n">03</span>
+        <div><div class="t">Cremonini a San Siro 🎤</div><div class="s">Concerto · Anello verde</div></div>
+        <div class="when">SAB 19<br>21:00</div>
+      </div>
+    </div>
+
+    <!-- giornata: due colonne -->
+    <div class="rubrica">
+      <div class="rubHead"><h4>La tua giornata</h4></div>
+      <div class="duo">
+        <div>
+          <span class="k">Allenamento</span>
+          <div class="v">Push day</div>
+          <div class="d">Panca, spalle, tricipiti — 6 esercizi.</div>
+          <span class="go">Segna fatto →</span>
+        </div>
+        <div>
+          <span class="k">Dieta · cena</span>
+          <div class="v">Salmone e patate</div>
+          <div class="d">Pranzo fatto: riso, pollo, zucchine ✓</div>
+          <span class="go">Vedi giornata →</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- stasera + viaggi -->
+    <div class="rubrica">
+      <div class="rubHead"><h4>Stasera guardi</h4><span>lista (4) →</span></div>
+      <div class="strip">
+        <span class="emo">🎬</span>
+        <div><div class="t">Dune: Parte Due</div><div class="s">Sky Cinema · 21:15 — te lo sei tenuto per il divano</div></div>
+        <span class="arr">›</span>
+      </div>
+      <div class="rubHead"><h4>Viaggi</h4><span>plot →</span></div>
+      <div class="strip">
+        <span class="emo">🧭</span>
+        <div><div class="t">Weekend a Roma</div><div class="s">12–14 settembre · plot pronto · hotel + 6 tappe</div></div>
+        <span class="arr">›</span>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+
+  <div class="tabbar">
+    <span class="tab on">Home</span>
+    <span class="tab">Dieta</span>
+    <span class="tab">Sport</span>
+    <span class="tab">Guarda</span>
+  </div>
+
+  <!-- dettaglio evento -->
+  <div class="sheetFull" id="detail">
+    <div class="detTop">
+      <button class="close" onclick="closeDetail()">✕</button>
+      <span class="cat">Treno · oggi</span>
+      <h2>Frecciarossa 9423</h2>
+      <div class="sub">Milano Centrale → Roma Termini · 2 h 55 min</div>
+    </div>
+    <div class="detBody">
+      <div class="fact"><span class="k">Partenza</span><span class="v">18:05 · <em>bin. 14</em></span></div>
+      <div class="fact"><span class="k">Arrivo</span><span class="v">21:10</span></div>
+      <div class="fact"><span class="k">Posto</span><span class="v">Carrozza 7 · 11D</span></div>
+      <div class="fact"><span class="k">Esci di casa</span><span class="v"><em>17:20</em> · M2 + 8 min a piedi</span></div>
+      <div class="qr">
+        <div class="box"></div>
+        <div>
+          <div class="t">Biglietto Trenitalia</div>
+          <div class="s">PNR X4KJ2M · mostra al controllore</div>
+        </div>
+      </div>
+      <div class="detActs">
+        <button class="bx">Quando uscire</button>
+        <button class="bx ghost">Maps</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- overlay giorno -->
+  <div class="dim" id="dim" onclick="closeDay()"></div>
+  <div class="daySheet" id="daySheet">
+    <div class="grab"></div>
+    <div class="dayHead">
+      <span>Il giorno</span>
+      <h3>Venerdì 3 luglio</h3>
+    </div>
+    <div class="dayBody">
+      <div class="secLabel">Eventi</div>
+      <div class="evtLine"><span class="h">18:05</span><span class="t">Frecciarossa per Roma 🚄</span></div>
+      <div class="evtLine"><span class="h">20:30</span><span class="t">Cena da Marco 🍝</span></div>
+
+      <div class="secLabel">To-do</div>
+      <div class="todo" onclick="this.classList.toggle('done')">
+        <span class="check">✓</span>
+        <div>
+          <div class="txt">Ritira il pacco in posta</div>
+          <div class="chips"><span class="chip">17:30</span><span class="chip">Maps</span></div>
+        </div>
+        <span class="star" onclick="event.stopPropagation();this.closest('.todo').classList.toggle('starred')">★</span>
+      </div>
+      <div class="todo starred" onclick="this.classList.toggle('done')">
+        <span class="check">✓</span>
+        <div>
+          <div class="txt">Chiama il dentista</div>
+          <div class="chips"><span class="chip">15:00</span><span class="chip">Chiama</span></div>
+        </div>
+        <span class="star" onclick="event.stopPropagation();this.closest('.todo').classList.toggle('starred')">★</span>
+      </div>
+      <div class="todo done" onclick="this.classList.toggle('done')">
+        <span class="check">✓</span>
+        <div>
+          <div class="txt">Compra il regalo per Giulia</div>
+        </div>
+        <span class="star" onclick="event.stopPropagation();this.closest('.todo').classList.toggle('starred')">★</span>
+      </div>
+
+      <div class="addTodo">
+        <input placeholder="scrivi… «palestra alle 19»">
+        <button>＋</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const detail=document.getElementById('detail'),
+        dim=document.getElementById('dim'),
+        daySheet=document.getElementById('daySheet');
+  function openDetail(){detail.classList.add('open')}
+  function closeDetail(){detail.classList.remove('open')}
+  function openDay(){dim.classList.add('open');daySheet.classList.add('open')}
+  function closeDay(){dim.classList.remove('open');daySheet.classList.remove('open')}
+</script>
+</body>
+</html>

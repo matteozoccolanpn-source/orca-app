@@ -1,92 +1,71 @@
 # Keiko — Stato attuale e TODO aperti
+> Snapshot per ripartire (anche in una nuova chat). Aggiornato il 2026-07-07, fine del blocco UI.
+> Metodo di sempre: leggi → capisci → modifica piccola; build verde prima di ogni commit;
+> MAI committare/pushare senza ok di Matteo; capitolato = docs/mockups/keiko-final.html (v2.3.1).
 
-> Snapshot per ripartire (anche in una nuova chat). I ragionamenti di dettaglio sono in
-> `BUSSOLA-E-ROADMAP.md`, `SPEC-PIANIFICATORE.md`, `ROADMAP-AL-LANCIO.md`.
-> Aggiornato il 2026-07-03 (sera: barra to-do fatta, nuovo backlog in fondo).
+## DOVE SIAMO (la settimana del redesign)
+- **Blocco UI (1A) COMPLETO**: home nuova + 5 pagine interne (salute, allenamento, guarda,
+  viaggio, agenda+day panel) al capitolato v2.3.1, dati veri, due mood, logo orca, voice.
+  Branch `redesign`, home nuova = default `/` (vecchia su `?classic`).
+- **PWA quotidiana**: dominio stabile `orca-app-git-redesign-…vercel.app` (si aggiorna a ogni
+  push). Produzione (`orca-app-zeta`) = Keiko vecchia + hotfix sicurezza, intatta fino al merge.
+- **SICUREZZA — fatto importante**: trovata e chiusa falla in produzione (pagine e API servite
+  senza login: middleware next-auth senza callback `authorized`). Hotfix su main deployato e
+  verificato; preview esposti eliminati; Deployment Protection disattivata (protegge il login
+  dell'app); AUTH_URL rimossa dal Preview (login resta sul dominio del branch).
+- Metodo di lavoro consolidato: Claude Code con AGENTS.md (regole vincolanti), sistema agentico
+  (coordinatore + agenti-pagina + QA + art director), auto-verifica con playwright + scala di
+  grigi, screenshot in docs/screens/.
 
-## Dove siamo
-Alpha single-user **funzionante e in produzione**. Il **pianificatore di viaggi** gira
-end-to-end: input voce/testo/immagine → parsing (città + date giuste) → rilevamento viaggi
-(incastri) → generazione itinerario con web-search (logistica reale + fonti) → card "Plot"
-in home con bottone "Crea plot" → pagina `/viaggio` (sequenza, dettagli, alternative
-scambiabili, messaggio, link Maps). Metodo di lavoro: "leggi → capisci → modifica piccola",
-build verde prima di ogni commit, non committare senza ok di Matteo.
+## DOCUMENTI DI RIFERIMENTO (tutti in docs/)
+- `mockups/keiko-final.html` — capitolato v2.3.1 (fonte di verità visiva)
+- `UI-REGOLE-BASE.md` · `UI-VOICE.md` · `UI-MAPPA-HOME.md` · `CHECKLIST-COLLAUDO.md`
+- `REVIEW-CRITICA-MOCKUP.md` (review FAANG: criticità e roadmap MVP/1.1/V2)
+- `UI-RICERCA-MIGLIORIE.md` (14 proposte: TUTTE approvate tranne 13-DynamicType→backlog)
+- `UI-POLISH-PROPOSTE.md` (verdetti dati) · `99-MIGLIORIE.md` (lista viva fix dall'uso)
+- `POST-UI-BACKLOG.md` (20 migliorie post-UI) · `AI-GAP-ANALYSIS.md` (84 voci backend/AI)
+- `logo/` (keiko-logo.svg, keiko-icon.svg, keiko-lockup.svg — timbro orca + wordmark W3)
 
-## Fatto ✅
-- Pipeline pianificatore completa (rilevamento, fase pesante web-search, auto-generazione via
-  endpoint separato `/api/trip/generate`, UI `/viaggio` + card Plot).
-- Campo `city` nel parser + colonna; data odierna al parser (fix anni sbagliati).
-- Pipeline testo nel drawer `CaptureSheet`; link Google Maps sugli eventi.
-- Tabella `trip_plans` (+ permessi/RLS); guardrail viaggi lunghi (≥7 giorni no auto).
-- Doc: bussola/roadmap, spec pianificatore, roadmap-al-lancio.
-- **#21 Barra TODO per-giorno — FATTA** (2026-07-03): tabella `todos` + API + overlay collegato
-  (spunta/stella/elimina/aggiungi), orario dal testo (`lib/todo-time.ts`) con chip modificabile,
-  notifica push 30 min prima via `/api/cron/tick`, luogo vero risolto da Claude web-search
-  (`lib/todo-place.ts`, chip Maps/Chiama), titolo riscritto pulito, eventi del giorno
-  nell'overlay, calendario mensile in app-bar, swipe-elimina sulle card evento.
+## TODO — CODA UI (piccoli fix, si lavorano in corso d'uso)
+1. ⚠️ Verifica finale mood: i "tre Sì/No" (sole cambia? persiste? /salute?mood=chiaro sabbia?)
+   — MAI completata da Matteo, farla dalla PWA.
+2. Pagina /login: togliere la barra "Chiedi a Keiko" e ogni chrome (solo logo+Keiko+Google).
+3. Poster watchlist: colonna `poster` su DB + pipeline TMDB (presentazione già pronta,
+   modifica additiva approvata).
+4. Verificare che i verdetti RICERCA-MIGLIORIE (1-12,14) siano tutti applicati e committati.
+5. Rimuovere la barra ?debug quando il mood è confermato.
+6. Fix dall'uso → annotarli in 99-MIGLIORIE.md con smistamento UI/logica/bug.
+7. Bug persistenza mood home (localStorage non riletto al mount) — segnalato, verificare fix.
 
-## TODO aperti (dalla task list)
+## TODO — POST-UI BACKLOG (approvato, vedi POST-UI-BACKLOG.md)
+Batch 1: **3** bug viaggi auto-creati (proporre, non creare) → **5** biglietto vero
+(salva/mostra originale+QR) → **1** sentinella ritardi treni/voli → **11** parser esteso
+(arrivo/binario/posto/prezzo) → **19** "Keiko consiglia" a regole.
+Poi: 2 playlist/link smart, 4 profilo prudenza, 6 dieta+lista spesa, 12-17, 18 Memoria &
+Statistiche (feature-firma: storico prezzi/orari per tipologia), 20 watchlist viva.
+Parcheggiate: 10 email-in; 9 import calendario (post test esterni); 7 condivisione (post multi-utente).
 
-**Pianificatore — solidità/qualità**
-- #7 Stati slot (aperto/riempito/bloccato).
-- #8 Fase leggera: ri-verifica solo il volatile all'apertura del piano.
-- #24 Viaggi multi-città: timeline città-per-data (le tratte interne come ancore).
-- #25 Swap attività rifinito (alternative pre-salvate ci sono; UX + fallback "trovami altro").
-- (Aperto tecnico: generazione oltre i 60s di Vercel → coda/background vero.)
+## TODO — BACKEND/AI (da AI-GAP-ANALYSIS.md, ordine consigliato)
+1. **Ask conversazionale fase 1** (cap.1): /api/ask con tool-use (sposta/crea/elimina/interroga)
+   + conferme UI. NB: multi-utente/RLS rimandato (fase attuale single-user, scelta di Matteo).
+2. Resolver con cache (cap.3): meteo, luoghi via Places, TMDB, classifiche + enriched_at
+   (le etichette freschezza devono diventare vere).
+3. Cron tick schedulato (⚠️ ancora aperto) + coda per lavori >60s (cap.4, cap.2.3).
+4. Voce/STT (cap.2.2). Poi il resto della gap analysis.
 
-**Feature nuove**
-- #21 **Barra TODO per-giorno** (ora placeholder) — PROSSIMO STEP, vedi sotto.
-- #22 Carica itinerario dell'utente (testo → stesso schema `plan`, + arricchimento).
-- #28 Barra chat "Chiedi a Keiko" (assistente conversazionale) — feature avanzata, DOPO
-  privacy+login. È anche la superficie dei viaggi lunghi/multi-città.
+## ROADMAP GRANDE (invariata)
+1B "99 migliorie" (in corso d'uso) → **2 Privacy** (informativa, retention screenshot=PII,
+GDPR — PREREQUISITO di qualsiasi utente esterno, fidanzata inclusa formalmente) →
+3A login multi-utente+RLS → 3B profilo → 3C onboarding → test fidanzata e amici.
 
-**Palestra**
-- #16 Scambio allenamenti (pattern swap come la dieta).
-- #17 Spunta settimanale + auto-riprogramma se ti alleni in un altro giorno.
-- #18 Report mensile (bassa priorità).
+## CERIMONIA DI FINE REDESIGN (quando Matteo decreta "pronto")
+Merge redesign→main: la v2 diventa produzione; rimuovere ?classic e la home vecchia;
+manifest/icone definitivi; smoke test produzione; via il codice morto.
 
-**UI / qualità**
-- #20 Redesign completo UI/UX (fase finale; blocco n.1 secondo Matteo).
-- #27 Pull-to-refresh sulla home.
-
-**Pulizia / verifica**
-- #11 Verifica finale: `npm run build` + test con input di prova.
-- #12 Cleanup schema morto: `trips` + `tickets.trip_id` (fase sistemazione).
-
-## Fondamenta mancanti (dal ROADMAP-AL-LANCIO)
-Il vero salto verso "prodotto": **privacy totale + login/multi-utente** (user_id su tutte le
-righe + RLS per utente + policy dati/GDPR + quote costi API). Senza, non entra nessun estraneo.
-
-## Backlog 2026-07-03 (analisi dei 7 punti di Matteo)
-
-**A — Viaggi: "il plot vive"** (punti 3+4+7 — priorità 1, "potenziamo molto")
-- A0 *(bug, piccolo)*: il plot si è fumato l'HOTEL → verificare che trip-enrich riceva
-  e usi i ticket hotel come ancora del piano.
-- A1 *(medio)*: evento nuovo dentro le date di un viaggio → il plot si aggiorna da solo
-  (o propone "aggiorna plot" sulla card).
-- A2 *(medio)*: modifica TESTUALE di un singolo item dell'itinerario ("sposta il museo
-  al pomeriggio") → Claude riscrive solo quello slot, non tutto il piano.
-
-**B — Notifiche to-do regolabili** (punto 1 — piccolo, chiude il tema appena fatto)
-- Anticipo per-todo (15/30/60/120 min) e scelta notifica singola o doppia (come gli eventi).
-
-**C — Eventi smart tipo F1** (punto 2 — medio-piccolo)
-- Riconoscere l'evento sportivo (es. GP Gran Bretagna), info minime + link classifica
-  mondiale. Poi versione "in stile Keiko" più avanti.
-
-**D — Categorie per uso** (punto 5 — medio)
-- Sezioni home (Dieta, Allenamento, To-do, e future) ordinate per uso settimanale
-  + reminder se una categoria dorme 1-2 settimane. Serve un minimo di tracking uso.
-
-**E — UI/UX** (punto 6) → già coperto da #20 (redesign completo), si fa in altra sede.
-
-**F — Watchlist "Da guardare"** (idea 2026-07-03, ispirata a TV Time)
-- Sezione film/serie da vedere: aggiunta rozza ("quel film di Nolan") → Claude risolve
-  titolo esatto + dove vederlo in streaming/TV + link. Spunta "visto".
-- v2: uscite nuove stagioni/film in sala → notifica. Riusa il pattern resolver dei to-do.
-
-FATTI (2026-07-03 sera): A0 ✅ A1 ✅ A2 ✅ B ✅ C ✅ (+ fix fuso orario +2h,
-to-do eventi smart con info TV e classifica, ordine orario, add in background).
-Restano: **D** (serve mini-piano tracking uso) e **F** (watchlist).
-
-⚠️ Aperto: chi schedula /api/cron/tick ogni ~15 min? vercel.json ha solo reminders 7:00.
+## REGOLE D'ORO (non cambiano)
+- Capitolato = unica verità visiva: i valori si copiano, mai si inventano.
+- Guardia funzionalità: nessuna funzione esistente si perde, mai.
+- TBC visibili con chip "Presto" (scelta Matteo, fase single-user).
+- Placeholder vuoti: mai — se non c'è, il modulo non esiste.
+- lib/ e app/api/ si toccano solo con ok esplicito (eccezione: sicurezza).
+- Push = decisione di Matteo (deroghe esplicite una tantum).

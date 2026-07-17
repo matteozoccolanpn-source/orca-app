@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
-import AddButton from "@/components/AddButton";
-import HeyKeikoBar from "@/components/HeyKeikoBar";
+import "./ds.css";
+import GlobalChrome from "@/components/GlobalChrome";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Famiglia UI unica, stile SF Pro / App Store — Inter (font variabile:
@@ -18,6 +18,14 @@ const inter = Inter({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Font display del redesign (v4): titoli hero/saluto. Corpo resta Inter.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  weight: ["600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -39,24 +47,38 @@ export default function RootLayout({
     <html
       lang="it"
       suppressHydrationWarning
-      className={`dark ${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-        {/* Applica il tema salvato prima del primo paint (niente flash). */}
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* Tema scuro UNICO: forza .dark prima del primo paint e cancella
+           eventuali preferenze "chiaro" salvate (keiko-theme/keiko-mood),
+           così l'app non può più ribaltarsi in chiaro. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('keiko-theme');if(t==='light'){document.documentElement.classList.remove('dark')}else if(t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}})()",
+              "(function(){try{document.documentElement.classList.add('dark');localStorage.removeItem('keiko-theme');localStorage.removeItem('keiko-mood');}catch(e){}})()",
           }}
         />
+        {/* DEV ONLY — Keiko è una PWA: in sviluppo un service worker residuo
+           può servire asset vecchi e far vedere UI non fresca. Qui lo si
+           disiscrive e si svuotano le cache a ogni load, così ciò che vedi è
+           sempre l'ultimo build del dev server. In produzione questo blocco
+           non viene renderizzato (le notifiche push restano intatte). */}
+        {process.env.NODE_ENV !== "production" && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "(function(){try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister()})})}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k)})})}}catch(e){}})()",
+            }}
+          />
+        )}
       </head>
       <body className="min-h-full font-sans text-foreground">
         <TooltipProvider>
           {children}
         </TooltipProvider>
-        <HeyKeikoBar />
-        <AddButton />
+        <GlobalChrome />
       </body>
     </html>
   );

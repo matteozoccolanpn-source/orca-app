@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Keiko — Redesign Home v3 (foto garantite)</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0C0E13; --surface:#171922; --line:rgba(255,255,255,.08);
+    --text:#F3EFE8; --text2:#C4C8CF; --text3:#9BA0A8;
+    --accent:#FFB84D; --accent-ink:#20170A; --ok:#7BD88F; --radius:22px;
+    --scrim:linear-gradient(180deg,rgba(6,6,8,0) 18%,rgba(6,6,8,.34) 48%,rgba(6,6,8,.82) 78%,rgba(6,6,8,.96) 100%);
+    --tshadow:0 1px 10px rgba(0,0,0,.55);
+    --f:'Inter',system-ui,sans-serif; --fd:'Fraunces',Georgia,serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#000;font-family:var(--f);color:var(--text);display:flex;justify-content:center;flex-wrap:wrap;gap:32px;padding:40px 16px}
+  .frame{width:390px;height:844px;background:radial-gradient(120% 60% at 50% -8%,#191410 0%,transparent 55%),linear-gradient(180deg,#0C0E13,#0A0B10);border-radius:44px;border:1px solid rgba(255,255,255,.06);overflow:hidden;position:relative;box-shadow:0 40px 120px rgba(0,0,0,.6)}
+  .scroll{height:844px;overflow-y:auto;padding:0 18px 120px}
+  .scroll::-webkit-scrollbar{display:none}
+  .status{display:flex;justify-content:space-between;padding:14px 4px 8px;font-size:12px;font-weight:600;color:var(--text2)}
+  .topbar{display:flex;align-items:center;gap:10px;padding:6px 0 14px}
+  .brand{font-family:var(--fd);font-weight:600;font-size:23px;letter-spacing:-.02em}
+  .brand b{color:var(--accent)}
+  .search{flex:1;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:10px 14px;color:var(--text3);font-size:13.5px;font-weight:500}
+  .search svg{width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2}
+  .avatar{width:38px;height:38px;border-radius:50%;flex:none;background:linear-gradient(135deg,#3a2f22,#241d15);border:1px solid var(--line);display:grid;place-items:center;font-size:15px}
+  .kicker{font-size:12.5px;color:var(--text3);font-weight:600;margin-top:4px}
+  h1{font-family:var(--fd);font-weight:600;font-size:33px;line-height:1.02;letter-spacing:-.02em;margin:2px 0 12px}
+  .summary{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:18px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .summary i{width:3px;height:3px;border-radius:50%;background:var(--text3)}
+  .summary .ok{color:var(--ok)}
+  .week{display:flex;gap:6px;margin-bottom:22px}
+  .day{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 0;border-radius:16px}
+  .day span{font-size:10.5px;color:var(--text3);font-weight:700}
+  .day b{font-size:15px;font-weight:600}
+  .day i{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  .day.on{background:var(--accent)}
+  .day.on span,.day.on b{color:var(--accent-ink)}
+  .day.on i{background:var(--accent-ink)}
+  .lead{font-size:15.5px;font-weight:700;letter-spacing:-.01em;margin:22px 2px 12px;color:var(--text)}
+  .lead small{font-weight:600;font-size:12.5px;color:var(--text3);margin-left:6px}
+  .card{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);background:#222}
+  img.ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .card .scrim{position:absolute;inset:0;background:var(--scrim)}
+  .chip{position:absolute;top:12px;left:12px;display:inline-flex;align-items:center;gap:6px;background:rgba(10,10,12,.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:700}
+  .chip.amber{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  .more{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(10,10,12,.45);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;font-size:15px}
+  .cbody{position:absolute;left:0;right:0;bottom:0;padding:15px}
+  .cbody h3{font-weight:700;font-size:16px;line-height:1.15;letter-spacing:-.01em;text-shadow:var(--tshadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmeta{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:12.5px;color:var(--text2);font-weight:600;text-shadow:var(--tshadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmeta .k{color:var(--accent);font-weight:700}
+  .maps{display:inline-flex;align-items:center;gap:4px;background:rgba(10,10,12,.5);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:700;flex:none;color:#fff}
+  .hero{aspect-ratio:16/10}
+  .hero .cbody h3{font-family:var(--fd);font-weight:600;font-size:22px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .heroline{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .row{display:flex;gap:12px;overflow-x:auto;margin:0 -18px;padding:0 18px 4px}
+  .row::-webkit-scrollbar{display:none}
+  .mini{aspect-ratio:16/11;min-width:214px;flex:none}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mod{aspect-ratio:1/1;max-height:158px}
+  .mod .cbody h3{font-size:15px}.mod .cmeta{font-size:11.5px}
+  .ring{position:absolute;top:11px;right:11px;width:38px;height:38px;border-radius:50%;background:conic-gradient(var(--accent) 100%,rgba(255,255,255,.16) 0);display:grid;place-items:center}
+  .ring::after{content:"";position:absolute;inset:3.5px;border-radius:50%;background:rgba(8,8,10,.72)}
+  .ring b{position:relative;font-size:14px;color:var(--accent)}
+  .watchrow{display:flex;gap:12px;overflow-x:auto;margin:0 -18px;padding:0 18px 4px}
+  .watchrow::-webkit-scrollbar{display:none}
+  .poster{width:116px;flex:none;aspect-ratio:2/3;border-radius:15px}
+  .poster .cbody{padding:10px}.poster .cbody h3{font-size:13px}
+  .poster .rate{position:absolute;top:8px;left:8px;background:rgba(10,10,12,.6);backdrop-filter:blur(6px);border-radius:8px;padding:3px 7px;font-size:11px;font-weight:800;color:var(--accent)}
+  .nav{position:absolute;left:0;right:0;bottom:0;height:84px;background:linear-gradient(180deg,rgba(12,13,16,0),rgba(12,13,16,.94) 42%);display:flex;align-items:center;justify-content:space-around;padding:0 24px 18px}
+  .nav a{display:flex;flex-direction:column;align-items:center;gap:3px;color:#9BA0A8;font-size:10px;font-weight:600}
+  .nav a.on{color:var(--text)}
+  .nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2}
+  .fab{width:56px;height:56px;border-radius:20px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:28px;box-shadow:0 10px 22px rgba(255,184,77,.28);margin-top:-24px}
+  .note{max-width:390px;color:#8f8f8f;font-size:12.5px;line-height:1.6}.note b{color:#ccc}
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="scroll">
+      <div class="status"><span>9:41</span><span>● ▪ ▮</span></div>
+      <div class="topbar">
+        <div class="brand">kei<b>ko</b></div>
+        <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Chiedi a Keiko…</div>
+        <div class="avatar">🐋</div>
+      </div>
+      <div class="kicker">Giovedì 16 luglio · Milano 24° ☀️</div>
+      <h1>Ciao Matteo 👋</h1>
+      <div class="summary">Oggi <i></i> 2 eventi <i></i> 1 to-do <i></i> <span class="ok">💪 allenamento fatto</span></div>
+      <div class="week">
+        <div class="day"><span>LUN</span><b>13</b></div>
+        <div class="day"><span>MAR</span><b>14</b><i></i></div>
+        <div class="day"><span>MER</span><b>15</b></div>
+        <div class="day on"><span>GIO</span><b>16</b><i></i></div>
+        <div class="day"><span>VEN</span><b>17</b><i></i></div>
+        <div class="day"><span>SAB</span><b>18</b></div>
+        <div class="day"><span>DOM</span><b>19</b><i></i></div>
+      </div>
+
+      <div class="card hero">
+        <img class="ph" src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikocena/900/560'">
+        <div class="scrim"></div>
+        <div class="chip amber">🍽 Cena · stasera</div><div class="more">⋯</div>
+        <div class="cbody"><h3>Cena estiva dipartimento</h3>
+          <div class="heroline"><span class="cmeta"><span class="k">21:00</span> · con Giulia + team</span><span class="maps">📍 Maps</span></div>
+        </div>
+      </div>
+
+      <div class="lead">In arrivo <small>3 eventi</small></div>
+      <div class="row">
+        <div class="card mini">
+          <img class="ph" src="https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=700&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikoconc/600/420'">
+          <div class="scrim"></div><div class="chip">🎤 Concerto</div>
+          <div class="cbody"><h3>Ultimo — Stadi 2026</h3><div class="cmeta"><span class="k">dom 20 · 21:00</span> · San Siro</div></div>
+        </div>
+        <div class="card mini">
+          <img class="ph" src="https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=700&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikosport/600/420'">
+          <div class="scrim"></div><div class="chip">⚽ Sport</div>
+          <div class="cbody"><h3>Semifinale Mondiali Francia–Spagna</h3><div class="cmeta"><span class="k">mar 15 · 20:00</span> · Sky Sport</div></div>
+        </div>
+        <div class="card mini">
+          <img class="ph" src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=700&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikovolo/600/420'">
+          <div class="scrim"></div><div class="chip">✈️ Volo</div>
+          <div class="cbody"><h3>Milano → Londra</h3><div class="cmeta"><span class="k">ven 25 · 6:00</span> · MXP → STN</div></div>
+        </div>
+      </div>
+
+      <div class="lead">Oggi per te</div>
+      <div class="grid">
+        <div class="card mod">
+          <img class="ph" src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=600&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikogym/500/500'">
+          <div class="scrim"></div><div class="ring"><b>✓</b></div>
+          <div class="cbody"><h3>Push day</h3><div class="cmeta">Fatto · 🔥 3 di fila</div></div>
+        </div>
+        <div class="card mod">
+          <img class="ph" src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikofood/500/500'">
+          <div class="scrim"></div><div class="chip amber">🥗 Pranzo</div>
+          <div class="cbody"><h3>Bowl di pollo</h3><div class="cmeta"><span class="k">640 kcal</span> · 52g prot</div></div>
+        </div>
+        <div class="card mod">
+          <img class="ph" src="https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=600&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikoroma/500/500'">
+          <div class="scrim"></div><div class="chip">🧭 Viaggio</div>
+          <div class="cbody"><h3>Weekend a Roma</h3><div class="cmeta"><span class="k">12–14 lug</span> · pronto</div></div>
+        </div>
+        <div class="card mod">
+          <img class="ph" src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=600&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/keikofilm/500/500'">
+          <div class="scrim"></div><div class="chip">🍿 Stasera</div>
+          <div class="cbody"><h3>Dune · Parte due</h3><div class="cmeta"><span class="k">Sky</span> · 21:15</div></div>
+        </div>
+      </div>
+
+      <div class="lead">Da guardare <small>4 titoli</small></div>
+      <div class="watchrow">
+        <div class="card poster"><img class="ph" src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=400&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/kp1/300/450'"><div class="scrim"></div><span class="rate">★ 8.1</span><div class="cbody"><h3>Oppenheimer</h3></div></div>
+        <div class="card poster"><img class="ph" src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&w=400&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/kp2/300/450'"><div class="scrim"></div><span class="rate">★ 8.6</span><div class="cbody"><h3>The Bear</h3></div></div>
+        <div class="card poster"><img class="ph" src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=400&q=70" onerror="this.onerror=null;this.src='https://picsum.photos/seed/kp3/300/450'"><div class="scrim"></div><span class="rate">★ 7.9</span><div class="cbody"><h3>Past Lives</h3></div></div>
+      </div>
+    </div>
+    <div class="nav">
+      <a class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
+      <a><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Agenda</a>
+      <div class="fab">+</div>
+      <a><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2"/></svg>Viaggi</a>
+      <a><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profilo</a>
+    </div>
+  </div>
+  <div class="note">
+    <p><b>v3 — foto garantite.</b> Ogni card ha una foto vera; se l'immagine tematica non carica (rete/ambiente), scatta automaticamente una foto di riserva reale (mai un buco nero). <b>Aprilo nel browser</b> (doppio click sul file), non nell'anteprima della chat, per vederlo come sarà. Le regole restano quelle della v2 + spec (scrim, tipografia, contrasto, troncamento).</p>
+  </div>
+</body>
+</html>
