@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CaptureSheet from "@/components/CaptureSheet";
+import EventSheet from "./EventSheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
@@ -16,6 +17,7 @@ import "../../ds.css";
 export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; demo?: boolean }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
+  const [selEv, setSelEv] = useState<LiveEvent | null>(null);
 
   const heroEv = live.heroEvents[0] ?? live.upcoming[0] ?? null;
   const inArrivo = (heroEv ? live.upcoming : live.upcoming.slice(1)).slice(0, 6);
@@ -76,7 +78,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
 
       {/* HERO */}
       {heroEv && (
-        <EventCard ev={heroEv} variant="hero" />
+        <EventCard ev={heroEv} variant="hero" onOpen={() => setSelEv(heroEv)} />
       )}
 
       {/* In arrivo */}
@@ -86,7 +88,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
           <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -18px", padding: "0 18px 4px" }}>
             {inArrivo.map((ev) => (
               <div key={ev.id} style={{ minWidth: 214, flex: "none" }}>
-                <EventCard ev={ev} variant="mini" />
+                <EventCard ev={ev} variant="mini" onOpen={() => setSelEv(ev)} />
               </div>
             ))}
           </div>
@@ -128,11 +130,12 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
       </nav>
 
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
+      {selEv && <EventSheet ev={selEv} onClose={() => setSelEv(null)} />}
     </div>
   );
 }
 
-function EventCard({ ev, variant }: { ev: LiveEvent; variant: "hero" | "mini" }) {
+function EventCard({ ev, variant, onOpen }: { ev: LiveEvent; variant: "hero" | "mini"; onOpen: () => void }) {
   const category = catFor(ev.type);
   const chipLabel = `${ev.emoji} ${ev.catLabel}`;
   return (
@@ -144,6 +147,7 @@ function EventCard({ ev, variant }: { ev: LiveEvent; variant: "hero" | "mini" })
       display={variant === "hero"}
       title={ev.title}
       meta={<><span className="k">{ev.when}</span>{ev.location ? ` · ${ev.location}` : ""}</>}
+      onClick={onOpen}
     />
   );
 }
