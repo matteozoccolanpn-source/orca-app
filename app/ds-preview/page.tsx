@@ -40,5 +40,5 @@ const SAMPLE: LiveHome = {
 };
 
 export default function DsPreview() {
-  return <KeikoHomeV4 live={SAMPLE} />;
+  return <KeikoHomeV4 live={SAMPLE} demo />;
 }

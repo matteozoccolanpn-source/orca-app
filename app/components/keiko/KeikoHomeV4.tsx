@@ -13,7 +13,7 @@ import "../../ds.css";
    categoria (livello 0). Interazioni pesanti (pannello evento, ricerca) nella
    prossima slice. */
 
-export default function KeikoHomeV4({ live }: { live: LiveHome }) {
+export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; demo?: boolean }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
 
@@ -31,7 +31,7 @@ export default function KeikoHomeV4({ live }: { live: LiveHome }) {
         : "💪 allenamento da fare"
     : null;
 
-  const go = (href: string) => router.push(href);
+  const go = (href: string) => { if (!demo) router.push(href); };  // in anteprima pubblica i tap sono inerti (niente redirect a login)
 
   return (
     <div
@@ -122,7 +122,7 @@ export default function KeikoHomeV4({ live }: { live: LiveHome }) {
       <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: 84, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 24px 18px", maxWidth: 480, margin: "0 auto" }}>
         <NavItem label="Home" active icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => {}} />
         <NavItem label="Dieta" icon={<><circle cx="12" cy="12" r="9" /><path d="M12 3v18M3 12h18" /></>} onClick={() => go("/salute")} />
-        <button onClick={() => setCapture(true)} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: 18, background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 28, boxShadow: "0 6px 14px rgba(0,0,0,.45)", marginTop: -24, cursor: "pointer" }}>+</button>
+        <button onClick={() => { if (!demo) setCapture(true); }} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: 18, background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 28, boxShadow: "0 6px 14px rgba(0,0,0,.45)", marginTop: -24, cursor: "pointer" }}>+</button>
         <NavItem label="Sport" icon={<><path d="M6 12h12M4 9v6M20 9v6M8 8v8M16 8v8" /></>} onClick={() => go("/allenamento")} />
         <NavItem label="Guarda" icon={<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></>} onClick={() => go("/guarda")} />
       </nav>
