@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CaptureSheet from "@/components/CaptureSheet";
 import EventSheet from "./EventSheet";
 import AskSheet from "./AskSheet";
+import DaySheet from "./DaySheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
@@ -15,11 +16,23 @@ import "../../ds.css";
    categoria (livello 0). Interazioni pesanti (pannello evento, ricerca) nella
    prossima slice. */
 
+function dayTitle(key: string): string {
+  try { return new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Rome" }).format(new Date(key + "T00:00:00")); }
+  catch { return key; }
+}
+
 export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; demo?: boolean }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
   const [selEv, setSelEv] = useState<LiveEvent | null>(null);
   const [askOpen, setAskOpen] = useState(false);
+  const [selDay, setSelDay] = useState<string | null>(null);
+
+  // azioni to-do del pannello giorno: riusa /api/todos + ricarica i dati veri
+  const todoFetch = async (method: string, body: object) => {
+    if (demo) return;
+    try { await fetch("/api/todos", { method, headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify(body) }); router.refresh(); } catch { /* offline: nessun dato finto */ }
+  };
 
   const heroEv = live.heroEvents[0] ?? live.upcoming[0] ?? null;
   const inArrivo = (heroEv ? live.upcoming : live.upcoming.slice(1)).slice(0, 6);
@@ -70,7 +83,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
       {/* week strip */}
       <div style={{ display: "flex", gap: 6, margin: "0 0 24px" }}>
         {live.week.slice(0, 7).map((d) => (
-          <div key={d.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "9px 0", borderRadius: 16, background: d.today ? "var(--k-accent)" : "transparent" }}>
+          <div key={d.key} onClick={() => setSelDay(d.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "9px 0", borderRadius: 16, background: d.today ? "var(--k-accent)" : "transparent", cursor: "pointer" }}>
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", color: d.today ? "var(--k-accent-ink)" : "var(--k-text-3)" }}>{d.w.toUpperCase()}</span>
             <b style={{ fontSize: 16, fontWeight: 600, color: d.today ? "var(--k-accent-ink)" : "var(--k-text-2)" }}>{d.n}</b>
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: d.d1 ? (d.today ? "var(--k-accent-ink)" : "var(--k-accent)") : "transparent" }} />
@@ -134,6 +147,18 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
       {selEv && <EventSheet ev={selEv} onClose={() => setSelEv(null)} demo={demo} />}
       {askOpen && <AskSheet onClose={() => setAskOpen(false)} />}
+      {selDay && (
+        <DaySheet
+          title={live.days[selDay]?.title ?? dayTitle(selDay)}
+          day={live.days[selDay] ?? null}
+          demo={demo}
+          onClose={() => setSelDay(null)}
+          onToggle={(id, done) => todoFetch("PATCH", { id, done })}
+          onStar={(id, star) => todoFetch("PATCH", { id, star })}
+          onDelete={(id) => todoFetch("DELETE", { id })}
+          onAdd={(text) => todoFetch("POST", { day: selDay, text })}
+        />
+      )}
     </div>
   );
 }
