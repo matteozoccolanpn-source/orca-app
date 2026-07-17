@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import CaptureSheet from "@/components/CaptureSheet";
 import EventSheet from "./EventSheet";
 import AskSheet from "./AskSheet";
 import DaySheet from "./DaySheet";
+import ProfileSheet from "./ProfileSheet";
+import CalendarSheet from "./CalendarSheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
@@ -21,12 +23,21 @@ function dayTitle(key: string): string {
   catch { return key; }
 }
 
-export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; demo?: boolean }) {
+export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void> }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
   const [selEv, setSelEv] = useState<LiveEvent | null>(null);
   const [askOpen, setAskOpen] = useState(false);
   const [selDay, setSelDay] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
+  const [name, setName] = useState("");
+
+  // nome salvato sul dispositivo (come la Home vecchia): saluta con quello se c'è
+  useEffect(() => { try { const n = localStorage.getItem("keiko-name"); if (n) setName(n); } catch { /* no-op */ } }, []);
+  const saveName = (v: string) => { setName(v); try { localStorage.setItem("keiko-name", v); } catch { /* no-op */ } };
+  const greeting = name.trim() ? `Ciao ${name.trim()} 👋` : live.greeting;
+  const todayN = live.week.find((d) => d.today)?.n ?? null;
 
   // azioni to-do del pannello giorno: riusa /api/todos + ricarica i dati veri
   const todoFetch = async (method: string, body: object) => {
@@ -67,12 +78,15 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           Chiedi a Keiko…
         </div>
-        <button onClick={() => go("/?v2")} aria-label="Profilo" style={{ width: 38, height: 38, borderRadius: "50%", flex: "none", background: "linear-gradient(135deg,#3a2f22,#241d15)", border: "1px solid var(--k-line)", display: "grid", placeItems: "center", fontSize: 15, cursor: "pointer" }}>🐋</button>
+        <button onClick={() => setProfileOpen(true)} aria-label="Profilo" style={{ width: 38, height: 38, borderRadius: "50%", flex: "none", background: "linear-gradient(135deg,#3a2f22,#241d15)", border: "1px solid var(--k-line)", display: "grid", placeItems: "center", fontSize: 15, cursor: "pointer" }}>🐋</button>
       </div>
 
       {/* saluto */}
-      <p style={{ fontSize: 13, color: "var(--k-text-3)", fontWeight: 500, margin: "0 0 4px" }}>{live.kickDate}</p>
-      <h1 className="ds-display" style={{ fontSize: 24, lineHeight: 1.06, margin: "0 0 8px", color: "var(--k-text)" }}>{live.greeting}</h1>
+      <button onClick={() => setCalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: 0, padding: 0, margin: "0 0 4px", color: "var(--k-text-3)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+        {live.kickDate}
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
+      </button>
+      <h1 className="ds-display" style={{ fontSize: 24, lineHeight: 1.06, margin: "0 0 8px", color: "var(--k-text)" }}>{greeting}</h1>
       <div style={{ fontSize: 13, color: "var(--k-text-2)", fontWeight: 500, margin: "0 0 20px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         Oggi
         <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--k-text-3)" }} />
@@ -157,6 +171,17 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
           onStar={(id, star) => todoFetch("PATCH", { id, star })}
           onDelete={(id) => todoFetch("DELETE", { id })}
           onAdd={(text) => todoFetch("POST", { day: selDay, text })}
+        />
+      )}
+      {profileOpen && <ProfileSheet name={name} onName={saveName} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}
+      {calOpen && (
+        <CalendarSheet
+          baseY={live.cal.y}
+          baseM={live.cal.m}
+          dots={live.cal.dots}
+          todayN={todayN}
+          onPickDay={(key) => { setCalOpen(false); setSelDay(key); }}
+          onClose={() => setCalOpen(false)}
         />
       )}
     </div>

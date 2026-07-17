@@ -64,6 +64,6 @@ export default async function Home({
     trips,
     watch: watchlist,
   });
-  if (v4) return <KeikoHomeV4 live={live} />;
+  if (v4) return <KeikoHomeV4 live={live} logoutAction={logout} />;
   return <KeikoPreview live={live} logoutAction={logout} />;
 }
