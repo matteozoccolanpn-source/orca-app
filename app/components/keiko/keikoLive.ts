@@ -78,7 +78,7 @@ export type LiveHome = {
   gym: { done: number; total: number; trainedToday: boolean; title: string; first: string | null; rest: boolean; week: { letter: string; on: boolean; today: boolean }[] } | null;
   diet: { nextPasto: string | null; nextOpt: string | null; done: string[] } | null;
   trip: { title: string; range: string; sub: string } | null;
-  watch: { count: number; title: string | null; sub: string } | null;
+  watch: { count: number; title: string | null; sub: string; poster?: string | null } | null;
 };
 
 function toEvent(e: Ticket, today: Date): LiveEvent {

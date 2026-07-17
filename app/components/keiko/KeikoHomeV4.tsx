@@ -144,6 +144,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
         )}
         {live.watch && (
           <SmartMedia variant="square" category="film" chip="🍿 Guarda" glyph="🍿" style={{ aspectRatio: "4 / 3" }}
+            image={live.watch.poster ?? undefined}
             title={live.watch.title ?? "Da guardare"} meta={live.watch.sub ?? `${live.watch.count} titoli`}
             onClick={() => go("/guarda")} />
         )}

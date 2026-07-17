@@ -3,6 +3,7 @@ import KeikoPreview from "./components/keiko/KeikoPreview";
 import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist } from "@/lib/supabase";
+import { posterFor } from "@/lib/tmdb";
 import { signOut } from "@/auth";
 
 // La home deve SEMPRE leggere i dati freschi da Supabase: senza questo, Next.js
@@ -65,6 +66,10 @@ export default async function Home({
     trips,
     watch: watchlist,
   });
+  // Locandina reale (TMDB) per il riquadro "Guarda" della home (se c'è la chiave).
+  if (live.watch?.title) {
+    live.watch = { ...live.watch, poster: await posterFor(live.watch.title, "film") };
+  }
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.
