@@ -40,7 +40,10 @@ Due font, ruoli **fissi**:
 
 ## 4. Card (UN solo linguaggio)
 Struttura fissa: `foto (o gradiente) → scrim → chip categoria (alto-sx) → contenuto (basso)`.
-- Radius: **22px** (card), 15px (poster), 999px (chip/pill).
+- Radius: **20px** (card), 15px (poster), 999px (chip/pill).
+- **Elevazione (fa "prodotto", non flat):** `box-shadow: 0 1px 2px rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.4)` + **hairline interna di luce** `inset 0 0 0 1px rgba(255,255,255,.10)` + bordo esterno scuro `1px rgba(0,0,0,.5)` (stacco dal fondo). Press: `transform: scale(.985)`.
+- **Chip**: `backdrop-filter: blur(8px)`, peso **600** (non 700), `letter-spacing .2px`.
+- **Topbar** sticky con `backdrop-filter: blur(16px)` + hairline `rgba(255,255,255,.06)`.
 - **Scrim costante a DUE lati** (non opzionale, tarato sul caso peggiore = foto CHIARA): `linear-gradient(180deg, rgba(6,6,8,.5) 0%, rgba(6,6,8,.14) 20%, rgba(6,6,8,.5) 56%, rgba(6,6,8,.9) 82%, rgba(6,6,8,.99) 100%)`. Scurisce **sopra** (per i chip in alto) e **sotto** (per il testo). Sempre con `text-shadow: 0 1px 3px rgba(0,0,0,.6), 0 1px 12px rgba(0,0,0,.5)` su titoli e metadati.
 - **Chip / badge SEMPRE opachi**, mai translucidi (spariscono su foto chiare): sfondo `rgba(12,12,15,.82)` + bordo `rgba(255,255,255,.12)`. Variante `amber` piena.
 - **Indicatori tondi (anello/ring)**: track esterno + **centro PIENO opaco** (`#141017`), mai centro semitrasparente — altrimenti sembra un buco sulla foto.

@@ -36,10 +36,10 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
   return (
     <div
       className="ds"
-      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 18px calc(96px + env(safe-area-inset-bottom))", maxWidth: 480, margin: "0 auto" }}
+      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 20px calc(96px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto" }}
     >
       {/* topbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "calc(env(safe-area-inset-top) + 12px) 0 12px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, margin: "0 -20px", padding: "calc(env(safe-area-inset-top) + 12px) 20px 12px", background: "rgba(11,13,18,.82)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
         <span className="ds-display" style={{ fontSize: 22, color: "var(--k-text)" }}>
           kei<span style={{ color: "var(--k-accent)" }}>ko</span>
         </span>
@@ -55,7 +55,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
 
       {/* saluto */}
       <p style={{ fontSize: 13, color: "var(--k-text-3)", fontWeight: 500, margin: "0 0 4px" }}>{live.kickDate}</p>
-      <h1 className="ds-display" style={{ fontSize: 26, lineHeight: 1.05, margin: "0 0 8px", color: "var(--k-text)" }}>{live.greeting}</h1>
+      <h1 className="ds-display" style={{ fontSize: 24, lineHeight: 1.06, margin: "0 0 8px", color: "var(--k-text)" }}>{live.greeting}</h1>
       <div style={{ fontSize: 13, color: "var(--k-text-2)", fontWeight: 500, margin: "0 0 20px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         Oggi
         <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--k-text-3)" }} />
@@ -82,7 +82,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
       {/* In arrivo */}
       {inArrivo.length > 0 && (
         <>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: "28px 2px 12px", color: "var(--k-text-3)" }}>In arrivo <span style={{ fontWeight: 600, fontSize: 12.5, color: "var(--k-text-3)" }}>· {inArrivo.length}</span></h2>
+          <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "32px 2px 16px", color: "var(--k-text-3)" }}>In arrivo <span style={{ fontWeight: 600, fontSize: 12.5, color: "var(--k-text-3)" }}>· {inArrivo.length}</span></h2>
           <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -18px", padding: "0 18px 4px" }}>
             {inArrivo.map((ev) => (
               <div key={ev.id} style={{ minWidth: 214, flex: "none" }}>
@@ -94,7 +94,7 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
       )}
 
       {/* Oggi per te */}
-      <h2 style={{ fontSize: 15, fontWeight: 600, margin: "28px 2px 12px", color: "var(--k-text-3)" }}>Oggi per te</h2>
+      <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "32px 2px 16px", color: "var(--k-text-3)" }}>Oggi per te</h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {gym && (
           <SmartMedia variant="square" category="sport" chip="💪 Allenamento" glyph="🏋️" style={{ aspectRatio: "4 / 3" }}
@@ -119,10 +119,10 @@ export default function KeikoHomeV4({ live, demo = false }: { live: LiveHome; de
       </div>
 
       {/* bottom nav */}
-      <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: 84, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 24px 18px", maxWidth: 480, margin: "0 auto" }}>
+      <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: 84, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px 18px", maxWidth: 440, margin: "0 auto" }}>
         <NavItem label="Home" active icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => {}} />
         <NavItem label="Dieta" icon={<><circle cx="12" cy="12" r="9" /><path d="M12 3v18M3 12h18" /></>} onClick={() => go("/salute")} />
-        <button onClick={() => { if (!demo) setCapture(true); }} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: 18, background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 28, boxShadow: "0 6px 14px rgba(0,0,0,.45)", marginTop: -24, cursor: "pointer" }}>+</button>
+        <button onClick={() => { if (!demo) setCapture(true); }} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 30, lineHeight: 1, paddingBottom: 2, boxShadow: "0 8px 20px rgba(255,184,77,.28), 0 2px 6px rgba(0,0,0,.4)", marginTop: -24, cursor: "pointer" }}>+</button>
         <NavItem label="Sport" icon={<><path d="M6 12h12M4 9v6M20 9v6M8 8v8M16 8v8" /></>} onClick={() => go("/allenamento")} />
         <NavItem label="Guarda" icon={<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></>} onClick={() => go("/guarda")} />
       </nav>
