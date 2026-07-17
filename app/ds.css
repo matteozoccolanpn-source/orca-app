@@ -28,6 +28,11 @@
   --k-cat-sport: linear-gradient(150deg, #c9603f, #3a160c);
   --k-cat-hotel: linear-gradient(150deg, #7a54da, #2a1c66);
   --k-cat-museo: linear-gradient(150deg, #3f7d6e, #123a30);
+  --k-cat-festa: linear-gradient(150deg, #d64f8a, #4a1230);
+  --k-cat-lavoro: linear-gradient(150deg, #4a5a7a, #1c2334);
+  --k-cat-dieta: linear-gradient(150deg, #4f9a52, #143a16);
+  --k-cat-film: linear-gradient(150deg, #6a4aa0, #241436);
+  --k-cat-viaggio: linear-gradient(150deg, #c9863f, #3a2410);
   --k-cat-default: linear-gradient(150deg, #5a5f8a, #232743);
 
   color: var(--k-text);

@@ -1,4 +1,5 @@
 import SmartMedia from "@/components/SmartMedia";
+import { ALL_CATEGORIES } from "@/lib/smart-image";
 
 /* Anteprima LIVE del design system v4 nel codice vero. Aprire /ds-preview.
    Livello 0: card con gradiente-categoria (nessuna foto esterna) + una con foto. */
@@ -43,6 +44,18 @@ export default function DsPreview() {
         <button className="ds-btn primary">Primario</button>
         <button className="ds-btn">Secondario</button>
         <button className="ds-btn danger">Elimina</button>
+      </div>
+
+      <h2 className="ds-display" style={{ fontSize: 20, margin: "32px 0 12px", color: "var(--k-text)" }}>
+        Palette categorie — livello 0
+      </h2>
+      <p style={{ fontSize: 12.5, color: "var(--k-text-3)", fontWeight: 600, margin: "0 0 12px" }}>
+        Ogni categoria ha il suo gradiente: l&apos;app è immersiva anche senza una foto.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        {ALL_CATEGORIES.map((c) => (
+          <SmartMedia key={c} variant="square" category={c} title={c} style={{ maxHeight: 110 }} />
+        ))}
       </div>
     </div>
   );
