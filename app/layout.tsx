@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
+import "./ds.css";
 import GlobalChrome from "@/components/GlobalChrome";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -17,6 +18,14 @@ const inter = Inter({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Font display del redesign (v4): titoli hero/saluto. Corpo resta Inter.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  weight: ["600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -38,7 +47,7 @@ export default function RootLayout({
     <html
       lang="it"
       suppressHydrationWarning
-      className={`dark ${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
