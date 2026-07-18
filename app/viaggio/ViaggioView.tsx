@@ -294,9 +294,6 @@ function SlotRow({ step, clusterKey, index, ticket }: { step: Slot; clusterKey: 
         <button className="chipA dk" onClick={() => setEditing((e) => !e)}>
           &#9998; Modifica
         </button>
-        {ticket && (
-          <a className="chipA dk" href={`/?v2#ev=${ticket.id}`}>&#127903; Vedi biglietto</a>
-        )}
       </div>
 
       {editing && (

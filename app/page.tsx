@@ -71,36 +71,38 @@ export default async function Home({
     trips,
     watch: watchlist,
   });
-  // Locandina reale (TMDB) per il riquadro "Guarda" della home (se c'è la chiave).
-  if (live.watch?.title) {
-    live.watch = { ...live.watch, poster: await posterFor(live.watch.title, "film") };
+  // Arricchimento foto/meteo. RESILIENTE: se qualcosa va storto la home si
+  // carica lo stesso (senza quelle foto) invece di dare errore/503.
+  try {
+    if (live.watch?.title) {
+      live.watch = { ...live.watch, poster: await posterFor(live.watch.title, "film") };
+    }
+    const eventsToPhoto = [...live.heroEvents, ...live.upcoming.slice(0, 6)];
+    await Promise.all([
+      ...eventsToPhoto.map(async (e) => {
+        const [img, w] = await Promise.all([
+          resolveEventImage(e.type, e.title, e.location),
+          e.location ? weatherFor(e.location) : Promise.resolve(null),
+        ]);
+        e.image = img;
+        e.weather = w;
+      }),
+      // Viaggio/città: foto vera da Unsplash (se c'è la chiave), altrimenti gradiente.
+      (async () => {
+        if (live.trip?.title) live.trip = { ...live.trip, image: await cityImage(live.trip.title) };
+      })(),
+      (async () => {
+        const food = live.diet?.nextOpt || live.diet?.nextPasto;
+        if (live.diet && food) live.diet = { ...live.diet, image: await mealImage(food) };
+      })(),
+      (async () => {
+        const ex = live.gym?.first || live.gym?.title;
+        if (live.gym && ex && !live.gym.rest) live.gym = { ...live.gym, image: await exerciseImage(ex) };
+      })(),
+    ]);
+  } catch (e) {
+    console.error("Arricchimento home fallito (la pagina si carica comunque):", e);
   }
-
-  // Foto eventi dalla fonte giusta per tipo (Spotify/Sport/Places) per
-  // eroe + "in arrivo"; foto città per il viaggio (Google Places).
-  const eventsToPhoto = [...live.heroEvents, ...live.upcoming.slice(0, 6)];
-  await Promise.all([
-    ...eventsToPhoto.map(async (e) => {
-      const [img, w] = await Promise.all([
-        resolveEventImage(e.type, e.title, e.location),
-        e.location ? weatherFor(e.location) : Promise.resolve(null),
-      ]);
-      e.image = img;
-      e.weather = w;
-    }),
-    // Viaggio/città: foto vera da Unsplash (se c'è la chiave), altrimenti gradiente.
-    (async () => {
-      if (live.trip?.title) live.trip = { ...live.trip, image: await cityImage(live.trip.title) };
-    })(),
-    (async () => {
-      const food = live.diet?.nextOpt || live.diet?.nextPasto;
-      if (live.diet && food) live.diet = { ...live.diet, image: await mealImage(food) };
-    })(),
-    (async () => {
-      const ex = live.gym?.first || live.gym?.title;
-      if (live.gym && ex && !live.gym.rest) live.gym = { ...live.gym, image: await exerciseImage(ex) };
-    })(),
-  ]);
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.

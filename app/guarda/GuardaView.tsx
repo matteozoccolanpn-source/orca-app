@@ -18,6 +18,13 @@ function insertAt<T>(arr: T[], item: T, index: number): T[] {
   return [...arr.slice(0, i), item, ...arr.slice(i)];
 }
 
+// fetch con timeout: se l'AI ci mette troppo, non blocca — annulla e segnala.
+function fetchWithTimeout(url: string, opts: RequestInit, ms = 20000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+
 export default function GuardaView({ items }: { items: WatchItem[] }) {
   const router = useRouter();
   const [list, setList] = useState<WatchItem[]>(items);
@@ -25,6 +32,9 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   const busy = useRef(false);
 
   const [toast, setToast] = useState<ToastState>(null);
+  const [ask, setAsk] = useState<null | "add" | "suggest">(null); // foglio input (niente prompt nativi)
+  const [askText, setAskText] = useState("");
+  const [thinking, setThinking] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   function showToast(msg: string, action?: string, onAction?: () => void) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -62,17 +72,17 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   }
 
   function dove(item: WatchItem) {
-    if (item.link) window.open(item.link, "_blank", "noopener");
-    else showToast(item.info ? item.info : "Non ho ancora la scheda, la cerco 🔎");
+    // esito sempre reale: link salvato, oppure JustWatch (dove vederlo in Italia).
+    const url = item.link || `https://www.justwatch.com/it/cerca?q=${encodeURIComponent(item.title)}`;
+    window.open(url, "_blank", "noopener");
   }
 
-  async function aggiungiTitolo() {
-    const raw = window.prompt("Aggiungi un titolo — anche solo «quel film di Nolan»");
-    const title = (raw ?? "").trim();
-    if (!title) return;
-    const kind = /\b(serie|stagione|s\d)/i.test(title) ? "serie" : "film";
+  async function doAdd(title: string) {
+    const t = title.trim();
+    if (!t) return;
+    const kind = /\b(serie|stagione|s\d)/i.test(t) ? "serie" : "film";
     try {
-      const res = await fetch("/api/watch", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title, kind, info: null, link: null }) });
+      const res = await fetch("/api/watch", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: t, kind, info: null, link: null }) });
       const data = (await res.json()) as { item?: WatchItem };
       if (!res.ok || !data.item) throw new Error();
       setList((l) => [data.item!, ...l]);
@@ -80,22 +90,30 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
     } catch { showToast("Qualcosa non torna, riprovo"); }
   }
 
-  async function consiglio() {
+  async function doSuggest(query: string) {
     if (busy.current) return;
-    const raw = window.prompt("Che serata è? es. «commedia leggera», «thriller»");
-    if (raw === null) return;
-    const query = raw.trim() || "consigliami qualcosa da vedere stasera";
+    const q = query.trim() || "consigliami qualcosa da vedere stasera";
     busy.current = true;
-    showToast("Ci penso io ✨");
+    setThinking(true);
     try {
-      const res = await fetch("/api/watch/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ query }) });
+      const res = await fetchWithTimeout("/api/watch/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ query: q }) }, 20000);
       const data = (await res.json()) as { films?: Pick[] };
       if (!res.ok) throw new Error();
       const p = (data.films ?? [])[0];
+      setAsk(null);
       if (!p) { showToast("Non ho trovato niente di convincente, riformula"); return; }
       showToast(`Stasera ti direi ${p.title} ✨`, "Aggiungi", () => salvaPick(p));
-    } catch { showToast("Qualcosa non torna, riprovo"); }
-    finally { busy.current = false; }
+    } catch (e) {
+      setAsk(null);
+      showToast(e instanceof Error && e.name === "AbortError" ? "Ci ho messo troppo, riprova 🙏" : "Qualcosa non torna, riprovo");
+    } finally { busy.current = false; setThinking(false); }
+  }
+
+  // apre il foglio input al posto delle finestre prompt() native
+  function openAsk(mode: "add" | "suggest") { setAskText(""); setAsk(mode); }
+  async function submitAsk() {
+    if (ask === "add") { await doAdd(askText); setAsk(null); }
+    else if (ask === "suggest") { await doSuggest(askText); }
   }
 
   async function salvaPick(p: Pick) {
@@ -159,15 +177,37 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
 
       {/* Aggiungi / Consiglio */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-        <button onClick={aggiungiTitolo} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
+        <button onClick={() => openAsk("add")} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: "var(--k-text)" }}>＋ Aggiungi un titolo</span><br />
           <span style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>anche solo «quel film di Nolan»</span>
         </button>
-        <button onClick={consiglio} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
+        <button onClick={() => openAsk("suggest")} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: "var(--k-text)" }}>✨ Consiglio di Keiko</span><br />
           <span style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>in base alla tua serata</span>
         </button>
       </div>
+
+      {/* foglio input (Aggiungi / Consiglio) — niente prompt() nativi */}
+      {ask && (
+        <div onClick={() => { if (!thinking) setAsk(null); }} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--k-text)", margin: "0 0 6px" }}>{ask === "add" ? "Aggiungi un titolo" : "✨ Consiglio di Keiko"}</h3>
+            <p style={{ fontSize: 13, color: "var(--k-text-3)", margin: "0 0 14px" }}>{ask === "add" ? "Scrivi un titolo — anche solo «quel film di Nolan»" : "Che serata è? es. «commedia leggera», «thriller» (vuoto = a sorpresa)"}</p>
+            {thinking ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 4px", color: "var(--k-text-2)", fontSize: 14 }}>
+                <span className="ds-spin" style={{ width: 18, height: 18, border: "2px solid var(--k-line)", borderTopColor: "var(--k-accent)", borderRadius: "50%", display: "inline-block" }} />
+                Keiko sta pensando…
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input autoFocus value={askText} onChange={(e) => setAskText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitAsk(); }} placeholder={ask === "add" ? "Titolo…" : "Tipo di serata…"} style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0 }} />
+                <button onClick={submitAsk} disabled={ask === "add" && !askText.trim()} className="ds-btn primary" style={{ height: 44, padding: "0 18px", opacity: ask === "add" && !askText.trim() ? 0.4 : 1 }}>{ask === "add" ? "Aggiungi" : "Chiedi"}</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* toast */}
       {toast && (
