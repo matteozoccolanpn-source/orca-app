@@ -155,18 +155,25 @@ export function mapLive(data: {
     .filter((x) => x.t >= Date.now())
     .sort((a, b) => a.t - b.t)
     .map((x) => x.e);
-  const todayEvents = future.filter((e) => dayKey(rome(new Date(e.datetime))) === todayKey);
-  const heroSrc = todayEvents.length > 0 ? todayEvents : future.slice(0, 1);
+  // N1 — la HOME mostra solo il vicino (entro ~90 giorni): hero + "In arrivo".
+  // Gli eventi più lontani NON stanno in home ma restano nel calendario e nella
+  // pagina "In arrivo" completa (agenda, costruita più sotto sul futuro intero).
+  const HOME_HORIZON_DAYS = 90;
+  const nearFuture = future.filter((e) => countdownDays(e.datetime, today) <= HOME_HORIZON_DAYS);
+  const todayEvents = nearFuture.filter((e) => dayKey(rome(new Date(e.datetime))) === todayKey);
+  const heroSrc = todayEvents.length > 0 ? todayEvents : nearFuture.slice(0, 1);
   const heroIds = new Set(heroSrc.map((e) => e.id));
-  const upcomingSrc = future.filter((e) => !heroIds.has(e.id));
+  const upcomingSrc = nearFuture.filter((e) => !heroIds.has(e.id));
   const heroEvents = heroSrc.map((e) => toEvent(e, today));
   const upcoming = upcomingSrc.map((e) => toEvent(e, today));
 
-  // --- agenda: raggruppa i futuri per fascia ---
+  // --- agenda: raggruppa TUTTI i futuri per fascia (vista completa, anche oltre
+  // l'orizzonte home: qui gli eventi lontani DEVONO restare). ---
+  const allFuture = future.map((e) => toEvent(e, today));
   const agenda: LiveHome["agenda"] = [];
   const push = (label: string, evs: LiveEvent[]) => { if (evs.length) agenda.push({ label, events: evs }); };
-  push("Oggi", [...heroEvents, ...upcoming].filter((e) => e.rel === "oggi"));
-  push("Prossimi giorni", [...heroEvents, ...upcoming].filter((e) => e.rel !== "oggi"));
+  push("Oggi", allFuture.filter((e) => e.rel === "oggi"));
+  push("Prossimi giorni", allFuture.filter((e) => e.rel !== "oggi"));
 
   // --- oggi per te: palestra + dieta ---
   const dShort = WD_SHORT[today.getDay()];

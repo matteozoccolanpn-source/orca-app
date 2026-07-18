@@ -285,7 +285,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
   };
 
   const dim = evKey !== null || ["dayPanel", "addSheet", "actSheet", "shareSheet", "confirmSheet", "calPanel"].some((id) => views[id]);
-  const liveEv = live && evKey ? ([...live.heroEvents, ...live.upcoming].find((e) => e.id === evKey) ?? null) : null;
+  const liveEv = live && evKey ? ([...live.heroEvents, ...live.upcoming, ...live.agenda.flatMap((g) => g.events)].find((e) => e.id === evKey) ?? null) : null;
   const ev = live ? (liveEv ? liveToPanel(liveEv) : null) : (evKey ? EVENTS[evKey] : null);
   const panelIcon = live ? (liveEv?.iconKey ?? "treno") : (evKey ?? "treno");
 
