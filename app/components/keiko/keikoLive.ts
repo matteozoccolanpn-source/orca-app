@@ -182,11 +182,24 @@ export function mapLive(data: {
     first: esercizi[0]?.nome ?? null, rest: !esercizi.length, week: gymWeek,
   } : null;
 
+  // Pasto "del momento": ruota nell'arco della giornata (colazione al mattino,
+  // pranzo a metà, cena la sera) spalmando i pasti tra le 7 e le 21.
   const meals = data.diet?.[dShort] ?? null;
-  const diet = meals && meals.length ? {
-    nextPasto: meals[0]?.pasto ?? null, nextOpt: meals[0]?.opzioni?.[0] ?? null,
-    done: meals.slice(1).map((m) => m.pasto),
-  } : null;
+  let diet: LiveHome["diet"] = null;
+  if (meals && meals.length) {
+    const h = today.getHours();
+    let idx: number;
+    if (h >= 21) idx = meals.length - 1;
+    else {
+      const per = (21 - 7) / meals.length;
+      idx = Math.max(0, Math.min(meals.length - 1, Math.floor((h - 7) / per)));
+    }
+    diet = {
+      nextPasto: meals[idx]?.pasto ?? null,
+      nextOpt: meals[idx]?.opzioni?.[0] ?? null,
+      done: meals.filter((_, i) => i !== idx).map((m) => m.pasto),
+    };
+  }
 
   // --- ctx viaggio + guarda ---
   const t0 = data.trips[0] ?? null;

@@ -67,6 +67,7 @@ export async function enrichEvent(id: string): Promise<EventEnrichment | null> {
 Cerca sul web informazioni UTILI e ATTUALI su questo specifico evento/luogo. Restituisci SOLO un JSON valido, senza altro testo, in questa forma:
 {"summary": "1-2 frasi utili in italiano su cosa è e cosa sapere", "links": [{"label": "etichetta breve", "url": "https://..."}]}
 
+Regola FONDAMENTALE sul summary: NON inventare né riportare date o orari specifici (es. "20 giugno 2027"). La data dell'evento la conosce già l'app: nel summary descrivi solo cosa è, cosa aspettarsi, consigli utili — MAI una data. Se non sei sicuro di un dato, ometti.
 Regole per i link (2-5, i più utili possibili): sito ufficiale, pagina biglietti, come arrivare, e un contenuto pertinente (es. video/trailer/programma). URL reali e funzionanti. Se non trovi nulla di affidabile, restituisci links vuoto.`;
 
   try {

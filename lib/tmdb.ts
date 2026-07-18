@@ -8,12 +8,13 @@
 
 const IMG_BASE = "https://image.tmdb.org/t/p/w500";
 
-export async function posterFor(title: string, kind?: string): Promise<string | null> {
+// Cerca sia FILM che SERIE TV insieme (search/multi) e prende la prima
+// con una locandina. Così trova anche le serie, non solo i film.
+export async function posterFor(title: string, _kind?: string): Promise<string | null> {
   const key = process.env.TMDB_API_KEY;
   if (!key || !title.trim()) return null;
-  const type = kind === "serie" ? "tv" : "movie";
   const isV4 = key.includes("."); // i token v4 sono JWT con dei punti
-  const base = `https://api.themoviedb.org/3/search/${type}?query=${encodeURIComponent(title)}&language=it-IT&page=1`;
+  const base = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}&language=it-IT&page=1`;
   const url = isV4 ? base : `${base}&api_key=${key}`;
   const init: RequestInit & { next?: { revalidate: number } } = {
     next: { revalidate: 604800 }, // 7 giorni
@@ -23,8 +24,9 @@ export async function posterFor(title: string, kind?: string): Promise<string | 
     const res = await fetch(url, init);
     if (!res.ok) { console.error("TMDB: risposta", res.status, "per", title); return null; }
     const data = await res.json();
-    const path = data?.results?.[0]?.poster_path as string | undefined;
-    return path ? `${IMG_BASE}${path}` : null;
+    const results = (data?.results ?? []) as { media_type?: string; poster_path?: string }[];
+    const hit = results.find((r) => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path);
+    return hit?.poster_path ? `${IMG_BASE}${hit.poster_path}` : null;
   } catch (e) {
     console.error("TMDB: errore per", title, e);
     return null;
