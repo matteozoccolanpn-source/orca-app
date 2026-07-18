@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Proxy foto Google Places: riceve un photo_reference, scarica l'immagine da
-// Google usando la chiave SERVER (mai esposta al client) e la restituisce.
-// Cache lunga: la stessa foto non cambia.
+// Proxy foto Google Places (New): riceve il "photo name" (risorsa) e scarica
+// l'immagine da Google con la chiave SERVER (mai esposta al client).
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const ref = req.nextUrl.searchParams.get("ref");
+  const name = req.nextUrl.searchParams.get("name");
   const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!ref || !key) return new NextResponse(null, { status: 404 });
+  if (!name || !key) return new NextResponse(null, { status: 404 });
   try {
     const g = await fetch(
-      "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=" +
-        encodeURIComponent(ref) + "&key=" + key
+      `https://places.googleapis.com/v1/${name}/media?maxWidthPx=800&key=${key}`
     );
     if (!g.ok || !g.body) return new NextResponse(null, { status: 404 });
     return new NextResponse(g.body, {
