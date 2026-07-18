@@ -4,10 +4,12 @@
    Il logout riusa la server action passata dalla pagina (come la Home vecchia). */
 
 export default function ProfileSheet({
-  name, onName, onClose, logoutAction,
+  name, onName, city, onCity, onClose, logoutAction,
 }: {
   name: string;
   onName: (v: string) => void;
+  city?: string;
+  onCity?: (v: string) => void;
   onClose: () => void;
   logoutAction?: () => Promise<void>;
 }) {
@@ -33,6 +35,19 @@ export default function ProfileSheet({
           style={{ width: "100%", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 15, fontFamily: "inherit", outline: 0 }}
         />
         <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "8px 2px 0" }}>Keiko lo usa per salutarti in home.</p>
+
+        {onCity && (
+          <>
+            <label style={{ display: "block", fontSize: 12.5, color: "var(--k-text-3)", margin: "18px 2px 6px" }}>La tua città</label>
+            <input
+              value={city ?? ""}
+              onChange={(e) => onCity(e.target.value)}
+              placeholder="Es. Milano"
+              style={{ width: "100%", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 15, fontFamily: "inherit", outline: 0 }}
+            />
+            <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "8px 2px 0" }}>Per il meteo di oggi nella home.</p>
+          </>
+        )}
 
         {logoutAction && (
           <form action={logoutAction} style={{ marginTop: 26 }}>

@@ -32,10 +32,29 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const [profileOpen, setProfileOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [weather, setWeather] = useState<{ tempC: number; emoji: string; text: string } | null>(null);
 
-  // nome salvato sul dispositivo (come la Home vecchia): saluta con quello se c'è
-  useEffect(() => { try { const n = localStorage.getItem("keiko-name"); if (n) setName(n); } catch { /* no-op */ } }, []);
+  // nome + città salvati sul dispositivo
+  useEffect(() => {
+    try {
+      const n = localStorage.getItem("keiko-name"); if (n) setName(n);
+      const c = localStorage.getItem("keiko-city"); if (c) setCity(c);
+    } catch { /* no-op */ }
+  }, []);
   const saveName = (v: string) => { setName(v); try { localStorage.setItem("keiko-name", v); } catch { /* no-op */ } };
+  const saveCity = (v: string) => { setCity(v); try { localStorage.setItem("keiko-city", v); } catch { /* no-op */ } };
+
+  // meteo di oggi per la città (Open-Meteo, gratis)
+  useEffect(() => {
+    if (!city.trim()) { setWeather(null); return; }
+    let ok = true;
+    fetch(`/api/weather?place=${encodeURIComponent(city)}`)
+      .then((r) => r.json())
+      .then((w) => { if (ok) setWeather(w && typeof w.tempC === "number" ? w : null); })
+      .catch(() => {});
+    return () => { ok = false; };
+  }, [city]);
   const greeting = name.trim() ? `Ciao ${name.trim()} 👋` : live.greeting;
   const todayN = live.week.find((d) => d.today)?.n ?? null;
   const todayKey = live.week.find((d) => d.today)?.key ?? null;
@@ -88,6 +107,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
       <button onClick={() => setCalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: 0, padding: 0, margin: "0 0 4px", color: "var(--k-text-3)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
         {live.kickDate}
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
+        {weather && <span style={{ color: "var(--k-text-2)", marginLeft: 2 }}>· {weather.emoji} {weather.tempC}°</span>}
       </button>
       <h1 className="ds-display" style={{ fontSize: 24, lineHeight: 1.06, margin: "0 0 8px", color: "var(--k-text)" }}>{greeting}</h1>
       <div style={{ fontSize: 13, color: "var(--k-text-2)", fontWeight: 500, margin: "0 0 20px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -200,7 +220,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           onSetDouble={(id, double) => todoFetch("PATCH", { id, double })}
         />
       )}
-      {profileOpen && <ProfileSheet name={name} onName={saveName} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}
+      {profileOpen && <ProfileSheet name={name} onName={saveName} city={city} onCity={saveCity} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}
       {calOpen && (
         <CalendarSheet
           baseY={live.cal.y}
