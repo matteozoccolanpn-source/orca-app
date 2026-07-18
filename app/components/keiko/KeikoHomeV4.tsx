@@ -172,6 +172,8 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           onStar={(id, star) => todoFetch("PATCH", { id, star })}
           onDelete={(id) => todoFetch("DELETE", { id })}
           onAdd={(text) => todoFetch("POST", { day: selDay, text })}
+          onSetLead={(id, lead) => todoFetch("PATCH", { id, lead })}
+          onSetDouble={(id, double) => todoFetch("PATCH", { id, double })}
         />
       )}
       {profileOpen && <ProfileSheet name={name} onName={saveName} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}

@@ -10,8 +10,12 @@ import type { LiveHome } from "./keikoLive";
 
 type DayData = LiveHome["days"][string] | null;
 
+const LEADS = [15, 30, 60, 120]; // minuti selezionabili per l'anticipo
+function fmtLead(m: number) { return m < 60 ? `${m}m` : `${m / 60}h`; }
+function nextLead(m: number) { const i = LEADS.indexOf(m); return i < 0 ? 30 : LEADS[(i + 1) % LEADS.length]; }
+
 export default function DaySheet({
-  title, day, demo = false, onClose, onToggle, onStar, onDelete, onAdd,
+  title, day, demo = false, onClose, onToggle, onStar, onDelete, onAdd, onSetLead, onSetDouble,
 }: {
   title: string;
   day: DayData;
@@ -21,6 +25,8 @@ export default function DaySheet({
   onStar: (id: string, star: boolean) => void;
   onDelete: (id: string) => void;
   onAdd: (text: string) => void;
+  onSetLead: (id: string, lead: number) => void;
+  onSetDouble: (id: string, double: boolean) => void;
 }) {
   const [newText, setNewText] = useState("");
   const events = day?.events ?? [];
@@ -69,6 +75,12 @@ export default function DaySheet({
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: t.done ? "var(--k-text-3)" : "var(--k-text)", textDecoration: t.done ? "line-through" : "none" }}>{t.text}</div>
               {t.time && <div style={{ fontSize: 12, color: "var(--k-accent)", fontWeight: 700, marginTop: 2 }}>{t.time}</div>}
+              {!demo && t.time && (
+                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  <button onClick={() => onSetLead(t.id, nextLead(typeof t.lead === "number" ? t.lead : 30))} title="Quanto prima avvisarti" style={{ background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "3px 9px", fontSize: 11.5, fontWeight: 600, color: "var(--k-text-2)", cursor: "pointer" }}>🔔 {fmtLead(typeof t.lead === "number" ? t.lead : 30)} prima</button>
+                  <button onClick={() => onSetDouble(t.id, !t.double)} title="Doppio promemoria" style={{ background: t.double ? "var(--k-accent)" : "var(--k-surface-2)", border: `1px solid ${t.double ? "transparent" : "var(--k-line)"}`, borderRadius: 999, padding: "3px 9px", fontSize: 11.5, fontWeight: 700, color: t.double ? "var(--k-accent-ink)" : "var(--k-text-3)", cursor: "pointer" }}>×2</button>
+                </div>
+              )}
             </div>
             {!demo && (
               <>
