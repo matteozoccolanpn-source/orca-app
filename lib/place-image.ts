@@ -18,7 +18,11 @@ export async function placeImage(query: string): Promise<string | null> {
     if (!pages) return null;
     for (const key of Object.keys(pages)) {
       const src = pages[key]?.thumbnail?.source;
-      if (src) return src;
+      if (!src) continue;
+      // Scarta i "non-foto" (stemmi, bandiere, loghi, mappe): su Wikipedia sono
+      // quasi sempre file .svg. Meglio il gradiente pulito di uno stemma brutto.
+      if (/\.svg/i.test(src)) continue;
+      return src;
     }
     return null;
   } catch {
