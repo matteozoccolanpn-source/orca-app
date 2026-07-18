@@ -15,6 +15,23 @@ function fmtWhen(dt: string) {
   catch { return dt; }
 }
 
+// to-do: "2026-07-03" + "20:00:00" → "gio 3 lug · 20:00"
+function fmtDay(day: string, time?: string | null) {
+  try {
+    const base = new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/Rome" }).format(new Date(day + "T00:00:00"));
+    return base + (time ? ` · ${time.slice(0, 5)}` : "");
+  } catch { return day + (time ? ` · ${time.slice(0, 5)}` : ""); }
+}
+
+// rende il **grassetto** del markdown come testo forte reale
+function renderRich(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={i} style={{ fontWeight: 700, color: "var(--k-text)" }}>{part.slice(2, -2)}</strong>
+      : <span key={i}>{part}</span>
+  );
+}
+
 export default function AskSheet({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,7 +72,7 @@ export default function AskSheet({ onClose }: { onClose: () => void }) {
       {busy && <p style={{ color: "var(--k-text-3)", fontSize: 12.5, margin: "16px 4px 0" }}>Keiko sta pensando…</p>}
 
       {!busy && answer && (
-        <div style={{ marginTop: 16, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 16, padding: "14px 16px", fontSize: 14, lineHeight: 1.5, color: "var(--k-text)", whiteSpace: "pre-wrap" }}>{answer}</div>
+        <div style={{ marginTop: 16, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 16, padding: "14px 16px", fontSize: 14, lineHeight: 1.5, color: "var(--k-text)", whiteSpace: "pre-wrap" }}>{renderRich(answer)}</div>
       )}
 
       {!busy && hasLinks && (
@@ -68,7 +85,7 @@ export default function AskSheet({ onClose }: { onClose: () => void }) {
           ))}
           {res!.todos.map((t) => (
             <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, marginBottom: 8 }}>
-              <span>✅</span><span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t.text}</span><span style={{ fontSize: 12, color: "var(--k-text-3)" }}>{t.day}{t.time ? ` · ${t.time}` : ""}</span>
+              <span>✅</span><span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t.text}</span><span style={{ fontSize: 12, color: "var(--k-text-3)" }}>{fmtDay(t.day, t.time)}</span>
             </div>
           ))}
         </div>

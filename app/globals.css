@@ -170,7 +170,8 @@
 .dark {
   color-scheme: dark;
 
-  --screen-bg:     radial-gradient(120% 62% at 50% -10%, #163a60, #0a1622 54%, #050b14);
+  /* Coerenza col redesign: nero caldo come la home (niente più glow blu). */
+  --screen-bg:     #0C0E13;
   --accent-strong: #A697FF;
   --surface:       #141D2C;
   --on-surface: #F1F4FA; --on-surface-2: #A9B4C6; --on-surface-3: #7B8699;

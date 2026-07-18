@@ -67,7 +67,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   return (
     <div
       className="ds"
-      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 20px calc(96px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto" }}
+      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 20px calc(116px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto" }}
     >
       {/* topbar */}
       <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, margin: "0 -20px", padding: "calc(env(safe-area-inset-top) + 12px) 20px 12px", background: "rgba(11,13,18,.82)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
@@ -227,7 +227,7 @@ function EventCard({ ev, variant, onOpen }: { ev: LiveEvent; variant: "hero" | "
       glyph={ev.emoji}
       display={variant === "hero"}
       title={ev.title}
-      meta={<><span className="k">{ev.when}</span>{ev.location ? ` · ${ev.location}` : ""}</>}
+      meta={<><span className="k">{ev.when}</span>{ev.location ? ` · ${ev.location.split(",")[0]}` : ""}</>}
       onClick={onOpen}
     />
   );
