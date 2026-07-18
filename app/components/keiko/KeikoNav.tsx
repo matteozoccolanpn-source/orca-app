@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 type Tab = "home" | "dieta" | "sport" | "guarda";
 
-export default function KeikoNav({ active, onAdd }: { active: Tab; onAdd?: () => void }) {
+export default function KeikoNav({ active, onAdd }: { active?: Tab; onAdd?: () => void }) {
   const router = useRouter();
   const go = (href: string) => router.push(href);
   const add = () => (onAdd ? onAdd() : router.push("/add"));

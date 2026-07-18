@@ -54,7 +54,7 @@ export default function DietView({
   updatedAt: string | null;
 }) {
   return (
-    <KeikoShell title="Dieta" backHref="/">
+    <KeikoShell title="Dieta" backHref="/" active="dieta">
       <DietBody week={week} updatedAt={updatedAt} />
     </KeikoShell>
   );

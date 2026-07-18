@@ -39,6 +39,7 @@ export default async function AllenamentoPage() {
       title="Allenamento"
       badge={streak > 0 ? `🔥 ${streak} DI FILA` : undefined}
       backHref="/"
+      active="sport"
     >
       <AllenamentoView
         week={plan?.week ?? null}

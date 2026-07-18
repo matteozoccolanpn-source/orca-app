@@ -2,6 +2,9 @@
 
 import { createContext, useContext, useRef, useState } from "react";
 import "../../keiko.css";
+import KeikoNav from "./KeikoNav";
+
+type Tab = "home" | "dieta" | "sport" | "guarda";
 
 /* ------------------------------------------------------------------ *
  * SHELL CONDIVISO delle pagine interne Keiko (v2.3). Fornito dal
@@ -17,11 +20,12 @@ const ToastCtx = createContext<(msg: string, action?: string, onAction?: () => v
 export function useKeikoToast() { return useContext(ToastCtx); }
 
 export default function KeikoShell({
-  title, badge, backHref = "/", children,
+  title, badge, backHref = "/", active, children,
 }: {
   title: string;
   badge?: string;
   backHref?: string;
+  active?: Tab;
   children: React.ReactNode;
 }) {
   const [toast, setToast] = useState<{ msg: string; action?: string; onAction?: () => void } | null>(null);
@@ -42,7 +46,7 @@ export default function KeikoShell({
             <h2>{title}</h2>
             {badge && <span className="vs">{badge}</span>}
           </div>
-          <div className="viewBody">{children}</div>
+          <div className="viewBody" style={{ paddingBottom: "calc(116px + env(safe-area-inset-bottom))" }}>{children}</div>
           <div className={`toast${toast ? " show" : ""}`}>
             <span>{toast?.msg}</span>
             {toast?.action && (
@@ -50,6 +54,7 @@ export default function KeikoShell({
             )}
           </div>
         </div>
+        <div className="ds"><KeikoNav active={active} /></div>
       </div>
     </ToastCtx.Provider>
   );

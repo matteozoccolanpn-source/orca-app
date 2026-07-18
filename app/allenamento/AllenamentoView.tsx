@@ -277,7 +277,7 @@ export default function AllenamentoView({
                   <button
                     className="chipA"
                     onClick={fattoOggi}
-                    style={trainedToday ? { background: "var(--accent)", color: "#fff" } : undefined}
+                    style={trainedToday ? { background: "var(--accent)", color: "#20170A" } : undefined}
                   >
                     ✓ Fatto oggi
                   </button>

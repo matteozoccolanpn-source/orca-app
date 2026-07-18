@@ -7,25 +7,26 @@
    ===================================================================== */
 .keiko {
     
-    --bg:#12203A;
-    --bg-2:#182948;
-    --card:#1E3153;
-    --card-line:rgba(165,195,240,.11);
-    --text:#F4F1E8;
-    --text-2:#BFCCE0;
-    --text-3:#8496B3;
-    --accent:#5A9DFF;
-    --accent-soft:rgba(90,157,255,.18);
-    --amber:#F0B24A;
-    --amber-soft:rgba(240,178,74,.16);
-    --shadow:0 16px 36px rgba(2,8,20,.45);
-    --bar:rgba(14,24,44,.9);
-    
+    /* Allineato al redesign v4: nero caldo + ambra (era blu). */
+    --bg:#0C0E13;
+    --bg-2:#14161d;
+    --card:#171922;
+    --card-line:rgba(255,255,255,.08);
+    --text:#F3EFE8;
+    --text-2:#D0D4DA;
+    --text-3:#A8ADB5;
+    --accent:#FFB84D;
+    --accent-soft:rgba(255,184,77,.18);
+    --amber:#FFB84D;
+    --amber-soft:rgba(255,184,77,.16);
+    --shadow:0 16px 36px rgba(0,0,0,.5);
+    --bar:rgba(11,13,18,.9);
 
-    
-    --pA:90,157,255; --pB:255,138,92;
+
+
+    --pA:255,184,77; --pB:216,105,63;
     --glowA:rgba(var(--pA),.26); --glowB:rgba(var(--pB),.22);
-    --bloomA:rgba(var(--pA),.5); --bloomB:rgba(var(--pB),.4); --bloomC:rgba(var(--pA),.22);
+    --bloomA:rgba(var(--pA),.10); --bloomB:rgba(var(--pB),.08); --bloomC:rgba(var(--pA),.05);
 
     --ambient:
       radial-gradient(72% 44% at 90% -4%, var(--bloomB) 0%, transparent 60%),
@@ -632,9 +633,9 @@
 .keiko .quote {border-top-width:1.5px;border-top-color:color-mix(in srgb,var(--text) 55%,transparent)}
 .keiko .quote p {font-size:16.5px}
 .keiko {
-    --card:#243A5E;                 
-    --bg-2:#1C2E52;
-    --card-line:rgba(170,200,245,.17);
+    --card:#1E2029;
+    --bg-2:#14161d;
+    --card-line:rgba(255,255,255,.10);
     --fs-sm:12.5px; --fs-md:14px; --fs-lg:17px; --fs-xl:22px;  
   }
 .keiko .kick h1 {font-size:24px}
