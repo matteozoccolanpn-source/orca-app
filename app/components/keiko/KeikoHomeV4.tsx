@@ -38,6 +38,9 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const saveName = (v: string) => { setName(v); try { localStorage.setItem("keiko-name", v); } catch { /* no-op */ } };
   const greeting = name.trim() ? `Ciao ${name.trim()} 👋` : live.greeting;
   const todayN = live.week.find((d) => d.today)?.n ?? null;
+  const todayKey = live.week.find((d) => d.today)?.key ?? null;
+  const todayTodos = todayKey ? (live.days[todayKey]?.todos ?? []) : [];
+  const openTodos = todayTodos.filter((t) => !t.done).length;
 
   // azioni to-do del pannello giorno: riusa /api/todos + ricarica i dati veri
   const todoFetch = async (method: string, body: object) => {
@@ -152,6 +155,24 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
             onClick={() => go("/guarda")} />
         )}
       </div>
+
+      {/* Da fare oggi (to-do del giorno) */}
+      {todayTodos.length > 0 && (
+        <>
+          <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "32px 2px 16px", color: "var(--k-text-3)" }}>
+            Da fare oggi{openTodos > 0 && <span style={{ fontWeight: 600, fontSize: 12.5 }}> · {openTodos}</span>}
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {todayTodos.map((t) => (
+              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14 }}>
+                <button onClick={() => { if (!demo) todoFetch("PATCH", { id: t.id, done: !t.done }); }} aria-label="Fatto" disabled={demo} style={{ width: 24, height: 24, flex: "none", borderRadius: "50%", border: t.done ? "0" : "2px solid var(--k-text-3)", background: t.done ? "var(--k-accent)" : "transparent", color: "var(--k-accent-ink)", fontSize: 13, fontWeight: 800, cursor: demo ? "default" : "pointer", display: "grid", placeItems: "center" }}>{t.done ? "✓" : ""}</button>
+                <span style={{ flex: 1, fontSize: 14.5, fontWeight: 500, color: t.done ? "var(--k-text-3)" : "var(--k-text)", textDecoration: t.done ? "line-through" : "none" }}>{t.text}</span>
+                {t.time && <span style={{ fontSize: 13, fontWeight: 700, color: "var(--k-accent)" }}>{t.time}</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* bottom nav */}
       <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: 84, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px 18px", maxWidth: 440, margin: "0 auto" }}>

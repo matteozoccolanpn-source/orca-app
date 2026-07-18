@@ -5,6 +5,7 @@ import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist } from "@/lib/supabase";
 import { posterFor } from "@/lib/tmdb";
 import { resolveEventImage } from "@/lib/event-image";
+import { cityImage } from "@/lib/unsplash";
 import { weatherFor } from "@/lib/weather";
 import { mealImage } from "@/lib/food";
 import { exerciseImage } from "@/lib/wger";
@@ -87,8 +88,10 @@ export default async function Home({
       e.image = img;
       e.weather = w;
     }),
-    // (Viaggio/città: niente Google Places — per le città dà risultati sbagliati.
-    //  Resta il gradiente; foto città vere servirebbero Unsplash, più avanti.)
+    // Viaggio/città: foto vera da Unsplash (se c'è la chiave), altrimenti gradiente.
+    (async () => {
+      if (live.trip?.title) live.trip = { ...live.trip, image: await cityImage(live.trip.title) };
+    })(),
     (async () => {
       const food = live.diet?.nextOpt || live.diet?.nextPasto;
       if (live.diet && food) live.diet = { ...live.diet, image: await mealImage(food) };
