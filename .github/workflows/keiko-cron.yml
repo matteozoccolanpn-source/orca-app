@@ -1,0 +1,38 @@
+# Scheduler gratuito per le notifiche Keiko.
+# Vercel Hobby limita i cron a 1/giorno → GitHub Actions chiama gli endpoint ogni 15 min (tick)
+# e una volta al giorno (reminders). Il segreto resta in GitHub Secrets, non in questo file.
+
+name: Keiko cron
+
+on:
+  schedule:
+    # Ogni 15 minuti: promemoria pre-evento, to-do, digest 09:00, spinta 21:00
+    - cron: "*/15 * * * *"
+    # Una volta al giorno alle 06:00 UTC: digest "prossime 24h"
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.schedule == '*/15 * * * *'
+    steps:
+      - name: GET /api/cron/tick
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://orca-app-zeta.vercel.app/api/cron/tick"
+
+  reminders:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.schedule == '0 6 * * *'
+    steps:
+      - name: GET /api/cron/reminders
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://orca-app-zeta.vercel.app/api/cron/reminders"
