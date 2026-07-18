@@ -139,6 +139,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
         )}
         {live.trip && (
           <SmartMedia variant="square" category="viaggio" chip="🧭 Viaggio" glyph="🧭" style={{ aspectRatio: "4 / 3" }}
+            image={live.trip.image ?? undefined}
             title={live.trip.title} meta={<><span className="k">{live.trip.range}</span></>}
             onClick={() => go("/viaggio")} />
         )}
@@ -198,6 +199,7 @@ function EventCard({ ev, variant, onOpen }: { ev: LiveEvent; variant: "hero" | "
     <SmartMedia
       variant={variant}
       category={category}
+      image={ev.image ?? undefined}
       chip={chipLabel}
       glyph={ev.emoji}
       display={variant === "hero"}

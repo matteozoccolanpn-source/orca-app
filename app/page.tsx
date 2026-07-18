@@ -4,6 +4,7 @@ import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist } from "@/lib/supabase";
 import { posterFor } from "@/lib/tmdb";
+import { placeImage, placeQueryForEvent } from "@/lib/place-image";
 import { signOut } from "@/auth";
 
 // La home deve SEMPRE leggere i dati freschi da Supabase: senza questo, Next.js
@@ -70,6 +71,19 @@ export default async function Home({
   if (live.watch?.title) {
     live.watch = { ...live.watch, poster: await posterFor(live.watch.title, "film") };
   }
+
+  // Foto dei luoghi (Wikipedia, gratis) per eroe + "in arrivo" + viaggio.
+  // Solo per luoghi riconoscibili; altrimenti resta il gradiente.
+  const eventsToPhoto = [...live.heroEvents, ...live.upcoming.slice(0, 6)];
+  await Promise.all([
+    ...eventsToPhoto.map(async (e) => {
+      const q = placeQueryForEvent(e.type, e.location);
+      if (q) e.image = await placeImage(q);
+    }),
+    (async () => {
+      if (live.trip?.title) live.trip = { ...live.trip, image: await placeImage(live.trip.title) };
+    })(),
+  ]);
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.

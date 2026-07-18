@@ -93,7 +93,8 @@ export default function EventSheet({ ev, onClose, demo = false }: { ev: LiveEven
           <>
             {/* foto strip (titolo/orario sotto per controllo) */}
             <div style={{ position: "relative", height: 180, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden", background: gradient }}>
-              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 74, opacity: .16 }} aria-hidden>{ev.emoji}</div>
+              {ev.image && <img src={ev.image} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+              {!ev.image && <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 74, opacity: .16 }} aria-hidden>{ev.emoji}</div>}
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,6,8,.5) 0%, transparent 30%, transparent 70%, rgba(6,6,8,.4) 100%)" }} />
               <div style={{ position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.35)" }} />
               <div className="ds-chip" style={{ position: "absolute", top: 16, left: 16 }}>{ev.emoji} {ev.catLabel}</div>
