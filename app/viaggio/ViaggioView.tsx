@@ -146,14 +146,22 @@ function TripBlock({ trip, tickets }: { trip: TripPlanRow; tickets: TicketDetail
         </div>
       </div>
 
-      {/* SEQUENZA — le tappe reali del piano */}
+      {/* SEQUENZA — timeline: linea verticale + pallino ambra su ogni tappa */}
       {slot.length > 0 && (
         <>
           <div className="agLbl">La sequenza &middot; tocca &#8964; per i dettagli</div>
-          {slot.map((s, i) => {
-            const tripTickets = tickets.filter((t) => trip.ticket_ids?.includes(t.id));
-            return <SlotRow key={i} step={s} clusterKey={trip.cluster_key} index={i} ticket={matchTicket(s, tripTickets)} />;
-          })}
+          <div style={{ position: "relative", paddingLeft: 22 }}>
+            <div style={{ position: "absolute", left: 6, top: 12, bottom: 12, width: 2, background: "var(--card-line)" }} />
+            {slot.map((s, i) => {
+              const tripTickets = tickets.filter((t) => trip.ticket_ids?.includes(t.id));
+              return (
+                <div key={i} style={{ position: "relative" }}>
+                  <div style={{ position: "absolute", left: -21, top: 18, width: 11, height: 11, borderRadius: "50%", background: "var(--accent)", border: "2px solid var(--bg)", zIndex: 1 }} />
+                  <SlotRow step={s} clusterKey={trip.cluster_key} index={i} ticket={matchTicket(s, tripTickets)} />
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
 

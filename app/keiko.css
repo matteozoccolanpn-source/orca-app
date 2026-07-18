@@ -745,7 +745,7 @@
 .keiko .dcard .dk2 {font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--text-3);text-transform:uppercase}
 .keiko .dcard .dv2 {font-size:11.5px;font-weight:700;color:var(--text-2);margin-top:5px;line-height:1.45}
 .keiko .bigRing {--p:0;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(rgb(var(--pA)) calc(var(--p)*1%),rgba(255,255,255,.18) 0);flex:none}
-.keiko .bigRing i {width:48px;height:48px;border-radius:50%;background:rgba(4,9,18,.4);display:grid;place-items:center;font-style:normal;font-size:12.5px;font-weight:800;color:#fff}
+.keiko .bigRing i {width:48px;height:48px;border-radius:50%;background:rgba(18,13,8,.55);display:grid;place-items:center;font-style:normal;font-size:12.5px;font-weight:800;color:#fff}
 .keiko .vhRow {display:flex;align-items:center;gap:13px}
 .keiko .wHero {display:flex;gap:13px;background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:11px;margin-bottom:12px;box-shadow:var(--shadow)}
 .keiko .wHero .cover {flex:none;width:92px;height:130px}

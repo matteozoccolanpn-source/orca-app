@@ -26,8 +26,9 @@ import { useKeikoToast } from "@/app/components/keiko/KeikoShell";
 type State = "idle" | "parsing" | "success" | "error";
 
 // Gradiente hero allenamento — copiato 1:1 da keiko-final.html (#gymView .art).
+// Era blu (sembrava un'altra app): ora marrone/ambra caldo, coerente col resto.
 const GYM_ART =
-  "radial-gradient(110% 80% at 88% -6%,rgba(130,168,215,.46) 0%,transparent 52%),linear-gradient(168deg,#2A4568 0%,#16273F 55%,#0D1728 100%)";
+  "radial-gradient(110% 80% at 88% -6%,rgba(255,184,77,.30) 0%,transparent 52%),linear-gradient(168deg,#3A2E1D 0%,#241A10 55%,#140F0A 100%)";
 
 export default function AllenamentoView({
   week,
