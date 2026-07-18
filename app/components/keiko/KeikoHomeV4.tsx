@@ -129,11 +129,13 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {gym && (
           <SmartMedia variant="square" category="sport" chip="💪 Allenamento" glyph="🏋️" style={{ aspectRatio: "4 / 3" }}
+            image={gym.image ?? undefined}
             title={gym.title} meta={<>{gym.trainedToday ? "Fatto" : gym.rest ? "Riposo 🌙" : `${gym.done}/${gym.total}`}</>}
             onClick={() => go("/allenamento")} />
         )}
         {live.diet && (
           <SmartMedia variant="square" category="dieta" chip="🥗 Dieta" chipAmber glyph="🥗" style={{ aspectRatio: "4 / 3" }}
+            image={live.diet.image ?? undefined}
             title={live.diet.nextPasto ?? "Dieta"} meta={live.diet.nextOpt ?? undefined}
             onClick={() => go("/salute")} />
         )}

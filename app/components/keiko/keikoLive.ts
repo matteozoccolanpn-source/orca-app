@@ -65,7 +65,8 @@ export type LiveEvent = {
   route: { dep: string; arr: string } | null; isFlight: boolean;
   panelLive: string; panelTitle: string;
   enrichment: EventEnrichment | null;
-  image?: string | null; // foto del luogo (Wikipedia), riempita nella pagina; null = gradiente
+  image?: string | null; // foto (Spotify/Sport/Places), riempita nella pagina; null = gradiente
+  weather?: { tempC: number; emoji: string; text: string } | null; // meteo del luogo (Open-Meteo)
 };
 export type LiveHome = {
   kickDate: string; greeting: string; lede: string;
@@ -76,8 +77,8 @@ export type LiveHome = {
   heroEvents: LiveEvent[];
   upcoming: LiveEvent[];
   agenda: { label: string; events: LiveEvent[] }[];
-  gym: { done: number; total: number; trainedToday: boolean; title: string; first: string | null; rest: boolean; week: { letter: string; on: boolean; today: boolean }[] } | null;
-  diet: { nextPasto: string | null; nextOpt: string | null; done: string[] } | null;
+  gym: { done: number; total: number; trainedToday: boolean; title: string; first: string | null; rest: boolean; week: { letter: string; on: boolean; today: boolean }[]; image?: string | null } | null;
+  diet: { nextPasto: string | null; nextOpt: string | null; done: string[]; image?: string | null } | null;
   trip: { title: string; range: string; sub: string; image?: string | null } | null;
   watch: { count: number; title: string | null; sub: string; poster?: string | null } | null;
 };

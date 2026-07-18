@@ -4,7 +4,11 @@ import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist } from "@/lib/supabase";
 import { posterFor } from "@/lib/tmdb";
-import { placeImage, placeQueryForEvent } from "@/lib/place-image";
+import { resolveEventImage } from "@/lib/event-image";
+import { placeImage as googlePlaceImage } from "@/lib/google-places";
+import { weatherFor } from "@/lib/weather";
+import { mealImage } from "@/lib/food";
+import { exerciseImage } from "@/lib/wger";
 import { signOut } from "@/auth";
 
 // La home deve SEMPRE leggere i dati freschi da Supabase: senza questo, Next.js
@@ -72,16 +76,28 @@ export default async function Home({
     live.watch = { ...live.watch, poster: await posterFor(live.watch.title, "film") };
   }
 
-  // Foto dei luoghi (Wikipedia, gratis) per eroe + "in arrivo" + viaggio.
-  // Solo per luoghi riconoscibili; altrimenti resta il gradiente.
+  // Foto eventi dalla fonte giusta per tipo (Spotify/Sport/Places) per
+  // eroe + "in arrivo"; foto città per il viaggio (Google Places).
   const eventsToPhoto = [...live.heroEvents, ...live.upcoming.slice(0, 6)];
   await Promise.all([
     ...eventsToPhoto.map(async (e) => {
-      const q = placeQueryForEvent(e.type, e.location, e.title);
-      if (q) e.image = await placeImage(q);
+      const [img, w] = await Promise.all([
+        resolveEventImage(e.type, e.title, e.location),
+        e.location ? weatherFor(e.location) : Promise.resolve(null),
+      ]);
+      e.image = img;
+      e.weather = w;
     }),
     (async () => {
-      if (live.trip?.title) live.trip = { ...live.trip, image: await placeImage(live.trip.title) };
+      if (live.trip?.title) live.trip = { ...live.trip, image: await googlePlaceImage(live.trip.title) };
+    })(),
+    (async () => {
+      const food = live.diet?.nextOpt || live.diet?.nextPasto;
+      if (live.diet && food) live.diet = { ...live.diet, image: await mealImage(food) };
+    })(),
+    (async () => {
+      const ex = live.gym?.first || live.gym?.title;
+      if (live.gym && ex && !live.gym.rest) live.gym = { ...live.gym, image: await exerciseImage(ex) };
     })(),
   ]);
   // Paracadute: la Home precedente resta raggiungibile su /?v2.

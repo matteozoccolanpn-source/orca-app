@@ -105,6 +105,7 @@ export default function EventSheet({ ev, onClose, demo = false }: { ev: LiveEven
               <h2 style={{ fontSize: 25, fontWeight: 600, lineHeight: 1.12, letterSpacing: "-.01em", color: "var(--k-text)", margin: 0 }}>{ev.title}</h2>
               <div style={{ fontSize: 17, fontWeight: 700, color: "var(--k-accent)", marginTop: 8 }}>{ev.when}</div>
               {ev.location && <div style={{ fontSize: 15, color: "var(--k-text-2)", marginTop: 3 }}>{ev.location}</div>}
+          {ev.weather && <div style={{ fontSize: 13.5, color: "var(--k-text-3)", marginTop: 4 }}>{ev.weather.emoji} {ev.weather.tempC}° · {ev.weather.text} ora sul posto</div>}
 
               {/* azioni sempre disponibili */}
               <button onClick={() => downloadIcs(ev)} className="ds-btn primary" style={{ width: "100%", height: 52, borderRadius: 16, fontSize: 16, marginTop: 18 }}>📅 Aggiungi al calendario</button>
