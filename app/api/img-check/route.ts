@@ -10,17 +10,18 @@ import { placeImage } from "@/lib/google-places";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  // stato grezzo di Google Places (per capire se la API è abilitata giusta)
+  // stato grezzo della Places API (NEW): mostra l'errore preciso di Google
   let placesStatus = "chiave assente";
   const gkey = process.env.GOOGLE_PLACES_API_KEY;
   if (gkey) {
     try {
-      const r = await fetch(
-        "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?inputtype=textquery&fields=photos&input=" +
-          encodeURIComponent("Roma") + "&key=" + gkey
-      );
-      const d = await r.json();
-      placesStatus = String(d.status) + (d.error_message ? " — " + d.error_message : "");
+      const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Goog-Api-Key": gkey, "X-Goog-FieldMask": "places.photos" },
+        body: JSON.stringify({ textQuery: "Roma", maxResultCount: 1 }),
+      });
+      const txt = await r.text();
+      placesStatus = `HTTP ${r.status} — ${txt.slice(0, 300)}`;
     } catch {
       placesStatus = "errore di rete";
     }
