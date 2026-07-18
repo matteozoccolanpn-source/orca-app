@@ -493,30 +493,34 @@ export interface WatchItem {
   info: string | null;   // es. "Commedia 2016 · su Netflix"
   link: string | null;
   seen: boolean;
+  rating: number | null;  // voto personale (orche 1-5); null = non votato
+  note: string | null;    // nota/recensione personale
   poster: string | null; // URL copertina (TMDB) — additivo; null se non ancora popolato
 }
 
 /** Tutta la watchlist: prima i "da vedere" (più recenti in alto), poi i visti. */
 export async function getWatchlist(): Promise<WatchItem[]> {
-  // NB: `poster` non è ancora una colonna del DB → non lo si seleziona (romperebbe
-  // la query). Il campo resta nel tipo (null) finché Matteo aggiunge colonna + pipeline.
-  const { data, error } = await admin()
-    .from("watchlist")
-    .select("id, title, kind, info, link, seen")
-    .order("seen", { ascending: true })
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("Supabase: getWatchlist:", error.message);
+  // NB: `poster` non è colonna del DB (popolata a runtime). `rating`/`note` sono
+  // additivi: si provano, e se le colonne non ci sono ancora si ripiega senza —
+  // così un deploy prima della migrazione SQL non rompe la pagina.
+  const base: string = "id, title, kind, info, link, seen";
+  let res = await admin().from("watchlist").select(base + ", rating, note").order("seen", { ascending: true }).order("created_at", { ascending: false });
+  if (res.error) res = await admin().from("watchlist").select(base).order("seen", { ascending: true }).order("created_at", { ascending: false });
+  if (res.error) {
+    console.error("Supabase: getWatchlist:", res.error.message);
     return [];
   }
-  return (data ?? []).map((r) => ({
+  const rows = (res.data ?? []) as unknown as Record<string, unknown>[];
+  return rows.map((r) => ({
     id: r.id as string,
     title: (r.title as string) ?? "",
     kind: (r.kind as string) ?? "film",
     info: (r.info as string | null) ?? null,
     link: (r.link as string | null) ?? null,
     seen: r.seen === true,
-    poster: null, // colonna non ancora nel DB (vedi nota sopra)
+    rating: (r.rating as number | null) ?? null,
+    note: (r.note as string | null) ?? null,
+    poster: null,
   }));
 }
 
@@ -535,12 +539,19 @@ export async function addWatchItem(f: { title: string; kind?: string; info?: str
     info: (r.info as string | null) ?? null,
     link: (r.link as string | null) ?? null,
     seen: r.seen === true,
+    rating: null,
+    note: null,
     poster: (r.poster as string | null) ?? null,
   };
 }
 
 export async function setWatchItemSeen(id: string, seen: boolean): Promise<void> {
   const { error } = await admin().from("watchlist").update({ seen }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function setWatchItemReview(id: string, rating: number | null, note: string | null): Promise<void> {
+  const { error } = await admin().from("watchlist").update({ rating, note }).eq("id", id);
   if (error) throw new Error(error.message);
 }
 

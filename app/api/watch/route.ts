@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { addWatchItem, setWatchItemSeen, deleteWatchItem } from '@/lib/supabase'
+import { addWatchItem, setWatchItemSeen, setWatchItemReview, deleteWatchItem } from '@/lib/supabase'
 import { tmdbKind } from '@/lib/tmdb'
 
 // API della watchlist "Da guardare". Auth-guarded come /api/todos.
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest) {
   const denied = await guard()
   if (denied) return denied
 
-  let body: { id?: string; seen?: boolean }
+  let body: { id?: string; seen?: boolean; rating?: number | null; note?: string | null }
   try {
     body = await req.json()
   } catch {
@@ -57,12 +57,19 @@ export async function PATCH(req: NextRequest) {
   }
 
   const id = (body.id ?? '').trim()
-  if (!id || typeof body.seen !== 'boolean') {
-    return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 })
+  if (!id) {
+    return NextResponse.json({ error: 'Id mancante' }, { status: 400 })
   }
 
   try {
-    await setWatchItemSeen(id, body.seen)
+    if (typeof body.seen === 'boolean') {
+      await setWatchItemSeen(id, body.seen)
+    }
+    if ('rating' in body || 'note' in body) {
+      const rating = typeof body.rating === 'number' ? Math.max(0, Math.min(5, Math.round(body.rating))) || null : null
+      const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 1000) : null
+      await setWatchItemReview(id, rating, note)
+    }
     return NextResponse.json({ success: true })
   } catch (e) {
     console.error('Watchlist patch error:', e)
