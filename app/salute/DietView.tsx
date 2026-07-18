@@ -231,34 +231,28 @@ function TodayMeal({
 
   return (
     <div>
-      <div className={`pRow${done ? " done" : ""}`} onClick={() => setDone((d) => !d)}>
-        <span className="pi" style={{ display: "inline-flex", color: "var(--ink-2)" }}>
-          <Icon style={{ width: 19, height: 19 }} />
+      {/* card scura coerente (niente più pill bianca), 2 righe: tipo pasto + contenuto completo */}
+      <div
+        onClick={() => setDone((d) => !d)}
+        style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: 14, background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: 16, marginBottom: 10, cursor: "pointer", opacity: done ? 0.55 : 1 }}
+      >
+        <span style={{ display: "inline-flex", color: "var(--accent)", marginTop: 2, flex: "none" }}>
+          <Icon style={{ width: 20, height: 20 }} />
         </span>
-        <div className="pt">
-          <b>{first ? `${meal.pasto} — ${first}` : meal.pasto}</b>
-          {many && <small>{meal.opzioni.length} opzioni</small>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".5px", textTransform: "uppercase", color: "var(--text-3)" }}>{meal.pasto}</div>
+          <div style={{ fontSize: 15, color: "var(--text)", marginTop: 3, lineHeight: 1.3, textDecoration: done ? "line-through" : "none", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{first || "—"}</div>
+          {many && <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 3 }}>{meal.opzioni.length} opzioni</div>}
         </div>
         {canSwap && (
-          <div className="pk">
-            <button
-              type="button"
-              className="chipA"
-              aria-label="Scambia un alimento"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSwapOpen((o) => !o);
-              }}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                background: swapOpen ? "var(--accent-soft)" : undefined,
-                color: swapOpen ? "var(--accent)" : undefined,
-              }}
-            >
-              <RefreshCw style={{ width: 14, height: 14 }} />
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="Scambia un alimento"
+            onClick={(e) => { e.stopPropagation(); setSwapOpen((o) => !o); }}
+            style={{ flex: "none", width: 34, height: 34, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", background: swapOpen ? "var(--accent-soft)" : "rgba(255,255,255,.05)", color: swapOpen ? "var(--accent)" : "var(--text-2)", border: "1px solid var(--card-line)", cursor: "pointer" }}
+          >
+            <RefreshCw style={{ width: 15, height: 15 }} />
+          </button>
         )}
       </div>
       {swapOpen && <DietSwap meal={meal} onCommit={onCommit} onClose={() => setSwapOpen(false)} />}
