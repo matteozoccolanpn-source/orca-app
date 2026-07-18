@@ -26,14 +26,27 @@ export async function placeImage(query: string): Promise<string | null> {
   }
 }
 
-// Tipi di evento per cui ha senso cercare una foto del luogo (posti riconoscibili).
-// Escludiamo ristoranti/generici: eviterebbero match sbagliati → meglio il gradiente.
-const PLACE_TYPES = new Set(["concert", "museum", "hotel", "sport", "train", "flight", "train_station"]);
+// Ricava la query foto da un evento, in base al tipo:
+// - concerto → l'ARTISTA (dal titolo, es. "Ultimo - San Siro" → "Ultimo")
+// - sport    → la PARTITA/evento (il titolo, es. "Inter - Milan", "GP di Monza")
+// - museo/hotel/treno/volo → il LUOGO (prima parte, senza indirizzo)
+// - altro (cena, generico) → niente foto (resta il gradiente, evita match sbagliati)
+const PLACE_TYPES = new Set(["museum", "hotel", "train", "flight", "train_station"]);
 
-// Ricava la query di ricerca da un evento: usa il luogo (prima parte, senza indirizzo).
-export function placeQueryForEvent(type: string, location: string | null): string | null {
-  if (!PLACE_TYPES.has((type ?? "").toLowerCase())) return null;
-  const loc = (location ?? "").trim();
-  if (!loc) return null;
-  return loc.split(",")[0].trim(); // "Stadio San Siro, Via ..." → "Stadio San Siro"
+export function placeQueryForEvent(type: string, location: string | null, title: string): string | null {
+  const t = (type ?? "").toLowerCase();
+  const ttl = (title ?? "").trim();
+  if (t === "concert") {
+    // artista = parte prima di un separatore ( - – — @ | )
+    const artist = ttl.split(/\s*[-–—@|]\s*/)[0].trim();
+    return artist || null;
+  }
+  if (t === "sport") {
+    return ttl || null;
+  }
+  if (PLACE_TYPES.has(t)) {
+    const loc = (location ?? "").trim();
+    return loc ? loc.split(",")[0].trim() : null;
+  }
+  return null;
 }

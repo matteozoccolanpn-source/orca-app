@@ -77,7 +77,7 @@ export default async function Home({
   const eventsToPhoto = [...live.heroEvents, ...live.upcoming.slice(0, 6)];
   await Promise.all([
     ...eventsToPhoto.map(async (e) => {
-      const q = placeQueryForEvent(e.type, e.location);
+      const q = placeQueryForEvent(e.type, e.location, e.title);
       if (q) e.image = await placeImage(q);
     }),
     (async () => {
