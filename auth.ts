@@ -30,11 +30,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn({ user }) {
       return user.email === "matteo.zoccolan.pn@gmail.com"
     },
-    // Enforcement del middleware: senza sessione l'utente viene rediretto a
-    // /login su ogni rotta del matcher (pagine + API). Senza questo callback
-    // next-auth popolava solo il contesto e NON proteggeva nulla.
-    authorized({ auth }) {
-      return !!auth?.user
+    // Nessun "buttafuori": il middleware NON rimanda più a /login a ogni apertura
+    // (era la causa del "Accedi con Google" a ogni riavvio dell'app). Le rotte che
+    // scrivono dati restano protette dai loro controlli interni (auth() nelle route).
+    authorized() {
+      return true
     },
   },
 })
