@@ -1,336 +1,183 @@
 "use client";
 
 import { useRef, useState } from "react";
-import KeikoShell, { useKeikoToast } from "@/app/components/keiko/KeikoShell";
+import { useRouter } from "next/navigation";
 import type { WatchItem } from "@/lib/supabase";
+import KeikoNav from "@/app/components/keiko/KeikoNav";
 
-/* Sezione "Da guardare" — vista #watchView del mockup keiko-final (v2.3).
- * Cablaggi reali preservati: toggle "visto" (PATCH), elimina con Annulla (DELETE
- * differito), aggiunta libera (POST /api/watch), consiglio AI (/api/watch/suggest).
- * Nessun campo poster nel data layer: le cover sono i gradienti del mockup
- * (dune/opp/bear) con titolo in overlay. Niente dati finti: ciò che manca (età,
- * orari) si compatta. */
+/* Sezione "Da guardare" — design v4. Logica preservata: visto (PATCH), elimina
+   con Annulla (DELETE differito), aggiunta libera (POST), consiglio AI. Toast
+   integrato (niente più KeikoShell/vecchio design). */
 
-type Toast = (msg: string, action?: string, onAction?: () => void) => void;
 type Pick = { title: string; kind: "film" | "serie"; platform: string | null; info: string | null; link: string | null };
+type ToastState = { msg: string; action?: string; onAction?: () => void } | null;
 
-const COVERS = ["dune", "opp", "bear"] as const;
-const coverOf = (i: number) => COVERS[i % COVERS.length];
 const kindLabel = (k: string) => (k === "serie" ? "Serie" : "Film");
-
 function insertAt<T>(arr: T[], item: T, index: number): T[] {
   const i = Math.max(0, Math.min(index, arr.length));
   return [...arr.slice(0, i), item, ...arr.slice(i)];
 }
 
 export default function GuardaView({ items }: { items: WatchItem[] }) {
+  const router = useRouter();
   const [list, setList] = useState<WatchItem[]>(items);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const busy = useRef(false);
 
-  const count = list.length;
-  const badge = `${count} ${count === 1 ? "TITOLO" : "TITOLI"}`;
+  const [toast, setToast] = useState<ToastState>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function showToast(msg: string, action?: string, onAction?: () => void) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, action, onAction });
+    toastTimer.current = setTimeout(() => setToast(null), 4200);
+  }
 
-  /* "visto" — PATCH ottimistico. */
-  async function toggleSeen(item: WatchItem, toast: Toast) {
+  async function toggleSeen(item: WatchItem) {
     const next = !item.seen;
     setList((l) => l.map((i) => (i.id === item.id ? { ...i, seen: next } : i)));
-    toast(next ? "Visto ✓ Com'era?" : "Ok, resta in lista");
+    showToast(next ? "Visto ✓ Com'era?" : "Ok, resta in lista");
     try {
-      const res = await fetch("/api/watch", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id: item.id, seen: next }),
-      });
+      const res = await fetch("/api/watch", { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ id: item.id, seen: next }) });
       if (!res.ok) throw new Error();
     } catch {
       setList((l) => l.map((i) => (i.id === item.id ? { ...i, seen: item.seen } : i)));
-      toast("Qualcosa non torna, riprovo");
+      showToast("Qualcosa non torna, riprovo");
     }
   }
 
-  /* "elimina" — rimozione ottimistica, DELETE differito, con Annulla nel toast. */
-  function elimina(item: WatchItem, index: number, toast: Toast) {
+  function elimina(item: WatchItem, index: number) {
     setList((l) => l.filter((i) => i.id !== item.id));
     const commit = () => {
       delete timers.current[item.id];
-      fetch("/api/watch", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id: item.id }),
-      })
-        .then((r) => {
-          if (!r.ok) throw new Error();
-        })
+      fetch("/api/watch", { method: "DELETE", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ id: item.id }) })
+        .then((r) => { if (!r.ok) throw new Error(); })
         .catch(() => setList((l) => insertAt(l, item, index)));
     };
     timers.current[item.id] = setTimeout(commit, 3800);
-    toast("Eliminato 🗑️", "Annulla", () => {
+    showToast("Eliminato 🗑️", "Annulla", () => {
       clearTimeout(timers.current[item.id]);
       delete timers.current[item.id];
       setList((l) => insertAt(l, item, index));
     });
   }
 
-  /* "Dove vederlo" — apre la scheda se c'è, altrimenti mostra l'info reale. */
-  function dove(item: WatchItem, toast: Toast) {
+  function dove(item: WatchItem) {
     if (item.link) window.open(item.link, "_blank", "noopener");
-    else toast(item.info ? item.info : "Non ho ancora la scheda, la cerco 🔎");
+    else showToast(item.info ? item.info : "Non ho ancora la scheda, la cerco 🔎");
   }
 
-  /* "aggiunta libera" — POST /api/watch con un titolo scritto come viene. */
-  async function aggiungiTitolo(toast: Toast) {
+  async function aggiungiTitolo() {
     const raw = window.prompt("Aggiungi un titolo — anche solo «quel film di Nolan»");
     const title = (raw ?? "").trim();
     if (!title) return;
     const kind = /\b(serie|stagione|s\d)/i.test(title) ? "serie" : "film";
     try {
-      const res = await fetch("/api/watch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title, kind, info: null, link: null }),
-      });
+      const res = await fetch("/api/watch", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title, kind, info: null, link: null }) });
       const data = (await res.json()) as { item?: WatchItem };
       if (!res.ok || !data.item) throw new Error();
       setList((l) => [data.item!, ...l]);
-      toast("Preso in carico ✓");
-    } catch {
-      toast("Qualcosa non torna, riprovo");
-    }
+      showToast("Preso in carico ✓");
+    } catch { showToast("Qualcosa non torna, riprovo"); }
   }
 
-  /* "consiglio AI" — /api/watch/suggest: una proposta, offerta con "Aggiungi". */
-  async function consiglio(toast: Toast) {
+  async function consiglio() {
     if (busy.current) return;
     const raw = window.prompt("Che serata è? es. «commedia leggera», «thriller»");
     if (raw === null) return;
     const query = raw.trim() || "consigliami qualcosa da vedere stasera";
     busy.current = true;
-    toast("Ci penso io ✨");
+    showToast("Ci penso io ✨");
     try {
-      const res = await fetch("/api/watch/suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ query }),
-      });
+      const res = await fetch("/api/watch/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ query }) });
       const data = (await res.json()) as { films?: Pick[] };
       if (!res.ok) throw new Error();
       const p = (data.films ?? [])[0];
-      if (!p) {
-        toast("Non ho trovato niente di convincente, riformula");
-        return;
-      }
-      toast(`Stasera ti direi ${p.title} ✨`, "Aggiungi", () => salvaPick(p, toast));
-    } catch {
-      toast("Qualcosa non torna, riprovo");
-    } finally {
-      busy.current = false;
-    }
+      if (!p) { showToast("Non ho trovato niente di convincente, riformula"); return; }
+      showToast(`Stasera ti direi ${p.title} ✨`, "Aggiungi", () => salvaPick(p));
+    } catch { showToast("Qualcosa non torna, riprovo"); }
+    finally { busy.current = false; }
   }
 
-  async function salvaPick(p: Pick, toast: Toast) {
+  async function salvaPick(p: Pick) {
     const info = [p.info, p.platform ? `su ${p.platform}` : null].filter(Boolean).join(" · ");
     try {
-      const res = await fetch("/api/watch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title: p.title, kind: p.kind, info: info || null, link: p.link }),
-      });
+      const res = await fetch("/api/watch", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: p.title, kind: p.kind, info: info || null, link: p.link }) });
       const data = (await res.json()) as { item?: WatchItem };
       if (!res.ok || !data.item) throw new Error();
       setList((l) => [data.item!, ...l]);
-      toast("Preso in carico ✓");
-    } catch {
-      toast("Qualcosa non torna, riprovo");
-    }
+      showToast("Preso in carico ✓");
+    } catch { showToast("Qualcosa non torna, riprovo"); }
   }
 
-  return (
-    <KeikoShell title="Da guardare" badge={badge} backHref="/">
-      <Body
-        list={list}
-        onToggleSeen={toggleSeen}
-        onDelete={elimina}
-        onWhere={dove}
-        onAdd={aggiungiTitolo}
-        onSuggest={consiglio}
-      />
-    </KeikoShell>
-  );
-}
-
-/* Corpo sotto il provider del toast (useKeikoToast vive qui). */
-function Body({
-  list,
-  onToggleSeen,
-  onDelete,
-  onWhere,
-  onAdd,
-  onSuggest,
-}: {
-  list: WatchItem[];
-  onToggleSeen: (item: WatchItem, toast: Toast) => void;
-  onDelete: (item: WatchItem, index: number, toast: Toast) => void;
-  onWhere: (item: WatchItem, toast: Toast) => void;
-  onAdd: (toast: Toast) => void;
-  onSuggest: (toast: Toast) => void;
-}) {
-  const toast = useKeikoToast();
   const hero = list.find((i) => !i.seen) ?? null;
   const grid = hero ? list.filter((i) => i.id !== hero.id) : list;
+  const count = list.length;
 
   return (
-    <>
+    <div className="ds" style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 20px calc(116px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto" }}>
+      {/* header */}
+      <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, margin: "0 -20px", padding: "calc(env(safe-area-inset-top) + 12px) 20px 12px", background: "rgba(11,13,18,.82)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
+        <button onClick={() => router.push("/")} aria-label="Indietro" style={{ background: "none", border: 0, color: "var(--k-text)", fontSize: 26, lineHeight: 1, cursor: "pointer", padding: 0, width: 28 }}>‹</button>
+        <h1 className="ds-display" style={{ flex: 1, fontSize: 22, color: "var(--k-text)", margin: 0 }}>Da guardare</h1>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--k-text-3)" }}>{count} {count === 1 ? "titolo" : "titoli"}</span>
+      </div>
+
+      {/* hero — Stasera per te */}
       {hero && (
-        <div
-          className="wHero"
-          onClick={() => onWhere(hero, toast)}
-          role="button"
-          tabIndex={0}
-        >
-          <div className={`cover ${coverOf(list.indexOf(hero))}`} style={HERO_COVER}>
-            {hero.poster
-              ? <img src={hero.poster} alt={hero.title} style={POSTER_IMG} />
-              : <span className="ttl" style={CLAMP2}>{hero.title}</span>}
+        <div onClick={() => dove(hero)} style={{ display: "flex", gap: 14, marginTop: 18, padding: 12, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 18, cursor: "pointer" }}>
+          <div style={{ width: 92, flex: "none", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "var(--k-cat-film, #2a2140)" }}>
+            {hero.poster && <img src={hero.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
           </div>
-          <div className="wt">
-            <span className="k3">Stasera per te</span>
-            <b>{hero.title}</b>
-            <small style={CLAMP2}>{hero.info ?? kindLabel(hero.kind)}</small>
-            <div className="wa">
-              <button
-                className="chipA dk"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleSeen(hero, toast);
-                }}
-              >
-                {"✓"} Visto
-              </button>
-              <button
-                className="chipA dk"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onWhere(hero, toast);
-                }}
-              >
-                {"▶"} Dove vederlo
-              </button>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-accent)" }}>Stasera per te</span>
+            <b style={{ fontSize: 17, fontWeight: 600, color: "var(--k-text)", margin: "4px 0 2px", lineHeight: 1.15 }}>{hero.title}</b>
+            <small style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>{hero.info ?? kindLabel(hero.kind)}</small>
+            <div style={{ display: "flex", gap: 8, marginTop: "auto", paddingTop: 10 }}>
+              <button onClick={(e) => { e.stopPropagation(); toggleSeen(hero); }} className="ds-btn" style={{ height: 36, padding: "0 12px", fontSize: 13 }}>✓ Visto</button>
+              <button onClick={(e) => { e.stopPropagation(); dove(hero); }} className="ds-btn primary" style={{ height: 36, padding: "0 12px", fontSize: 13 }}>▶ Dove vederlo</button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="agLbl">La lista</div>
-      <div className="pGrid">
+      {/* La lista */}
+      <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "28px 2px 14px", color: "var(--k-text-3)" }}>La lista</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         {grid.map((item) => (
-          <div
-            key={item.id}
-            className={`film${item.seen ? " seen" : ""}`}
-            onClick={() => onToggleSeen(item, toast)}
-            role="button"
-            tabIndex={0}
-            style={{ minWidth: 0 }}
-          >
-            <div className={`cover ${coverOf(list.indexOf(item))}`} style={{ position: "relative" }}>
+          <div key={item.id} onClick={() => toggleSeen(item)} style={{ position: "relative", cursor: "pointer", opacity: item.seen ? 0.5 : 1 }}>
+            <div style={{ position: "relative", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "linear-gradient(150deg,#3a2f52,#1a1526)", border: "1px solid rgba(255,255,255,.08)" }}>
               {item.poster
-                ? <img src={item.poster} alt={item.title} style={POSTER_IMG} />
-                : <span className="ttl" style={CLAMP3}>{item.title}</span>}
+                ? <img src={item.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <span style={{ position: "absolute", inset: 0, padding: 8, display: "flex", alignItems: "flex-end", fontSize: 12, fontWeight: 600, color: "var(--k-text-2)" }}>{item.title}</span>}
+              {item.seen && <div style={{ position: "absolute", top: 6, left: 6, fontSize: 15 }}>✅</div>}
+              <button onClick={(e) => { e.stopPropagation(); elimina(item, list.indexOf(item)); }} aria-label="Elimina" style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(6,8,12,.6)", color: "#fff", fontSize: 11, fontWeight: 800, border: 0, display: "grid", placeItems: "center", cursor: "pointer" }}>✕</button>
             </div>
-            <div className="seenMark">{"✅"}</div>
-            <button
-              type="button"
-              aria-label={`Elimina ${item.title}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item, list.indexOf(item), toast);
-              }}
-              style={DEL_BTN}
-            >
-              {"✕"}
-            </button>
-            <div className="plat" style={PLAT_ELLIPSIS}>
-              <b>{kindLabel(item.kind)}</b>
-              {item.info ? ` · ${item.info}` : ""}
-            </div>
+            <div style={{ fontSize: 11.5, color: "var(--k-text-2)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
           </div>
         ))}
-
-        <div className="addFilm" onClick={() => onAdd(toast)} role="button" tabIndex={0}>
-          <b>{"＋"}</b>
-          Aggiungi un titolo
-          <br />
-          anche solo &laquo;quel film di Nolan&raquo;
-        </div>
-        <div className="addFilm" onClick={() => onSuggest(toast)} role="button" tabIndex={0}>
-          <b>{"✨"}</b>
-          Consiglio di Keiko
-          <br />
-          in base alla tua serata
-        </div>
       </div>
 
-    </>
+      {/* Aggiungi / Consiglio */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+        <button onClick={aggiungiTitolo} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--k-text)" }}>＋ Aggiungi un titolo</span><br />
+          <span style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>anche solo «quel film di Nolan»</span>
+        </button>
+        <button onClick={consiglio} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--k-text)" }}>✨ Consiglio di Keiko</span><br />
+          <span style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>in base alla tua serata</span>
+        </button>
+      </div>
+
+      {/* toast */}
+      {toast && (
+        <div style={{ position: "fixed", left: 16, right: 16, bottom: "calc(96px + env(safe-area-inset-bottom))", maxWidth: 408, margin: "0 auto", zIndex: 40, display: "flex", alignItems: "center", gap: 12, background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 14, padding: "12px 14px", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
+          <span style={{ flex: 1, fontSize: 14, color: "var(--k-text)" }}>{toast.msg}</span>
+          {toast.action && <button onClick={() => { toast.onAction?.(); setToast(null); }} style={{ background: "none", border: 0, color: "var(--k-accent)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>{toast.action}</button>}
+        </div>
+      )}
+
+      <KeikoNav active="guarda" />
+    </div>
   );
 }
-
-/* Il mockup non dà a `.wHero .cover` i tratti strutturali che ha `.film .cover`
- * (position/overflow/radius/flex/padding): senza, il "sole" del gradiente esce
- * e il titolo resta in alto. Li riapplico qui in attesa del fix in keiko.css. */
-const HERO_COVER: React.CSSProperties = {
-  position: "relative",
-  overflow: "hidden",
-  borderRadius: "var(--r-md)",
-  boxShadow: "var(--shadow)",
-  display: "flex",
-  flexDirection: "column",
-  padding: 10,
-};
-// locandina reale (TMDB): copre il gradiente quando presente
-const POSTER_IMG: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-};
-const CLAMP2: React.CSSProperties = {
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden",
-};
-const CLAMP3: React.CSSProperties = {
-  display: "-webkit-box",
-  WebkitLineClamp: 3,
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden",
-};
-const PLAT_ELLIPSIS: React.CSSProperties = {
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-const DEL_BTN: React.CSSProperties = {
-  position: "absolute",
-  top: 8,
-  right: 8,
-  width: 24,
-  height: 24,
-  borderRadius: "50%",
-  background: "rgba(6,12,24,.55)",
-  color: "#fff",
-  fontSize: 12,
-  fontWeight: 800,
-  display: "grid",
-  placeItems: "center",
-  border: 0,
-  cursor: "pointer",
-  zIndex: 2,
-  lineHeight: 1,
-};
