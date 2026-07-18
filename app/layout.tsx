@@ -3,6 +3,7 @@ import { Inter, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import "./ds.css";
 import GlobalChrome from "@/components/GlobalChrome";
+import VersionGuard from "@/components/VersionGuard";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Famiglia UI unica, stile SF Pro / App Store — Inter (font variabile:
@@ -79,6 +80,7 @@ export default function RootLayout({
           {children}
         </TooltipProvider>
         <GlobalChrome />
+        <VersionGuard buildId={process.env.VERCEL_GIT_COMMIT_SHA ?? "dev"} />
       </body>
     </html>
   );
