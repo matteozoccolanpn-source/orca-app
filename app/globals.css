@@ -128,8 +128,8 @@
   --glass:               var(--bar);
   --popover:             var(--surface);
   --popover-foreground:  var(--on-surface);
-  --primary:             #5F47D6;
-  --primary-foreground:  #FFFFFF;
+  --primary:             #FFB84D; /* era viola: ora ambra */
+  --primary-foreground:  #20170A; /* testo scuro su ambra */
   --secondary:           var(--inset);
   --secondary-foreground: var(--on-surface);
   --muted:               var(--inset);
@@ -172,7 +172,7 @@
 
   /* Coerenza col redesign: nero caldo come la home (niente più glow blu). */
   --screen-bg:     #0C0E13;
-  --accent-strong: #A697FF;
+  --accent-strong: #FFB84D; /* era viola: ora ambra, coerente col redesign */
   --surface:       #141D2C;
   --on-surface: #F1F4FA; --on-surface-2: #A9B4C6; --on-surface-3: #7B8699;
   --app-text:   #F1F4FA; --app-2: #C2CCDB; --app-faint: #93A0B2;
@@ -188,8 +188,8 @@
   --glass:               var(--bar);
   --popover:             #1A2433;
   --popover-foreground:  var(--on-surface);
-  --primary:             #5F47D6;
-  --primary-foreground:  #FFFFFF;
+  --primary:             #FFB84D; /* era viola: ora ambra */
+  --primary-foreground:  #20170A; /* testo scuro su ambra */
   --secondary:           var(--inset);
   --secondary-foreground: var(--on-surface);
   --muted:               var(--inset);

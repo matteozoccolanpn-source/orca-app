@@ -235,9 +235,9 @@ function PickChip({ label, active, onClick }: { label: string; active: boolean; 
       onClick={onClick}
       className="chipA"
       style={{
-        background: active ? "var(--accent-soft)" : "rgba(21,32,47,.09)",
-        color: active ? "var(--accent)" : "var(--ink)",
-        border: active ? "1px solid var(--accent)" : "1px solid transparent",
+        background: active ? "var(--accent-soft)" : "rgba(255,255,255,.06)",
+        color: active ? "var(--accent)" : "var(--text)",
+        border: active ? "1px solid var(--accent)" : "1px solid var(--card-line)",
       }}
     >
       {label}

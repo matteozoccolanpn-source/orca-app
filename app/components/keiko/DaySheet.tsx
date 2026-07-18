@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { LiveHome } from "./keikoLive";
 
 /* Pannello del giorno (design v4). Mostra eventi + promemoria (to-do) del giorno.
@@ -10,6 +10,7 @@ import type { LiveHome } from "./keikoLive";
 
 type DayData = LiveHome["days"][string] | null;
 
+const pl = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const LEADS = [15, 30, 60, 120]; // minuti selezionabili per l'anticipo
 function fmtLead(m: number) { return m < 60 ? `${m}m` : `${m / 60}h`; }
 function nextLead(m: number) { const i = LEADS.indexOf(m); return i < 0 ? 30 : LEADS[(i + 1) % LEADS.length]; }
@@ -33,7 +34,15 @@ export default function DaySheet({
   const todos = day?.todos ?? [];
   const empty = events.length === 0 && todos.length === 0;
 
-  const add = () => { const t = newText.trim(); if (!t) return; onAdd(t); setNewText(""); };
+  const addingRef = useRef(false);
+  const add = () => {
+    const t = newText.trim();
+    if (!t || addingRef.current) return; // anti doppio-tap → niente promemoria doppioni
+    addingRef.current = true;
+    onAdd(t);
+    setNewText("");
+    setTimeout(() => { addingRef.current = false; }, 1500);
+  };
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
@@ -47,7 +56,7 @@ export default function DaySheet({
           <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 12 }}>
             <div style={{ flex: 1 }}>
               <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--k-text)", margin: 0, textTransform: "capitalize" }}>{title}</h2>
-              {day && <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 3 }}>{day.counts.eventi} eventi · {day.counts.todo} da fare{day.counts.fatti ? ` · ${day.counts.fatti} fatti` : ""}</div>}
+              {day && <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 3 }}>{pl(day.counts.eventi, "evento", "eventi")} · {day.counts.todo} da fare{day.counts.fatti ? ` · ${pl(day.counts.fatti, "fatto", "fatti")}` : ""}</div>}
             </div>
             <button onClick={onClose} aria-label="Chiudi" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--k-surface)", border: "1px solid var(--k-line)", color: "var(--k-text-2)", fontSize: 14, cursor: "pointer" }}>✕</button>
           </div>
@@ -90,7 +99,7 @@ export default function DaySheet({
             )}
           </div>
         ))}
-        {todos.length === 0 && !empty && <p style={{ fontSize: 13, color: "var(--k-text-3)", margin: "2px 2px 8px" }}>Nessun promemoria per oggi.</p>}
+        {todos.length === 0 && !empty && <p style={{ fontSize: 13, color: "var(--k-text-3)", margin: "2px 2px 8px" }}>Nessun promemoria per questo giorno.</p>}
 
         {!demo && (
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
