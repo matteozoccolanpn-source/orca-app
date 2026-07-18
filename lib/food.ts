@@ -43,8 +43,14 @@ const translateFood = unstable_cache(
 
 export async function mealImage(name: string): Promise<string | null> {
   const key = process.env.SPOONACULAR_KEY;
-  // togli quantità/grammi: "Yogurt greco 0% 200g" → "Yogurt greco"
-  const clean = (name ?? "").replace(/\d+[.,]?\d*\s*(g|gr|ml|kg|%)?/gi, "").replace(/[+·]/g, "").trim();
+  // prendi la prima opzione e togli quantità/grammi:
+  // "Uova strapazzate/sode 2 +" → "Uova strapazzate"
+  const clean = (name ?? "")
+    .split("/")[0]
+    .split(",")[0]
+    .replace(/\d+[.,]?\d*\s*(g|gr|ml|kg|%)?/gi, "")
+    .replace(/[+·]/g, "")
+    .trim();
   if (!key || !clean) return null;
   try {
     const q = await translateFood(clean); // IT → EN
