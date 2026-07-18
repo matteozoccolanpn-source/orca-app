@@ -33,6 +33,25 @@ export async function posterFor(title: string, _kind?: string): Promise<string |
   }
 }
 
+// Rileva se un titolo è un film o una serie TV (per etichettarlo giusto).
+export async function tmdbKind(title: string): Promise<"film" | "serie" | null> {
+  const key = process.env.TMDB_API_KEY;
+  if (!key || !title.trim()) return null;
+  const isV4 = key.includes(".");
+  const base = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}&language=it-IT&page=1`;
+  const url = isV4 ? base : `${base}&api_key=${key}`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 604800 }, headers: isV4 ? { Authorization: `Bearer ${key}` } : undefined });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results = (data?.results ?? []) as { media_type?: string }[];
+    const hit = results.find((r) => r.media_type === "movie" || r.media_type === "tv");
+    return hit ? (hit.media_type === "tv" ? "serie" : "film") : null;
+  } catch {
+    return null;
+  }
+}
+
 // Riempie il campo `poster` su una lista di elementi (film/serie), in parallelo.
 // Senza chiave restituisce la lista invariata (nessuna chiamata).
 export async function withPosters<T extends { title: string; kind?: string; poster: string | null }>(items: T[]): Promise<T[]> {

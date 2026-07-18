@@ -83,7 +83,8 @@ function TripBlock({ trip, tickets }: { trip: TripPlanRow; tickets: TicketDetail
   const router = useRouter();
   const toast = useKeikoToast();
   const plan = (trip.plan ?? {}) as Plan;
-  const slot = plan.slot ?? [];
+  // niente tappe "fantasma": scarta gli slot marcati come eliminati
+  const slot = (plan.slot ?? []).filter((s) => !/eliminat/i.test(`${s.cosa ?? ""} ${s.nota ?? ""}`));
   const heroRef = useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState(false);
 

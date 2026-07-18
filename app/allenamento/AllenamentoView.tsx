@@ -157,11 +157,15 @@ export default function AllenamentoView({
     }
   }
 
-  // "✓ Fatto oggi" del vHero → riusa /api/workout/log sul giorno di oggi.
+  // "✓ Fatto oggi" del vHero → segna il giorno E sincronizza gli esercizi
+  // (tutti spuntati / tutti azzerati), così badge e streak restano coerenti.
   function fattoOggi() {
     const willBe = !trained.has(todayIso);
     toggleTrained(todayIso);
-    toast(willBe ? "Segnato: allenamento fatto ✓💪" : "Riaperto");
+    const next = willBe ? new Set<number>(Array.from({ length: total }, (_, i) => i)) : new Set<number>();
+    setChecked(next);
+    try { localStorage.setItem(`keiko-workout-checked-${todayIso}`, JSON.stringify([...next])); } catch { /* no-op */ }
+    toast(willBe ? "Allenamento fatto ✓💪" : "Segnato come da fare");
   }
 
   // "Riprogramma / sposta sessione" arriverà su Supabase (post-demo): niente bottone finto per ora.
