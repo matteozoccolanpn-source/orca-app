@@ -253,7 +253,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
           <div key={item.id} onClick={() => toggleSeen(item)} style={{ position: "relative", cursor: "pointer", opacity: item.seen ? 0.5 : 1 }}>
             <div style={{ position: "relative", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "linear-gradient(150deg,#3a2f52,#1a1526)", border: "1px solid rgba(255,255,255,.08)" }}>
               {item.poster
-                ? <img src={item.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ? <><span className="ds-skel" aria-hidden /><img src={item.poster} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /></>
                 : <span style={{ position: "absolute", inset: 0, padding: 8, display: "flex", alignItems: "flex-end", fontSize: 12, fontWeight: 600, color: "var(--k-text-2)" }}>{item.title}</span>}
               {item.seen && <div style={{ position: "absolute", top: 6, left: 6, fontSize: 15 }}>✅</div>}
               <button onClick={(e) => { e.stopPropagation(); elimina(item, list.indexOf(item)); }} aria-label="Elimina" style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(6,8,12,.6)", color: "#fff", fontSize: 11, fontWeight: 800, border: 0, display: "grid", placeItems: "center", cursor: "pointer" }}>✕</button>

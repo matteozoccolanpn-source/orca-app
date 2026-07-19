@@ -45,7 +45,10 @@ export default function SmartMedia({
   return (
     <div className={`ds-card ${variant}`} style={{ aspectRatio: RATIO[variant], ...style }} onClick={onClick}>
       {image ? (
-        <img className="ds-ph" src={image} alt="" loading="lazy" decoding="async" />
+        <>
+          <span className="ds-skel" aria-hidden />
+          <img className="ds-ph" src={image} alt="" loading="lazy" decoding="async" />
+        </>
       ) : (
         <div className="ds-ph" style={{ background: `var(--k-cat-${category})` }} />
       )}
