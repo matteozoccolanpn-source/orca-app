@@ -150,6 +150,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO authenticated;
 
 
+-- 4d) RIMUOVE le policy vecchie del setup originale. CRITICO: "allow all for now"
+--     su tickets ha condizione `true` (tutti vedono tutto) e ANNULLA la privacy
+--     (Postgres somma le policy in OR). Le altre due sono doppioni innocui delle
+--     keiko_own_* ma le togliamo per avere un'unica fonte di verità.
+DROP POLICY IF EXISTS "allow all for now" ON public.tickets;
+DROP POLICY IF EXISTS "users manage own subscriptions" ON public.push_subscriptions;
+DROP POLICY IF EXISTS "users see own trips" ON public.trips;
+
+
 -- ============================================================================
 -- SEZIONE 5 — CUTOVER  ⚠️  esegui SOLO quando accendi MULTIUSER_RLS=1
 --   Rimuove i vecchi controlli mono-utente (nomi verificati sul DB reale).
