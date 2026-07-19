@@ -11,7 +11,7 @@ import KeikoNav from "@/app/components/keiko/KeikoNav";
    con Annulla (DELETE differito), aggiunta libera (POST), consiglio AI. Toast
    integrato (niente più KeikoShell/vecchio design). */
 
-type Pick = { title: string; kind: "film" | "serie"; platform: string | null; info: string | null; link: string | null };
+type Pick = { title: string; kind: "film" | "serie"; platform: string | null; info: string | null; link: string | null; poster?: string | null };
 type ToastState = { msg: string; action?: string; onAction?: () => void } | null;
 
 const kindLabel = (k: string) => (k === "serie" ? "Serie" : "Film");
@@ -59,6 +59,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   const [searching, setSearching] = useState(false);      // "Consiglio" che lavora in background
   const [suggestReady, setSuggestReady] = useState<Pick[] | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [dovItem, setDovItem] = useState<WatchItem | null>(null); // foglio "Dove vederlo"
   const [dovLoading, setDovLoading] = useState(false);
   const [dovData, setDovData] = useState<WatchProviders | null>(null);
@@ -230,8 +231,17 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--k-text-3)" }}>{count} {count === 1 ? "titolo" : "titoli"}</span>
       </div>
 
-      {/* hero — Stasera per te */}
-      {hero && (
+      {/* barra ricerca / aggiungi — in alto (non in fondo) */}
+      <div style={{ display: "flex", gap: 8, margin: "16px 0 0" }}>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) { doAdd(search.trim()); setSearch(""); } }} placeholder="Cerca o aggiungi un titolo…" style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 14px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0 }} />
+        <button onClick={() => openAsk("suggest")} className="ds-btn primary" style={{ height: 42, padding: "0 14px", fontSize: 13, flex: "none" }}>✨ Consiglio</button>
+      </div>
+      {search.trim() && (
+        <button onClick={() => { doAdd(search.trim()); setSearch(""); }} className="ds-btn" style={{ width: "100%", height: 40, marginTop: 8, fontSize: 13 }}>＋ Aggiungi «{search.trim()}»</button>
+      )}
+
+      {/* hero — Stasera per te (nascosto durante la ricerca) */}
+      {!search.trim() && hero && (
         <div onClick={() => openDetail(hero)} style={{ display: "flex", gap: 14, marginTop: 18, padding: 12, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 18, cursor: "pointer" }}>
           <div style={{ width: 92, flex: "none", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "var(--k-cat-film, #2a2140)" }}>
             {hero.poster && <img src={hero.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
@@ -250,19 +260,22 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
 
       {/* Da vedere → Visti di recente → Categorie per genere (tutto). Solo sezioni con roba dentro. */}
       {(() => {
-        const daVedere = grid.filter((i) => !i.seen); // "grid" esclude gia' l'hero
-        const seenList = list.filter((i) => i.seen).slice().sort((a, b) => (b.seen_at ?? "").localeCompare(a.seen_at ?? ""));
+        const q = search.trim().toLowerCase();
+        const match = (i: WatchItem) => !q || i.title.toLowerCase().includes(q);
+        const daVedere = grid.filter((i) => !i.seen && match(i)); // "grid" esclude gia' l'hero
+        const seenList = list.filter((i) => i.seen && match(i)).slice().sort((a, b) => (b.seen_at ?? "").localeCompare(a.seen_at ?? ""));
         // categorie per genere su TUTTO (visti + non visti); i visti restano riconoscibili dal badge ✅
         const byGenre = new Map<string, WatchItem[]>();
-        for (const it of list) {
+        for (const it of list.filter(match)) {
           const g = it.genre || "Altro";
           const arr = byGenre.get(g) ?? [];
           arr.push(it);
           byGenre.set(g, arr);
         }
         const genres = [...byGenre.entries()].sort((a, b) => b[1].length - a[1].length);
-        const H2: CSSProperties = { fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "28px 2px 14px", color: "var(--k-text-3)" };
-        const CNT: CSSProperties = { fontWeight: 600, fontSize: 12.5, color: "var(--k-text-3)" };
+        const H2: CSSProperties = { fontSize: 15, fontWeight: 800, letterSpacing: "0.2px", margin: "26px 2px 12px", color: "var(--k-text)", display: "flex", alignItems: "center", gap: 8 };
+        const BAR: CSSProperties = { width: 3, height: 15, borderRadius: 2, background: "var(--k-accent)", display: "inline-block", flex: "none" };
+        const CNT: CSSProperties = { fontWeight: 700, fontSize: 11, color: "var(--k-text-2)", background: "rgba(255,255,255,.07)", borderRadius: 999, padding: "2px 8px" };
         const GRID: CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 };
         const card = (item: WatchItem) => (
           <div key={item.id} onClick={() => toggleSeen(item)} style={{ position: "relative", cursor: "pointer" }}>
@@ -282,19 +295,19 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
           <>
             {daVedere.length > 0 && (
               <div>
-                <h2 style={H2}>Da vedere <span style={CNT}>· {daVedere.length}</span></h2>
+                <h2 style={H2}><span style={BAR} />Da vedere<span style={CNT}>{daVedere.length}</span></h2>
                 <div style={GRID}>{daVedere.map(card)}</div>
               </div>
             )}
             {seenList.length > 0 && (
               <div>
-                <h2 style={H2}>Visti di recente <span style={CNT}>· {seenList.length}</span></h2>
+                <h2 style={H2}><span style={BAR} />Visti di recente<span style={CNT}>{seenList.length}</span></h2>
                 <div style={GRID}>{seenList.map(card)}</div>
               </div>
             )}
             {genres.map(([g, items]) => (
               <div key={g}>
-                <h2 style={H2}>{g} <span style={CNT}>· {items.length}</span></h2>
+                <h2 style={H2}><span style={BAR} />{g}<span style={CNT}>{items.length}</span></h2>
                 <div style={GRID}>{items.map(card)}</div>
               </div>
             ))}
@@ -302,17 +315,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         );
       })()}
 
-      {/* Aggiungi / Consiglio */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-        <button onClick={() => openAsk("add")} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--k-text)" }}>＋ Aggiungi un titolo</span><br />
-          <span style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>anche solo «quel film di Nolan»</span>
-        </button>
-        <button onClick={() => openAsk("suggest")} style={{ textAlign: "left", background: "transparent", border: "1px dashed var(--k-line)", borderRadius: 14, padding: "14px 16px", color: "var(--k-text-2)", cursor: "pointer", fontFamily: "inherit" }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--k-text)" }}>✨ Consiglio di Keiko</span><br />
-          <span style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>in base alla tua serata</span>
-        </button>
-      </div>
+      {/* (Aggiungi/Consiglio spostati nella barra in alto) */}
 
       {/* foglio input (Aggiungi / Consiglio) — niente prompt() nativi */}
       {ask && (
@@ -488,6 +491,9 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {suggestReady.map((p, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14 }}>
+                  <div style={{ width: 46, height: 68, flex: "none", borderRadius: 8, overflow: "hidden", position: "relative", background: "linear-gradient(150deg,#3a2f52,#1a1526)" }}>
+                    {p.poster ? <><span className="ds-skel" aria-hidden /><img src={p.poster} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /></> : null}
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 15, fontWeight: 600, color: "var(--k-text)" }}>{p.title}</div>
                     <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>{[p.kind === "serie" ? "Serie" : "Film", p.info, p.platform ? `su ${p.platform}` : null].filter(Boolean).join(" · ")}</div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { auth } from '@/auth'
 import { suggestWatch, deepenFilmCatalog } from '@/lib/films'
+import { posterFor } from '@/lib/tmdb'
 
 // Fase 1 con ricerca web: può volerci qualche decina di secondi.
 export const maxDuration = 120
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const films = await suggestWatch(query)
+    // copertine TMDB per il pannello dei consigli (null se non trovata)
+    const withPosters = await Promise.all(films.map(async (f) => ({ ...f, poster: await posterFor(f.title, f.kind) })))
 
     // Fase 2 in background: arricchisce il catalogo per le prossime richieste.
     after(async () => {
@@ -38,7 +41,7 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ success: true, films })
+    return NextResponse.json({ success: true, films: withPosters })
   } catch (e) {
     console.error('suggestWatch fallita:', e)
     return NextResponse.json({ error: 'Ricerca fallita, riprova' }, { status: 502 })
