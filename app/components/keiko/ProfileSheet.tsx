@@ -45,6 +45,21 @@ export default function ProfileSheet({
     }
   }
 
+  async function testNotif() {
+    setNotifBusy(true); setNotifMsg(null);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST", credentials: "include" });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.sent > 0) setNotifMsg("Prova inviata! Dovrebbe arrivarti tra un istante 🔔");
+      else if (d.reason === "no-subscriptions") setNotifMsg("Nessuna iscrizione: premi prima Attiva.");
+      else setNotifMsg("Non inviata (nessun dispositivo raggiunto). Riattiva le notifiche e riprova.");
+    } catch {
+      setNotifMsg("Errore nell'invio della prova.");
+    } finally {
+      setNotifBusy(false);
+    }
+  }
+
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 92, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
       <div
@@ -91,6 +106,9 @@ export default function ProfileSheet({
               {notifBusy ? "…" : notif ? "Attive ✓" : "Attiva"}
             </button>
           </div>
+          {notif && (
+            <button onClick={testNotif} disabled={notifBusy} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginTop: 10, padding: "2px 2px" }}>Invia notifica di prova</button>
+          )}
           {notifMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{notifMsg}</p>}
         </div>
 
