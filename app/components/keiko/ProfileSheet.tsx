@@ -1,7 +1,11 @@
 "use client";
 
 /* Profilo (design v4): nome (per i saluti, salvato sul dispositivo) + logout.
-   Il logout riusa la server action passata dalla pagina (come la Home vecchia). */
+   Il logout riusa la server action passata dalla pagina (come la Home vecchia).
+   Aggiunto (v4): interruttore Notifiche — prima stava solo nella vecchia HomeView,
+   quindi nella home v4 non c'era modo di iscriversi (= notifiche mai ricevute). */
+import { useEffect, useState } from "react";
+import { checkNotifications, enableNotifications, disableNotifications, isIos } from "@/lib/push-client";
 
 export default function ProfileSheet({
   name, onName, city, onCity, onClose, logoutAction,
@@ -13,6 +17,34 @@ export default function ProfileSheet({
   onClose: () => void;
   logoutAction?: () => Promise<void>;
 }) {
+  const [notif, setNotif] = useState(false);
+  const [notifBusy, setNotifBusy] = useState(false);
+  const [notifMsg, setNotifMsg] = useState<string | null>(null);
+  const [ios, setIos] = useState(false);
+  useEffect(() => { setIos(isIos()); checkNotifications().then(setNotif); }, []);
+
+  async function toggleNotif() {
+    setNotifBusy(true); setNotifMsg(null);
+    try {
+      if (notif) {
+        await disableNotifications();
+        setNotif(false); setNotifMsg("Notifiche disattivate.");
+      } else {
+        const r = await enableNotifications();
+        if (r.ok) { setNotif(true); setNotifMsg("Notifiche attive ✅"); }
+        else if (r.error === "ios-install") setNotifMsg("Su iPhone: installa Keiko (Condividi → Aggiungi a Home) e attiva da lì.");
+        else if (r.error === "denied") setNotifMsg("Permesso negato dal browser.");
+        else if (r.error === "no-key") setNotifMsg("Config VAPID mancante nella build.");
+        else if (r.error === "unsupported") setNotifMsg("Notifiche non supportate qui.");
+        else setNotifMsg("Errore salvataggio (" + r.error + ").");
+      }
+    } catch (e) {
+      setNotifMsg("Errore: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setNotifBusy(false);
+    }
+  }
+
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 92, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
       <div
@@ -48,6 +80,19 @@ export default function ProfileSheet({
             <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "8px 2px 0" }}>Per il meteo di oggi nella home.</p>
           </>
         )}
+
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--k-line)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>Notifiche</div>
+              <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>Promemoria di eventi e to-do{ios ? " · su iPhone installa Keiko dalla Home" : ""}</div>
+            </div>
+            <button onClick={toggleNotif} disabled={notifBusy} className={`ds-btn${notif ? "" : " primary"}`} style={{ height: 40, padding: "0 16px", fontSize: 13, opacity: notifBusy ? 0.5 : 1, flex: "none" }}>
+              {notifBusy ? "…" : notif ? "Attive ✓" : "Attiva"}
+            </button>
+          </div>
+          {notifMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{notifMsg}</p>}
+        </div>
 
         {logoutAction && (
           <form action={logoutAction} style={{ marginTop: 26 }}>
