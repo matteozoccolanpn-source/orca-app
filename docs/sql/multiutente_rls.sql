@@ -21,9 +21,10 @@
 -- PARAMETRO — uuid di Matteo (derivato dall'email, NON cambiarlo):
 --   matteo.zoccolan.pn@gmail.com  ->  2c875815-a9b2-5a28-9e9e-6051128a8d4d
 --
--- PER-UTENTE (RLS attiva): tickets, todos, watchlist, diet_plan, workout_plan,
---   workout_log, trip_plans, push_subscriptions, notification_runs
--- CONDIVISE (NIENTE RLS): films_catalog, search_log
+-- PER-UTENTE (RLS attiva, 9 tabelle con colonna user_id): tickets, todos,
+--   watchlist, diet_plan, workout_plan, workout_log, trip_plans, trips,
+--   push_subscriptions
+-- CONDIVISE (NIENTE user_id/RLS): films_catalog, search_log, notification_runs
 -- ============================================================================
 
 
@@ -44,7 +45,7 @@
 DO $$
 DECLARE t text; has_col boolean;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','push_subscriptions','notification_runs']
+  FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','trips','push_subscriptions']
   LOOP
     SELECT EXISTS(SELECT 1 FROM information_schema.columns
                   WHERE table_schema='public' AND table_name=t AND column_name='user_id') INTO has_col;
@@ -103,7 +104,7 @@ END $$;
 DO $$
 DECLARE t text; has_col boolean;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','push_subscriptions','notification_runs']
+  FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','trips','push_subscriptions']
   LOOP
     SELECT EXISTS(SELECT 1 FROM information_schema.columns
                   WHERE table_schema='public' AND table_name=t AND column_name='user_id') INTO has_col;
@@ -121,7 +122,7 @@ END $$;
 DO $$
 DECLARE t text; has_col boolean;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','push_subscriptions','notification_runs']
+  FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','trips','push_subscriptions']
   LOOP
     SELECT EXISTS(SELECT 1 FROM information_schema.columns
                   WHERE table_schema='public' AND table_name=t AND column_name='user_id') INTO has_col;
@@ -193,7 +194,7 @@ END $$;
 --   UNION ALL SELECT 'trip_plans', count(*) FILTER (WHERE user_id IS NULL) FROM trip_plans;
 -- V2) RLS attiva dove serve (TRUE per-utente, FALSE su films_catalog/search_log):
 --   SELECT relname, relrowsecurity FROM pg_class
---   WHERE relname IN ('tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','push_subscriptions','notification_runs','films_catalog','search_log') ORDER BY 1;
+--   WHERE relname IN ('tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','trips','push_subscriptions','films_catalog','search_log','notification_runs') ORDER BY 1;
 -- V3) Policy create:
 --   SELECT tablename, policyname, cmd FROM pg_policies WHERE schemaname='public' ORDER BY 1,3;
 -- V4) Vincoli UNIQUE attuali:
