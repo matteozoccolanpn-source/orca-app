@@ -6,38 +6,44 @@ import { userDb } from "@/lib/supabase-user";
 export const dynamic = "force-dynamic";
 
 // Diagnostica multi-utente: prova il percorso "come utente" (token firmato + RLS)
-// in ISOLAMENTO, senza dipendere dall'interruttore MULTIUSER_RLS. Auth-guarded.
-// Da rimuovere dopo la diagnosi.
+// su OGNI tabella usata dall'app, in ISOLAMENTO (indipendente dall'interruttore
+// MULTIUSER_RLS). Auth-guarded. Da rimuovere dopo la diagnosi.
+const TABLES = [
+  "tickets", "todos", "watchlist", "diet_plan", "workout_plan",
+  "workout_log", "trip_plans", "trips", "push_subscriptions",
+  "films_catalog", "search_log", "notification_runs",
+];
+
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const uid = await currentUserId();
   const secret = process.env.SUPABASE_JWT_SECRET ?? "";
-  const info: Record<string, unknown> = {
+  const head: Record<string, unknown> = {
     uid,
     email: session.user?.email ?? null,
-    secretPresent: secret.length > 0,
-    secretLen: secret.length,               // se ha spazi/newline extra si vede qui
-    anonPresent: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    urlPresent: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    secretLen: secret.length,
   };
 
+  let u;
   try {
-    const u = await userDb();
-    if (!u) return NextResponse.json({ ...info, userDb: "null (nessun utente)" });
-    const { data, error } = await u.db.from("tickets").select("id").limit(1);
-    return NextResponse.json({
-      ...info,
-      tokenAcceptedByDb: !error,
-      rowsVisible: data?.length ?? 0,
-      error: error
-        ? { message: error.message, code: (error as { code?: string }).code ?? null,
-            details: (error as { details?: string }).details ?? null,
-            hint: (error as { hint?: string }).hint ?? null }
-        : null,
-    });
+    u = await userDb();
   } catch (e) {
-    return NextResponse.json({ ...info, threw: String(e instanceof Error ? e.message : e) });
+    return NextResponse.json({ ...head, userDbThrew: String(e instanceof Error ? e.message : e) });
   }
+  if (!u) return NextResponse.json({ ...head, userDb: "null" });
+
+  const perTable: Record<string, unknown> = {};
+  for (const t of TABLES) {
+    try {
+      const { data, error } = await u.db.from(t).select("*").limit(1);
+      perTable[t] = error
+        ? { ok: false, code: (error as { code?: string }).code ?? null, msg: error.message }
+        : { ok: true, rows: data?.length ?? 0 };
+    } catch (e) {
+      perTable[t] = { ok: false, threw: String(e instanceof Error ? e.message : e) };
+    }
+  }
+  return NextResponse.json({ ...head, perTable });
 }
