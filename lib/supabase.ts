@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { userDb } from "./supabase-user";
 import { detectClusters, type TicketInput } from "./incastri";
+import { currentUserId } from "./user";
 
 export interface EventEnrichment {
   summary: string;
@@ -165,6 +166,7 @@ export async function createTicket(fields: TicketCreate): Promise<{ id: string }
   const { data, error } = await (await db())
     .from("tickets")
     .insert({
+      user_id:   await currentUserId(),
       title:     fields.title,
       type:      fields.type,
       datetime:  fields.datetime ? romeNaiveToUtcIso(fields.datetime) : null,
@@ -217,7 +219,7 @@ export async function saveDietPlan(week: DietWeek): Promise<void> {
   const client = (await db());
   // Cancella tutte le righe esistenti (Supabase richiede un filtro: id != uuid-impossibile).
   await client.from("diet_plan").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  const { error } = await client.from("diet_plan").insert({ week });
+  const { error } = await client.from("diet_plan").insert({ week, user_id: await currentUserId() });
   if (error) throw new Error(error.message);
 }
 
@@ -271,7 +273,7 @@ export async function saveWorkoutPlan(week: WorkoutWeek): Promise<void> {
   const client = (await db());
   // Delete richiede un filtro: prendo tutte le righe con updated_at non nullo.
   await client.from("workout_plan").delete().not("updated_at", "is", null);
-  const { error } = await client.from("workout_plan").insert({ week });
+  const { error } = await client.from("workout_plan").insert({ week, user_id: await currentUserId() });
   if (error) throw new Error(error.message);
 }
 
@@ -300,7 +302,7 @@ export async function getTrainedDays(): Promise<string[]> {
 export async function setTrainedDay(day: string, done: boolean): Promise<void> {
   const client = (await db());
   if (done) {
-    const { error } = await client.from("workout_log").upsert({ day }, { onConflict: "day" });
+    const { error } = await client.from("workout_log").upsert({ day, user_id: await currentUserId() }, { onConflict: MULTIUSER_RLS ? "user_id,day" : "day" });
     if (error) throw new Error(error.message);
   } else {
     const { error } = await client.from("workout_log").delete().eq("day", day);
@@ -353,13 +355,14 @@ export async function syncTripPlans(): Promise<{ clusters: number; upserted: num
   for (const c of daPianificare) {
     const { error: upErr } = await client.from("trip_plans").upsert(
       {
+        user_id:     await currentUserId(),
         cluster_key: c.clusterKey,
         city:        c.city,
         start_date:  c.startDate,
         end_date:    c.endDate,
         ticket_ids:  c.ticketIds,
       },
-      { onConflict: "cluster_key" }
+      { onConflict: MULTIUSER_RLS ? "user_id,cluster_key" : "cluster_key" }
     );
     if (upErr) throw new Error(upErr.message);
     upserted++;
@@ -546,7 +549,7 @@ export async function getWatchlist(): Promise<WatchItem[]> {
 export async function addWatchItem(f: { title: string; kind?: string; info?: string | null; link?: string | null }): Promise<WatchItem> {
   const { data, error } = await (await db())
     .from("watchlist")
-    .insert({ title: f.title, kind: f.kind ?? "film", info: f.info ?? null, link: f.link ?? null })
+    .insert({ user_id: await currentUserId(), title: f.title, kind: f.kind ?? "film", info: f.info ?? null, link: f.link ?? null })
     .select("id, title, kind, info, link, seen")
     .single();
   if (error) throw new Error(error.message);
@@ -728,6 +731,7 @@ export async function createTodo(
   const { data, error } = await (await db())
     .from("todos")
     .insert({
+      user_id: await currentUserId(),
       day,
       text,
       time: time ?? null,
