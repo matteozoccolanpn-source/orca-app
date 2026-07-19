@@ -4,6 +4,35 @@
 > che manca, niente escluso. Aggiornato dopo: notifiche accese, design pass sottopagine,
 > Fasi A e B chiuse.
 
+## ⏱️ AGGIORNAMENTO SESSIONE — Guarda / foto / notifiche / benchmark
+**Fatto in questa sessione** (committato, `tsc` verde):
+- **N1** ✅ eventi >90gg fuori dalla home (`keikoLive.ts`) — restano in calendario/agenda.
+- **G2** ✅ scheda film/serie: trama a scomparsa, anno, generi, cast (`lib/tmdb.titleDetails` + `/api/watch/details`).
+- **G3** ✅ "Dove vederlo" con piattaforme italiane TMDB, **cliccabili** (deep-link app, ripiego JustWatch).
+- **G4** 🟡 primo pezzo: **Titoli simili** (TMDB recommendations) + **Categorie per genere**. Resta la "memoria gusti" personalizzata.
+- **Guarda extra**: hero suggerimento **a rotazione**; **voto a orche 🐋 + nota**; struttura **Da vedere → Visti di recente → Categorie (tutto)**; **barra ricerca/aggiungi in alto**; **Consiglio GLOBALE** (vive nel layout, sopravvive ai cambi sezione) con **3 opzioni + copertine**. Colonne DB aggiunte: `watchlist.rating/note/seen_at`.
+- **E1** ✅ categoria dedotta dal titolo per eventi generici (salute/studio/…) + glyph di riserva → card **mai vuote**.
+- **Foto**: fallback **Unsplash a tema** per eventi senza foto specifica; **foto vere negli hero** di Viaggio (città), Dieta (piatto), Allenamento (esercizio/palestra).
+- **X4** ✅ skeleton shimmer dietro le foto in caricamento.
+- **Notifiche** 🔧 mancava il pulsante per attivarle nella home v4 → interruttore **Notifiche** nel Profilo (`lib/push-client`) + **"Invia notifica di prova"** (`/api/push/test`).
+- **A4** 🟡 riepilogo **"Questa settimana"** (allenamenti fatti/pianificati) sotto l'hero allenamento.
+- Fix: **/salute 404** (import da componente client dentro pagina server).
+
+**⬜ RESTA DA FARE (niente dimenticato):**
+- **N2/benchmark**: **D2** macro-calorie dieta (⏸️ PAUSA — scegliere fonte Spoonacular/Edamam); Guarda "quanti visti questo mese" (ora `seen_at` c'è → fattibile).
+- **Allenamento**: **A1** timer/cronometro sessione · **A2** target+risultati per esercizio (kg/passo)+storico · **A3** immagini esercizi affidabili (ExerciseDB) — ora fallback generico.
+- **Dieta**: **D2** (sopra) · **D3** vista giornata completa pasti + **lista spesa**.
+- **Eventi/To-do**: **E2** to-do "vedi gara/partita" arricchiti come i film · **E3** sport arricchito (risultato/orario/dove vederla) · **E4** "quando uscire" (Google Directions + meteo → notifica).
+- **Trasversali**: **X3** ampliare profilo (unità, anticipo default, tema) · **X5** anteprima evento prima di salvare · **X6** onboarding primo avvio · **X7** pulizia dato demo (azione utente) · **X8** meteo da venue/indirizzo.
+- **Fase D**: vista mese/agenda · ricorrenze/abitudini · Sentry+retry/backoff · indagare 503 RSC.
+- **Design**: sistema card unico + scala spaziature · header pagina pixel-identical · dieta "prossimi giorni" mini-card.
+- **Fase E — lancio**: collaudo · demo puliti · onboarding attivo · deploy finale.
+
+**⭐ NUOVE RICHIESTE (da questa sessione):**
+- **MECCANICA / NAVIGAZIONE FLUIDA (priorità utente):** pagine che si aprono **dal basso** (bottom-sheet, si tira giù per chiudere) e **swipe sinistra/destra** tra le sezioni — feel da app nativa, tutto più fluido/veloce. Framer Motion è già in stack.
+- **Foto eventi scelte dall'utente** (override manuale per evento): colonna immagine custom + UI nella scheda.
+- **Consiglio "ad app chiusa":** farlo girare sul server + **notifica push** quando pronto.
+
 ## 0. Come lavorare (contesto tecnico)
 - Stack: Next.js App Router + TS + Tailwind + Framer Motion; NextAuth v5 (Google, single-user);
   Supabase; deploy su **Vercel da `main`** (produzione = `orca-app-zeta.vercel.app`).
