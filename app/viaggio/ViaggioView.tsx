@@ -58,12 +58,12 @@ function matchTicket(step: Slot, tickets: TicketDetail[]): TicketDetail | undefi
   return undefined;
 }
 
-export default function ViaggioView({ trips, tickets }: { trips: TripPlanRow[]; tickets: TicketDetail[] }) {
+export default function ViaggioView({ trips, tickets, heroImages }: { trips: TripPlanRow[]; tickets: TicketDetail[]; heroImages: (string | null)[] }) {
   // Titolo del guscio = città del viaggio più vicino (i piani sono ordinati per data).
   const title = trips.length > 0 ? trips[0].city : "Itinerario";
   return (
     <KeikoShell title={title} badge={trips.length > 0 ? "PRONTO ✓" : undefined} backHref="/">
-      {trips.length === 0 ? <EmptyState /> : trips.map((t) => <TripBlock key={t.id} trip={t} tickets={tickets} />)}
+      {trips.length === 0 ? <EmptyState /> : trips.map((t, i) => <TripBlock key={t.id} trip={t} tickets={tickets} image={heroImages[i] ?? null} />)}
     </KeikoShell>
   );
 }
@@ -79,7 +79,7 @@ function EmptyState() {
   );
 }
 
-function TripBlock({ trip, tickets }: { trip: TripPlanRow; tickets: TicketDetail[] }) {
+function TripBlock({ trip, tickets, image }: { trip: TripPlanRow; tickets: TicketDetail[]; image: string | null }) {
   const router = useRouter();
   const toast = useKeikoToast();
   const plan = (trip.plan ?? {}) as Plan;
@@ -122,7 +122,7 @@ function TripBlock({ trip, tickets }: { trip: TripPlanRow; tickets: TicketDetail
     <section style={{ marginTop: 14 }}>
       {/* HERO itinerario */}
       <div className="vHero" ref={heroRef}>
-        <div className="art" style={{ position: "absolute", inset: 0, background: HERO_ART }} />
+        <div className="art" style={{ position: "absolute", inset: 0, ...(image ? { backgroundImage: `url(${image})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: HERO_ART }) }} />
         <div className="shade" />
         <span className="vk">Itinerario &middot; {fmtRange(trip.start_date, trip.end_date)}</span>
         <h4 style={oneLine}>Viaggio a {trip.city}</h4>

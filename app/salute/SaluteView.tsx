@@ -32,13 +32,15 @@ type State = "idle" | "parsing" | "success" | "error";
 export default function SaluteView({
   week,
   updatedAt,
+  heroImage = null,
   embedded = false,
 }: {
   week: DietWeek | null;
   updatedAt: string | null;
+  heroImage?: string | null;
   embedded?: boolean;
 }) {
-  if (!embedded) return <DietView week={week} updatedAt={updatedAt} />;
+  if (!embedded) return <DietView week={week} updatedAt={updatedAt} heroImage={heroImage} />;
   return <SaluteLegacy week={week} updatedAt={updatedAt} embedded={embedded} />;
 }
 

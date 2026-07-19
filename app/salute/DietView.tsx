@@ -49,18 +49,20 @@ function formatUpdated(iso: string | null): string {
 export default function DietView({
   week,
   updatedAt,
+  heroImage = null,
 }: {
   week: DietWeek | null;
   updatedAt: string | null;
+  heroImage?: string | null;
 }) {
   return (
     <KeikoShell title="Dieta" backHref="/" active="dieta">
-      <DietBody week={week} updatedAt={updatedAt} />
+      <DietBody week={week} updatedAt={updatedAt} heroImage={heroImage} />
     </KeikoShell>
   );
 }
 
-function DietBody({ week, updatedAt }: { week: DietWeek | null; updatedAt: string | null }) {
+function DietBody({ week, updatedAt, heroImage = null }: { week: DietWeek | null; updatedAt: string | null; heroImage?: string | null }) {
   const router = useRouter();
   const toast = useKeikoToast();
 
@@ -125,8 +127,12 @@ function DietBody({ week, updatedAt }: { week: DietWeek | null; updatedAt: strin
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              "radial-gradient(110% 80% at 85% -6%,rgba(240,178,74,.42) 0%,transparent 55%),linear-gradient(168deg,#6E4A18 0%,#33210A 60%,#170F05 100%)",
+            ...(heroImage
+              ? { backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+              : {
+                  background:
+                    "radial-gradient(110% 80% at 85% -6%,rgba(240,178,74,.42) 0%,transparent 55%),linear-gradient(168deg,#6E4A18 0%,#33210A 60%,#170F05 100%)",
+                }),
           }}
         />
         <div className="shade" />
