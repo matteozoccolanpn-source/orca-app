@@ -130,6 +130,15 @@ CREATE POLICY keiko_own_insert ON public.push_subscriptions FOR INSERT TO authen
 CREATE POLICY keiko_own_update ON public.push_subscriptions FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 CREATE POLICY keiko_own_delete ON public.push_subscriptions FOR DELETE TO authenticated USING (user_id = auth.uid());
 
+-- 4b) tabelle CONDIVISE (films_catalog, search_log): permesso comune per
+--     l'utente loggato (non per-utente). Necessario perche' la RLS era gia'
+--     attiva su queste tabelle dal setup originale di Supabase.
+DROP POLICY IF EXISTS keiko_shared_all ON public.films_catalog;
+CREATE POLICY keiko_shared_all ON public.films_catalog FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS keiko_shared_all ON public.search_log;
+CREATE POLICY keiko_shared_all ON public.search_log FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+
 -- ============================================================================
 -- SEZIONE 5 — CUTOVER  ⚠️  esegui SOLO quando accendi MULTIUSER_RLS=1
 --   Rimuove i vecchi controlli mono-utente (nomi verificati sul DB reale).
