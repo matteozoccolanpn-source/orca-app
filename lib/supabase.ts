@@ -1,6 +1,7 @@
 // Server-side only — SUPABASE_SERVICE_ROLE_KEY must never reach the client bundle.
 
 import { createClient } from "@supabase/supabase-js";
+import { userDb } from "./supabase-user";
 import { detectClusters, type TicketInput } from "./incastri";
 
 export interface EventEnrichment {
@@ -48,7 +49,22 @@ function emojiForType(type: string | undefined): string {
   }
 }
 
-function admin() {
+// Interruttore multi-utente (Blocco C). SPENTO in produzione (MULTIUSER_RLS != "1")
+// -> il livello dati usa la chiave service-role come SEMPRE (nessun cambiamento).
+// ACCESO -> interroga il DB "come utente" (client per-utente) e le policy RLS del
+// database garantiscono la privacy. Si accende solo dopo i test di isolamento.
+const MULTIUSER_RLS = process.env.MULTIUSER_RLS === "1";
+
+async function db() {
+  if (!MULTIUSER_RLS) return serviceDb();
+  const u = await userDb();
+  if (!u) throw new Error("Supabase: utente non autenticato");
+  return u.db;
+}
+
+// Client service-role (scavalca RLS): usato quando l'interruttore e' spento e per
+// compiti amministrativi. NON usarlo sul percorso dati a interruttore acceso.
+function serviceDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase: missing env vars (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)");
@@ -68,7 +84,7 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
     // Prova col campo enrichment; se la colonna non esiste ancora, riprova senza,
     // così la home NON si rompe finché non crei la colonna `enrichment` su Supabase.
     let rows: Record<string, unknown>[];
-    const first = await admin()
+    const first = await (await db())
       .from("tickets")
       .select("id, title, type, datetime, location, enrichment")
       .gt("datetime", now)
@@ -76,7 +92,7 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
       .order("datetime", { ascending: true })
       .limit(20);
     if (first.error) {
-      const retry = await admin()
+      const retry = await (await db())
         .from("tickets")
         .select("id, title, type, datetime, location")
         .gt("datetime", now)
@@ -108,7 +124,7 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
 }
 
 export async function deleteTicketById(id: string): Promise<void> {
-  const { error } = await admin().from("tickets").delete().eq("id", id);
+  const { error } = await (await db()).from("tickets").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -123,7 +139,7 @@ export async function updateTicketById(id: string, fields: TicketUpdate): Promis
 
   if (Object.keys(patch).length === 0) throw new Error("No fields to update");
 
-  const { error } = await admin().from("tickets").update(patch).eq("id", id);
+  const { error } = await (await db()).from("tickets").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -146,10 +162,9 @@ function romeNaiveToUtcIso(datetime: string): string {
 }
 
 export async function createTicket(fields: TicketCreate): Promise<{ id: string }> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("tickets")
     .insert({
-      user_id:   null,
       title:     fields.title,
       type:      fields.type,
       datetime:  fields.datetime ? romeNaiveToUtcIso(fields.datetime) : null,
@@ -179,7 +194,7 @@ export interface DietPlan {
 
 /** Legge il piano dieta salvato (la riga più recente). null se non c'è ancora. */
 export async function getDietPlan(): Promise<DietPlan | null> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("diet_plan")
     .select("week, updated_at")
     .order("updated_at", { ascending: false })
@@ -199,16 +214,16 @@ export async function getDietPlan(): Promise<DietPlan | null> {
 
 /** Sostituisce il piano dieta: cancella la vecchia riga e ne scrive una nuova. */
 export async function saveDietPlan(week: DietWeek): Promise<void> {
-  const client = admin();
+  const client = (await db());
   // Cancella tutte le righe esistenti (Supabase richiede un filtro: id != uuid-impossibile).
   await client.from("diet_plan").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  const { error } = await client.from("diet_plan").insert({ user_id: null, week });
+  const { error } = await client.from("diet_plan").insert({ week });
   if (error) throw new Error(error.message);
 }
 
 /** Elimina il piano dieta salvato (svuota la tabella). */
 export async function deleteDietPlan(): Promise<void> {
-  const { error } = await admin()
+  const { error } = await (await db())
     .from("diet_plan")
     .delete()
     .neq("id", "00000000-0000-0000-0000-000000000000");
@@ -233,7 +248,7 @@ export interface WorkoutPlan {
 
 /** Legge la scheda salvata (la riga più recente). null se non c'è ancora. */
 export async function getWorkoutPlan(): Promise<WorkoutPlan | null> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("workout_plan")
     .select("week, updated_at")
     .order("updated_at", { ascending: false })
@@ -253,7 +268,7 @@ export async function getWorkoutPlan(): Promise<WorkoutPlan | null> {
 
 /** Sostituisce la scheda: cancella la vecchia riga e ne scrive una nuova. */
 export async function saveWorkoutPlan(week: WorkoutWeek): Promise<void> {
-  const client = admin();
+  const client = (await db());
   // Delete richiede un filtro: prendo tutte le righe con updated_at non nullo.
   await client.from("workout_plan").delete().not("updated_at", "is", null);
   const { error } = await client.from("workout_plan").insert({ week });
@@ -262,7 +277,7 @@ export async function saveWorkoutPlan(week: WorkoutWeek): Promise<void> {
 
 /** Elimina la scheda salvata (svuota la tabella). */
 export async function deleteWorkoutPlan(): Promise<void> {
-  const { error } = await admin()
+  const { error } = await (await db())
     .from("workout_plan")
     .delete()
     .not("updated_at", "is", null);
@@ -271,7 +286,7 @@ export async function deleteWorkoutPlan(): Promise<void> {
 
 /** Date (YYYY-MM-DD) dei giorni in cui l'utente si è allenato. */
 export async function getTrainedDays(): Promise<string[]> {
-  const { data, error } = await admin().from("workout_log").select("day");
+  const { data, error } = await (await db()).from("workout_log").select("day");
   if (error) {
     console.error("Supabase: failed to fetch trained days:", error.message);
     return [];
@@ -283,7 +298,7 @@ export async function getTrainedDays(): Promise<string[]> {
 
 /** Segna/desegna un giorno come allenato. done=true → upsert; false → delete. */
 export async function setTrainedDay(day: string, done: boolean): Promise<void> {
-  const client = admin();
+  const client = (await db());
   if (done) {
     const { error } = await client.from("workout_log").upsert({ day }, { onConflict: "day" });
     if (error) throw new Error(error.message);
@@ -303,7 +318,7 @@ export async function setTrainedDay(day: string, done: boolean): Promise<void> {
 // viene persa). Un viaggio nuovo entra con status di default 'pending'.
 
 export async function syncTripPlans(): Promise<{ clusters: number; upserted: number }> {
-  const client = admin();
+  const client = (await db());
 
   // Solo biglietti futuri, esclusi i [PABLO] come nel resto dell'app.
   const { data, error } = await client
@@ -398,7 +413,7 @@ export interface TicketDetail {
 
 /** Legge un viaggio dato il suo cluster_key. */
 export async function getTripPlanByKey(clusterKey: string): Promise<TripPlanRow | null> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("trip_plans")
     .select("*")
     .eq("cluster_key", clusterKey)
@@ -409,7 +424,7 @@ export async function getTripPlanByKey(clusterKey: string): Promise<TripPlanRow 
 
 /** Chiavi dei viaggi ancora da arricchire (status = 'pending'). */
 export async function getPendingTripPlanKeys(): Promise<string[]> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("trip_plans")
     .select("cluster_key")
     .eq("status", "pending");
@@ -420,7 +435,7 @@ export async function getPendingTripPlanKeys(): Promise<string[]> {
 /** Dettagli dei biglietti che compongono un viaggio. */
 export async function getTicketsByIds(ids: string[]): Promise<TicketDetail[]> {
   if (ids.length === 0) return [];
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("tickets")
     .select("id, title, type, datetime, location, city")
     .in("id", ids);
@@ -438,7 +453,7 @@ export async function getTicketsByIds(ids: string[]): Promise<TicketDetail[]> {
 /** Salva il piano generato e segna il viaggio come 'ready'. */
 export async function saveTripPlanResult(clusterKey: string, plan: unknown): Promise<void> {
   const now = new Date().toISOString();
-  const { error } = await admin()
+  const { error } = await (await db())
     .from("trip_plans")
     .update({ plan, status: "ready", searched_at: now, updated_at: now })
     .eq("cluster_key", clusterKey);
@@ -447,7 +462,7 @@ export async function saveTripPlanResult(clusterKey: string, plan: unknown): Pro
 
 /** Viaggi con un piano pronto (status = 'ready'), per mostrarli nell'app. */
 export async function getReadyTripPlans(): Promise<TripPlanRow[]> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("trip_plans")
     .select("*")
     .eq("status", "ready")
@@ -461,7 +476,7 @@ export async function getReadyTripPlans(): Promise<TripPlanRow[]> {
 
 /** Tutti i viaggi rilevati (pending/generating/ready), per mostrarli in home. */
 export async function getAllTripPlans(): Promise<TripPlanRow[]> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("trip_plans")
     .select("*")
     .in("status", ["pending", "generating", "ready"])
@@ -475,7 +490,7 @@ export async function getAllTripPlans(): Promise<TripPlanRow[]> {
 
 /** Cambia lo stato di un viaggio (pending → generating → ready). */
 export async function setTripPlanStatus(clusterKey: string, status: string): Promise<void> {
-  const { error } = await admin()
+  const { error } = await (await db())
     .from("trip_plans")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("cluster_key", clusterKey);
@@ -506,8 +521,8 @@ export async function getWatchlist(): Promise<WatchItem[]> {
   // additivi: si provano, e se le colonne non ci sono ancora si ripiega senza —
   // così un deploy prima della migrazione SQL non rompe la pagina.
   const base: string = "id, title, kind, info, link, seen";
-  let res = await admin().from("watchlist").select(base + ", rating, note, seen_at").order("seen", { ascending: true }).order("created_at", { ascending: false });
-  if (res.error) res = await admin().from("watchlist").select(base).order("seen", { ascending: true }).order("created_at", { ascending: false });
+  let res = await (await db()).from("watchlist").select(base + ", rating, note, seen_at").order("seen", { ascending: true }).order("created_at", { ascending: false });
+  if (res.error) res = await (await db()).from("watchlist").select(base).order("seen", { ascending: true }).order("created_at", { ascending: false });
   if (res.error) {
     console.error("Supabase: getWatchlist:", res.error.message);
     return [];
@@ -529,9 +544,9 @@ export async function getWatchlist(): Promise<WatchItem[]> {
 }
 
 export async function addWatchItem(f: { title: string; kind?: string; info?: string | null; link?: string | null }): Promise<WatchItem> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("watchlist")
-    .insert({ user_id: null, title: f.title, kind: f.kind ?? "film", info: f.info ?? null, link: f.link ?? null })
+    .insert({ title: f.title, kind: f.kind ?? "film", info: f.info ?? null, link: f.link ?? null })
     .select("id, title, kind, info, link, seen")
     .single();
   if (error) throw new Error(error.message);
@@ -554,18 +569,18 @@ export async function addWatchItem(f: { title: string; kind?: string; info?: str
 export async function setWatchItemSeen(id: string, seen: boolean): Promise<void> {
   const seenAt = seen ? new Date().toISOString() : null;
   // prova a salvare anche seen_at; se la colonna non esiste ancora, ripiega su solo `seen`
-  let res = await admin().from("watchlist").update({ seen, seen_at: seenAt }).eq("id", id);
-  if (res.error) res = await admin().from("watchlist").update({ seen }).eq("id", id);
+  let res = await (await db()).from("watchlist").update({ seen, seen_at: seenAt }).eq("id", id);
+  if (res.error) res = await (await db()).from("watchlist").update({ seen }).eq("id", id);
   if (res.error) throw new Error(res.error.message);
 }
 
 export async function setWatchItemReview(id: string, rating: number | null, note: string | null): Promise<void> {
-  const { error } = await admin().from("watchlist").update({ rating, note }).eq("id", id);
+  const { error } = await (await db()).from("watchlist").update({ rating, note }).eq("id", id);
   if (error) throw new Error(error.message);
 }
 
 export async function deleteWatchItem(id: string): Promise<void> {
-  const { error } = await admin().from("watchlist").delete().eq("id", id);
+  const { error } = await (await db()).from("watchlist").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -582,7 +597,7 @@ export interface CatalogFilm {
 /** Voci di catalogo fresche (ultimi 30 giorni): le info streaming invecchiano. */
 export async function getFreshCatalog(limit = 60): Promise<CatalogFilm[]> {
   const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("films_catalog")
     .select("title, kind, genres, platform, info, link")
     .gte("cached_at", cutoff)
@@ -605,7 +620,7 @@ export async function saveCatalogFilms(films: CatalogFilm[]): Promise<void> {
     info: f.info,
     link: f.link,
   }));
-  const { error } = await admin().from("films_catalog").insert(rows);
+  const { error } = await (await db()).from("films_catalog").insert(rows);
   if (error) throw new Error(error.message);
 }
 
@@ -641,8 +656,8 @@ export async function searchEventsTodos(terms: string[]): Promise<{
   const evOr = safe.flatMap((t) => [`title.ilike.%${t}%`, `location.ilike.%${t}%`]).join(",");
   const tdOr = safe.flatMap((t) => [`text.ilike.%${t}%`, `location.ilike.%${t}%`]).join(",");
   const [ev, td] = await Promise.all([
-    admin().from("tickets").select("id, title, type, datetime, location").or(evOr).order("datetime", { ascending: true }).limit(8),
-    admin().from("todos").select("id, text, day, time, location").or(tdOr).order("day", { ascending: true }).limit(8),
+    (await db()).from("tickets").select("id, title, type, datetime, location").or(evOr).order("datetime", { ascending: true }).limit(8),
+    (await db()).from("todos").select("id, text, day, time, location").or(tdOr).order("day", { ascending: true }).limit(8),
   ]);
   return {
     events: (ev.data ?? []).map((r) => ({ id: r.id as string, title: (r.title as string) ?? "", type: (r.type as string) ?? "", datetime: (r.datetime as string) ?? "", location: (r.location as string) ?? null })),
@@ -652,26 +667,26 @@ export async function searchEventsTodos(terms: string[]): Promise<{
 
 /** Backup ricerche: registra cosa cerca l'utente (e se abbiamo trovato). Tabella `search_log`. */
 export async function logSearch(q: string, found: boolean): Promise<void> {
-  const { error } = await admin().from("search_log").insert({ q, found });
+  const { error } = await (await db()).from("search_log").insert({ q, found });
   if (error) console.warn("[search_log] insert fallito (creare la tabella?):", error.message);
 }
 
 /** Campi minimi di un evento per l'arricchimento AI. */
 export async function getTicketForEnrich(id: string): Promise<{ title: string; type: string; datetime: string | null; location: string | null } | null> {
-  const { data, error } = await admin().from("tickets").select("title, type, datetime, location").eq("id", id).single();
+  const { data, error } = await (await db()).from("tickets").select("title, type, datetime, location").eq("id", id).single();
   if (error || !data) return null;
   return { title: data.title as string, type: (data.type as string) ?? "", datetime: (data.datetime as string) ?? null, location: (data.location as string) ?? null };
 }
 
 /** Salva l'arricchimento AI (summary + link) sull'evento. Colonna `enrichment` jsonb. */
 export async function saveTicketEnrichment(id: string, enrichment: EventEnrichment): Promise<void> {
-  const { error } = await admin().from("tickets").update({ enrichment }).eq("id", id);
+  const { error } = await (await db()).from("tickets").update({ enrichment }).eq("id", id);
   if (error) console.warn("[enrichment] save fallito (colonna `enrichment` creata?):", error.message);
 }
 
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */
 export async function getTodos(): Promise<Todo[]> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("todos")
     .select("id, day, text, done, star, time, location, phone, lead_minutes, double_reminder, info, link, link_label")
     .order("day", { ascending: true })
@@ -710,10 +725,9 @@ export async function createTodo(
   phone?: string | null,
   extra?: { info?: string | null; link?: string | null; linkLabel?: string | null }
 ): Promise<Todo> {
-  const { data, error } = await admin()
+  const { data, error } = await (await db())
     .from("todos")
     .insert({
-      user_id: null,
       day,
       text,
       time: time ?? null,
@@ -764,12 +778,12 @@ export async function updateTodoById(
   }
   if (Object.keys(patch).length === 0) throw new Error("No fields to update");
 
-  const { error } = await admin().from("todos").update(patch).eq("id", id);
+  const { error } = await (await db()).from("todos").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
 }
 
 /** Elimina un to-do. */
 export async function deleteTodoById(id: string): Promise<void> {
-  const { error } = await admin().from("todos").delete().eq("id", id);
+  const { error } = await (await db()).from("todos").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
