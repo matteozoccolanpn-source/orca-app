@@ -7,6 +7,7 @@ import EventSheet from "./EventSheet";
 import AskSheet from "./AskSheet";
 import DaySheet from "./DaySheet";
 import ProfileSheet from "./ProfileSheet";
+import Onboarding from "./Onboarding";
 import CalendarSheet from "./CalendarSheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor, glyphFor } from "@/lib/smart-image";
@@ -31,6 +32,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const [selDay, setSelDay] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
+  const [onboard, setOnboard] = useState(false);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [weather, setWeather] = useState<{ tempC: number; emoji: string; text: string } | null>(null);
@@ -40,6 +42,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
     try {
       const n = localStorage.getItem("keiko-name"); if (n) setName(n);
       const c = localStorage.getItem("keiko-city"); if (c) setCity(c);
+      if (!localStorage.getItem("keiko-onboarded")) setOnboard(true);
     } catch { /* no-op */ }
   }, []);
   const saveName = (v: string) => { setName(v); try { localStorage.setItem("keiko-name", v); } catch { /* no-op */ } };
@@ -221,6 +224,15 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
         />
       )}
       {profileOpen && <ProfileSheet name={name} onName={saveName} city={city} onCity={saveCity} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}
+      {onboard && !demo && (
+        <Onboarding
+          name={name}
+          city={city}
+          onName={saveName}
+          onCity={saveCity}
+          onDone={() => { try { localStorage.setItem("keiko-onboarded", "1"); } catch { /* no-op */ } setOnboard(false); }}
+        />
+      )}
       {calOpen && (
         <CalendarSheet
           baseY={live.cal.y}
