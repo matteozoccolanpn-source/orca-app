@@ -30,7 +30,7 @@ export default function CalendarSheet({
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 91, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
       <div
-        className="ds"
+        className="ds k-sheet-in"
         onClick={(e) => e.stopPropagation()}
         style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 24px)" }}
       >
