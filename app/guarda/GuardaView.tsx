@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import type { WatchItem } from "@/lib/supabase";
 import type { WatchProviders, WatchProvider, TitleDetails, SimilarTitle } from "@/lib/tmdb";
@@ -246,11 +247,23 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         </div>
       )}
 
-      {/* La lista */}
-      <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "28px 2px 14px", color: "var(--k-text-3)" }}>La lista</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-        {grid.map((item) => (
-          <div key={item.id} onClick={() => toggleSeen(item)} style={{ position: "relative", cursor: "pointer", opacity: item.seen ? 0.5 : 1 }}>
+      {/* Categorie: NON visti per genere + "Visti di recente". Solo sezioni con roba dentro. */}
+      {(() => {
+        const notSeen = grid.filter((i) => !i.seen);
+        const seenList = list.filter((i) => i.seen).slice().sort((a, b) => (b.seen_at ?? "").localeCompare(a.seen_at ?? ""));
+        const byGenre = new Map<string, WatchItem[]>();
+        for (const it of notSeen) {
+          const g = it.genre || "Altro";
+          const arr = byGenre.get(g) ?? [];
+          arr.push(it);
+          byGenre.set(g, arr);
+        }
+        const genres = [...byGenre.entries()].sort((a, b) => b[1].length - a[1].length);
+        const H2: CSSProperties = { fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "28px 2px 14px", color: "var(--k-text-3)" };
+        const CNT: CSSProperties = { fontWeight: 600, fontSize: 12.5, color: "var(--k-text-3)" };
+        const GRID: CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 };
+        const card = (item: WatchItem) => (
+          <div key={item.id} onClick={() => toggleSeen(item)} style={{ position: "relative", cursor: "pointer" }}>
             <div style={{ position: "relative", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "linear-gradient(150deg,#3a2f52,#1a1526)", border: "1px solid rgba(255,255,255,.08)" }}>
               {item.poster
                 ? <><span className="ds-skel" aria-hidden /><img src={item.poster} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /></>
@@ -262,8 +275,24 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
             </div>
             <div style={{ fontSize: 11.5, color: "var(--k-text-2)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
           </div>
-        ))}
-      </div>
+        );
+        return (
+          <>
+            {genres.map(([g, items]) => (
+              <div key={g}>
+                <h2 style={H2}>{g} <span style={CNT}>· {items.length}</span></h2>
+                <div style={GRID}>{items.map(card)}</div>
+              </div>
+            ))}
+            {seenList.length > 0 && (
+              <div>
+                <h2 style={H2}>Visti di recente <span style={CNT}>· {seenList.length}</span></h2>
+                <div style={GRID}>{seenList.map(card)}</div>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Aggiungi / Consiglio */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>

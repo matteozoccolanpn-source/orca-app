@@ -495,7 +495,9 @@ export interface WatchItem {
   seen: boolean;
   rating: number | null;  // voto personale (orche 1-5); null = non votato
   note: string | null;    // nota/recensione personale
+  seen_at: string | null; // quando è stato segnato "visto" (per "guardati di recente")
   poster: string | null; // URL copertina (TMDB) — additivo; null se non ancora popolato
+  genre: string | null;  // genere primario (TMDB) — riempito a runtime come poster
 }
 
 /** Tutta la watchlist: prima i "da vedere" (più recenti in alto), poi i visti. */
@@ -504,7 +506,7 @@ export async function getWatchlist(): Promise<WatchItem[]> {
   // additivi: si provano, e se le colonne non ci sono ancora si ripiega senza —
   // così un deploy prima della migrazione SQL non rompe la pagina.
   const base: string = "id, title, kind, info, link, seen";
-  let res = await admin().from("watchlist").select(base + ", rating, note").order("seen", { ascending: true }).order("created_at", { ascending: false });
+  let res = await admin().from("watchlist").select(base + ", rating, note, seen_at").order("seen", { ascending: true }).order("created_at", { ascending: false });
   if (res.error) res = await admin().from("watchlist").select(base).order("seen", { ascending: true }).order("created_at", { ascending: false });
   if (res.error) {
     console.error("Supabase: getWatchlist:", res.error.message);
@@ -520,7 +522,9 @@ export async function getWatchlist(): Promise<WatchItem[]> {
     seen: r.seen === true,
     rating: (r.rating as number | null) ?? null,
     note: (r.note as string | null) ?? null,
+    seen_at: (r.seen_at as string | null) ?? null,
     poster: null,
+    genre: null,
   }));
 }
 
@@ -541,13 +545,18 @@ export async function addWatchItem(f: { title: string; kind?: string; info?: str
     seen: r.seen === true,
     rating: null,
     note: null,
+    seen_at: null,
     poster: (r.poster as string | null) ?? null,
+    genre: null,
   };
 }
 
 export async function setWatchItemSeen(id: string, seen: boolean): Promise<void> {
-  const { error } = await admin().from("watchlist").update({ seen }).eq("id", id);
-  if (error) throw new Error(error.message);
+  const seenAt = seen ? new Date().toISOString() : null;
+  // prova a salvare anche seen_at; se la colonna non esiste ancora, ripiega su solo `seen`
+  let res = await admin().from("watchlist").update({ seen, seen_at: seenAt }).eq("id", id);
+  if (res.error) res = await admin().from("watchlist").update({ seen }).eq("id", id);
+  if (res.error) throw new Error(res.error.message);
 }
 
 export async function setWatchItemReview(id: string, rating: number | null, note: string | null): Promise<void> {

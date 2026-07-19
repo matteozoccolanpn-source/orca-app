@@ -180,3 +180,37 @@ export async function similarTitles(title: string, kind?: string): Promise<Simil
     return [];
   }
 }
+
+
+// ── Categorie: genere primario di un titolo (TMDB), etichetta italiana.
+// Usa i genre_ids del risultato di ricerca (1 sola chiamata). null se ignoto.
+const GENRE_IT: Record<number, string> = {
+  28: "Azione", 12: "Avventura", 16: "Animazione", 35: "Commedia", 80: "Crime",
+  99: "Documentario", 18: "Drammatico", 10751: "Famiglia", 14: "Fantasy", 36: "Storico",
+  27: "Horror", 10402: "Musica", 9648: "Mystery", 10749: "Romantico", 878: "Fantascienza",
+  10770: "Film TV", 53: "Thriller", 10752: "Guerra", 37: "Western",
+  10759: "Azione e Avventura", 10762: "Ragazzi", 10763: "News", 10764: "Reality",
+  10765: "Sci-Fi & Fantasy", 10766: "Soap", 10767: "Talk", 10768: "Guerra e Politica",
+};
+
+export async function primaryGenre(title: string, kind?: string): Promise<string | null> {
+  const key = process.env.TMDB_API_KEY;
+  if (!key || !title.trim()) return null;
+  const isV4 = key.includes(".");
+  const base = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}&language=it-IT&page=1`;
+  const url = isV4 ? base : `${base}&api_key=${key}`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 604800 }, headers: isV4 ? { Authorization: `Bearer ${key}` } : undefined });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results = (data?.results ?? []) as { media_type?: string; poster_path?: string; genre_ids?: number[] }[];
+    const wantTv = kind === "serie";
+    const withP = results.filter((r) => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path);
+    const pool = withP.length ? withP : results.filter((r) => r.media_type === "movie" || r.media_type === "tv");
+    const hit = pool.find((r) => r.media_type === (wantTv ? "tv" : "movie")) ?? pool[0];
+    const gid = hit?.genre_ids?.[0];
+    return gid != null ? (GENRE_IT[gid] ?? null) : null;
+  } catch {
+    return null;
+  }
+}
