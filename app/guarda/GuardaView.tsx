@@ -247,12 +247,13 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         </div>
       )}
 
-      {/* Categorie: NON visti per genere + "Visti di recente". Solo sezioni con roba dentro. */}
+      {/* Da vedere → Visti di recente → Categorie per genere (tutto). Solo sezioni con roba dentro. */}
       {(() => {
-        const notSeen = grid.filter((i) => !i.seen);
+        const daVedere = grid.filter((i) => !i.seen); // "grid" esclude gia' l'hero
         const seenList = list.filter((i) => i.seen).slice().sort((a, b) => (b.seen_at ?? "").localeCompare(a.seen_at ?? ""));
+        // categorie per genere su TUTTO (visti + non visti); i visti restano riconoscibili dal badge ✅
         const byGenre = new Map<string, WatchItem[]>();
-        for (const it of notSeen) {
+        for (const it of list) {
           const g = it.genre || "Altro";
           const arr = byGenre.get(g) ?? [];
           arr.push(it);
@@ -278,18 +279,24 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         );
         return (
           <>
-            {genres.map(([g, items]) => (
-              <div key={g}>
-                <h2 style={H2}>{g} <span style={CNT}>· {items.length}</span></h2>
-                <div style={GRID}>{items.map(card)}</div>
+            {daVedere.length > 0 && (
+              <div>
+                <h2 style={H2}>Da vedere <span style={CNT}>· {daVedere.length}</span></h2>
+                <div style={GRID}>{daVedere.map(card)}</div>
               </div>
-            ))}
+            )}
             {seenList.length > 0 && (
               <div>
                 <h2 style={H2}>Visti di recente <span style={CNT}>· {seenList.length}</span></h2>
                 <div style={GRID}>{seenList.map(card)}</div>
               </div>
             )}
+            {genres.map(([g, items]) => (
+              <div key={g}>
+                <h2 style={H2}>{g} <span style={CNT}>· {items.length}</span></h2>
+                <div style={GRID}>{items.map(card)}</div>
+              </div>
+            ))}
           </>
         );
       })()}
