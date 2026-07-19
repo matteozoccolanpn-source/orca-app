@@ -28,7 +28,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     signIn({ user }) {
-      return user.email === "matteo.zoccolan.pn@gmail.com"
+      // Lista invitati (privato, solo queste email possono entrare).
+      const allowed = [
+        "matteo.zoccolan.pn@gmail.com",
+        "subbafederica@gmail.com",
+      ]
+      return allowed.includes((user.email ?? "").trim().toLowerCase())
     },
     // Nessun "buttafuori": il middleware NON rimanda più a /login a ogni apertura
     // (era la causa del "Accedi con Google" a ogni riavvio dell'app). Le rotte che
