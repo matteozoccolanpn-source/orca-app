@@ -42,7 +42,7 @@
 -- ----------------------------------------------------------------------------
 -- SEZIONE 1 — BACKFILL: righe storiche (user_id NULL) -> Matteo. Solo le NULL.
 -- ----------------------------------------------------------------------------
-DO $$
+DO $a$
 DECLARE t text; has_col boolean;
 BEGIN
   FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','trips','push_subscriptions']
@@ -56,7 +56,7 @@ BEGIN
       RAISE NOTICE 'SALTO % (nessuna colonna user_id)', t;
     END IF;
   END LOOP;
-END $$;
+END $a$;
 
 
 -- ----------------------------------------------------------------------------
@@ -67,7 +67,7 @@ END $$;
 --   SEZIONE 5, così il codice a flag spento (onConflict "day"/"cluster_key")
 --   continua a funzionare. Nessuna finestra di rottura.
 -- ----------------------------------------------------------------------------
-DO $$
+DO $b$
 DECLARE cfg record;
 BEGIN
   FOR cfg IN
@@ -94,14 +94,14 @@ BEGIN
       RAISE NOTICE '%: UNIQUE(%) gia presente', cfg.tbl, array_to_string(cfg.newcols, ', ');
     END IF;
   END LOOP;
-END $$;
+END $b$;
 
 
 -- ----------------------------------------------------------------------------
 -- SEZIONE 3 — DEFAULT user_id = auth.uid() (rete di sicurezza per il percorso a
 --   flag acceso; il codice comunque imposta già user_id esplicito).
 -- ----------------------------------------------------------------------------
-DO $$
+DO $c$
 DECLARE t text; has_col boolean;
 BEGIN
   FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','trips','push_subscriptions']
@@ -112,14 +112,14 @@ BEGIN
       EXECUTE format('ALTER TABLE public.%I ALTER COLUMN user_id SET DEFAULT auth.uid()', t);
     END IF;
   END LOOP;
-END $$;
+END $c$;
 
 
 -- ----------------------------------------------------------------------------
 -- SEZIONE 4 — RLS + POLICY ("solo le mie" su SELECT/INSERT/UPDATE/DELETE).
 --   service-role SCAVALCA => produzione a flag spento intatta. Idempotente.
 -- ----------------------------------------------------------------------------
-DO $$
+DO $d$
 DECLARE t text; has_col boolean;
 BEGIN
   FOREACH t IN ARRAY ARRAY['tickets','todos','watchlist','diet_plan','workout_plan','workout_log','trip_plans','trips','push_subscriptions']
@@ -138,7 +138,7 @@ BEGIN
     EXECUTE format('CREATE POLICY keiko_own_update ON public.%I FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid())', t);
     EXECUTE format('CREATE POLICY keiko_own_delete ON public.%I FOR DELETE TO authenticated USING (user_id = auth.uid())', t);
   END LOOP;
-END $$;
+END $d$;
 
 
 -- ============================================================================
