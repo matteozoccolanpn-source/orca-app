@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { currentUserId } from "@/lib/user";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push";
@@ -14,7 +15,7 @@ export async function POST() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
-  const { data: subs } = await sb.from("push_subscriptions").select("endpoint, p256dh, auth");
+  const { data: subs } = await sb.from("push_subscriptions").select("endpoint, p256dh, auth").eq("user_id", await currentUserId());
   const targets = subs ?? [];
   if (!targets.length) return NextResponse.json({ ok: false, sent: 0, reason: "no-subscriptions" });
 

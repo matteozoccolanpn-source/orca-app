@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { currentUserId } from "@/lib/user";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
 
   const { error } = await supabase.from("push_subscriptions").upsert(
     {
-      user_id: null, // TODO: legare al vero user_id quando arriva Supabase Auth (Blocco 3)
+      user_id: await currentUserId(), // multi-utente: lega la push all'utente loggato
       endpoint: sub.endpoint,
       p256dh: sub.keys.p256dh,
       auth: sub.keys.auth,
