@@ -1,46 +1,29 @@
-# Multi-utente (Blocco C) — stato reale + piano
+# Multi-utente (Blocco C) — stato reale + piano (verificato su DB)
 
-> Verificato dal CODICE ATTUALE (non dall'handoff vecchio). Ogni riga ha la prova file:riga.
+## Decisioni (confermate dai dati)
+- **Auth:** si tiene NextAuth/Google (Supabase Auth è presente ma VUOTO, `auth.users` = 0 righe → non lo usiamo).
+- **Sicurezza:** app-scoped (ogni query filtra per l'utente nel codice). Adatto a 2 utenti fidati. RLS = upgrade futuro.
+- **Chiave utente:** uuid DERIVATO in modo stabile dall'email → `lib/user.ts` (`uuidForEmail` / `currentUserId`). Nessuna tabella nuova, nessun FK, nessuna migrazione auth.
+- uuid di Matteo (matteo.zoccolan.pn@gmail.com) = `2c875815-a9b2-5a28-9e9e-6051128a8d4d`
 
-## Decisioni (default proposti — da confermare)
-- **Sicurezza:** app-scoped (ogni query filtra per l'utente nel codice). Adatto a 2 utenti fidati (coppia). RLS su Supabase = upgrade futuro se diventa prodotto per estranei.
-- **Chiave utente:** email Google della sessione (`lib/user.ts` → `currentUserId()`). ⚠️ Dipende dal tipo della colonna `user_id` (vedi "Da verificare").
+## Fatti verificati sul DB
+- `user_id` è **uuid** su TUTTE le tabelle app (colonna GIÀ presente ovunque → niente da aggiungere).
+- `user_id` **senza foreign key** verso auth.users (query FK = 0 righe) → qualsiasi uuid valido va bene.
+- 0 query filtrano per utente (tutto in un mucchio unico, `user_id` = null).
+- Ingresso eventi = in-app (`/api/upload` → `/api/upload/confirm` → `createTicket` `lib/supabase.ts:148`). Make/Dropbox/Airtable NON in uso.
 
-## Stato attuale (prove)
-- Identità: la sessione ha l'email, ma il codice dati NON la usa mai (grep `session.user` = 0). Accesso a 1 sola email: `auth.ts:31`.
-- 0 query filtrano per utente (grep `.eq("user_id"` = 0). Tutto in un mucchio unico.
-- Ingresso eventi = in-app: `/api/upload` → `/api/upload/confirm` → `createTicket` (`lib/supabase.ts:148`). Make/Dropbox/Airtable NON in uso (airtable non importato; refresh legacy).
-
-Tabelle dati (tutte da rendere per-utente):
-- tickets — createTicket :148 (user_id:null :152) · getUpcomingTickets :65 · update/delete per id :110/:115
-- todos — createTodo :705 (user_id:null :716) · getTodos :673
-- watchlist — addWatchItem :531 (user_id:null :534) · getWatchlist :504
-- diet_plan — saveDietPlan :201 (user_id:null :205) · getDietPlan :181
-- workout_plan — saveWorkoutPlan :255 (NIENTE user_id → colonna da aggiungere) · getWorkoutPlan :235
-- workout_log — setTrainedDay :285 upsert onConflict:"day" (VINCOLO SOLO SUL GIORNO → cambiare in (user_id,day)) · getTrainedDays :273
-- trip_plans — syncTripPlans :305 (niente user_id)
-- push_subscriptions — subscribe (user_id:null); cron legge TUTTE
-- notification_runs — dedup (kind,data) globale
-
+Tabelle da rendere per-utente: tickets, todos, watchlist, diet_plan, workout_plan, workout_log, trip_plans, push_subscriptions, notification_runs.
 NON dati utente (restano condivisi): films_catalog, search_log.
+Trappole: (1) `workout_log` upsert `onConflict:"day"` → vincolo va portato a `(user_id, day)`; (2) update/delete "per id" senza guardia proprietario.
 
-Trappole: (1) vincolo workout_log sul solo giorno; (2) update/delete "per id" non controllano il proprietario → serve guardia user_id.
+## Approccio implementativo (meno modifiche, meno rischio)
+Le funzioni dati in `lib/supabase.ts` girano SEMPRE in contesto loggato → chiamano `currentUserId()` **internamente** (scritture: settano user_id; letture: filtrano). Così NON serve passare l'utente da ogni chiamante. (Il cron è a parte, ha il suo client: va gestito separatamente, per-utente.)
 
-## Da verificare su Supabase (prima di scrivere codice dati)
-Tipo della colonna user_id nelle tabelle che ce l'hanno. Query di sola lettura:
-```sql
-select table_name, column_name, data_type
-from information_schema.columns
-where column_name = 'user_id'
-order by table_name;
-```
-Se il tipo è `uuid`, l'email non ci sta → si aggiusta (colonna text o mini tabella users). Se è `text`, si procede con l'email.
-
-## Piano a fasi (ognuna testabile, su branch, senza rompere la tua app)
-1. Colonne: user_id dove manca + vincolo workout_log → (user_id, day).
-2. Identità: `currentUserId()` — FATTO (lib/user.ts).
-3. Scritture: ogni create/save mette il vero user_id + backfill dei tuoi dati esistenti al tuo id.
-4. Letture: ogni get filtra per user_id (qui scatta la separazione — test attento).
+## Piano a fasi (ognuna testabile, un commit ciascuna)
+1. Helper identità `currentUserId()` — ✅ FATTO (`lib/user.ts`).
+2. Scritture: ogni create/save mette user_id = currentUserId(). (non-breaking: le letture vedono ancora tutto)
+3. Backfill: assegnare i dati esistenti (user_id null) all'uuid di Matteo (SQL). + vincolo workout_log → (user_id, day).
+4. Letture: ogni get filtra per currentUserId(). ← QUI scatta la separazione: test attento (Matteo deve continuare a vedere tutto suo).
 5. Guardie: update/delete per id verificano il proprietario.
-6. Cron: giro utente-per-utente.
-7. Sblocca l'email di lei + test end-to-end.
+6. Cron: giro utente-per-utente (per ora resta com'è; le notifiche fini vanno ripensate).
+7. Sblocco email di lei (`auth.ts`) + test end-to-end con due account.
