@@ -35,12 +35,16 @@ export default function AllenamentoView({
   updatedAt,
   trainedDays,
   heroImage = null,
+  weekDone = 0,
+  weekPlanned = 0,
   embedded = false,
 }: {
   week: WorkoutWeek | null;
   updatedAt: string | null;
   trainedDays: string[];
   heroImage?: string | null;
+  weekDone?: number;
+  weekPlanned?: number;
   embedded?: boolean;
 }) {
   const router = useRouter();
@@ -291,6 +295,13 @@ export default function AllenamentoView({
                 )}
               </div>
             </div>
+
+            {weekPlanned > 0 && (
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: 16 }}>
+                <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600 }}>Questa settimana</span>
+                <span style={{ fontSize: "var(--fs-md)", fontWeight: 800, color: "var(--text)" }}>{weekDone}/{weekPlanned} <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600 }}>allenamenti</span></span>
+              </div>
+            )}
 
             {/* ---------- Esercizi di oggi ---------- */}
             {todayIsTraining && (

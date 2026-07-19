@@ -33,9 +33,25 @@ function computeStreak(days: string[], week: WorkoutWeek | null): number {
   return n;
 }
 
+// Riepilogo settimana: allenamenti PIANIFICATI completati vs pianificati (lun-dom).
+function weekStats(days: string[], week: WorkoutWeek | null): { done: number; planned: number } {
+  if (!week) return { done: 0, planned: 0 };
+  const set = new Set(days);
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  let done = 0, planned = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    if (((week[WD[d.getDay()]]?.esercizi?.length) ?? 0) > 0) { planned++; if (set.has(iso(d))) done++; }
+  }
+  return { done, planned };
+}
+
 export default async function AllenamentoPage() {
   const [plan, trainedDays] = await Promise.all([getWorkoutPlan(), getTrainedDays()]);
   const streak = computeStreak(trainedDays, plan?.week ?? null);
+  const wk = weekStats(trainedDays, plan?.week ?? null);
   // foto dell'esercizio di oggi (o palestra generica) dietro l'hero; null → gradiente
   const todayEx = plan?.week?.[WD[new Date().getDay()]]?.esercizi?.[0]?.nome ?? null;
   const heroImage = (todayEx ? await exerciseImage(todayEx) : null) ?? (await unsplashPhoto("gym workout fitness"));
@@ -51,6 +67,8 @@ export default async function AllenamentoPage() {
         updatedAt={plan?.updatedAt ?? null}
         trainedDays={trainedDays}
         heroImage={heroImage}
+        weekDone={wk.done}
+        weekPlanned={wk.planned}
       />
     </KeikoShell>
   );
