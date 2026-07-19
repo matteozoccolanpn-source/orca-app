@@ -218,6 +218,11 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   const hero = unseen.length ? unseen[suggN % unseen.length] : null;
   const grid = hero ? list.filter((i) => i.id !== hero.id) : list;
   const count = list.length;
+  // colpo d'occhio (N2): progresso ricavato dai dati che hai gia'
+  const visti = list.filter((i) => i.seen).length;
+  const daVedere = list.length - visti;
+  const rated = list.filter((i) => typeof i.rating === "number" && i.rating > 0);
+  const mediaVoto = rated.length ? rated.reduce((a, i) => a + (i.rating as number), 0) / rated.length : null;
 
   return (
     <div className="ds" style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 20px calc(116px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto" }}>
@@ -227,6 +232,18 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         <h1 className="ds-display" style={{ flex: 1, fontSize: 22, color: "var(--k-text)", margin: 0 }}>Da guardare</h1>
         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--k-text-3)" }}>{count} {count === 1 ? "titolo" : "titoli"}</span>
       </div>
+
+      {/* colpo d'occhio (N2): striscia progresso, dati gia' presenti */}
+      {list.length > 0 && (
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          {[{ n: `${daVedere}`, l: "da vedere" }, { n: `${visti}`, l: "visti" }, ...(mediaVoto != null ? [{ n: `🐋 ${mediaVoto.toFixed(1)}`, l: "voto medio" }] : [])].map((s, i) => (
+            <div key={i} style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14, padding: "12px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "var(--k-text)" }}>{s.n}</div>
+              <div style={{ fontSize: 11, color: "var(--k-text-3)", marginTop: 2 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* hero — Stasera per te */}
       {hero && (
