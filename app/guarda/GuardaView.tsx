@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WatchItem } from "@/lib/supabase";
-import type { WatchProviders, WatchProvider, TitleDetails } from "@/lib/tmdb";
+import type { WatchProviders, WatchProvider, TitleDetails, SimilarTitle } from "@/lib/tmdb";
 import KeikoNav from "@/app/components/keiko/KeikoNav";
 
 /* Sezione "Da guardare" — design v4. Logica preservata: visto (PATCH), elimina
@@ -65,6 +65,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   const [detExpanded, setDetExpanded] = useState(false);
   const [detRating, setDetRating] = useState(0);   // voto in modifica (orche)
   const [detNote, setDetNote] = useState("");
+  const [detSimilar, setDetSimilar] = useState<SimilarTitle[]>([]);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   function showToast(msg: string, action?: string, onAction?: () => void) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -140,6 +141,11 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
     setDetRating(item.rating ?? 0);
     setDetNote(item.note ?? "");
     setDetLoading(true);
+    setDetSimilar([]);
+    fetch(`/api/watch/similar?title=${encodeURIComponent(item.title)}&kind=${encodeURIComponent(item.kind)}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setDetSimilar((d?.similar ?? []) as SimilarTitle[]))
+      .catch(() => {});
     try {
       const res = await fetchWithTimeout(`/api/watch/details?title=${encodeURIComponent(item.title)}&kind=${encodeURIComponent(item.kind)}`, { credentials: "include" }, 12000);
       const data = (await res.json()) as { details: TitleDetails | null };
@@ -337,6 +343,23 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
                   <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 6px" }}>Cast</div>
                     <div style={{ fontSize: 13.5, color: "var(--k-text-2)", lineHeight: 1.4 }}>{detData.cast.join(", ")}</div>
+                  </div>
+                )}
+
+                {detSimilar.length > 0 && (
+                  <div style={{ marginTop: 18 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 8px" }}>Simili · tocca per aggiungere</div>
+                    <div style={{ display: "flex", gap: 10, overflowX: "auto", margin: "0 -20px", padding: "0 20px 4px" }}>
+                      {detSimilar.map((s) => (
+                        <button key={s.title} onClick={() => doAdd(s.title)} style={{ flex: "none", width: 84, background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                          <div style={{ width: 84, aspectRatio: "2 / 3", borderRadius: 10, overflow: "hidden", background: "linear-gradient(150deg,#3a2f52,#1a1526)", position: "relative" }}>
+                            {s.poster && <img src={s.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                            <span style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", fontSize: 14, fontWeight: 800, display: "grid", placeItems: "center" }}>+</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--k-text-2)", marginTop: 5, lineHeight: 1.2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{s.title}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 

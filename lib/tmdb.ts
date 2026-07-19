@@ -138,3 +138,45 @@ export async function titleDetails(title: string, kind?: string): Promise<TitleD
     return null;
   }
 }
+
+
+// ── G4 "Titoli simili": raccomandazioni TMDB per un titolo (film/serie). IT, cache 7gg.
+export type SimilarTitle = { title: string; kind: "film" | "serie"; poster: string | null };
+
+export async function similarTitles(title: string, kind?: string): Promise<SimilarTitle[]> {
+  const key = process.env.TMDB_API_KEY;
+  if (!key || !title.trim()) return [];
+  const isV4 = key.includes(".");
+  const headers = isV4 ? { Authorization: `Bearer ${key}` } : undefined;
+  const withKey = (u: string) => (isV4 ? u : `${u}${u.includes("?") ? "&" : "?"}api_key=${key}`);
+  const init: RequestInit & { next?: { revalidate: number } } = { next: { revalidate: 604800 }, headers };
+  try {
+    const sRes = await fetch(withKey(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}&language=it-IT&page=1`), init);
+    if (!sRes.ok) return [];
+    const sData = await sRes.json();
+    const results = (sData?.results ?? []) as { id: number; media_type?: string; poster_path?: string }[];
+    const wantTv = kind === "serie";
+    // preferisci i risultati CON copertina (come posterFor) per non pescare il titolo sbagliato
+    const withP = results.filter((r) => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path);
+    const pool = withP.length ? withP : results.filter((r) => r.media_type === "movie" || r.media_type === "tv");
+    const hit = pool.find((r) => r.media_type === (wantTv ? "tv" : "movie")) ?? pool[0];
+    if (!hit) return [];
+    const type = hit.media_type === "tv" ? "tv" : "movie";
+    const fetchList = async (endpoint: string) => {
+      const r = await fetch(withKey(`https://api.themoviedb.org/3/${type}/${hit.id}/${endpoint}?language=it-IT&page=1`), init);
+      if (!r.ok) return [];
+      const d = await r.json();
+      return (d?.results ?? []) as { title?: string; name?: string; poster_path?: string | null }[];
+    };
+    let list = await fetchList("recommendations");
+    if (!list.length) list = await fetchList("similar");
+    const IMG = "https://image.tmdb.org/t/p/w342";
+    return list
+      .filter((r) => (r.title || r.name) && r.poster_path)
+      .slice(0, 12)
+      .map((r) => ({ title: (r.title || r.name) as string, kind: (type === "tv" ? "serie" : "film") as "film" | "serie", poster: `${IMG}${r.poster_path}` }));
+  } catch (e) {
+    console.error("TMDB similar: errore per", title, e);
+    return [];
+  }
+}
