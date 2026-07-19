@@ -10,7 +10,8 @@
 
 export type ImageCategory =
   | "cena" | "volo" | "treno" | "concerto" | "sport" | "hotel" | "museo"
-  | "festa" | "lavoro" | "dieta" | "film" | "viaggio" | "default";
+  | "festa" | "lavoro" | "dieta" | "film" | "viaggio"
+  | "salute" | "studio" | "appuntamento" | "default";
 
 export type ImageResult = {
   /** Foto reale, se disponibile (livello 1+). */
@@ -36,9 +37,49 @@ const TYPE_TO_CAT: Record<string, ImageCategory> = {
   travel: "viaggio", viaggio: "viaggio",
 };
 
-export function catFor(type?: string | null): ImageCategory {
+export function catFor(type?: string | null, title?: string | null): ImageCategory {
   const t = (type ?? "").toLowerCase().trim();
-  return TYPE_TO_CAT[t] ?? "default";
+  const direct = TYPE_TO_CAT[t];
+  if (direct) return direct;
+  // Tipo generico/sconosciuto (es. "other", ""): deduci la categoria dal testo,
+  // così anche "visita nutrizionista" o "lezione inglese" hanno un look dedicato
+  // invece del gradiente "default" spento (E1 — mai vuoto).
+  return inferCategory(`${t} ${title ?? ""}`);
+}
+
+// Parole chiave → categoria. Ordine = priorità (la prima che combacia vince).
+const KEYWORDS: [RegExp, ImageCategory][] = [
+  [/nutrizionist|dietolog|medic|dottor|dentist|visita|analisi|ospedal|clinic|fisioterap|psicolog|terapi|checkup|vaccin|prelievo|ecograf|oculist|dermatolog|tampone/, "salute"],
+  [/lezione|cors[oi]\b|esame|univers|scuola|studio|inglese|tutor|ripetizion|laurea|compiti|seminari|workshop|patente/, "studio"],
+  [/palestra|allenament|gym|workout|partita|calcio|tennis|corsa|corse|running|yoga|piscina|nuoto|padel|basket|match/, "sport"],
+  [/complean|festa|apericena|aperitiv|party|brindisi|nubilato|celibato/, "festa"],
+  [/riunion|meeting|call\b|ufficio|colloqui|lavoro|briefing|standup|presentazion/, "lavoro"],
+  [/concert|live\b|tour|festival/, "concerto"],
+  [/cena|pranzo|ristorante|brunch|colazione|trattoria|pizzeria/, "cena"],
+  [/volo|aeroport|flight|imbarco/, "volo"],
+  [/treno|stazion|frecciaross|italo/, "treno"],
+  [/hotel|albergo|check-?in|soggiorn|\bb&b\b|bnb/, "hotel"],
+  [/museo|mostra|galleria|\bexpo\b/, "museo"],
+  [/viaggio|vacanz|\btrip\b|gita|weekend fuori/, "viaggio"],
+  [/appuntament|incontro/, "appuntamento"],
+];
+
+function inferCategory(text: string): ImageCategory {
+  const s = text.toLowerCase();
+  for (const [re, cat] of KEYWORDS) if (re.test(s)) return cat;
+  return "default";
+}
+
+// Emoji di riserva per categoria: se l'evento non ha un'emoji propria, la card
+// mostra comunque un'icona sensata (mai vuoto).
+const GLYPH: Record<ImageCategory, string> = {
+  cena: "🍽️", volo: "✈️", treno: "🚆", concerto: "🎵", sport: "🏋️", hotel: "🏨",
+  museo: "🏛️", festa: "🎉", lavoro: "💼", dieta: "🥗", film: "🍿", viaggio: "🧭",
+  salute: "🩺", studio: "📚", appuntamento: "📌", default: "🗓️",
+};
+
+export function glyphFor(category: ImageCategory): string {
+  return GLYPH[category] ?? "🗓️";
 }
 
 /** Gradiente CSS della categoria (definito in app/ds.css come --k-cat-*). */
@@ -78,5 +119,6 @@ export function resolveImage(entity: {
 /** Tutte le categorie (per anteprima palette). */
 export const ALL_CATEGORIES: ImageCategory[] = [
   "cena", "concerto", "sport", "volo", "treno", "hotel", "museo",
-  "festa", "lavoro", "dieta", "film", "viaggio", "default",
+  "festa", "lavoro", "dieta", "film", "viaggio",
+  "salute", "studio", "appuntamento", "default",
 ];

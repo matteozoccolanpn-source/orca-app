@@ -9,7 +9,7 @@ import DaySheet from "./DaySheet";
 import ProfileSheet from "./ProfileSheet";
 import CalendarSheet from "./CalendarSheet";
 import SmartMedia from "@/components/SmartMedia";
-import { catFor } from "@/lib/smart-image";
+import { catFor, glyphFor } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
 import "../../ds.css";
 
@@ -236,15 +236,15 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
 }
 
 function EventCard({ ev, variant, onOpen }: { ev: LiveEvent; variant: "hero" | "mini"; onOpen: () => void }) {
-  const category = catFor(ev.type);
-  const chipLabel = `${ev.emoji} ${ev.catLabel}`;
+  const category = catFor(ev.type, ev.title);
+  const chipLabel = `${ev.emoji || glyphFor(category)} ${ev.catLabel}`;
   return (
     <SmartMedia
       variant={variant}
       category={category}
       image={ev.image ?? undefined}
       chip={chipLabel}
-      glyph={ev.emoji}
+      glyph={ev.emoji || glyphFor(category)}
       display={variant === "hero"}
       title={ev.title}
       meta={<><span className="k">{ev.when}</span>{ev.location ? ` · ${ev.location.split(",")[0]}` : ""}</>}

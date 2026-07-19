@@ -34,6 +34,9 @@
   --k-cat-dieta: linear-gradient(150deg, #4f9a52, #143a16);
   --k-cat-film: linear-gradient(150deg, #6a4aa0, #241436);
   --k-cat-viaggio: linear-gradient(150deg, #c9863f, #3a2410);
+  --k-cat-salute: linear-gradient(150deg, #2f9ea0, #123a3f);
+  --k-cat-studio: linear-gradient(150deg, #4655c4, #1a1e4a);
+  --k-cat-appuntamento: linear-gradient(150deg, #a05a86, #33162c);
   --k-cat-default: linear-gradient(150deg, #5a5f8a, #232743);
 
   color: var(--k-text);

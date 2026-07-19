@@ -42,7 +42,7 @@ async function share(ev: LiveEvent) {
 
 export default function EventSheet({ ev, onClose, demo = false }: { ev: LiveEvent; onClose: () => void; demo?: boolean }) {
   const router = useRouter();
-  const gradient = gradientFor(catFor(ev.type));
+  const gradient = gradientFor(catFor(ev.type, ev.title));
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [confirmDel, setConfirmDel] = useState(false);
   const [busy, setBusy] = useState(false);
