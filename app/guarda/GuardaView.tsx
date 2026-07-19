@@ -280,7 +280,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
       {/* foglio scheda film/serie — trama, anno, generi, cast (TMDB) */}
       {detItem && (
         <div onClick={() => setDetItem(null)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", maxHeight: "86vh", overflowY: "auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
+          <div className="k-sheet-in" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", maxHeight: "86vh", overflowY: "auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
             <div style={{ display: "flex", gap: 14 }}>
               <div style={{ width: 84, flex: "none", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "var(--k-cat-film, #2a2140)" }}>
@@ -366,7 +366,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
       {/* foglio "Dove vederlo" — piattaforme italiane reali (TMDB) */}
       {dovItem && (
         <div onClick={() => setDovItem(null)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
+          <div className="k-sheet-in" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
             <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--k-text)", margin: "0 0 14px" }}>Dove vedere «{dovItem.title}»</h3>
             {dovLoading ? (

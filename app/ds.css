@@ -83,6 +83,10 @@
 @keyframes pageLeft { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
 @keyframes pageRight { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
 .page-up { animation: pageUp .26s cubic-bezier(.22,.61,.36,1); }
+/* Fogli/pannelli: entrata scivolando dal basso (coerente ovunque) */
+@keyframes kSheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.k-sheet-in { animation: kSheetIn .30s cubic-bezier(.22,.61,.36,1); }
+@media (prefers-reduced-motion: reduce) { .k-sheet-in { animation: none; } }
 .page-left { animation: pageLeft .26s cubic-bezier(.22,.61,.36,1); }
 .page-right { animation: pageRight .26s cubic-bezier(.22,.61,.36,1); }
 @media (prefers-reduced-motion: reduce) { .page-up, .page-left, .page-right { animation: none; } }
