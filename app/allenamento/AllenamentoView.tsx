@@ -34,11 +34,13 @@ export default function AllenamentoView({
   week,
   updatedAt,
   trainedDays,
+  heroImage = null,
   embedded = false,
 }: {
   week: WorkoutWeek | null;
   updatedAt: string | null;
   trainedDays: string[];
+  heroImage?: string | null;
   embedded?: boolean;
 }) {
   const router = useRouter();
@@ -261,7 +263,7 @@ export default function AllenamentoView({
           <>
             {/* ---------- Hero: oggi ---------- */}
             <div className="vHero">
-              <div className="art" style={{ position: "absolute", inset: 0, background: GYM_ART }} />
+              <div className="art" style={{ position: "absolute", inset: 0, ...(heroImage ? { backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: GYM_ART }) }} />
               <div className="shade" />
               <div className="vhRow">
                 {todayIsTraining && (
@@ -397,7 +399,7 @@ export default function AllenamentoView({
           /* ---------- Nessuna scheda ---------- */
           <>
             <div className="vHero">
-              <div className="art" style={{ position: "absolute", inset: 0, background: GYM_ART }} />
+              <div className="art" style={{ position: "absolute", inset: 0, ...(heroImage ? { backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: GYM_ART }) }} />
               <div className="shade" />
               <span className="vk">Allenamento</span>
               <h4 style={{ marginTop: 4 }}>Ancora nessuna scheda</h4>

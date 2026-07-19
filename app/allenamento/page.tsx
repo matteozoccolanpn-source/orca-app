@@ -1,6 +1,8 @@
 import AllenamentoView from "./AllenamentoView";
 import KeikoShell from "@/app/components/keiko/KeikoShell";
 import { getWorkoutPlan, getTrainedDays, type WorkoutWeek } from "@/lib/supabase";
+import { exerciseImage } from "@/lib/wger";
+import { unsplashPhoto } from "@/lib/unsplash";
 
 // Come /salute: dati sempre freschi da Supabase.
 export const dynamic = "force-dynamic";
@@ -34,6 +36,9 @@ function computeStreak(days: string[], week: WorkoutWeek | null): number {
 export default async function AllenamentoPage() {
   const [plan, trainedDays] = await Promise.all([getWorkoutPlan(), getTrainedDays()]);
   const streak = computeStreak(trainedDays, plan?.week ?? null);
+  // foto dell'esercizio di oggi (o palestra generica) dietro l'hero; null → gradiente
+  const todayEx = plan?.week?.[WD[new Date().getDay()]]?.esercizi?.[0]?.nome ?? null;
+  const heroImage = (todayEx ? await exerciseImage(todayEx) : null) ?? (await unsplashPhoto("gym workout fitness"));
   return (
     <KeikoShell
       title="Allenamento"
@@ -45,6 +50,7 @@ export default async function AllenamentoPage() {
         week={plan?.week ?? null}
         updatedAt={plan?.updatedAt ?? null}
         trainedDays={trainedDays}
+        heroImage={heroImage}
       />
     </KeikoShell>
   );
