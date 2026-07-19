@@ -56,7 +56,9 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   const [toast, setToast] = useState<ToastState>(null);
   const [ask, setAsk] = useState<null | "add" | "suggest">(null); // foglio input (niente prompt nativi)
   const [askText, setAskText] = useState("");
-  const [thinking, setThinking] = useState(false);
+  const [searching, setSearching] = useState(false);      // "Consiglio" che lavora in background
+  const [suggestReady, setSuggestReady] = useState<Pick[] | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const [dovItem, setDovItem] = useState<WatchItem | null>(null); // foglio "Dove vederlo"
   const [dovLoading, setDovLoading] = useState(false);
   const [dovData, setDovData] = useState<WatchProviders | null>(null);
@@ -175,26 +177,25 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
     if (busy.current) return;
     const q = query.trim() || "consigliami qualcosa da vedere stasera";
     busy.current = true;
-    setThinking(true);
+    setSearching(true);
+    setSuggestReady(null);
     try {
       const res = await fetchWithTimeout("/api/watch/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ query: q }) }, 20000);
       const data = (await res.json()) as { films?: Pick[] };
       if (!res.ok) throw new Error();
-      const p = (data.films ?? [])[0];
-      setAsk(null);
-      if (!p) { showToast("Non ho trovato niente di convincente, riformula"); return; }
-      showToast(`Stasera ti direi ${p.title} ✨`, "Aggiungi", () => salvaPick(p));
+      const picks = (data.films ?? []).slice(0, 3);
+      if (!picks.length) { showToast("Non ho trovato niente di convincente, riformula"); return; }
+      setSuggestReady(picks); // appare il pop-up in basso a destra; nessun blocco
     } catch (e) {
-      setAsk(null);
       showToast(e instanceof Error && e.name === "AbortError" ? "Ci ho messo troppo, riprova 🙏" : "Qualcosa non torna, riprovo");
-    } finally { busy.current = false; setThinking(false); }
+    } finally { busy.current = false; setSearching(false); }
   }
 
   // apre il foglio input al posto delle finestre prompt() native
   function openAsk(mode: "add" | "suggest") { setAskText(""); setAsk(mode); }
   async function submitAsk() {
     if (ask === "add") { await doAdd(askText); setAsk(null); }
-    else if (ask === "suggest") { await doSuggest(askText); }
+    else if (ask === "suggest") { const q = askText; setAsk(null); doSuggest(q); }
   }
 
   async function salvaPick(p: Pick) {
@@ -315,22 +316,15 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
 
       {/* foglio input (Aggiungi / Consiglio) — niente prompt() nativi */}
       {ask && (
-        <div onClick={() => { if (!thinking) setAsk(null); }} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
+        <div onClick={() => setAsk(null)} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
             <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--k-text)", margin: "0 0 6px" }}>{ask === "add" ? "Aggiungi un titolo" : "✨ Consiglio di Keiko"}</h3>
             <p style={{ fontSize: 13, color: "var(--k-text-3)", margin: "0 0 14px" }}>{ask === "add" ? "Scrivi un titolo — anche solo «quel film di Nolan»" : "Che serata è? es. «commedia leggera», «thriller» (vuoto = a sorpresa)"}</p>
-            {thinking ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 4px", color: "var(--k-text-2)", fontSize: 14 }}>
-                <span className="ds-spin" style={{ width: 18, height: 18, border: "2px solid var(--k-line)", borderTopColor: "var(--k-accent)", borderRadius: "50%", display: "inline-block" }} />
-                Keiko sta pensando…
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 8 }}>
-                <input autoFocus value={askText} onChange={(e) => setAskText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitAsk(); }} placeholder={ask === "add" ? "Titolo…" : "Tipo di serata…"} style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0 }} />
-                <button onClick={submitAsk} disabled={ask === "add" && !askText.trim()} className="ds-btn primary" style={{ height: 44, padding: "0 18px", opacity: ask === "add" && !askText.trim() ? 0.4 : 1 }}>{ask === "add" ? "Aggiungi" : "Chiedi"}</button>
-              </div>
-            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <input autoFocus value={askText} onChange={(e) => setAskText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitAsk(); }} placeholder={ask === "add" ? "Titolo…" : "Tipo di serata…"} style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0 }} />
+              <button onClick={submitAsk} disabled={ask === "add" && !askText.trim()} className="ds-btn primary" style={{ height: 44, padding: "0 18px", opacity: ask === "add" && !askText.trim() ? 0.4 : 1 }}>{ask === "add" ? "Aggiungi" : "Chiedi"}</button>
+            </div>
           </div>
         </div>
       )}
@@ -467,6 +461,42 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Consiglio Keiko: pillola in basso a destra (cerca in background → pronti) */}
+      {(searching || (suggestReady && !suggestOpen)) && (
+        <button
+          onClick={() => { if (suggestReady) setSuggestOpen(true); }}
+          disabled={searching}
+          style={{ position: "fixed", right: 16, bottom: "calc(100px + env(safe-area-inset-bottom))", zIndex: 45, display: "flex", alignItems: "center", gap: 8, background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, borderRadius: 999, padding: "11px 16px", fontSize: 13.5, fontWeight: 700, boxShadow: "0 8px 24px rgba(0,0,0,.45)", cursor: searching ? "default" : "pointer" }}
+        >
+          {searching
+            ? <><span className="ds-spin" style={{ width: 15, height: 15, border: "2px solid rgba(0,0,0,.25)", borderTopColor: "var(--k-accent-ink)", borderRadius: "50%", display: "inline-block" }} /> Keiko cerca…</>
+            : <>✨ {suggestReady?.length ?? 0} consigli pronti</>}
+        </button>
+      )}
+
+      {/* Pannello 3 opzioni — chiudendo NON lascia rimasugli (pulisce lo stato) */}
+      {suggestOpen && suggestReady && (
+        <div onClick={() => { setSuggestOpen(false); setSuggestReady(null); }} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--k-text)", margin: "0 0 4px" }}>✨ Consigli di Keiko</h3>
+            <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "0 0 14px" }}>Scegli cosa aggiungere alla lista.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {suggestReady.map((p, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--k-text)" }}>{p.title}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>{[p.kind === "serie" ? "Serie" : "Film", p.info, p.platform ? `su ${p.platform}` : null].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  <button onClick={() => { salvaPick(p); const rest = suggestReady.filter((_, j) => j !== i); if (rest.length) setSuggestReady(rest); else { setSuggestReady(null); setSuggestOpen(false); } }} className="ds-btn primary" style={{ height: 38, padding: "0 14px", fontSize: 13, flex: "none" }}>Aggiungi</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => { setSuggestOpen(false); setSuggestReady(null); }} className="ds-btn" style={{ width: "100%", height: 44, marginTop: 16 }}>Chiudi</button>
           </div>
         </div>
       )}
