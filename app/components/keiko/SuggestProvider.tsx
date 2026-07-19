@@ -6,6 +6,7 @@
 // identici su ogni pagina, a prescindere dal set di variabili CSS attivo.
 
 import { createContext, useContext, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { motion, type PanInfo } from "framer-motion";
 import { useRouter } from "next/navigation";
 
 type Pick = { title: string; kind: "film" | "serie"; platform: string | null; info: string | null; link: string | null; poster?: string | null };
@@ -72,7 +73,7 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
 
       {inputOpen && (
         <div onClick={() => setInputOpen(false)} style={OVERLAY}>
-          <div onClick={(e) => e.stopPropagation()} style={SHEET}>
+          <motion.div onClick={(e) => e.stopPropagation()} style={SHEET} initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 460, damping: 42 }} drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }} onDragEnd={(_e: unknown, info: PanInfo) => { if (info.offset.y > 120 || info.velocity.y > 700) setInputOpen(false); }}>
             <div style={GRAB} />
             <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 6px" }}>✨ Consiglio di Keiko</h3>
             <p style={{ fontSize: 13, color: C.t3, margin: "0 0 14px" }}>Che serata è? es. «commedia leggera», «thriller» (vuoto = a sorpresa)</p>
@@ -80,7 +81,7 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
               <input autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { const q = text; setInputOpen(false); run(q); } }} placeholder="Tipo di serata…" style={{ flex: 1, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", color: C.text, fontSize: 14, fontFamily: "inherit", outline: 0 }} />
               <button onClick={() => { const q = text; setInputOpen(false); run(q); }} style={{ height: 44, padding: "0 18px", border: 0, borderRadius: 12, background: C.accent, color: C.ink, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Chiedi</button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 
@@ -94,7 +95,7 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
 
       {open && results && (
         <div onClick={() => { setOpen(false); setResults(null); }} style={OVERLAY}>
-          <div onClick={(e) => e.stopPropagation()} style={SHEET}>
+          <motion.div onClick={(e) => e.stopPropagation()} style={SHEET} initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 460, damping: 42 }} drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }} onDragEnd={(_e: unknown, info: PanInfo) => { if (info.offset.y > 120 || info.velocity.y > 700) { setOpen(false); setResults(null); } }}>
             <div style={GRAB} />
             <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 4px" }}>✨ Consigli di Keiko</h3>
             <p style={{ fontSize: 12.5, color: C.t3, margin: "0 0 14px" }}>Scegli cosa aggiungere alla lista.</p>
@@ -113,7 +114,7 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
               ))}
             </div>
             <button onClick={() => { setOpen(false); setResults(null); }} style={{ width: "100%", height: 44, marginTop: 16, border: `1px solid ${C.line}`, borderRadius: 12, background: C.surface, color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>Chiudi</button>
-          </div>
+          </motion.div>
         </div>
       )}
 
