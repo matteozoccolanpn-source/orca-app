@@ -139,6 +139,17 @@ DROP POLICY IF EXISTS keiko_shared_all ON public.search_log;
 CREATE POLICY keiko_shared_all ON public.search_log FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 
+-- 4c) PERMESSI di tabella per il ruolo "authenticated" (il token entra come
+--     questo ruolo). Senza, Supabase dà "permission denied for table ...".
+--     La RLS continua a limitare le RIGHE (solo le proprie); questo dà solo
+--     l'accesso alla tabella. Necessario per il percorso a interruttore acceso.
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+  public.tickets, public.todos, public.watchlist, public.diet_plan,
+  public.workout_plan, public.workout_log, public.trip_plans, public.trips,
+  public.push_subscriptions, public.films_catalog, public.search_log
+TO authenticated;
+
+
 -- ============================================================================
 -- SEZIONE 5 — CUTOVER  ⚠️  esegui SOLO quando accendi MULTIUSER_RLS=1
 --   Rimuove i vecchi controlli mono-utente (nomi verificati sul DB reale).
