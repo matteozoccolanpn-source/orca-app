@@ -5,6 +5,7 @@ import "./ds.css";
 import GlobalChrome from "@/components/GlobalChrome";
 import VersionGuard from "@/components/VersionGuard";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import SuggestProvider from "@/app/components/keiko/SuggestProvider";
 
 // Famiglia UI unica, stile SF Pro / App Store — Inter (font variabile:
 // pesi 400-700 disponibili senza dichiararli). Usata sia per corpo che
@@ -77,7 +78,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full font-sans text-foreground">
         <TooltipProvider>
-          {children}
+          <SuggestProvider>
+            {children}
+          </SuggestProvider>
         </TooltipProvider>
         <GlobalChrome />
         <VersionGuard buildId={process.env.VERCEL_GIT_COMMIT_SHA ?? "dev"} />
