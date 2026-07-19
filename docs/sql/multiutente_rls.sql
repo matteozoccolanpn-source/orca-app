@@ -40,6 +40,29 @@
 
 
 -- ----------------------------------------------------------------------------
+-- SEZIONE 0b — RIMUOVI I COLLEGAMENTI FANTASMA a auth.users (login Supabase NON
+--   usato: usiamo Google/NextAuth). Senza questo, il backfill viene rifiutato.
+--   Toglie SOLO le foreign key user_id -> auth.users; NON tocca altri vincoli
+--   (es. tickets.trip_id -> trips resta). Non cancella dati. Reversibile.
+-- ----------------------------------------------------------------------------
+DO $z$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT conrelid::regclass AS tbl, conname
+    FROM pg_constraint
+    WHERE contype='f' AND confrelid = 'auth.users'::regclass
+      AND conrelid IN ('tickets'::regclass,'todos'::regclass,'watchlist'::regclass,
+                       'diet_plan'::regclass,'workout_plan'::regclass,'workout_log'::regclass,
+                       'trip_plans'::regclass,'trips'::regclass,'push_subscriptions'::regclass)
+  LOOP
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+    RAISE NOTICE 'Rimosso collegamento fantasma % su %', r.conname, r.tbl;
+  END LOOP;
+END $z$;
+
+
+-- ----------------------------------------------------------------------------
 -- SEZIONE 1 — BACKFILL: righe storiche (user_id NULL) -> Matteo. Solo le NULL.
 -- ----------------------------------------------------------------------------
 DO $a$
