@@ -1,4 +1,5 @@
 import AllenamentoView from "./AllenamentoView";
+import { requireLogin } from "@/lib/require-login";
 import KeikoShell from "@/app/components/keiko/KeikoShell";
 import { getWorkoutPlan, getTrainedDays, type WorkoutWeek } from "@/lib/supabase";
 import { exerciseImage } from "@/lib/wger";
@@ -49,6 +50,7 @@ function weekStats(days: string[], week: WorkoutWeek | null): { done: number; pl
 }
 
 export default async function AllenamentoPage() {
+  await requireLogin();
   const [plan, trainedDays] = await Promise.all([getWorkoutPlan(), getTrainedDays()]);
   const streak = computeStreak(trainedDays, plan?.week ?? null);
   const wk = weekStats(trainedDays, plan?.week ?? null);

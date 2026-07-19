@@ -1,4 +1,5 @@
 import { getReadyTripPlans, getTicketsByIds } from "@/lib/supabase";
+import { requireLogin } from "@/lib/require-login";
 import { cityImage } from "@/lib/unsplash";
 import ViaggioView from "./ViaggioView";
 
@@ -6,6 +7,7 @@ import ViaggioView from "./ViaggioView";
 export const dynamic = "force-dynamic";
 
 export default async function ViaggioPage() {
+  await requireLogin();
   const trips = await getReadyTripPlans();
   // biglietti dei viaggi: per l'euristica slot→ticket ("Vedi biglietto").
   const ids = [...new Set(trips.flatMap((t) => t.ticket_ids ?? []))];

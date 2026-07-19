@@ -1,4 +1,5 @@
 import SaluteView from "./SaluteView";
+import { requireLogin } from "@/lib/require-login";
 import { getDietPlan } from "@/lib/supabase";
 import { mealImage } from "@/lib/food";
 import { unsplashPhoto } from "@/lib/unsplash";
@@ -8,6 +9,7 @@ import { unsplashPhoto } from "@/lib/unsplash";
 export const dynamic = "force-dynamic";
 
 export default async function SalutePage() {
+  await requireLogin();
   const diet = await getDietPlan();
   const week = diet?.week ?? null;
   // foto del piatto (o cibo generico) dietro l'hero dieta; null → resta il gradiente

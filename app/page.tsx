@@ -10,6 +10,7 @@ import { weatherFor } from "@/lib/weather";
 import { mealImage } from "@/lib/food";
 import { exerciseImage } from "@/lib/wger";
 import { signOut } from "@/auth";
+import { requireLogin } from "@/lib/require-login";
 
 // La home deve SEMPRE leggere i dati freschi da Supabase: senza questo, Next.js
 // può servire una versione in cache e gli eventi appena aggiunti non compaiono
@@ -25,6 +26,7 @@ export default async function Home({
   //   /?v2      → KeikoPreview (la Home usata finora)
   //   /?classic → SwipeShell   (la primissima Home)
   const sp = await searchParams;
+  await requireLogin();
   const classic = "classic" in sp;
   const v2 = "v2" in sp;   // paracadute: Home precedente
   const [events, diet, workout, trainedDays, trips, todos, watchlist] = await Promise.all([
