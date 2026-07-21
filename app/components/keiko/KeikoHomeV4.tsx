@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import CaptureSheet from "@/components/CaptureSheet";
 import EventSheet from "./EventSheet";
@@ -37,6 +37,47 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const [city, setCity] = useState("");
   const [weather, setWeather] = useState<{ tempC: number; emoji: string; text: string } | null>(null);
 
+  // --- Undo elimina (lato interfaccia, differito 5s) ---
+  // Quando elimini, l'elemento sparisce subito dalla UI ma sul server NON viene
+  // toccato finché non scadono i 5 secondi. Se premi "Annulla" prima, torna
+  // com'era (nessuna chiamata al DB). Niente colonne nuove, niente lib/.
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [undo, setUndo] = useState<{ id: string } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commitRef = useRef<null | (() => void)>(null);
+  const notHidden = (x: { id: string }) => !hidden.includes(x.id);
+
+  const realDelete = (kind: "todo" | "event", id: string) =>
+    kind === "todo"
+      ? fetch("/api/todos", { method: "DELETE", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ id }) })
+      : fetch("/api/delete", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ id }) });
+
+  const flushPending = () => {
+    if (undoTimer.current) { clearTimeout(undoTimer.current); undoTimer.current = null; }
+    if (commitRef.current) { const c = commitRef.current; commitRef.current = null; c(); }
+  };
+
+  const requestDelete = (kind: "todo" | "event", id: string) => {
+    if (demo) return;
+    flushPending(); // se c'era già un'eliminazione in attesa, la confermo subito
+    setHidden((h) => [...h, id]);
+    setUndo({ id });
+    const commit = () => {
+      realDelete(kind, id).then(() => router.refresh()).catch(() => {});
+      setUndo((u) => (u && u.id === id ? null : u));
+      setHidden((h) => h.filter((x) => x !== id));
+    };
+    commitRef.current = commit;
+    undoTimer.current = setTimeout(() => { undoTimer.current = null; commitRef.current = null; commit(); }, 5000);
+  };
+
+  const doUndo = () => {
+    if (undoTimer.current) { clearTimeout(undoTimer.current); undoTimer.current = null; }
+    commitRef.current = null;
+    if (undo) setHidden((h) => h.filter((x) => x !== undo.id));
+    setUndo(null);
+  };
+
   // nome + città salvati sul dispositivo
   useEffect(() => {
     try {
@@ -61,7 +102,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const greeting = name.trim() ? `Ciao ${name.trim()} 👋` : live.greeting;
   const todayN = live.week.find((d) => d.today)?.n ?? null;
   const todayKey = live.week.find((d) => d.today)?.key ?? null;
-  const todayTodos = todayKey ? (live.days[todayKey]?.todos ?? []) : [];
+  const todayTodos = todayKey ? (live.days[todayKey]?.todos ?? []).filter(notHidden) : [];
   const openTodos = todayTodos.filter((t) => !t.done).length;
 
   // azioni to-do del pannello giorno: riusa /api/todos + ricarica i dati veri
@@ -70,11 +111,13 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
     try { await fetch("/api/todos", { method, headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify(body) }); router.refresh(); } catch { /* offline: nessun dato finto */ }
   };
 
-  const heroEv = live.heroEvents[0] ?? live.upcoming[0] ?? null;
-  const inArrivo = (heroEv ? live.upcoming : live.upcoming.slice(1)).slice(0, 6);
+  const heroEvents = live.heroEvents.filter(notHidden);
+  const upcoming = live.upcoming.filter(notHidden);
+  const heroEv = heroEvents[0] ?? upcoming[0] ?? null;
+  const inArrivo = (heroEv ? upcoming : upcoming.slice(1)).slice(0, 6);
 
   // riepilogo giornata
-  const nEventiOggi = live.heroEvents.length;
+  const nEventiOggi = heroEvents.length;
   const gym = live.gym;
   const gymTxt = gym
     ? gym.trainedToday
@@ -83,6 +126,20 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
         ? "🌙 riposo"
         : "💪 allenamento da fare"
     : null;
+
+  // Dati del giorno selezionato, ripuliti degli elementi in attesa di eliminazione.
+  const selRaw = selDay ? (live.days[selDay] ?? null) : null;
+  const selDayData = selRaw ? {
+    ...selRaw,
+    events: selRaw.events.filter(notHidden),
+    todos: selRaw.todos.filter(notHidden),
+    counts: {
+      ...selRaw.counts,
+      eventi: selRaw.events.filter(notHidden).length,
+      todo: selRaw.todos.filter((t) => notHidden(t) && !t.done).length,
+      fatti: selRaw.todos.filter((t) => notHidden(t) && t.done).length,
+    },
+  } : null;
 
   const go = (href: string) => { if (!demo) router.push(href); };  // in anteprima pubblica i tap sono inerti (niente redirect a login)
 
@@ -207,17 +264,17 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
       </nav>
 
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
-      {selEv && <EventSheet ev={selEv} onClose={() => setSelEv(null)} demo={demo} />}
+      {selEv && <EventSheet ev={selEv} onClose={() => setSelEv(null)} demo={demo} onDelete={() => requestDelete("event", selEv.id)} />}
       {askOpen && <AskSheet onClose={() => setAskOpen(false)} />}
       {selDay && (
         <DaySheet
           title={live.days[selDay]?.title ?? dayTitle(selDay)}
-          day={live.days[selDay] ?? null}
+          day={selDayData}
           demo={demo}
           onClose={() => setSelDay(null)}
           onToggle={(id, done) => todoFetch("PATCH", { id, done })}
           onStar={(id, star) => todoFetch("PATCH", { id, star })}
-          onDelete={(id) => todoFetch("DELETE", { id })}
+          onDelete={(id) => requestDelete("todo", id)}
           onAdd={(text) => todoFetch("POST", { day: selDay, text })}
           onSetLead={(id, lead) => todoFetch("PATCH", { id, lead })}
           onSetDouble={(id, double) => todoFetch("PATCH", { id, double })}
@@ -242,6 +299,16 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           onPickDay={(key) => { setCalOpen(false); setSelDay(key); }}
           onClose={() => setCalOpen(false)}
         />
+      )}
+
+      {/* Toast "Annulla" per l'eliminazione (resta visibile ~5s, anche sopra i pannelli) */}
+      {undo && (
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: "calc(96px + env(safe-area-inset-bottom))", zIndex: 120, display: "flex", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
+          <div style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 14, width: "100%", maxWidth: 440, background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 14, padding: "12px 16px", boxShadow: "0 8px 30px rgba(0,0,0,.45)" }}>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: "var(--k-text)" }}>Eliminato</span>
+            <button onClick={doUndo} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Annulla</button>
+          </div>
+        </div>
       )}
     </div>
   );

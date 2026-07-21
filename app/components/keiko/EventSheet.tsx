@@ -40,11 +40,10 @@ async function share(ev: LiveEvent) {
   } catch { /* annullato */ }
 }
 
-export default function EventSheet({ ev, onClose, demo = false }: { ev: LiveEvent; onClose: () => void; demo?: boolean }) {
+export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev: LiveEvent; onClose: () => void; demo?: boolean; onDelete?: () => void }) {
   const router = useRouter();
   const gradient = gradientFor(catFor(ev.type, ev.title));
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const [confirmDel, setConfirmDel] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const { date, time } = splitDatetime(ev.datetime);
@@ -63,17 +62,11 @@ export default function EventSheet({ ev, onClose, demo = false }: { ev: LiveEven
     finally { setBusy(false); }
   }
 
-  async function del() {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/delete", {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ id: ev.id }),
-      });
-      if (!res.ok) throw new Error();
-      router.refresh(); onClose();
-    } catch { window.alert("Non sono riuscito a eliminare, riprova"); }
-    finally { setBusy(false); }
+  // L'eliminazione vera la gestisce la Home (differita 5s con "Annulla"):
+  // qui chiudiamo il pannello e lasciamo che sia lei a cancellare (o annullare).
+  function del() {
+    onDelete?.();
+    onClose();
   }
 
   return (
@@ -114,20 +107,12 @@ export default function EventSheet({ ev, onClose, demo = false }: { ev: LiveEven
                 <button onClick={() => share(ev)} className="ds-btn" style={{ flex: 1, height: 46 }}>📤 Condividi</button>
               </div>
 
-              {/* azioni con login: Modifica / Elimina */}
+              {/* azioni con login: Modifica / Elimina (l'elimina ha l'undo in home) */}
               {!demo && (
-                confirmDel ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, padding: "12px 14px", background: "rgba(226,112,95,.10)", border: "1px solid rgba(226,112,95,.35)", borderRadius: 14 }}>
-                    <span style={{ flex: 1, fontSize: 13.5, color: "var(--k-text-2)" }}>Eliminare questo evento?</span>
-                    <button onClick={() => setConfirmDel(false)} disabled={busy} className="ds-btn" style={{ height: 40, padding: "0 14px" }}>Annulla</button>
-                    <button onClick={del} disabled={busy} className="ds-btn danger" style={{ height: 40, padding: "0 14px" }}>{busy ? "…" : "Elimina"}</button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                    <button onClick={() => setMode("edit")} className="ds-btn" style={{ flex: 1, height: 46 }}>✏️ Modifica</button>
-                    <button onClick={() => setConfirmDel(true)} className="ds-btn danger" style={{ flex: 1, height: 46 }}>🗑 Elimina</button>
-                  </div>
-                )
+                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                  <button onClick={() => setMode("edit")} className="ds-btn" style={{ flex: 1, height: 46 }}>✏️ Modifica</button>
+                  <button onClick={del} disabled={busy} className="ds-btn danger" style={{ flex: 1, height: 46 }}>🗑 Elimina</button>
+                </div>
               )}
 
               {/* Info & link (card) */}
