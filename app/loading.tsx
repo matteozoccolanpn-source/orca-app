@@ -1,9 +1,26 @@
-// Schermata di caricamento della home (e delle sezioni).
-// Next.js la mostra AUTOMATICAMENTE mentre il componente server aspetta i dati
-// (7 query Supabase + foto/meteo). Prima non esisteva → pagina bianca all'avvio.
-// È volutamente leggerissima e senza dipendenze: colori fissi (non aspetta il CSS)
-// così compare nel primo frame, anche a PWA appena aperta.
+"use client";
+
+// Schermata mostrata mentre una pagina carica i dati.
+// REGOLA: lo splash "keiko" compare SOLO alla vera apertura dell'app (avvio a
+// freddo o ricarica). Quando ci si sposta TRA le pagine (Home/Dieta/Sport/Guarda)
+// NON si rivede la scritta: solo uno sfondo scuro, così non lampeggia il bianco.
+//
+// Come distingue "apertura" da "navigazione": una variabile di modulo ricorda se
+// lo splash è già stato mostrato in questa sessione.
+//  - sul server (primo render, apertura) window non esiste -> splash
+//  - sul client, dalla seconda volta in poi resta true -> solo fondo scuro.
+let splashShownThisSession = false;
+
 export default function Loading() {
+  const isColdOpen = typeof window === "undefined" || !splashShownThisSession;
+  if (typeof window !== "undefined") splashShownThisSession = true;
+
+  // Navigazione tra pagine: nessuna scritta, solo fondo scuro (niente lampo bianco).
+  if (!isColdOpen) {
+    return <div aria-hidden style={{ position: "fixed", inset: 0, background: "#0C0E13", zIndex: 60 }} />;
+  }
+
+  // Apertura dell'app: splash Keiko.
   return (
     <div
       style={{
