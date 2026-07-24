@@ -85,7 +85,7 @@ export async function GET(req: Request) {
         .order("datetime");
       if (oggi && oggi.length) {
         const body = oggi.map(e => `${romeParts(new Date(e.datetime))} · ${e.title}`).join("\n");
-        await blast(`Oggi hai ${oggi.length} cose`, body);
+        await blast(`Oggi hai ${oggi.length} cose`, body, `/?day=${today}`);
       }
     }
 
@@ -115,12 +115,12 @@ export async function GET(req: Request) {
       const lead = leadMinutes(e.type, romeHour(start));
 
       if (lead != null && !e.reminded_lead_at && minsTo <= lead && minsTo > lead - 15) {
-        await blast(`Tra ${Math.round(minsTo)} min: ${e.title}`, "Preparati 🙂", "/");
+        await blast(`Tra ${Math.round(minsTo)} min: ${e.title}`, "Preparati 🙂", `/?ev=${e.id}`);
         await sb.from("tickets").update({ reminded_lead_at: now.toISOString() }).eq("id", e.id);
       }
 
       if (lead != null && lead >= 120 && !e.reminded_imminent_at && minsTo <= 30 && minsTo > 15) {
-        await blast(`Tra 30 min: ${e.title}`, "Sta per iniziare", "/");
+        await blast(`Tra 30 min: ${e.title}`, "Sta per iniziare", `/?ev=${e.id}`);
         await sb.from("tickets").update({ reminded_imminent_at: now.toISOString() }).eq("id", e.id);
       }
     }
@@ -141,13 +141,13 @@ export async function GET(req: Request) {
 
       // Prima notifica: nella finestra [lead-15, lead] (il cron passa ogni ~15 min).
       if (!t.reminded_at && minsTo <= lead && minsTo > lead - 15) {
-        await blast(`Tra ${Math.round(minsTo)} min: ${t.text}`, "Promemoria to-do ✅", "/");
+        await blast(`Tra ${Math.round(minsTo)} min: ${t.text}`, "Promemoria to-do ✅", `/?day=${today}`);
         await sb.from("todos").update({ reminded_at: now.toISOString() }).eq("id", t.id);
       }
 
       // Seconda notifica (se attiva e ha senso: anticipo > 15): a ridosso.
       if (t.double_reminder === true && lead > 15 && !t.reminded_imminent_at && minsTo <= 15 && minsTo > 0) {
-        await blast(`Tra poco: ${t.text}`, "Ci siamo quasi", "/");
+        await blast(`Tra poco: ${t.text}`, "Ci siamo quasi", `/?day=${today}`);
         await sb.from("todos").update({ reminded_imminent_at: now.toISOString() }).eq("id", t.id);
       }
     }
