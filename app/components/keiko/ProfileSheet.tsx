@@ -6,6 +6,7 @@
    quindi nella home v4 non c'era modo di iscriversi (= notifiche mai ricevute). */
 import { useEffect, useState } from "react";
 import { checkNotifications, enableNotifications, disableNotifications, isIos } from "@/lib/push-client";
+import ProfiloForm, { type ProfiloValori } from "./ProfiloForm";
 
 export default function ProfileSheet({
   name, onName, city, onCity, onClose, logoutAction,
@@ -22,6 +23,26 @@ export default function ProfileSheet({
   const [notifMsg, setNotifMsg] = useState<string | null>(null);
   const [ios, setIos] = useState(false);
   useEffect(() => { setIos(isIos()); checkNotifications().then(setNotif); }, []);
+
+  // Profilo allenamento & dieta (il "seme"): modificabile da qui per sempre,
+  // anche dopo la generazione della scheda. Lazy: si carica quando apri la sezione.
+  const [fitOpen, setFitOpen] = useState(false);
+  const [fitData, setFitData] = useState<ProfiloValori | null | "loading">("loading");
+  const [fitMsg, setFitMsg] = useState("");
+  async function openFit() {
+    const next = !fitOpen;
+    setFitOpen(next);
+    setFitMsg("");
+    if (next && fitData === "loading") {
+      try {
+        const res = await fetch("/api/profile", { credentials: "include" });
+        const d = await res.json();
+        setFitData((d?.profile as ProfiloValori) ?? null);
+      } catch {
+        setFitData(null);
+      }
+    }
+  }
 
   async function toggleNotif() {
     setNotifBusy(true); setNotifMsg(null);
@@ -65,7 +86,7 @@ export default function ProfileSheet({
       <div
         className="ds k-sheet-in"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 24px)" }}
+        style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 24px)" }}
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
@@ -110,6 +131,33 @@ export default function ProfileSheet({
             <button onClick={testNotif} disabled={notifBusy} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginTop: 10, padding: "2px 2px" }}>Invia notifica di prova</button>
           )}
           {notifMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{notifMsg}</p>}
+        </div>
+
+        {/* Profilo allenamento & dieta — sempre modificabile, anche dopo la scheda generata */}
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--k-line)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>Allenamento & dieta</div>
+              <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>Obiettivo, livello, sessioni, vincoli</div>
+            </div>
+            <button onClick={openFit} className="ds-btn" style={{ height: 40, padding: "0 16px", fontSize: 13, flex: "none" }}>
+              {fitOpen ? "Chiudi" : "Modifica"}
+            </button>
+          </div>
+          {fitOpen && (
+            fitData === "loading" ? (
+              <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "12px 2px 0" }}>Carico il profilo…</p>
+            ) : (
+              <div style={{ marginTop: 4 }}>
+                <ProfiloForm
+                  initial={fitData}
+                  saveLabel="Salva modifiche"
+                  onSaved={() => { setFitOpen(false); setFitMsg("Profilo aggiornato ✓ — la prossima scheda generata ne terrà conto."); }}
+                />
+              </div>
+            )
+          )}
+          {fitMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{fitMsg}</p>}
         </div>
 
         {logoutAction && (
