@@ -37,6 +37,7 @@ export default function AllenamentoView({
   heroImage = null,
   weekDone = 0,
   weekPlanned = 0,
+  streak = 0,
   embedded = false,
 }: {
   week: WorkoutWeek | null;
@@ -45,6 +46,7 @@ export default function AllenamentoView({
   heroImage?: string | null;
   weekDone?: number;
   weekPlanned?: number;
+  streak?: number;
   embedded?: boolean;
 }) {
   const router = useRouter();
@@ -297,9 +299,19 @@ export default function AllenamentoView({
             </div>
 
             {weekPlanned > 0 && (
-              <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: 16 }}>
-                <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600 }}>Questa settimana</span>
-                <span style={{ fontSize: "var(--fs-md)", fontWeight: 800, color: "var(--text)" }}>{weekDone}/{weekPlanned} <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600 }}>allenamenti</span></span>
+              /* Card settimana con anello progressi + streak (review 24/07 #2/#5):
+                 il .bigRing esisteva già in CSS ma qui c'era solo testo piatto. */
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: 16 }}>
+                <div className="bigRing" style={{ ["--p" as string]: weekPlanned > 0 ? Math.round((weekDone / weekPlanned) * 100) : 0 } as React.CSSProperties}>
+                  <i>{weekDone}/{weekPlanned}</i>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "var(--fs-md)", fontWeight: 800, color: "var(--text)" }}>{weekDone}/{weekPlanned} allenamenti</div>
+                  <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600, marginTop: 2 }}>questa settimana</div>
+                </div>
+                {streak > 0 && (
+                  <span style={{ flex: "none", fontSize: 12.5, fontWeight: 800, borderRadius: 999, padding: "7px 11px", background: "var(--amber-soft)", color: "var(--amber)" }}>🔥 {streak}</span>
+                )}
               </div>
             )}
 
@@ -367,14 +379,14 @@ export default function AllenamentoView({
                     <div className="agLbl" style={{ padding: "0 2px 8px" }}>Sposta / scambia con</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                       {DAY_ORDER.filter((k) => k !== activeDay).map((k) => (
-                        <button key={k} className="chipA" disabled={savingWeek} onClick={() => moveSessionTo(k)}>{DAY_LABEL[k] ?? k}</button>
+                        <button key={k} className="k-daychip" disabled={savingWeek} onClick={() => moveSessionTo(k)}>{DAY_LABEL[k] ?? k}</button>
                       ))}
                     </div>
                     <div className="agLbl" style={{ padding: "0 2px 8px" }}>Esercizi</div>
                     {draft.map((ex, i) => (
                       <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                         <input value={ex.nome} onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))} placeholder="Esercizio" style={{ flex: 1, background: "var(--paper)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: "8px 10px", color: "var(--ink)", fontFamily: "var(--f)", fontSize: "var(--fs-sm)" }} />
-                        <button type="button" aria-label="Togli" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} style={{ border: 0, background: "none", color: "var(--text-3)", fontSize: 18, cursor: "pointer", minWidth: 26 }}>✕</button>
+                        <button type="button" aria-label="Togli" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} style={{ border: 0, background: "none", color: "var(--text-3)", fontSize: 18, cursor: "pointer", minWidth: 44, minHeight: 44, display: "grid", placeItems: "center" }}>✕</button>
                       </div>
                     ))}
                     {draft.length === 0 && <p style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 8px" }}>Giorno di riposo — aggiungi esercizi per creare una sessione.</p>}

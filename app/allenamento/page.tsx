@@ -73,6 +73,7 @@ export default async function AllenamentoPage() {
       {/* L0 (S2): profilo sì ma nessuna scheda → offri la scheda base generata. */}
       {profile && !hasPlan && <GeneraScheda />}
       <AllenamentoView
+        streak={streak}
         week={plan?.week ?? null}
         updatedAt={plan?.updatedAt ?? null}
         trainedDays={trainedDays}

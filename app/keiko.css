@@ -473,7 +473,7 @@
     border-radius:var(--r-md);padding:11px;margin-bottom:7px;touch-action:pan-y;position:relative;
     transition:transform .18s,opacity .25s;box-shadow:0 4px 14px rgba(0,0,0,.18);
   }
-.keiko .check {width:24px;height:24px;border-radius:50%;border:2px solid #B9AE97;flex:none;cursor:pointer;display:grid;place-items:center;color:transparent;font-size:12px}
+.keiko .check {width:28px;height:28px;border-radius:50%;border:2px solid #B9AE97;flex:none;cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
 .keiko .todo.done .check {background:var(--accent);border-color:var(--accent);color:#fff;animation:k_cpop .25s}
 .keiko .todo .txt {flex:1;font-size:var(--fs-sm);font-weight:700;color:var(--ink)}
 .keiko .todo.done .txt {color:#B0A68F;text-decoration:line-through}
@@ -720,16 +720,22 @@
 .keiko .vHero h4 {font-size:19px;font-weight:800;color:#fff;margin-top:4px}
 .keiko .vHero .vs2 {font-size:11.5px;font-weight:700;color:rgba(255,255,255,.86);margin-top:3px}
 .keiko .vHero .vActs {display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
-.keiko .pRow {display:flex;align-items:center;gap:11px;background:var(--paper);border-radius:var(--r-md);padding:11px 12px;margin-bottom:8px;box-shadow:0 4px 14px rgba(0,0,0,.15);cursor:pointer}
+/* Righe esercizio: card SCURE (review 24/07 — leggibilità in palestra a distanza,
+   coerenza col tema nero caldo; il "paper" resta per biglietti/to-do, non qui). */
+.keiko .pRow {display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--card-line);border-radius:12px;padding:16px 14px;margin-bottom:8px;cursor:pointer}
 .keiko .pRow .pi {font-size:20px;flex:none}
 .keiko .pRow .pt {flex:1;min-width:0}
-.keiko .pRow .pt b {display:block;font-size:13px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.keiko .pRow .pt small {display:block;font-size:10.5px;font-weight:700;color:var(--ink-2);margin-top:1px}
+.keiko .pRow .pt b {display:block;font-size:16px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.keiko .pRow .pt small {display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-top:2px}
 .keiko .pRow .pk {flex:none;display:flex;gap:6px;align-items:center}
-.keiko .pRow.done .pt b {text-decoration:line-through;color:#B0A68F}
+.keiko .pRow.done .pt b {text-decoration:line-through;color:var(--text-3)}
 .keiko .chipA {font-size:10.5px;font-weight:800;border-radius:999px;padding:7px 11px;background:rgba(21,32,47,.09);color:var(--ink);cursor:pointer;border:0;font-family:var(--f)}
 .keiko .vHero .chipA {background:rgba(251,248,240,.92);color:#15202F;backdrop-filter:blur(6px)}
 .keiko .chipA.dk {background:var(--card);border:1px solid var(--card-line);color:var(--text-2)}
+/* Chip-giorno leggibili su card scura (fix contrasto "Sposta/scambia" — review 24/07).
+   chipA è pensato per stare SOPRA le foto: su fondo scuro spariva. */
+.keiko .k-daychip {font-size:13px;font-weight:700;border-radius:999px;padding:10px 14px;min-height:40px;background:var(--bg-2);border:1px solid var(--card-line);color:var(--text);cursor:pointer;font-family:var(--f)}
+.keiko .k-daychip:disabled {opacity:.5}
 .keiko .chipA:active {transform:scale(.96)}
 .keiko .tbc {font-size:9.5px;font-weight:800;letter-spacing:.06em;border-radius:999px;padding:5px 9px;background:var(--amber-soft);color:var(--amber);text-transform:uppercase}
 .keiko .slot {background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-lg);padding:12px;margin-bottom:9px;box-shadow:var(--shadow)}

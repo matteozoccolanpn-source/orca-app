@@ -77,8 +77,10 @@
   color-scheme: light;
 
   /* --- Token di marca (condivisi tra i due temi) --- */
-  --grad-blue:      linear-gradient(135deg, #6F58E8, #5238C8);
-  --keiko-grad:     var(--grad-blue);          /* CTA / FAB / today */
+  /* Bonifica "il viola non esiste" (review 24/07): via il vecchio --grad-blue
+     (indaco); --keiko-grad ora è il gradiente ambra del brand, così tutti gli
+     usi esistenti (CTA / FAB / today) ereditano l'ambra da qui. */
+  --keiko-grad:     linear-gradient(135deg, #FFB84D, #C77E08); /* CTA / FAB / today */
   --keiko-warm:     #FF8A3D;  --warm: var(--keiko-warm);
   --gold:           #FFC861;
   --green:          #1FA971;
