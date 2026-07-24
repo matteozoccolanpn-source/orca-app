@@ -78,6 +78,57 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
     setUndo(null);
   };
 
+  // --- Deep-link ai pannelli (#1): l'URL descrive cosa è aperto ---
+  //   /?ev=<id>          → apre la card di quell'evento
+  //   /?day=YYYY-MM-DD   → apre il pannello di quel giorno
+  // Così una notifica (sw.js apre già data.url) o un link condiviso portano
+  // dritti alla cosa giusta. Lettura una volta al primo mount da
+  // window.location (niente useSearchParams → niente Suspense); scrittura con
+  // history.replaceState (non ricarica, non sporca la cronologia, non tocca ?v2).
+
+  // cerca l'evento per id tra hero, in arrivo e agenda (l'agenda ha TUTTI i futuri)
+  const eventById = (id: string): LiveEvent | null => {
+    for (const pool of [live.heroEvents, live.upcoming, ...live.agenda.map((g) => g.events)]) {
+      const f = pool.find((e) => e.id === id);
+      if (f) return f;
+    }
+    return null;
+  };
+
+  const setUrlParam = (key: "ev" | "day", value: string | null) => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("ev");
+      url.searchParams.delete("day"); // mai entrambi insieme
+      if (value) url.searchParams.set(key, value);
+      window.history.replaceState(null, "", url);
+    } catch { /* no-op */ }
+  };
+
+  const openEvent = (ev: LiveEvent) => { setSelEv(ev); setUrlParam("ev", ev.id); };
+  const closeEvent = () => { setSelEv(null); setUrlParam("ev", null); };
+  const openDay = (key: string) => { setSelDay(key); setUrlParam("day", key); };
+  const closeDay = () => { setSelDay(null); setUrlParam("day", null); };
+
+  // all'avvio: se l'URL contiene già ev/day, apri il pannello corrispondente
+  useEffect(() => {
+    if (demo) return;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const ev = sp.get("ev");
+      const day = sp.get("day");
+      if (ev) {
+        const found = eventById(ev);
+        if (found) setSelEv(found);
+        else setUrlParam("ev", null); // evento sparito (es. eliminato): pulisci l'URL
+      } else if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        setSelDay(day);
+      }
+    } catch { /* no-op */ }
+    // Solo al primo mount: dopo, l'URL lo aggiornano open/close qui sopra.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // nome + città salvati sul dispositivo
   useEffect(() => {
     try {
@@ -180,7 +231,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
       {/* week strip */}
       <div style={{ display: "flex", gap: 6, margin: "0 0 24px" }}>
         {live.week.slice(0, 7).map((d) => (
-          <div key={d.key} onClick={() => setSelDay(d.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "9px 0", borderRadius: 16, background: d.today ? "var(--k-accent)" : "transparent", cursor: "pointer" }}>
+          <div key={d.key} onClick={() => openDay(d.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "9px 0", borderRadius: 16, background: d.today ? "var(--k-accent)" : "transparent", cursor: "pointer" }}>
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", color: d.today ? "var(--k-accent-ink)" : "var(--k-text-3)" }}>{d.w.toUpperCase()}</span>
             <b style={{ fontSize: 16, fontWeight: 600, color: d.today ? "var(--k-accent-ink)" : "var(--k-text-2)" }}>{d.n}</b>
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: d.d1 ? (d.today ? "var(--k-accent-ink)" : "var(--k-accent)") : "transparent" }} />
@@ -190,7 +241,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
 
       {/* HERO */}
       {heroEv && (
-        <EventCard ev={heroEv} variant="hero" onOpen={() => setSelEv(heroEv)} />
+        <EventCard ev={heroEv} variant="hero" onOpen={() => openEvent(heroEv)} />
       )}
 
       {/* In arrivo */}
@@ -200,7 +251,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -18px", padding: "0 18px 4px" }}>
             {inArrivo.map((ev) => (
               <div key={ev.id} style={{ minWidth: 214, flex: "none" }}>
-                <EventCard ev={ev} variant="mini" onOpen={() => setSelEv(ev)} />
+                <EventCard ev={ev} variant="mini" onOpen={() => openEvent(ev)} />
               </div>
             ))}
           </div>
@@ -264,14 +315,14 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
       </nav>
 
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
-      {selEv && <EventSheet ev={selEv} onClose={() => setSelEv(null)} demo={demo} onDelete={() => requestDelete("event", selEv.id)} />}
+      {selEv && <EventSheet ev={selEv} onClose={closeEvent} demo={demo} onDelete={() => requestDelete("event", selEv.id)} />}
       {askOpen && <AskSheet onClose={() => setAskOpen(false)} />}
       {selDay && (
         <DaySheet
           title={live.days[selDay]?.title ?? dayTitle(selDay)}
           day={selDayData}
           demo={demo}
-          onClose={() => setSelDay(null)}
+          onClose={closeDay}
           onToggle={(id, done) => todoFetch("PATCH", { id, done })}
           onStar={(id, star) => todoFetch("PATCH", { id, star })}
           onDelete={(id) => requestDelete("todo", id)}
@@ -296,7 +347,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           baseM={live.cal.m}
           dots={live.cal.dots}
           todayN={todayN}
-          onPickDay={(key) => { setCalOpen(false); setSelDay(key); }}
+          onPickDay={(key) => { setCalOpen(false); openDay(key); }}
           onClose={() => setCalOpen(false)}
         />
       )}
