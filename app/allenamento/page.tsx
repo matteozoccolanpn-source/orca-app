@@ -1,5 +1,6 @@
 import AllenamentoView from "./AllenamentoView";
 import ProfiloSetup from "./ProfiloSetup";
+import GeneraScheda from "./GeneraScheda";
 import { requireLogin } from "@/lib/require-login";
 import KeikoShell from "@/app/components/keiko/KeikoShell";
 import { getWorkoutPlan, getTrainedDays, getProfile, type WorkoutWeek } from "@/lib/supabase";
@@ -53,6 +54,8 @@ function weekStats(days: string[], week: WorkoutWeek | null): { done: number; pl
 export default async function AllenamentoPage() {
   await requireLogin();
   const [plan, trainedDays, profile] = await Promise.all([getWorkoutPlan(), getTrainedDays(), getProfile()]);
+  // C'è una scheda vera? (almeno un giorno con esercizi) — decide se offrire la generazione (S2)
+  const hasPlan = !!plan?.week && Object.values(plan.week).some((d) => (d?.esercizi?.length ?? 0) > 0);
   const streak = computeStreak(trainedDays, plan?.week ?? null);
   const wk = weekStats(trainedDays, plan?.week ?? null);
   // foto dell'esercizio di oggi (o palestra generica) dietro l'hero; null → gradiente
@@ -67,6 +70,8 @@ export default async function AllenamentoPage() {
     >
       {/* Onboarding "a scomparsa" (S1): compare solo finché il profilo non esiste. */}
       {!profile && <ProfiloSetup />}
+      {/* L0 (S2): profilo sì ma nessuna scheda → offri la scheda base generata. */}
+      {profile && !hasPlan && <GeneraScheda />}
       <AllenamentoView
         week={plan?.week ?? null}
         updatedAt={plan?.updatedAt ?? null}
