@@ -49,6 +49,7 @@ export default function RootLayout({
     <html
       lang="it"
       suppressHydrationWarning
+      style={{ backgroundColor: "#0C0E13" }}
       className={`dark ${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <head>
