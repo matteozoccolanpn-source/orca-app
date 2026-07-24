@@ -1,7 +1,8 @@
 import AllenamentoView from "./AllenamentoView";
+import ProfiloSetup from "./ProfiloSetup";
 import { requireLogin } from "@/lib/require-login";
 import KeikoShell from "@/app/components/keiko/KeikoShell";
-import { getWorkoutPlan, getTrainedDays, type WorkoutWeek } from "@/lib/supabase";
+import { getWorkoutPlan, getTrainedDays, getProfile, type WorkoutWeek } from "@/lib/supabase";
 import { exerciseImage } from "@/lib/wger";
 import { unsplashPhoto } from "@/lib/unsplash";
 
@@ -51,7 +52,7 @@ function weekStats(days: string[], week: WorkoutWeek | null): { done: number; pl
 
 export default async function AllenamentoPage() {
   await requireLogin();
-  const [plan, trainedDays] = await Promise.all([getWorkoutPlan(), getTrainedDays()]);
+  const [plan, trainedDays, profile] = await Promise.all([getWorkoutPlan(), getTrainedDays(), getProfile()]);
   const streak = computeStreak(trainedDays, plan?.week ?? null);
   const wk = weekStats(trainedDays, plan?.week ?? null);
   // foto dell'esercizio di oggi (o palestra generica) dietro l'hero; null → gradiente
@@ -64,6 +65,8 @@ export default async function AllenamentoPage() {
       backHref="/"
       active="sport"
     >
+      {/* Onboarding "a scomparsa" (S1): compare solo finché il profilo non esiste. */}
+      {!profile && <ProfiloSetup />}
       <AllenamentoView
         week={plan?.week ?? null}
         updatedAt={plan?.updatedAt ?? null}

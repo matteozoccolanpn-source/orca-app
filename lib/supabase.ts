@@ -791,3 +791,59 @@ export async function deleteTodoById(id: string): Promise<void> {
   const { error } = await (await db()).from("todos").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+// ============================================================================
+// PROFILO (S1 rework allenamento) — il "seme" della personalizzazione,
+// CONDIVISO tra allenamento e dieta. Tabella `profile` (una riga per utente).
+// ============================================================================
+
+export interface ProfileData {
+  obiettivo: string | null;                             // 'dimagrire'|'massa'|'tonificare'|'forma'
+  livello: string | null;                               // 'principiante'|'intermedio'|'avanzato'
+  sessioni: { palestra?: number; corsa?: number } | null;
+  vincoli: string | null;                               // testo libero (es. "ginocchio delicato")
+  stile: string | null;                                 // 'duro'|'chill'
+  updatedAt: string | null;
+}
+
+/** Profilo dell'utente loggato. null se non ancora compilato (o non loggato). */
+export async function getProfile(): Promise<ProfileData | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const { data, error } = await (await db())
+    .from("profile")
+    .select("obiettivo, livello, sessioni, vincoli, stile, updated_at")
+    .eq("user_id", uid)
+    .maybeSingle();
+  if (error) {
+    console.error("Supabase: failed to fetch profile:", error.message);
+    return null;
+  }
+  if (!data) return null;
+  return {
+    obiettivo: (data.obiettivo as string) ?? null,
+    livello: (data.livello as string) ?? null,
+    sessioni: (data.sessioni as ProfileData["sessioni"]) ?? null,
+    vincoli: (data.vincoli as string) ?? null,
+    stile: (data.stile as string) ?? null,
+    updatedAt: (data.updated_at as string) ?? null,
+  };
+}
+
+/** Salva/aggiorna il profilo: i campi non passati restano quelli già salvati. */
+export async function saveProfile(patch: Partial<Omit<ProfileData, "updatedAt">>): Promise<void> {
+  const uid = await currentUserId();
+  if (!uid) throw new Error("Supabase: utente non autenticato");
+  const cur = await getProfile();
+  const row = {
+    user_id: uid,
+    obiettivo: patch.obiettivo ?? cur?.obiettivo ?? null,
+    livello: patch.livello ?? cur?.livello ?? null,
+    sessioni: patch.sessioni ?? cur?.sessioni ?? null,
+    vincoli: patch.vincoli ?? cur?.vincoli ?? null,
+    stile: patch.stile ?? cur?.stile ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await (await db()).from("profile").upsert(row, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
+}
