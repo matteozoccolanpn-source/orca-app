@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { EventForm, toDatetime, splitDatetime, type EventFormValue } from "@/app/components/EventForm";
 import { gradientFor, catFor } from "@/lib/smart-image";
 import { mapsUrl, type LiveEvent } from "./keikoLive";
+import SheetShell from "./SheetShell";
 
 /* Pannello dettaglio evento (design v4).
    - Azioni client-side (sempre): Aggiungi al calendario (.ics), Condividi, Maps.
@@ -80,12 +81,10 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
   }
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-      <div
-        className="ds k-sheet-in"
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", paddingBottom: "calc(env(safe-area-inset-bottom) + 22px)" }}
-      >
+    <>
+      {/* grabber=false: EventSheet tiene la sua barretta SOPRA la foto hero (design
+          firma). Il gesto di swipe-giù parte comunque dal pannello di SheetShell. */}
+      <SheetShell onClose={onClose} zIndex={90} grabber={false}>
         {mode === "edit" ? (
           <div style={{ padding: "18px 20px 0" }}>
             <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)" }} />
@@ -137,14 +136,15 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
             </div>
           </>
         )}
-      </div>
+      </SheetShell>
 
-      {/* conferma che il tocco ha fatto qualcosa (senza foglio di sistema) */}
+      {/* conferma che il tocco ha fatto qualcosa (senza foglio di sistema).
+          Fuori da SheetShell: resta ancorato al viewport anche mentre trascini. */}
       {toast && (
-        <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: 0, right: 0, bottom: "calc(env(safe-area-inset-bottom) + 28px)", zIndex: 130, display: "flex", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: "calc(env(safe-area-inset-bottom) + 28px)", zIndex: 130, display: "flex", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
           <div style={{ background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "10px 18px", fontSize: 14, fontWeight: 600, color: "var(--k-text)", boxShadow: "0 8px 30px rgba(0,0,0,.45)" }}>✓ {toast}</div>
         </div>
       )}
-    </div>
+    </>
   );
 }

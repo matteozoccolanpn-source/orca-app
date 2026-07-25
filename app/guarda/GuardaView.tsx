@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import type { WatchItem } from "@/lib/supabase";
 import type { WatchProviders, WatchProvider, TitleDetails, SimilarTitle } from "@/lib/tmdb";
-import KeikoNav from "@/app/components/keiko/KeikoNav";
+import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
 import { useSuggest } from "@/app/components/keiko/SuggestProvider";
 
 /* Sezione "Da guardare" — design v4. Logica preservata: visto (PATCH), elimina
@@ -183,7 +183,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
   const count = list.length;
 
   return (
-    <div className="ds" style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 20px calc(116px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto" }}>
+    <div className="ds" style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: `0 20px ${PAGE_PB}`, maxWidth: 440, margin: "0 auto" }}>
       {/* header */}
       <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, margin: "0 -20px", padding: "calc(env(safe-area-inset-top) + 12px) 20px 12px", background: "rgba(11,13,18,.82)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
         <button onClick={() => router.push("/")} aria-label="Indietro" style={{ background: "none", border: 0, color: "var(--k-text)", fontSize: 26, lineHeight: 1, cursor: "pointer", padding: 0, width: 28 }}>‹</button>
@@ -327,9 +327,9 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
                 {detSimilar.length > 0 && (
                   <div style={{ marginTop: 18 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 8px" }}>Simili · tocca per aggiungere</div>
-                    <div style={{ display: "flex", gap: 10, overflowX: "auto", margin: "0 -20px", padding: "0 20px 4px" }}>
+                    <div style={{ display: "flex", gap: 10, overflowX: "auto", margin: "0 -20px", padding: "0 20px 4px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
                       {detSimilar.map((s) => (
-                        <button key={s.title} onClick={() => doAdd(s.title)} style={{ flex: "none", width: 84, background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                        <button key={s.title} onClick={() => doAdd(s.title)} style={{ flex: "none", width: 84, scrollSnapAlign: "start", background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
                           <div style={{ width: 84, aspectRatio: "2 / 3", borderRadius: 10, overflow: "hidden", background: "linear-gradient(150deg,#3a2f52,#1a1526)", position: "relative" }}>
                             {s.poster && <img src={s.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                             <span style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", fontSize: 14, fontWeight: 800, display: "grid", placeItems: "center" }}>+</span>

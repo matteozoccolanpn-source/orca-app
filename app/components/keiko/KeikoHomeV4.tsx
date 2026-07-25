@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import CaptureSheet from "@/components/CaptureSheet";
+import KeikoNav, { PAGE_PB } from "./KeikoNav";
 import EventSheet from "./EventSheet";
 import AskSheet from "./AskSheet";
 import DaySheet from "./DaySheet";
@@ -217,7 +218,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   return (
     <div
       className="ds"
-      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: "0 20px calc(116px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto" }}
+      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: `0 20px ${PAGE_PB}`, maxWidth: 440, margin: "0 auto" }}
     >
       {/* topbar */}
       <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, margin: "0 -20px", padding: "calc(env(safe-area-inset-top) + 12px) 20px 12px", background: "rgba(11,13,18,.82)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
@@ -268,9 +269,9 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
       {inArrivo.length > 0 && (
         <>
           <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "32px 2px 16px", color: "var(--k-text-3)" }}>In arrivo <span style={{ fontWeight: 600, fontSize: 12.5, color: "var(--k-text-3)" }}>· {inArrivo.length}</span></h2>
-          <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -18px", padding: "0 18px 4px" }}>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -18px", padding: "0 18px 4px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
             {inArrivo.map((ev) => (
-              <div key={ev.id} style={{ minWidth: 214, flex: "none" }}>
+              <div key={ev.id} style={{ minWidth: 214, flex: "none", scrollSnapAlign: "start" }}>
                 <EventCard ev={ev} variant="mini" onOpen={() => openEvent(ev)} />
               </div>
             ))}
@@ -325,14 +326,8 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
         </>
       )}
 
-      {/* bottom nav */}
-      <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: 84, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px 18px", maxWidth: 440, margin: "0 auto" }}>
-        <NavItem label="Home" active icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => {}} />
-        <NavItem label="Dieta" icon={<><circle cx="12" cy="12" r="9" /><path d="M12 3v18M3 12h18" /></>} onClick={() => go("/salute")} />
-        <button onClick={() => { if (!demo) setCapture(true); }} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 30, lineHeight: 1, paddingBottom: 2, boxShadow: "0 8px 20px rgba(255,184,77,.28), 0 2px 6px rgba(0,0,0,.4)", marginTop: -24, cursor: "pointer" }}>+</button>
-        <NavItem label="Allenamento" icon={<><path d="M6 12h12M4 9v6M20 9v6M8 8v8M16 8v8" /></>} onClick={() => go("/allenamento")} />
-        <NavItem label="Guarda" icon={<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></>} onClick={() => go("/guarda")} />
-      </nav>
+      {/* bottom nav — barra condivisa (unica implementazione, vedi KeikoNav) */}
+      <KeikoNav active="home" demo={demo} onAdd={() => setCapture(true)} />
 
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
       {selEv && <EventSheet ev={selEv} onClose={closeEvent} demo={demo} onDelete={() => requestDelete("event", selEv.id)} />}
@@ -405,14 +400,5 @@ function EventCard({ ev, variant, onOpen }: { ev: LiveEvent; variant: "hero" | "
       meta={<><span className="k">{ev.when}</span>{ev.location ? ` · ${ev.location.split(",")[0]}` : ""}</>}
       onClick={onOpen}
     />
-  );
-}
-
-function NavItem({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active?: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, minWidth: 44, minHeight: 44, padding: "0 4px", whiteSpace: "nowrap", background: "none", border: 0, color: active ? "var(--k-text)" : "#9BA0A8", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">{icon}</svg>
-      {label}
-    </button>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SheetShell from "./SheetShell";
 
 /* "Chiedi a Keiko" nel design v4: risposta AI (/api/ask) + collegamenti
    rapidi ai tuoi eventi/to-do (/api/search). Riusa le route esistenti. */
@@ -59,7 +60,8 @@ export default function AskSheet({ onClose }: { onClose: () => void }) {
   const hasLinks = res && (res.events.length > 0 || res.todos.length > 0);
 
   return (
-    <div className="ds" style={{ position: "fixed", inset: 0, zIndex: 95, background: "var(--k-bg)", overflowY: "auto", padding: "calc(env(safe-area-inset-top) + 14px) 20px calc(env(safe-area-inset-bottom) + 24px)", maxWidth: 440, margin: "0 auto" }}>
+    <SheetShell onClose={onClose} zIndex={95}>
+      <div style={{ padding: "0 20px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "11px 14px" }}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--k-text-3)" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -101,6 +103,7 @@ export default function AskSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </SheetShell>
   );
 }

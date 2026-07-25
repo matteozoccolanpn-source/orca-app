@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SheetShell from "./SheetShell";
 
 /* Calendario mensile (design v4). ‹ › navigano i mesi. I pallini (eventi/to-do)
    li conosciamo solo per il mese corrente (li calcola il server). Tocca un giorno
@@ -28,13 +29,8 @@ export default function CalendarSheet({
   const shift = (d: number) => setYM(({ y, m }) => { const nm = m + d; return { y: y + Math.floor(nm / 12), m: ((nm % 12) + 12) % 12 }; });
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 91, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-      <div
-        className="ds k-sheet-in"
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 24px)" }}
-      >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 14px" }} />
+    <SheetShell onClose={onClose} zIndex={91}>
+      <div style={{ padding: "0 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
           <button onClick={() => shift(-1)} aria-label="Mese precedente" style={{ background: "none", border: 0, color: "var(--k-text-2)", fontSize: 22, cursor: "pointer", padding: "0 8px" }}>‹</button>
           <h2 style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 600, color: "var(--k-text)", margin: 0, textTransform: "capitalize" }}>{MONTHS[ym.m]} {ym.y}</h2>
@@ -60,6 +56,6 @@ export default function CalendarSheet({
         </div>
         <p style={{ fontSize: 12.5, color: "var(--k-text-3)", textAlign: "center", margin: "14px 0 0" }}>Tocca un giorno per vederlo e aggiungere promemoria.</p>
       </div>
-    </div>
+    </SheetShell>
   );
 }

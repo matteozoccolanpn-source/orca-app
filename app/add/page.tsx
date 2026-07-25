@@ -157,11 +157,27 @@ export default function AddPage() {
 
   return (
     <div className="min-h-screen px-4 pt-8 pb-32">
-      <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold tracking-tight">Aggiungi evento</h1>
-        <p className="text-xs text-muted-foreground/60 mt-1">
-          Carica uno screenshot o scrivi in testo libero
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight">Aggiungi evento</h1>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            Carica uno screenshot o scrivi in testo libero
+          </p>
+        </div>
+        {/* Uscita SEMPRE disponibile: in PWA standalone su iOS il back di sistema
+            non esiste. Se c'è una cattura in corso (foto in preview o form di
+            conferma) il primo tocco la scarta (reset) senza perderla in silenzio;
+            altrimenti torna indietro. */}
+        <button
+          onClick={() => {
+            if (state === 'preview' || state === 'confirming') reset()
+            else router.back()
+          }}
+          aria-label="Chiudi"
+          className="size-11 flex-none grid place-items-center rounded-full bg-muted text-muted-foreground touch-manipulation transition active:scale-95"
+        >
+          <X className="size-5" />
+        </button>
       </div>
 
       {showTabs && (
@@ -170,10 +186,10 @@ export default function AddPage() {
             <button
               key={tab}
               onClick={() => switchTab(tab)}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-200 touch-manipulation ${
                 activeTab === tab
                   ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground/70'
+                  : 'text-muted-foreground [@media(hover:hover)]:hover:text-foreground/70'
               }`}
             >
               {tab === 'foto' ? '📷 Foto' : '✏️ Testo'}
@@ -195,8 +211,8 @@ export default function AddPage() {
             onClick={() => inputRef.current?.click()}
             className="border-2 border-dashed border-border/40 rounded-3xl
                        flex flex-col items-center justify-center gap-4
-                       py-20 px-8 cursor-pointer
-                       hover:border-primary/40 hover:bg-primary/5
+                       py-20 px-8 cursor-pointer touch-manipulation
+                       [@media(hover:hover)]:hover:border-primary/40 [@media(hover:hover)]:hover:bg-primary/5
                        transition-all duration-300"
           >
             <div className="size-16 rounded-full bg-muted flex items-center justify-center">

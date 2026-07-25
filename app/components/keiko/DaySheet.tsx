@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { LiveHome } from "./keikoLive";
+import SheetShell from "./SheetShell";
 
 /* Pannello del giorno (design v4). Mostra eventi + promemoria (to-do) del giorno.
    Le azioni sui to-do (spunta / stella / elimina / aggiungi) le passa la Home
@@ -57,12 +58,10 @@ export default function DaySheet({
   };
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-      <div
-        className="ds k-sheet-in"
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "0 20px calc(env(safe-area-inset-bottom) + 22px)" }}
-      >
+    /* grabber=false: DaySheet ha già la barretta nel suo header sticky (che resta
+       visibile mentre scorri). Il gesto di swipe-giù parte comunque dal pannello. */
+    <SheetShell onClose={onClose} zIndex={90} maxHeight="88vh" grabber={false}>
+      <div style={{ padding: "0 20px" }}>
         <div style={{ position: "sticky", top: 0, background: "var(--k-bg)", paddingTop: 10, zIndex: 2 }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 14px" }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 12 }}>
@@ -132,6 +131,6 @@ export default function DaySheet({
           </div>
         )}
       </div>
-    </div>
+    </SheetShell>
   );
 }

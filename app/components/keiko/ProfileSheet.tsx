@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { checkNotifications, enableNotifications, disableNotifications, isIos } from "@/lib/push-client";
 import ProfiloForm, { type ProfiloValori } from "./ProfiloForm";
+import SheetShell from "./SheetShell";
 
 export default function ProfileSheet({
   name, onName, city, onCity, onClose, logoutAction,
@@ -82,13 +83,8 @@ export default function ProfileSheet({
   }
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 92, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-      <div
-        className="ds k-sheet-in"
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 24px)" }}
-      >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
+    <SheetShell onClose={onClose} zIndex={92}>
+      <div style={{ padding: "0 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
           <div style={{ width: 46, height: 46, borderRadius: "50%", background: "linear-gradient(135deg,#3a2f22,#241d15)", border: "1px solid var(--k-line)", display: "grid", placeItems: "center", fontSize: 20 }}>🐋</div>
           <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--k-text)", margin: 0 }}>Profilo</h2>
@@ -166,6 +162,6 @@ export default function ProfileSheet({
           </form>
         )}
       </div>
-    </div>
+    </SheetShell>
   );
 }

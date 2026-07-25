@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useRef, useState } from "react";
 import "../../keiko.css";
-import KeikoNav from "./KeikoNav";
+import KeikoNav, { PAGE_PB } from "./KeikoNav";
 
 /* "viaggio" non e' un tab con icona sua: e' una sotto-pagina della Home,
    quindi accende "Home" invece di lasciare la barra tutta spenta. */
@@ -48,7 +48,7 @@ export default function KeikoShell({
             <h2>{title}</h2>
             {badge && <span className="vs">{badge}</span>}
           </div>
-          <div className="viewBody" style={{ paddingBottom: "calc(116px + env(safe-area-inset-bottom))" }}>{children}</div>
+          <div className="viewBody" style={{ paddingBottom: PAGE_PB }}>{children}</div>
           <div className={`toast${toast ? " show" : ""}`}>
             <span>{toast?.msg}</span>
             {toast?.action && (
