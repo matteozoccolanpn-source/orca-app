@@ -2,7 +2,7 @@
 
 > Non un rattoppo: la pagina allenamento viene rifatta per passi.
 > Regola: ogni passo è additivo e la build deve restare verde.
-> Aggiornato: 2026-07-25 (fine S4).
+> Aggiornato: 2026-07-25 (fine S5).
 
 ## Perché
 
@@ -23,7 +23,8 @@ volo alle 6:40 e che ieri hai dormito poco. Ma per usarlo servono i dati veri.
 | **S2** | Scheda base generata quando non ce n'è una (`GeneraScheda`) | ✅ |
 | **S3** | **Modello dati delle sedute vere**: `workout_session` + `workout_set` | ✅ |
 | **S4** | **Schermata della sessione live**: apri, segna le serie, chiudi | ✅ |
-| **S5** | Keiko che *legge* questi dati (progressi, consigli incrociati col calendario) | ⬜ |
+| **S5** | **Keiko che *legge* questi dati**: niente più spunte finte, storico sedute | ✅ |
+| **S6** | Consigli incrociati col resto del calendario (volo presto → oggi leggero) | ⬜ |
 
 ## S3 — i dati (commit `24fa4ff`)
 
@@ -59,14 +60,35 @@ volo alle 6:40 e che ieri hai dormito poco. Ma per usarlo servono i dati veri.
 - `app/allenamento/AllenamentoView.tsx` — modifiche additive: nuova prop
   `openSession`, bottone "🏋️ Allenati ora" nell'hero, montaggio del pannello.
 
-### Cosa resta acceso in parallelo (da togliere in S5)
-La lista "Esercizi · tocca per spuntare" con le spunte in `localStorage` è ancora
-lì. Non dà fastidio, ma è la vecchia strada: quando S5 leggerà `workout_set`,
-quella lista va sostituita dai dati veri e il `localStorage` sparisce.
+## S5 — la pagina legge i dati veri
 
-## S5 — cosa manca
+**Il `localStorage` è sparito.** Le spunte per esercizio non esistono più: un
+esercizio è "fatto" se ci sono serie registrate oggi in `workout_set`, punto.
+Il bug per cui spuntavi un esercizio e ne restava spuntato un altro muore qui,
+insieme alla riga di codice che lo causava.
 
-- Progressi per esercizio (grafico o riga secca: "panca +5 kg in 3 settimane").
+- `lib/supabase.ts` — aggiunta `getSessionByDay(day)`: la seduta di **un giorno
+  preciso** (aperta o già chiusa) con dentro le sue serie. `getOpenSession` non
+  bastava: appena finisci l'allenamento la seduta si chiude e la pagina tornava
+  a non sapere più niente di quello che avevi appena fatto.
+- `app/allenamento/page.tsx` — nel `Promise.all` ora ci sono anche
+  `getSessionByDay(oggi)` e `getSessionHistory(8)`. E soprattutto **"l'ultima
+  volta" si legge sul server**, per tutti gli esercizi di oggi in un colpo solo,
+  scartando le serie di oggi stesso (se no "l'ultima volta" ti raccontava la
+  serie che avevi appena finito).
+- `app/allenamento/AllenamentoView.tsx` —
+  - sotto ogni esercizio ora c'è la verità: **"3 serie · 10·10·8 rip · 40 kg"**
+    se l'hai già fatto oggi, altrimenti **"ultima volta: …"**, altrimenti la scheda;
+  - toccare un esercizio apre il pannello **già su quello** (`iniziale`);
+  - l'anello dei progressi conta gli esercizi con almeno una serie vera;
+  - nuovo blocco **"Ultime sedute"**: data, titolo, quante serie, quanti esercizi
+    e i kg complessivi sollevati (`peso × ripetizioni`).
+- `app/allenamento/SessioneLive.tsx` — via la `fetch` di `action:"last"`: adesso
+  `ultimaVolta` arriva come prop dal server. Niente più "cerco l'ultima volta…"
+  ad ogni card aperta, e un effetto client in meno.
+
+## S6 — cosa manca
+
+- Progressi per esercizio nel tempo ("panca +5 kg in 3 settimane").
 - Incrocio col resto: volo presto domani / poco sonno → Keiko propone di alleggerire.
-- Storico sedute (`getSessionHistory` c'è già, nessuno la chiama ancora).
-- Sostituire le spunte `localStorage` con le serie vere.
+- Timer/cronometro della sessione (A1 nel backlog).

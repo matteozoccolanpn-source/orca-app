@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,12 +16,12 @@ import {
   Check,
   Pencil,
 } from "lucide-react";
-import type { WorkoutWeek, WorkoutExercise, WorkoutSession } from "@/lib/supabase";
+import type { WorkoutWeek, WorkoutExercise, WorkoutSession, WorkoutSetRow } from "@/lib/supabase";
 import SessioneLive from "./SessioneLive";
 import { DAY_ORDER, DAY_FULL } from "@/app/components/DietMeal";
 
 const DAY_LABEL: Record<string, string> = { lun: "Lunedì", mar: "Martedì", mer: "Mercoledì", gio: "Giovedì", ven: "Venerdì", sab: "Sabato", dom: "Domenica" };
-import { WorkoutDayCard, currentWeekDates, todayISO } from "@/app/components/WorkoutDay";
+import { WorkoutDayCard, currentWeekDates } from "@/app/components/WorkoutDay";
 import { useKeikoToast } from "@/app/components/keiko/KeikoShell";
 
 type State = "idle" | "parsing" | "success" | "error";
@@ -39,7 +39,10 @@ export default function AllenamentoView({
   weekDone = 0,
   weekPlanned = 0,
   streak = 0,
-  openSession = null,
+  oggiIso = null,
+  sessioneOggi = null,
+  ultimaVolta = {},
+  storicoSedute = [],
   embedded = false,
 }: {
   week: WorkoutWeek | null;
@@ -49,8 +52,15 @@ export default function AllenamentoView({
   weekDone?: number;
   weekPlanned?: number;
   streak?: number;
-  /* S4: seduta di oggi lasciata aperta, da riprendere invece di ricominciare. */
-  openSession?: WorkoutSession | null;
+  /* Data di oggi calcolata sul server: la stessa con cui e' stata letta la seduta.
+     Nella vista dentro lo swipe (embedded) non serve: la ricaviamo dal calendario. */
+  oggiIso?: string | null;
+  /* S5: la seduta di oggi con le serie VERE (aperta o gia' chiusa). */
+  sessioneOggi?: WorkoutSession | null;
+  /* S5: per ogni esercizio di oggi, le serie dell'ultima volta che l'hai fatto. */
+  ultimaVolta?: Record<string, WorkoutSetRow[]>;
+  /* S5: le ultime sedute, per lo storico in fondo alla pagina. */
+  storicoSedute?: WorkoutSession[];
   embedded?: boolean;
 }) {
   const router = useRouter();
@@ -73,12 +83,13 @@ export default function AllenamentoView({
 
   // Monitoraggio: spunte ottimistiche in un Set locale.
   const [trained, setTrained] = useState<Set<string>>(new Set(trainedDays));
-  // Spunta esercizi di oggi: locale/effimero (non c'è backend per singolo esercizio).
-  const [checked, setChecked] = useState<Set<number>>(new Set());
-  // S4: pannello "sto facendo l'allenamento adesso" (serie vere su Supabase).
-  // Se una seduta di oggi e' rimasta aperta, il bottone diventa "Riprendi" e il
-  // pannello riparte da dove eri: le serie gia' segnate sono la' dentro.
+  // S5: le spunte per esercizio NON vivono piu' in localStorage (sparivano
+  // cambiando telefono e non servivano a niente). Adesso un esercizio e' "fatto"
+  // se ci sono serie vere registrate oggi, punto.
+  // `live` = pannello "sto facendo l'allenamento adesso"; `liveIdx` = da quale
+  // esercizio parte aperto.
   const [live, setLive] = useState(false);
+  const [liveIdx, setLiveIdx] = useState<number | null>(null);
   // Modifica scheda (B): sposta sessione, togli/sostituisci/aggiungi esercizi.
   const [editMode, setEditMode] = useState(false);
   const [selDay, setSelDay] = useState<string>("");
@@ -87,8 +98,8 @@ export default function AllenamentoView({
   const weekDates = currentWeekDates();
 
   // Oggi (dati reali)
-  const todayIso = todayISO();
   const todayDate = weekDates.find((d) => d.isToday);
+  const todayIso = oggiIso ?? todayDate?.iso ?? "";
   const todayKey = todayDate?.key ?? "";
   const todayDay = week?.[todayKey];
   const todayExercises = todayDay?.esercizi ?? [];
@@ -100,17 +111,19 @@ export default function AllenamentoView({
   const activeDayData = week?.[activeDay];
   const activeExercises = activeDayData?.esercizi ?? [];
 
-  // Ricarica le spunte esercizi di oggi salvate in locale (così persistono al refresh).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`keiko-workout-checked-${todayIso}`);
-      if (raw) setChecked(new Set<number>(JSON.parse(raw)));
-    } catch { /* no-op */ }
-  }, [todayIso]);
+  // Le serie di oggi, raggruppate per esercizio: e' la verita' su cosa hai fatto.
+  const serieOggi = new Map<string, WorkoutSetRow[]>();
+  for (const st of sessioneOggi?.sets ?? []) {
+    serieOggi.set(st.esercizio, [...(serieOggi.get(st.esercizio) ?? []), st]);
+  }
 
-  // Anello progressi: esercizi spuntati su totale di oggi.
+  // Seduta di oggi ancora aperta = l'hai iniziata e non chiusa: il bottone
+  // grande dice "riprendi" invece di "allenati ora".
+  const sedutaAperta = sessioneOggi && !sessioneOggi.endedAt ? sessioneOggi : null;
+
+  // Anello progressi: esercizi con almeno una serie registrata, su totale di oggi.
   const total = todayExercises.length;
-  const doneCount = total > 0 ? [...checked].filter((i) => i < total).length : 0;
+  const doneCount = todayExercises.filter((ex) => (serieOggi.get(ex.nome)?.length ?? 0) > 0).length;
   const ringP = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   function resetSelection() {
@@ -174,18 +187,15 @@ export default function AllenamentoView({
     }
   }
 
-  // "✓ Fatto oggi" del vHero → segna il giorno E sincronizza gli esercizi
-  // (tutti spuntati / tutti azzerati), così badge e streak restano coerenti.
+  // "✓ Fatto oggi" del vHero → segna il giorno sul calendario. Non tocca le
+  // serie: quelle si registrano dentro il pannello, e restano quello che sono.
   function fattoOggi() {
     const willBe = !trained.has(todayIso);
     toggleTrained(todayIso);
-    const next = willBe ? new Set<number>(Array.from({ length: total }, (_, i) => i)) : new Set<number>();
-    setChecked(next);
-    try { localStorage.setItem(`keiko-workout-checked-${todayIso}`, JSON.stringify([...next])); } catch { /* no-op */ }
     toast(willBe ? "Allenamento fatto ✓💪" : "Segnato come da fare");
   }
 
-  // S4: la seduta live e' finita → chiudo il pannello, segno il giorno come
+  // La seduta live e' finita → chiudo il pannello, segno il giorno come
   // allenato (se non lo era) e ricarico, cosi' anello, streak e settimana
   // raccontano subito la stessa cosa.
   function sessioneFinita() {
@@ -197,18 +207,17 @@ export default function AllenamentoView({
 
   // "Riprogramma / sposta sessione" arriverà su Supabase (post-demo): niente bottone finto per ora.
 
-  // Spunta un esercizio → persiste in locale e, se completi tutto, segna il giorno come allenato.
-  function toggleExercise(i: number) {
-    const next = new Set(checked);
-    if (next.has(i)) next.delete(i);
-    else next.add(i);
-    setChecked(next);
-    try { localStorage.setItem(`keiko-workout-checked-${todayIso}`, JSON.stringify([...next])); } catch { /* no-op */ }
-    const doneNow = [...next].filter((n) => n < total).length;
-    if (total > 0 && doneNow === total && !trained.has(todayIso)) {
-      toggleTrained(todayIso);
-      toast("Allenamento completato ✓💪");
-    }
+  // Tocchi un esercizio nell'elenco → si apre il pannello gia' su quello.
+  function apriEsercizio(i: number) {
+    setLiveIdx(i);
+    setLive(true);
+  }
+
+  // Chiudo il pannello senza finire: ricarico comunque, cosi' l'elenco qui sotto
+  // mostra subito le serie appena registrate.
+  function chiudiLive() {
+    setLive(false);
+    router.refresh();
   }
 
   function startEdit() {
@@ -310,10 +319,10 @@ export default function AllenamentoView({
                      e' quello che vuoi toccare quando entri in palestra. */
                   <button
                     className="chipA"
-                    onClick={() => setLive(true)}
+                    onClick={() => { setLiveIdx(null); setLive(true); }}
                     style={{ background: "var(--accent)", color: "#20170A", minHeight: 44 }}
                   >
-                    {openSession ? "▶︎ Riprendi allenamento" : "🏋️ Allenati ora"}
+                    {sedutaAperta ? "▶︎ Riprendi allenamento" : "🏋️ Allenati ora"}
                   </button>
                 )}
                 {todayIsTraining && (
@@ -333,8 +342,10 @@ export default function AllenamentoView({
                 day={todayIso}
                 titolo={todayDay?.titolo?.trim() || null}
                 esercizi={todayExercises}
-                open={openSession ?? null}
-                onClose={() => setLive(false)}
+                open={sessioneOggi}
+                ultimaVolta={ultimaVolta}
+                iniziale={liveIdx}
+                onClose={chiudiLive}
                 onFinita={sessioneFinita}
               />
             )}
@@ -359,21 +370,30 @@ export default function AllenamentoView({
             {/* ---------- Esercizi di oggi ---------- */}
             {todayIsTraining && (
               <>
-                <div className="agLbl">Esercizi · tocca per spuntare</div>
+                <div className="agLbl">Esercizi · tocca per segnare le serie</div>
                 {todayExercises.map((ex, i) => {
-                  const d = checked.has(i);
+                  const mie = serieOggi.get(ex.nome) ?? [];
+                  const d = mie.length > 0;
+                  const prec = ultimaVolta[ex.nome] ?? [];
+                  const rOggi = riassunto(mie);
+                  // Sotto il nome: se oggi hai gia' segnato qualcosa vince quello,
+                  // altrimenti il promemoria dell'ultima volta, altrimenti la scheda.
+                  const sotto = d
+                    ? `${mie.length} ${mie.length === 1 ? "serie" : "serie"}${rOggi ? ` · ${rOggi}` : ""}`
+                    : prec.length > 0
+                      ? `ultima volta: ${riassunto(prec)}`
+                      : ex.dettaglio;
                   return (
                     <div
                       key={i}
                       className={`pRow${d ? " done" : ""}`}
                       role="button"
-                      aria-pressed={d}
-                      onClick={() => toggleExercise(i)}
+                      onClick={() => apriEsercizio(i)}
                     >
                       <Dumbbell className="pi" style={{ width: 20, height: 20, color: "var(--accent)" }} />
                       <div className="pt">
                         <b>{ex.nome}</b>
-                        {ex.dettaglio && <small>{ex.dettaglio}</small>}
+                        {sotto && <small>{sotto}</small>}
                       </div>
                       {d && <Check style={{ width: 17, height: 17, flex: "none", color: "var(--accent)" }} />}
                     </div>
@@ -435,6 +455,34 @@ export default function AllenamentoView({
                     <button className="btn acc" style={{ width: "100%" }} disabled={savingWeek} onClick={commitExercises}>{savingWeek ? "Salvo…" : "Salva modifiche"}</button>
                   </div>
                 )}
+              </>
+            )}
+
+            {/* ---------- Ultime sedute (S5) ----------
+                 Non e' una lista di spunte: e' quello che hai davvero sollevato.
+                 Arriva da workout_session/workout_set, quindi la vedi uguale su
+                 qualsiasi telefono. */}
+            {storicoSedute.length > 0 && (
+              <>
+                <div className="agLbl">Ultime sedute</div>
+                {storicoSedute.map((sd) => {
+                  const nEx = new Set(sd.sets.map((x) => x.esercizio)).size;
+                  const volume = sd.sets.reduce((t, x) => t + (x.pesoKg ?? 0) * (x.ripetizioni ?? 0), 0);
+                  return (
+                    <div key={sd.id} className="pRow" style={{ cursor: "default" }}>
+                      <Dumbbell className="pi" style={{ width: 20, height: 20, color: "var(--accent)" }} />
+                      <div className="pt">
+                        <b>{(sd.titolo?.trim() || "Allenamento") + " · " + dataCorta(sd.day)}</b>
+                        <small>
+                          {sd.sets.length === 0
+                            ? "nessuna serie segnata"
+                            : `${sd.sets.length} serie · ${nEx} eserciz${nEx === 1 ? "io" : "i"}${volume > 0 ? ` · ${Math.round(volume).toLocaleString("it-IT")} kg sollevati` : ""}`}
+                          {sd.endedAt ? "" : " · in corso"}
+                        </small>
+                      </div>
+                    </div>
+                  );
+                })}
               </>
             )}
 
@@ -1078,6 +1126,28 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
       </button>
     </div>
   );
+}
+
+/* Un riassunto corto di un gruppo di serie: "10·10·8 rip · 40 kg".
+   Le caselle vuote restano vuote: se un esercizio non ha peso (corsa, plank)
+   non inventiamo uno zero. */
+function riassunto(rows: WorkoutSetRow[]): string {
+  const numeri = (v: (number | null)[]) => v.filter((n): n is number => typeof n === "number" && n > 0);
+  const rip = numeri(rows.map((r) => r.ripetizioni));
+  const kg = numeri(rows.map((r) => r.pesoKg));
+  const sec = numeri(rows.map((r) => r.secondi));
+  const parti: string[] = [];
+  if (rip.length > 0) parti.push(`${rip.join("·")} rip`);
+  if (kg.length > 0) parti.push(`${Math.max(...kg)} kg`);
+  if (parti.length === 0 && sec.length > 0) parti.push(`${Math.max(1, Math.round(Math.max(...sec) / 60))} min`);
+  return parti.join(" · ");
+}
+
+/* "2026-07-21" -> "mar 21 lug" (senza passare da UTC: la data e' gia' locale). */
+function dataCorta(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" });
 }
 
 function formatUpdated(iso: string): string {

@@ -20,7 +20,7 @@
 
 **⬜ RESTA DA FARE (niente dimenticato):**
 - **N2/benchmark**: **D2** macro-calorie dieta (⏸️ PAUSA — scegliere fonte Spoonacular/Edamam); Guarda "quanti visti questo mese" (ora `seen_at` c'è → fattibile).
-- **Allenamento**: **A1** timer/cronometro sessione · **A2** ✅ risultati per esercizio (kg/rip) + "l'ultima volta" — fatto con il rework S3/S4, vedi `docs/REWORK-ALLENAMENTO.md`; resta lo **storico/progressi** (S5) · **A3** immagini esercizi affidabili (ExerciseDB) — ora fallback generico.
+- **Allenamento**: **A1** timer/cronometro sessione · **A2** ✅ risultati per esercizio (kg/rip) + "l'ultima volta" + storico sedute — fatto con il rework S3/S4/S5, vedi `docs/REWORK-ALLENAMENTO.md`; le spunte `localStorage` non esistono più; resta l'**incrocio col calendario** (S6) · **A3** immagini esercizi affidabili (ExerciseDB) — ora fallback generico.
 - **Dieta**: **D2** (sopra) · **D3** vista giornata completa pasti + **lista spesa**.
 - **Eventi/To-do**: **E2** to-do "vedi gara/partita" arricchiti come i film · **E3** sport arricchito (risultato/orario/dove vederla) · **E4** "quando uscire" (Google Directions + meteo → notifica).
 - **Trasversali**: **X3** ampliare profilo (unità, anticipo default, tema) · **X5** anteprima evento prima di salvare · **X6** onboarding primo avvio · **X7** pulizia dato demo (azione utente) · **X8** meteo da venue/indirizzo.

@@ -3,7 +3,11 @@ import ProfiloSetup from "./ProfiloSetup";
 import GeneraScheda from "./GeneraScheda";
 import { requireLogin } from "@/lib/require-login";
 import KeikoShell from "@/app/components/keiko/KeikoShell";
-import { getWorkoutPlan, getTrainedDays, getProfile, getOpenSession, type WorkoutWeek } from "@/lib/supabase";
+import {
+  getWorkoutPlan, getTrainedDays, getProfile,
+  getSessionByDay, getSessionHistory, getLastPerformance,
+  type WorkoutWeek, type WorkoutSetRow,
+} from "@/lib/supabase";
 import { exerciseImage } from "@/lib/wger";
 import { unsplashPhoto } from "@/lib/unsplash";
 
@@ -51,22 +55,39 @@ function weekStats(days: string[], week: WorkoutWeek | null): { done: number; pl
   return { done, planned };
 }
 
+// Oggi in formato YYYY-MM-DD, ora locale (Europe/Rome), come il resto dell'app.
+function oggiISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default async function AllenamentoPage() {
   await requireLogin();
-  const [plan, trainedDays, profile, apertaRaw] = await Promise.all([
+  const oggiIso = oggiISO();
+  const [plan, trainedDays, profile, sessioneOggi, storicoSedute] = await Promise.all([
     getWorkoutPlan(),
     getTrainedDays(),
     getProfile(),
-    getOpenSession(),   // S4: seduta lasciata a meta' (telefono bloccato fra due serie)
+    getSessionByDay(oggiIso),   // S5: cosa ho fatto DAVVERO oggi (serie vere)
+    getSessionHistory(8),       // S5: le ultime sedute, per lo storico in fondo
   ]);
   // C'è una scheda vera? (almeno un giorno con esercizi) — decide se offrire la generazione (S2)
   const hasPlan = !!plan?.week && Object.values(plan.week).some((d) => (d?.esercizi?.length ?? 0) > 0);
   const streak = computeStreak(trainedDays, plan?.week ?? null);
-  // Si riprende solo una seduta di OGGI: una rimasta aperta tre giorni fa
-  // non e' un allenamento in corso, e' una dimenticanza.
-  const oggiIso = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
-  const openSession = apertaRaw && apertaRaw.day === oggiIso ? apertaRaw : null;
   const wk = weekStats(trainedDays, plan?.week ?? null);
+
+  // "L'ultima volta che hai fatto questo esercizio": lo chiediamo QUI, sul
+  // server, per tutti gli esercizi di oggi in una volta sola. Cosi' quando apri
+  // il pannello il dato c'e' gia', senza attese e senza chiamate dal telefono.
+  const eserciziOggi = plan?.week?.[WD[new Date().getDay()]]?.esercizi ?? [];
+  const nomiOggi = [...new Set(eserciziOggi.map((e) => e.nome).filter(Boolean))];
+  const ultimaVolta: Record<string, WorkoutSetRow[]> = {};
+  (await Promise.all(nomiOggi.map((n) => getLastPerformance(n)))).forEach((righe, i) => {
+    // Se le uniche serie trovate sono quelle di oggi non e' "l'altra volta":
+    // in quel caso meglio non dire niente che dire una cosa falsa.
+    const passate = righe.filter((r) => !(sessioneOggi?.sets ?? []).some((s) => s.id === r.id));
+    if (passate.length > 0) ultimaVolta[nomiOggi[i]] = passate;
+  });
   // foto dell'esercizio di oggi (o palestra generica) dietro l'hero; null → gradiente
   const todayEx = plan?.week?.[WD[new Date().getDay()]]?.esercizi?.[0]?.nome ?? null;
   const heroImage = (todayEx ? await exerciseImage(todayEx) : null) ?? (await unsplashPhoto("gym workout fitness"));
@@ -89,7 +110,10 @@ export default async function AllenamentoPage() {
         heroImage={heroImage}
         weekDone={wk.done}
         weekPlanned={wk.planned}
-        openSession={openSession}
+        oggiIso={oggiIso}
+        sessioneOggi={sessioneOggi}
+        ultimaVolta={ultimaVolta}
+        storicoSedute={storicoSedute}
       />
     </KeikoShell>
   );

@@ -14,7 +14,7 @@
  * Tabelle: workout_session / workout_set. Rotta: /api/workout/session.
  * ========================================================================== */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Plus, Minus, Check, Trash2, Loader2, History } from "lucide-react";
 import type { WorkoutSession, WorkoutSetRow } from "@/lib/supabase";
@@ -26,13 +26,21 @@ export default function SessioneLive({
   titolo,
   esercizi,
   open,
+  ultimaVolta,
+  iniziale = null,
   onClose,
   onFinita,
 }: {
   day: string;                       // YYYY-MM-DD di oggi
   titolo: string | null;             // titolo della sessione di oggi ("Petto e tricipiti")
   esercizi: Esercizio[];             // gli esercizi previsti oggi dalla scheda
-  open: WorkoutSession | null;       // seduta gia' aperta (ripresa), se c'e'
+  open: WorkoutSession | null;       // seduta di oggi (aperta o gia' chiusa), se c'e'
+  /* S5: "l'ultima volta" arriva gia' pronta dal server, per tutti gli esercizi
+     di oggi in un colpo solo. Prima la chiedevamo qui, un esercizio alla volta,
+     e sotto la scritta "cerco l'ultima volta..." c'era mezzo secondo di attesa
+     ogni volta che aprivi una card. */
+  ultimaVolta: Record<string, WorkoutSetRow[]>;
+  iniziale?: number | null;          // esercizio da aprire subito (hai toccato quello)
   onClose: () => void;
   onFinita: () => void;              // il genitore segna il giorno come allenato
 }) {
@@ -41,20 +49,23 @@ export default function SessioneLive({
   // lascia in giro sedute vuote).
   const [sessionId, setSessionId] = useState<string | null>(open?.id ?? null);
   const [sets, setSets] = useState<WorkoutSetRow[]>(open?.sets ?? []);
-  const [apertoIdx, setApertoIdx] = useState<number | null>(null);
+
+  // Se hai toccato un esercizio nell'elenco, il pannello si apre gia' su quello.
+  const idxIniziale =
+    typeof iniziale === "number" && iniziale >= 0 && iniziale < esercizi.length ? iniziale : null;
+  const [apertoIdx, setApertoIdx] = useState<number | null>(idxIniziale);
   const [salvo, setSalvo] = useState(false);
   const [chiudo, setChiudo] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
-  // "L'ultima volta": chiave = nome esercizio. Manca = non ancora arrivato.
-  const [storico, setStorico] = useState<Record<string, WorkoutSetRow[]>>({});
-  // Quali esercizi ho gia' chiesto: in un ref e non nello stato, cosi' evitare
-  // la doppia richiesta non costa un altro giro di disegno.
-  const chiesti = useRef<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Caselle precompilate: se sto riprendendo una seduta riparto dall'ultima serie
-  // segnata, altrimenti da valori neutri. Poi si adattano all'esercizio che apri.
-  const rifIniziale = ultima(open?.sets ?? []);
+  // Caselle precompilate: l'ultima serie che hai segnato oggi su quell'esercizio,
+  // se no l'ultima volta che l'hai fatto, se no valori neutri.
+  const nomeIniziale = idxIniziale !== null ? esercizi[idxIniziale].nome : null;
+  const rifIniziale =
+    (nomeIniziale ? ultima((open?.sets ?? []).filter((s) => s.esercizio === nomeIniziale)) : null) ??
+    (nomeIniziale ? ultima(ultimaVolta[nomeIniziale] ?? []) : null) ??
+    ultima(open?.sets ?? []);
   const [reps, setReps] = useState<number>(rifIniziale?.ripetizioni ?? 10);
   const [kg, setKg] = useState<number>(rifIniziale?.pesoKg ?? 0);
 
@@ -67,45 +78,18 @@ export default function SessioneLive({
 
   const esercizioAperto = apertoIdx !== null ? esercizi[apertoIdx] : null;
 
-  /* --- l'ultima volta che hai fatto questo esercizio --------------------
-   * `precompila` = riempi anche le caselle quando la risposta arriva. Vale solo
-   * se oggi non hai ancora segnato niente per quell'esercizio: se hai gia' fatto
-   * una serie, il riferimento buono e' quella, non il mese scorso. */
-  const chiediStorico = useCallback(async (nome: string, precompila: boolean) => {
-    if (chiesti.current.has(nome)) return;
-    chiesti.current.add(nome);
-    let righe: WorkoutSetRow[] = [];
-    try {
-      const r = await fetch("/api/workout/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "last", esercizio: nome }),
-      });
-      const j = await r.json();
-      righe = Array.isArray(j.sets) ? j.sets : [];
-    } catch {
-      righe = [];
-    }
-    setStorico((s) => ({ ...s, [nome]: righe }));
-    const u = ultima(righe);
-    if (precompila && u) {
-      if (u.ripetizioni) setReps(u.ripetizioni);
-      if (u.pesoKg !== null) setKg(u.pesoKg);
-    }
-  }, []);
-
-  /* --- apri/chiudi un esercizio e precompila le caselle ------------------ */
+  /* --- apri/chiudi un esercizio e precompila le caselle ------------------
+   * Il riferimento buono e' l'ultima serie di oggi; se oggi non hai ancora
+   * segnato niente, quella dell'ultima volta. Niente attesa: e' gia' qui. */
   function apri(i: number) {
     if (apertoIdx === i) { setApertoIdx(null); return; }
     setApertoIdx(i);
     const nome = esercizi[i].nome;
-    const oggi = ultima(sets.filter((s) => s.esercizio === nome));
-    const base = oggi ?? ultima(storico[nome] ?? []);
+    const base = ultima(sets.filter((s) => s.esercizio === nome)) ?? ultima(ultimaVolta[nome] ?? []);
     if (base) {
       if (base.ripetizioni) setReps(base.ripetizioni);
       if (base.pesoKg !== null) setKg(base.pesoKg);
     }
-    void chiediStorico(nome, !oggi && !base);
   }
 
   /* --- registra una serie ---------------------------------------------- */
@@ -228,7 +212,7 @@ export default function SessioneLive({
         {esercizi.map((ex, i) => {
           const mie = sets.filter((s) => s.esercizio === ex.nome);
           const aperto = apertoIdx === i;
-          const prec = storico[ex.nome];
+          const prec = ultimaVolta[ex.nome] ?? [];
           return (
             <div key={`${ex.nome}-${i}`} style={{ ...S.card, ...(aperto ? S.cardAperta : null) }}>
               <button
@@ -250,9 +234,8 @@ export default function SessioneLive({
                   {/* l'ultima volta */}
                   <div style={S.ultima}>
                     <History style={{ width: 14, height: 14, flex: "none" }} />
-                    {prec === undefined && <span>cerco l&apos;ultima volta…</span>}
-                    {prec !== undefined && prec.length === 0 && <span>prima volta che lo segni</span>}
-                    {prec !== undefined && prec.length > 0 && (
+                    {prec.length === 0 && <span>prima volta che lo segni</span>}
+                    {prec.length > 0 && (
                       <span>
                         l&apos;ultima volta: {prec.map((s) => s.ripetizioni ?? "–").join(" · ")} rip
                         {prec.some((s) => s.pesoKg !== null) ? ` · ${maxKg(prec)} kg` : ""}

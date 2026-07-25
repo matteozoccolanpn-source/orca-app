@@ -463,6 +463,32 @@ export async function getOpenSession(): Promise<WorkoutSession | null> {
   return toSession(data, (sets ?? []).map(toSet));
 }
 
+/** La seduta di UN giorno preciso (aperta o gia' chiusa), con le sue serie.
+ *  Serve alla pagina allenamento per mostrare cosa hai fatto DAVVERO oggi,
+ *  invece delle vecchie spunte che vivevano solo dentro un telefono. */
+export async function getSessionByDay(day: string): Promise<WorkoutSession | null> {
+  const client = await db();
+  const { data, error } = await client
+    .from("workout_session")
+    .select("id, day, titolo, started_at, ended_at, sensazione, note")
+    .eq("day", day)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("Supabase: failed to fetch session by day:", error.message);
+    return null;
+  }
+  if (!data) return null;
+
+  const { data: sets } = await client
+    .from("workout_set")
+    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .eq("session_id", data.id)
+    .order("created_at", { ascending: true });
+  return toSession(data, (sets ?? []).map(toSet));
+}
+
 /** Le ultime sedute, dalla piu' recente, con le serie dentro. */
 export async function getSessionHistory(limit = 10): Promise<WorkoutSession[]> {
   const client = await db();
