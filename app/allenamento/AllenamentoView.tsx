@@ -16,7 +16,8 @@ import {
   Check,
   Pencil,
 } from "lucide-react";
-import type { WorkoutWeek, WorkoutExercise } from "@/lib/supabase";
+import type { WorkoutWeek, WorkoutExercise, WorkoutSession } from "@/lib/supabase";
+import SessioneLive from "./SessioneLive";
 import { DAY_ORDER, DAY_FULL } from "@/app/components/DietMeal";
 
 const DAY_LABEL: Record<string, string> = { lun: "Lunedì", mar: "Martedì", mer: "Mercoledì", gio: "Giovedì", ven: "Venerdì", sab: "Sabato", dom: "Domenica" };
@@ -38,6 +39,7 @@ export default function AllenamentoView({
   weekDone = 0,
   weekPlanned = 0,
   streak = 0,
+  openSession = null,
   embedded = false,
 }: {
   week: WorkoutWeek | null;
@@ -47,6 +49,8 @@ export default function AllenamentoView({
   weekDone?: number;
   weekPlanned?: number;
   streak?: number;
+  /* S4: seduta di oggi lasciata aperta, da riprendere invece di ricominciare. */
+  openSession?: WorkoutSession | null;
   embedded?: boolean;
 }) {
   const router = useRouter();
@@ -71,6 +75,10 @@ export default function AllenamentoView({
   const [trained, setTrained] = useState<Set<string>>(new Set(trainedDays));
   // Spunta esercizi di oggi: locale/effimero (non c'è backend per singolo esercizio).
   const [checked, setChecked] = useState<Set<number>>(new Set());
+  // S4: pannello "sto facendo l'allenamento adesso" (serie vere su Supabase).
+  // Se una seduta di oggi e' rimasta aperta, il bottone diventa "Riprendi" e il
+  // pannello riparte da dove eri: le serie gia' segnate sono la' dentro.
+  const [live, setLive] = useState(false);
   // Modifica scheda (B): sposta sessione, togli/sostituisci/aggiungi esercizi.
   const [editMode, setEditMode] = useState(false);
   const [selDay, setSelDay] = useState<string>("");
@@ -175,6 +183,16 @@ export default function AllenamentoView({
     setChecked(next);
     try { localStorage.setItem(`keiko-workout-checked-${todayIso}`, JSON.stringify([...next])); } catch { /* no-op */ }
     toast(willBe ? "Allenamento fatto ✓💪" : "Segnato come da fare");
+  }
+
+  // S4: la seduta live e' finita → chiudo il pannello, segno il giorno come
+  // allenato (se non lo era) e ricarico, cosi' anello, streak e settimana
+  // raccontano subito la stessa cosa.
+  function sessioneFinita() {
+    setLive(false);
+    if (!trained.has(todayIso)) toggleTrained(todayIso);
+    toast("Allenamento salvato 💪");
+    router.refresh();
   }
 
   // "Riprogramma / sposta sessione" arriverà su Supabase (post-demo): niente bottone finto per ora.
@@ -287,6 +305,18 @@ export default function AllenamentoView({
               </div>
               <div className="vActs">
                 {todayIsTraining && (
+                  /* L'azione principale della giornata: qui dentro si segnano le
+                     serie vere, non una spunta. Sta prima di "Fatto oggi" perche'
+                     e' quello che vuoi toccare quando entri in palestra. */
+                  <button
+                    className="chipA"
+                    onClick={() => setLive(true)}
+                    style={{ background: "var(--accent)", color: "#20170A", minHeight: 44 }}
+                  >
+                    {openSession ? "▶︎ Riprendi allenamento" : "🏋️ Allenati ora"}
+                  </button>
+                )}
+                {todayIsTraining && (
                   <button
                     className="chipA"
                     onClick={fattoOggi}
@@ -297,6 +327,17 @@ export default function AllenamentoView({
                 )}
               </div>
             </div>
+
+            {live && (
+              <SessioneLive
+                day={todayIso}
+                titolo={todayDay?.titolo?.trim() || null}
+                esercizi={todayExercises}
+                open={openSession ?? null}
+                onClose={() => setLive(false)}
+                onFinita={sessioneFinita}
+              />
+            )}
 
             {weekPlanned > 0 && (
               /* Card settimana con anello progressi + streak (review 24/07 #2/#5):
