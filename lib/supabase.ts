@@ -310,6 +310,215 @@ export async function setTrainedDay(day: string, done: boolean): Promise<void> {
   }
 }
 
+/* ---------------------- SEDUTE VERE (S3) ----------------------------------
+ * `workout_plan` dice cosa DOVREI fare, `workout_log` dice SE mi sono allenato.
+ * Qui sotto c'e' cosa ho fatto DAVVERO: seduta per seduta, serie per serie.
+ * Tutto aggiuntivo — le funzioni qui sopra non cambiano di una virgola.
+ * Tabelle: docs/sql/allenamento_sessioni.sql (da eseguire su Supabase).
+ * -------------------------------------------------------------------------- */
+
+export interface WorkoutSetRow {
+  id: string;
+  esercizio: string;
+  serie: number | null;
+  ripetizioni: number | null;
+  pesoKg: number | null;
+  secondi: number | null;
+  fatica: number | null;
+  createdAt: string;
+}
+
+export interface WorkoutSession {
+  id: string;
+  day: string;                 // YYYY-MM-DD
+  titolo: string | null;
+  startedAt: string;
+  endedAt: string | null;      // null = seduta ancora aperta
+  sensazione: string | null;
+  note: string | null;
+  sets: WorkoutSetRow[];
+}
+
+/** Input di una serie. Tutto facoltativo tranne il nome dell'esercizio:
+ *  la corsa non ha ripetizioni, il plank non ha peso, il corpo libero neanche. */
+export interface WorkoutSetInput {
+  esercizio: string;
+  serie?: number;
+  ripetizioni?: number;
+  pesoKg?: number;
+  secondi?: number;
+  fatica?: number;             // 1-10
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function toSet(r: any): WorkoutSetRow {
+  return {
+    id: r.id as string,
+    esercizio: (r.esercizio as string) ?? "",
+    serie: r.serie ?? null,
+    ripetizioni: r.ripetizioni ?? null,
+    pesoKg: r.peso_kg === null || r.peso_kg === undefined ? null : Number(r.peso_kg),
+    secondi: r.secondi ?? null,
+    fatica: r.fatica ?? null,
+    createdAt: (r.created_at as string) ?? "",
+  };
+}
+
+function toSession(r: any, sets: WorkoutSetRow[]): WorkoutSession {
+  return {
+    id: r.id as string,
+    day: (r.day as string) ?? "",
+    titolo: (r.titolo as string) ?? null,
+    startedAt: (r.started_at as string) ?? "",
+    endedAt: (r.ended_at as string) ?? null,
+    sensazione: (r.sensazione as string) ?? null,
+    note: (r.note as string) ?? null,
+    sets,
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/** Apre una seduta e restituisce il suo id (serve per attaccarci le serie).
+ *  Se ce n'e' gia' una aperta oggi la riusa, cosi' chiudere l'app e riaprirla
+ *  non crea due sedute per lo stesso allenamento. */
+export async function startSession(day: string, titolo?: string): Promise<string> {
+  const client = await db();
+  const aperta = await getOpenSession();
+  if (aperta && aperta.day === day) return aperta.id;
+
+  const { data, error } = await client
+    .from("workout_session")
+    .insert({ day, titolo: titolo ?? null, user_id: await currentUserId() })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
+
+/** Registra una serie dentro una seduta. Restituisce l'id della serie
+ *  (serve se poi la vuoi correggere o cancellare). */
+export async function logSet(sessionId: string, set: WorkoutSetInput): Promise<string> {
+  const { data, error } = await (await db())
+    .from("workout_set")
+    .insert({
+      session_id: sessionId,
+      user_id: await currentUserId(),
+      esercizio: set.esercizio,
+      serie: set.serie ?? null,
+      ripetizioni: set.ripetizioni ?? null,
+      peso_kg: set.pesoKg ?? null,
+      secondi: set.secondi ?? null,
+      fatica: set.fatica ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
+
+/** Cancella una serie sbagliata (capita di battere 400 invece di 40). */
+export async function deleteSet(setId: string): Promise<void> {
+  const { error } = await (await db()).from("workout_set").delete().eq("id", setId);
+  if (error) throw new Error(error.message);
+}
+
+/** Chiude la seduta. `sensazione` e `note` sono facoltative. */
+export async function endSession(
+  sessionId: string,
+  extra?: { sensazione?: string; note?: string },
+): Promise<void> {
+  const { error } = await (await db())
+    .from("workout_session")
+    .update({
+      ended_at: new Date().toISOString(),
+      ...(extra?.sensazione !== undefined ? { sensazione: extra.sensazione } : {}),
+      ...(extra?.note !== undefined ? { note: extra.note } : {}),
+    })
+    .eq("id", sessionId);
+  if (error) throw new Error(error.message);
+}
+
+/** La seduta ancora aperta (ended_at vuoto), se c'e'. Con le sue serie dentro,
+ *  cosi' riaprendo l'app ritrovi l'allenamento dove l'avevi lasciato. */
+export async function getOpenSession(): Promise<WorkoutSession | null> {
+  const client = await db();
+  const { data, error } = await client
+    .from("workout_session")
+    .select("id, day, titolo, started_at, ended_at, sensazione, note")
+    .is("ended_at", null)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("Supabase: failed to fetch open session:", error.message);
+    return null;
+  }
+  if (!data) return null;
+
+  const { data: sets } = await client
+    .from("workout_set")
+    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .eq("session_id", data.id)
+    .order("created_at", { ascending: true });
+  return toSession(data, (sets ?? []).map(toSet));
+}
+
+/** Le ultime sedute, dalla piu' recente, con le serie dentro. */
+export async function getSessionHistory(limit = 10): Promise<WorkoutSession[]> {
+  const client = await db();
+  const { data, error } = await client
+    .from("workout_session")
+    .select("id, day, titolo, started_at, ended_at, sensazione, note")
+    .order("day", { ascending: false })
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("Supabase: failed to fetch session history:", error.message);
+    return [];
+  }
+  const sessions = data ?? [];
+  if (sessions.length === 0) return [];
+
+  // Una sola query per tutte le serie delle sedute trovate, poi le smisto:
+  // meglio di N query, una per seduta.
+  const { data: sets } = await client
+    .from("workout_set")
+    .select("id, session_id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .in("session_id", sessions.map((s) => s.id))
+    .order("created_at", { ascending: true });
+
+  const perSessione = new Map<string, WorkoutSetRow[]>();
+  for (const r of sets ?? []) {
+    const lista = perSessione.get(r.session_id as string) ?? [];
+    lista.push(toSet(r));
+    perSessione.set(r.session_id as string, lista);
+  }
+  return sessions.map((s) => toSession(s, perSessione.get(s.id as string) ?? []));
+}
+
+/** L'ultima volta che hai fatto QUESTO esercizio: le serie di quella volta.
+ *  E' la funzione che permette a Keiko di dirti "l'altra volta 3x8 con 40 kg"
+ *  mentre stai per iniziare, invece di lasciarti tirare a indovinare. */
+export async function getLastPerformance(esercizio: string): Promise<WorkoutSetRow[]> {
+  const client = await db();
+  const { data, error } = await client
+    .from("workout_set")
+    .select("session_id, created_at")
+    .eq("esercizio", esercizio)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return [];
+
+  const { data: sets } = await client
+    .from("workout_set")
+    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .eq("session_id", data.session_id)
+    .eq("esercizio", esercizio)
+    .order("created_at", { ascending: true });
+  return (sets ?? []).map(toSet);
+}
+
 /* ===================== INCASTRI (viaggi) ===================== */
 // Ponte tra la logica pura (lib/incastri.ts) e il database:
 // legge i biglietti futuri, rileva i cluster "viaggio", e salva quelli che
