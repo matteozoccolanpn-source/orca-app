@@ -17,6 +17,7 @@ import {
   Pencil,
 } from "lucide-react";
 import type { WorkoutWeek, WorkoutExercise, WorkoutSession, WorkoutSetRow } from "@/lib/supabase";
+import type { Consiglio } from "@/lib/coach";
 import SessioneLive from "./SessioneLive";
 import { DAY_ORDER, DAY_FULL } from "@/app/components/DietMeal";
 
@@ -43,6 +44,7 @@ export default function AllenamentoView({
   sessioneOggi = null,
   ultimaVolta = {},
   storicoSedute = [],
+  consiglio = null,
   embedded = false,
 }: {
   week: WorkoutWeek | null;
@@ -61,6 +63,8 @@ export default function AllenamentoView({
   ultimaVolta?: Record<string, WorkoutSetRow[]>;
   /* S5: le ultime sedute, per lo storico in fondo alla pagina. */
   storicoSedute?: WorkoutSession[];
+  /* S6: la riga in cui l'allenamento incontra il calendario. null = niente da dire. */
+  consiglio?: Consiglio | null;
   embedded?: boolean;
 }) {
   const router = useRouter();
@@ -348,6 +352,35 @@ export default function AllenamentoView({
                 onClose={chiudiLive}
                 onFinita={sessioneFinita}
               />
+            )}
+
+            {/* ---------- Il consiglio di Keiko (S6) ----------
+                 Non e' una frase motivazionale: e' l'unica cosa che una app di
+                 palestra non puo' dirti, perche' non sa che domani voli alle 6:40.
+                 Se non c'e' niente di utile da dire, questo riquadro non compare. */}
+            {consiglio && (
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "flex-start",
+                  padding: "13px 15px",
+                  borderRadius: 16,
+                  background: consiglio.tono === "calma" ? "var(--paper)" : "var(--amber-soft)",
+                  border: `1px solid ${consiglio.tono === "calma" ? "var(--card-line)" : "rgba(255,184,77,.32)"}`,
+                }}
+              >
+                <span style={{ fontSize: 20, lineHeight: 1.15, flex: "none" }}>{consiglio.icona}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "var(--fs-md)", fontWeight: 800, color: "var(--text)" }}>
+                    {consiglio.titolo}
+                  </div>
+                  <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600, marginTop: 3, lineHeight: 1.45 }}>
+                    {consiglio.testo}
+                  </div>
+                </div>
+              </div>
             )}
 
             {weekPlanned > 0 && (

@@ -2,7 +2,7 @@
 
 > Non un rattoppo: la pagina allenamento viene rifatta per passi.
 > Regola: ogni passo è additivo e la build deve restare verde.
-> Aggiornato: 2026-07-25 (fine S5).
+> Aggiornato: 2026-07-25 (fine S6).
 
 ## Perché
 
@@ -24,7 +24,7 @@ volo alle 6:40 e che ieri hai dormito poco. Ma per usarlo servono i dati veri.
 | **S3** | **Modello dati delle sedute vere**: `workout_session` + `workout_set` | ✅ |
 | **S4** | **Schermata della sessione live**: apri, segna le serie, chiudi | ✅ |
 | **S5** | **Keiko che *legge* questi dati**: niente più spunte finte, storico sedute | ✅ |
-| **S6** | Consigli incrociati col resto del calendario (volo presto → oggi leggero) | ⬜ |
+| **S6** | **Il consiglio di Keiko**: l'allenamento incontra il calendario | ✅ |
 
 ## S3 — i dati (commit `24fa4ff`)
 
@@ -87,8 +87,42 @@ insieme alla riga di codice che lo causava.
   `ultimaVolta` arriva come prop dal server. Niente più "cerco l'ultima volta…"
   ad ogni card aperta, e un effetto client in meno.
 
-## S6 — cosa manca
+## S6 — il consiglio di Keiko
 
-- Progressi per esercizio nel tempo ("panca +5 kg in 3 settimane").
-- Incrocio col resto: volo presto domani / poco sonno → Keiko propone di alleggerire.
+**È il motivo per cui esisteva tutto il rework.** Un'app di palestra sa quanto
+hai sollevato. Keiko sa anche che domani alle 6:40 hai un volo. Sopra l'anello
+della settimana compare una riga sola che mette insieme le due cose.
+
+Tutto sta in `lib/coach.ts`, in una **funzione pura** — niente modello, niente
+chiamate esterne, nessuna dipendenza nuova. Le entrano dentro scheda, serie,
+giorni allenati, profilo e prossimi eventi (`getUpcomingTickets`), ne esce al
+massimo un consiglio. **Se non c'è niente di utile da dire, tace**: una riga
+ovvia ripetuta ogni giorno diventa rumore e si smette di leggerla.
+
+Le regole, in ordine di priorità (vince la prima che si accende):
+
+| # | Quando | Cosa dice |
+|---|--------|-----------|
+| 1 | Riposo oggi, ma domani parti prima delle 10 | "Domani parti alle 7:10 — oggi è la giornata giusta per anticipare" |
+| 2 | Volo/treno domani mattina presto | "Seduta corta: i primi tre esercizi e chiudi lì" |
+| 3 | Impegno fra meno di 3 ore | "Alle 19:00 hai i Baustelle: fai i primi due, il resto lo recuperi" |
+| 4 | Hotel o partenza oggi | "Oggi sei a Berlino: venti minuti a corpo libero" |
+| 5 | Tre giorni di fila | "Il muscolo cresce quando ti fermi" |
+| 6 | Fermo da 7+ giorni | "Togli un 10% dai carichi" |
+| 7 | L'ultima volta 3+ serie piene da 8 rip | "Panca piana: prova 42,5 kg" (+2,5 sopra i 40 kg, +1,25 sotto) |
+| 8 | Hai già serie segnate oggi | "5 serie segnate. Sei dentro." |
+
+Le regole sono state provate su 12 scenari (volo, concerto, hotel, rientro,
+progressione, ripetizioni corte, riposo…) prima del commit.
+
+- `lib/coach.ts` — nuovo, le regole.
+- `app/allenamento/page.tsx` — `getUpcomingTickets()` nel `Promise.all`, il
+  consiglio calcolato sul server.
+- `app/allenamento/AllenamentoView.tsx` — il riquadro sotto l'hero, ambra se è
+  un "spingi", carta neutra se è un "calma".
+
+## Cosa manca
+
+- Progressi per esercizio nel tempo ("panca +5 kg in 3 settimane", un grafico).
 - Timer/cronometro della sessione (A1 nel backlog).
+- Sonno e stanchezza: nessuna sorgente dati, per ora la regola non c'è.

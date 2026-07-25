@@ -6,8 +6,10 @@ import KeikoShell from "@/app/components/keiko/KeikoShell";
 import {
   getWorkoutPlan, getTrainedDays, getProfile,
   getSessionByDay, getSessionHistory, getLastPerformance,
+  getUpcomingTickets,
   type WorkoutWeek, type WorkoutSetRow,
 } from "@/lib/supabase";
+import { consiglioAllenamento } from "@/lib/coach";
 import { exerciseImage } from "@/lib/wger";
 import { unsplashPhoto } from "@/lib/unsplash";
 
@@ -64,12 +66,13 @@ function oggiISO(): string {
 export default async function AllenamentoPage() {
   await requireLogin();
   const oggiIso = oggiISO();
-  const [plan, trainedDays, profile, sessioneOggi, storicoSedute] = await Promise.all([
+  const [plan, trainedDays, profile, sessioneOggi, storicoSedute, eventi] = await Promise.all([
     getWorkoutPlan(),
     getTrainedDays(),
     getProfile(),
     getSessionByDay(oggiIso),   // S5: cosa ho fatto DAVVERO oggi (serie vere)
     getSessionHistory(8),       // S5: le ultime sedute, per lo storico in fondo
+    getUpcomingTickets(),       // S6: voli, treni, concerti — il resto della vita
   ]);
   // C'è una scheda vera? (almeno un giorno con esercizi) — decide se offrire la generazione (S2)
   const hasPlan = !!plan?.week && Object.values(plan.week).some((d) => (d?.esercizi?.length ?? 0) > 0);
@@ -88,6 +91,20 @@ export default async function AllenamentoPage() {
     const passate = righe.filter((r) => !(sessioneOggi?.sets ?? []).some((s) => s.id === r.id));
     if (passate.length > 0) ultimaVolta[nomiOggi[i]] = passate;
   });
+  // S6: il consiglio di Keiko. Qui l'allenamento incontra il calendario: e' una
+  // funzione pura in lib/coach.ts, quindi le regole si leggono tutte in un file.
+  const consiglio = consiglioAllenamento({
+    adesso: new Date(),
+    oggiIso,
+    giornoDiAllenamento: eserciziOggi.length > 0,
+    eserciziOggi: eserciziOggi.map((e) => e.nome).filter(Boolean),
+    serieFatteOggi: sessioneOggi?.sets.length ?? 0,
+    trainedDays,
+    eventi: eventi.map((e) => ({ titolo: e.title, tipo: e.type, quando: e.datetime, luogo: e.location })),
+    ultimaVolta,
+    stile: profile?.stile ?? null,
+  });
+
   // foto dell'esercizio di oggi (o palestra generica) dietro l'hero; null → gradiente
   const todayEx = plan?.week?.[WD[new Date().getDay()]]?.esercizi?.[0]?.nome ?? null;
   const heroImage = (todayEx ? await exerciseImage(todayEx) : null) ?? (await unsplashPhoto("gym workout fitness"));
@@ -114,6 +131,7 @@ export default async function AllenamentoPage() {
         sessioneOggi={sessioneOggi}
         ultimaVolta={ultimaVolta}
         storicoSedute={storicoSedute}
+        consiglio={consiglio}
       />
     </KeikoShell>
   );
