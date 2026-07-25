@@ -4,7 +4,9 @@ import { createContext, useContext, useRef, useState } from "react";
 import "../../keiko.css";
 import KeikoNav from "./KeikoNav";
 
-type Tab = "home" | "dieta" | "sport" | "guarda";
+/* "viaggio" non e' un tab con icona sua: e' una sotto-pagina della Home,
+   quindi accende "Home" invece di lasciare la barra tutta spenta. */
+type Tab = "home" | "dieta" | "sport" | "guarda" | "viaggio";
 
 /* ------------------------------------------------------------------ *
  * SHELL CONDIVISO delle pagine interne Keiko (v2.3). Fornito dal

@@ -32,12 +32,16 @@ function downloadIcs(ev: LiveEvent) {
   URL.revokeObjectURL(url);
 }
 
-async function share(ev: LiveEvent) {
+/* Condividi: dove esiste il foglio di sistema lo usa, altrimenti copia negli
+   appunti. Ritorna "copiato" solo nel secondo caso, così il pannello può dirlo:
+   prima la copia avveniva in silenzio e sembrava un bottone rotto. */
+async function share(ev: LiveEvent): Promise<"condiviso" | "copiato" | null> {
   const text = `${ev.title} — ${ev.when}${ev.location ? ` · ${ev.location}` : ""}`;
   try {
-    if (navigator.share) await navigator.share({ title: ev.title, text });
-    else { await navigator.clipboard.writeText(text); }
-  } catch { /* annullato */ }
+    if (navigator.share) { await navigator.share({ title: ev.title, text }); return "condiviso"; }
+    await navigator.clipboard.writeText(text);
+    return "copiato";
+  } catch { return null; /* annullato */ }
 }
 
 export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev: LiveEvent; onClose: () => void; demo?: boolean; onDelete?: () => void }) {
@@ -45,6 +49,12 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
   const gradient = gradientFor(catFor(ev.type, ev.title));
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const doShare = async () => {
+    const esito = await share(ev);
+    if (esito === "copiato") { setToast("Copiato negli appunti"); setTimeout(() => setToast(null), 2000); }
+  };
 
   const { date, time } = splitDatetime(ev.datetime);
   const [form, setForm] = useState<EventFormValue>({ title: ev.title, type: ev.type, date, time, location: ev.location, reference: "" });
@@ -104,7 +114,7 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
               <button onClick={() => downloadIcs(ev)} className="ds-btn primary" style={{ width: "100%", height: 52, borderRadius: 16, fontSize: 16, marginTop: 18 }}>📅 Aggiungi al calendario</button>
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 {ev.location && <a href={mapsUrl(ev.mapsQ)} target="_blank" rel="noreferrer" className="ds-btn" style={{ flex: 1, height: 46, textDecoration: "none" }}>📍 Maps</a>}
-                <button onClick={() => share(ev)} className="ds-btn" style={{ flex: 1, height: 46 }}>📤 Condividi</button>
+                <button onClick={doShare} className="ds-btn" style={{ flex: 1, height: 46 }}>📤 Condividi</button>
               </div>
 
               {/* azioni con login: Modifica / Elimina (l'elimina ha l'undo in home) */}
@@ -128,6 +138,13 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
           </>
         )}
       </div>
+
+      {/* conferma che il tocco ha fatto qualcosa (senza foglio di sistema) */}
+      {toast && (
+        <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: 0, right: 0, bottom: "calc(env(safe-area-inset-bottom) + 28px)", zIndex: 130, display: "flex", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
+          <div style={{ background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "10px 18px", fontSize: 14, fontWeight: 600, color: "var(--k-text)", boxShadow: "0 8px 30px rgba(0,0,0,.45)" }}>✓ {toast}</div>
+        </div>
+      )}
     </div>
   );
 }

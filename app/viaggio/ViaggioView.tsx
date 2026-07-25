@@ -62,7 +62,7 @@ export default function ViaggioView({ trips, tickets, heroImages }: { trips: Tri
   // Titolo del guscio = città del viaggio più vicino (i piani sono ordinati per data).
   const title = trips.length > 0 ? trips[0].city : "Itinerario";
   return (
-    <KeikoShell title={title} badge={trips.length > 0 ? "PRONTO ✓" : undefined} backHref="/">
+    <KeikoShell title={title} badge={trips.length > 0 ? "PRONTO ✓" : undefined} backHref="/" active="viaggio">
       {trips.length === 0 ? <EmptyState /> : trips.map((t, i) => <TripBlock key={t.id} trip={t} tickets={tickets} image={heroImages[i] ?? null} />)}
     </KeikoShell>
   );

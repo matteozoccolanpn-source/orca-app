@@ -19,6 +19,8 @@ import "../../ds.css";
    categoria (livello 0). Interazioni pesanti (pannello evento, ricerca) nella
    prossima slice. */
 
+type LiveTodo = LiveHome["days"][string]["todos"][number];
+
 function dayTitle(key: string): string {
   try { return new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Rome" }).format(new Date(key + "T00:00:00")); }
   catch { return key; }
@@ -46,6 +48,16 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commitRef = useRef<null | (() => void)>(null);
   const notHidden = (x: { id: string }) => !hidden.includes(x.id);
+
+  // --- Spunta immediata (#3) ---
+  // Il database resta la verità, ma andata+ritorno durano un istante e in quel
+  // istante il contatore "N da fare" mostrava ancora il numero vecchio. Qui
+  // tengo la scelta appena fatta, così pallino e contatore cambiano nel momento
+  // del tocco; quando arrivano i dati veri (router.refresh → nuovo `live`)
+  // butto via l'override e torno alla verità del server.
+  const [doneOv, setDoneOv] = useState<Record<string, boolean>>({});
+  useEffect(() => { setDoneOv({}); }, [live]);
+  const withOv = (t: LiveTodo): LiveTodo => (t.id in doneOv ? { ...t, done: doneOv[t.id] } : t);
 
   const realDelete = (kind: "todo" | "event", id: string) =>
     kind === "todo"
@@ -153,13 +165,20 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const greeting = name.trim() ? `Ciao ${name.trim()} 👋` : live.greeting;
   const todayN = live.week.find((d) => d.today)?.n ?? null;
   const todayKey = live.week.find((d) => d.today)?.key ?? null;
-  const todayTodos = todayKey ? (live.days[todayKey]?.todos ?? []).filter(notHidden) : [];
+  const todayTodos = todayKey ? (live.days[todayKey]?.todos ?? []).filter(notHidden).map(withOv) : [];
   const openTodos = todayTodos.filter((t) => !t.done).length;
 
   // azioni to-do del pannello giorno: riusa /api/todos + ricarica i dati veri
   const todoFetch = async (method: string, body: object) => {
     if (demo) return;
     try { await fetch("/api/todos", { method, headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify(body) }); router.refresh(); } catch { /* offline: nessun dato finto */ }
+  };
+
+  // spunta: prima cambia sotto il dito, poi va al server
+  const toggleTodo = (id: string, done: boolean) => {
+    if (demo) return;
+    setDoneOv((m) => ({ ...m, [id]: done }));
+    todoFetch("PATCH", { id, done });
   };
 
   const heroEvents = live.heroEvents.filter(notHidden);
@@ -180,15 +199,16 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
 
   // Dati del giorno selezionato, ripuliti degli elementi in attesa di eliminazione.
   const selRaw = selDay ? (live.days[selDay] ?? null) : null;
+  const selTodos = selRaw ? selRaw.todos.filter(notHidden).map(withOv) : [];
   const selDayData = selRaw ? {
     ...selRaw,
     events: selRaw.events.filter(notHidden),
-    todos: selRaw.todos.filter(notHidden),
+    todos: selTodos,
     counts: {
       ...selRaw.counts,
       eventi: selRaw.events.filter(notHidden).length,
-      todo: selRaw.todos.filter((t) => notHidden(t) && !t.done).length,
-      fatti: selRaw.todos.filter((t) => notHidden(t) && t.done).length,
+      todo: selTodos.filter((t) => !t.done).length,
+      fatti: selTodos.filter((t) => t.done).length,
     },
   } : null;
 
@@ -296,7 +316,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {todayTodos.map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14 }}>
-                <button onClick={() => { if (!demo) todoFetch("PATCH", { id: t.id, done: !t.done }); }} aria-label="Fatto" disabled={demo} style={{ width: 24, height: 24, flex: "none", borderRadius: "50%", border: t.done ? "0" : "2px solid var(--k-text-3)", background: t.done ? "var(--k-accent)" : "transparent", color: "var(--k-accent-ink)", fontSize: 13, fontWeight: 800, cursor: demo ? "default" : "pointer", display: "grid", placeItems: "center" }}>{t.done ? "✓" : ""}</button>
+                <button onClick={() => toggleTodo(t.id, !t.done)} aria-label="Fatto" disabled={demo} style={{ width: 24, height: 24, flex: "none", borderRadius: "50%", border: t.done ? "0" : "2px solid var(--k-text-3)", background: t.done ? "var(--k-accent)" : "transparent", color: "var(--k-accent-ink)", fontSize: 13, fontWeight: 800, cursor: demo ? "default" : "pointer", display: "grid", placeItems: "center" }}>{t.done ? "✓" : ""}</button>
                 <span style={{ flex: 1, fontSize: 14.5, fontWeight: 500, color: t.done ? "var(--k-text-3)" : "var(--k-text)", textDecoration: t.done ? "line-through" : "none" }}>{t.text}</span>
                 {t.time && <span style={{ fontSize: 13, fontWeight: 700, color: "var(--k-accent)" }}>{t.time}</span>}
               </div>
@@ -310,7 +330,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
         <NavItem label="Home" active icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => {}} />
         <NavItem label="Dieta" icon={<><circle cx="12" cy="12" r="9" /><path d="M12 3v18M3 12h18" /></>} onClick={() => go("/salute")} />
         <button onClick={() => { if (!demo) setCapture(true); }} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 30, lineHeight: 1, paddingBottom: 2, boxShadow: "0 8px 20px rgba(255,184,77,.28), 0 2px 6px rgba(0,0,0,.4)", marginTop: -24, cursor: "pointer" }}>+</button>
-        <NavItem label="Sport" icon={<><path d="M6 12h12M4 9v6M20 9v6M8 8v8M16 8v8" /></>} onClick={() => go("/allenamento")} />
+        <NavItem label="Allenamento" icon={<><path d="M6 12h12M4 9v6M20 9v6M8 8v8M16 8v8" /></>} onClick={() => go("/allenamento")} />
         <NavItem label="Guarda" icon={<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></>} onClick={() => go("/guarda")} />
       </nav>
 
@@ -323,12 +343,17 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           day={selDayData}
           demo={demo}
           onClose={closeDay}
-          onToggle={(id, done) => todoFetch("PATCH", { id, done })}
+          onToggle={toggleTodo}
           onStar={(id, star) => todoFetch("PATCH", { id, star })}
           onDelete={(id) => requestDelete("todo", id)}
           onAdd={(text) => todoFetch("POST", { day: selDay, text })}
           onSetLead={(id, lead) => todoFetch("PATCH", { id, lead })}
           onSetDouble={(id, double) => todoFetch("PATCH", { id, double })}
+          /* #1: le righe evento del pannello giorno erano finte — toccarle non
+             faceva niente. Qui il pannello passa l'id, la Home trova l'evento
+             intero e apre la sua card (con lo stesso deep-link ?ev=). */
+          onOpenEvent={(id) => { const f = eventById(id); if (f) { closeDay(); openEvent(f); } }}
+          canOpenEvent={(id) => eventById(id) !== null}
         />
       )}
       {profileOpen && <ProfileSheet name={name} onName={saveName} city={city} onCity={saveCity} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}
@@ -385,7 +410,7 @@ function EventCard({ ev, variant, onOpen }: { ev: LiveEvent; variant: "hero" | "
 
 function NavItem({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: 0, color: active ? "var(--k-text)" : "#9BA0A8", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>
+    <button onClick={onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, minWidth: 44, minHeight: 44, padding: "0 4px", whiteSpace: "nowrap", background: "none", border: 0, color: active ? "var(--k-text)" : "#9BA0A8", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">{icon}</svg>
       {label}
     </button>
