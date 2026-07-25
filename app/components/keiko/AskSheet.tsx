@@ -38,6 +38,9 @@ export default function AskSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [res, setRes] = useState<SearchRes | null>(null);
+  // Guardia swipe: con la tastiera aperta (input a fuoco) o mentre Keiko risponde
+  // (busy), lo swipe-giù NON deve chiudere il foglio (chiuderebbe la tastiera).
+  const [inputFocused, setInputFocused] = useState(false);
 
   async function run() {
     const query = q.trim();
@@ -60,12 +63,12 @@ export default function AskSheet({ onClose }: { onClose: () => void }) {
   const hasLinks = res && (res.events.length > 0 || res.todos.length > 0);
 
   return (
-    <SheetShell onClose={onClose} zIndex={95}>
+    <SheetShell onClose={onClose} zIndex={95} lockSwipe={busy || inputFocused}>
       <div style={{ padding: "0 20px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "11px 14px" }}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--k-text-3)" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") run(); }} placeholder="Chiedi a Keiko… «che allenamento ho oggi?»" style={{ flex: 1, background: "none", border: 0, outline: 0, color: "var(--k-text)", fontSize: 14, fontFamily: "inherit" }} />
+          <input autoFocus value={q} onFocus={() => setInputFocused(true)} onBlur={() => setInputFocused(false)} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") run(); }} placeholder="Chiedi a Keiko… «che allenamento ho oggi?»" style={{ flex: 1, background: "none", border: 0, outline: 0, color: "var(--k-text)", fontSize: 14, fontFamily: "inherit" }} />
           <button onClick={run} aria-label="Chiedi" disabled={busy || !q.trim()} style={{ width: 30, height: 30, borderRadius: "50%", border: 0, background: "var(--k-accent)", color: "var(--k-accent-ink)", fontSize: 16, fontWeight: 800, cursor: "pointer", opacity: busy || !q.trim() ? 0.4 : 1 }}>↑</button>
         </div>
         <button onClick={onClose} aria-label="Chiudi" style={{ background: "none", border: 0, color: "var(--k-text-3)", fontSize: 20, cursor: "pointer" }}>✕</button>

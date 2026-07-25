@@ -16,12 +16,17 @@ export default function SheetShell({
   maxHeight = "92vh",
   zIndex = 91,
   grabber = true,
+  lockSwipe = false,
 }: {
   onClose: () => void;
   children: React.ReactNode;
   maxHeight?: string;
   zIndex?: number;
   grabber?: boolean;
+  /* Disabilita SOLO lo swipe-giù (tap-overlay e ✕ restano attivi). Serve quando
+     lo swipe-giù è già "preso" da altro: es. AskSheet con la tastiera aperta
+     (lo swipe chiude la tastiera, non la conversazione) o mentre Keiko risponde. */
+  lockSwipe?: boolean;
 }) {
   const [dy, setDy] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -32,6 +37,7 @@ export default function SheetShell({
   // altrimenti lo swipe-giù dentro un contenuto lungo chiuderebbe lo sheet
   // invece di scrollarlo.
   const onTouchStart = (e: React.TouchEvent) => {
+    if (lockSwipe) return;
     if ((panel.current?.scrollTop ?? 0) > 0) return;
     startY.current = e.touches[0].clientY;
     setDragging(true);

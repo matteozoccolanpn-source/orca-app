@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { X, ImagePlus, Loader2, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
 import {
   EventForm,
@@ -40,6 +39,14 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
   // city non è modificabile nel form: la porto a parte dal parsing fino al salvataggio
   const [pendingCity, setPendingCity] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // --- Swipe-giù per chiudere (stesso gesto di SheetShell, colori suoi) ---
+  // Parte solo se il pannello è in cima al suo scroll (altrimenti scrolla) e MAI
+  // durante upload/conferma (lockClose): non si perde una cattura per sbaglio.
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [dy, setDy] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startY = useRef(0);
 
   function reset() {
     setText("");
@@ -143,20 +150,41 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
   // perde prima del "Salva". Per uscire restano la X e il bottone "Annulla".
   const lockClose = busy || state === "confirming";
 
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (lockClose) return;
+    if ((panelRef.current?.scrollTop ?? 0) > 0) return;
+    startY.current = e.touches[0].clientY;
+    setDragging(true);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!dragging) return;
+    const d = e.touches[0].clientY - startY.current;
+    setDy(d > 0 ? d : 0);
+  };
+  const onTouchEnd = () => {
+    setDragging(false);
+    if (!lockClose && dy > 120) close();
+    setDy(0);
+  };
+
   return (
     <div className="fixed inset-0 z-[100]">
       <div className="absolute inset-0 backdrop-blur-sm" style={{ background: "var(--scrim)" }} onClick={lockClose ? undefined : close} />
-      <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute inset-x-0 bottom-0 mx-auto max-h-[90vh] max-w-lg overflow-y-auto"
+      <div
+        ref={panelRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className="k-sheet-in absolute inset-x-0 bottom-0 mx-auto max-h-[90vh] max-w-lg overflow-y-auto"
         style={{
           background: "var(--surface)",
           borderRadius: "var(--r-xl) var(--r-xl) 0 0",
           boxShadow: "0 -22px 54px -12px rgba(0,0,0,.6)",
           padding: "12px var(--s5)",
           paddingBottom: "calc(var(--s6) + env(safe-area-inset-bottom))",
+          transform: dy ? `translateY(${dy}px)` : undefined,
+          transition: dragging ? "none" : "transform .22s cubic-bezier(.22,.61,.36,1)",
+          touchAction: "pan-y",
         }}
       >
         {/* grip + chiudi */}
@@ -275,7 +303,7 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
             </button>
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

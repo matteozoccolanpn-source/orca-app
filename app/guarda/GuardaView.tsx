@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { WatchItem } from "@/lib/supabase";
 import type { WatchProviders, WatchProvider, TitleDetails, SimilarTitle } from "@/lib/tmdb";
 import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
+import SheetShell from "@/app/components/keiko/SheetShell";
 import { useSuggest } from "@/app/components/keiko/SuggestProvider";
 
 /* Sezione "Da guardare" — design v4. Logica preservata: visto (PATCH), elimina
@@ -279,9 +280,8 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
 
       {/* foglio scheda film/serie — trama, anno, generi, cast (TMDB) */}
       {detItem && (
-        <div onClick={() => setDetItem(null)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-          <div className="k-sheet-in" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", maxHeight: "86vh", overflowY: "auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
+        <SheetShell onClose={() => setDetItem(null)} zIndex={55} maxHeight="86vh">
+          <div style={{ padding: "0 20px" }}>
             <div style={{ display: "flex", gap: 14 }}>
               <div style={{ width: 84, flex: "none", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "var(--k-cat-film, #2a2140)" }}>
                 {detItem.poster && <img src={detItem.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
@@ -360,14 +360,13 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
               </>
             )}
           </div>
-        </div>
+        </SheetShell>
       )}
 
       {/* foglio "Dove vederlo" — piattaforme italiane reali (TMDB) */}
       {dovItem && (
-        <div onClick={() => setDovItem(null)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" }}>
-          <div className="k-sheet-in" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, margin: "0 auto", background: "var(--k-bg)", borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: "1px solid rgba(255,255,255,.06)", padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" }} />
+        <SheetShell onClose={() => setDovItem(null)} zIndex={55}>
+          <div style={{ padding: "0 20px" }}>
             <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--k-text)", margin: "0 0 14px" }}>Dove vedere «{dovItem.title}»</h3>
             {dovLoading ? (
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 4px", color: "var(--k-text-2)", fontSize: 14 }}>
@@ -410,7 +409,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
               );
             })()}
           </div>
-        </div>
+        </SheetShell>
       )}
 
       {/* toast */}
