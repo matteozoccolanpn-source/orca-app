@@ -182,8 +182,50 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
     } catch { showToast("Voto non salvato, riprovo"); }
   }
 
+  // Dati della serie nella scheda (lunghezza, prossimo episodio). Arrivano
+  // dalla rotta, che li ricopia in tabella: la volta dopo non serve chiederli.
+  const [serieInfo, setSerieInfo] = useState<{ totalSeasons: number | null; nextAirDate: string | null } | null>(null);
+
+  /** "giovedì" — il giorno in parole. Se la data non si legge, si tace. */
+  function giornoDi(data: string): string | null {
+    try {
+      const d = new Date(data + "T12:00:00");
+      if (Number.isNaN(d.getTime())) return null;
+      const oggi = new Date();
+      const giorni = Math.round((d.getTime() - oggi.getTime()) / 86400000);
+      if (giorni <= 0) return "oggi";
+      if (giorni === 1) return "domani";
+      if (giorni < 7) return new Intl.DateTimeFormat("it-IT", { weekday: "long", timeZone: "Europe/Rome" }).format(d);
+      return new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", timeZone: "Europe/Rome" }).format(d);
+    } catch {
+      return null;
+    }
+  }
+
+  async function correggiPunto(item: WatchItem, season: number, episode: number) {
+    setList((l) => l.map((i) => (i.id === item.id ? { ...i, season, episode } : i)));
+    setDetItem((cur) => (cur && cur.id === item.id ? { ...cur, season, episode } : cur));
+    try {
+      const res = await fetch("/api/watch/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: item.id, season, episode }),
+      });
+      if (!res.ok) throw new Error();
+    } catch { showToast("Qualcosa non torna, riprovo"); }
+  }
+
   async function openDetail(item: WatchItem) {
     setMenuItem(null);
+    setSerieInfo(null);
+    // Solo per le serie: sui film non si chiede niente e non cambia nulla.
+    if (item.kind === "serie") {
+      fetch(`/api/watch/progress?id=${encodeURIComponent(item.id)}`, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => { if (d?.progresso) setSerieInfo({ totalSeasons: d.progresso.totalSeasons ?? null, nextAirDate: d.progresso.nextAirDate ?? null }); })
+        .catch(() => {});   // TMDB muto: la scheda resta quella di sempre
+    }
     setDetItem(item);
     setDetData(null);
     setDetExpanded(false);
@@ -273,6 +315,46 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
       showToast("Qualcosa non torna, riprovo");
     }
   }
+
+  // ── Serie: a che punto sei ────────────────────────────────────────────────
+  // Il "+1" è ottimista come la spunta "visto": il conto avanza subito sotto il
+  // dito, poi si salva. Se il salvataggio non passa, torna com'era.
+  const [avanzando, setAvanzando] = useState<string[]>([]);
+
+  async function avanzaEpisodio(item: WatchItem) {
+    if (avanzando.includes(item.id)) return;
+    setAvanzando((a) => [...a, item.id]);
+    const prima = { season: item.season, episode: item.episode };
+    // conto ottimista: senza sapere la lunghezza della stagione si va avanti di
+    // uno; il server, che TMDB ce l'ha, corregge il tiro nella risposta.
+    const s = item.season ?? 1;
+    const e = (item.episode ?? 0) + 1;
+    setList((l) => l.map((i) => (i.id === item.id ? { ...i, season: s, episode: e } : i)));
+    try {
+      const res = await fetch("/api/watch/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: item.id, avanza: true }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error();
+      if (d.finita) {
+        setList((l) => l.map((i) => (i.id === item.id ? { ...i, seen: true, season: prima.season, episode: prima.episode } : i)));
+        showToast("Serie finita ✓ Com'era?", "Vota", () => openDetail({ ...item, seen: true }));
+      } else {
+        setList((l) => l.map((i) => (i.id === item.id ? { ...i, season: d.season, episode: d.episode } : i)));
+      }
+    } catch {
+      setList((l) => l.map((i) => (i.id === item.id ? { ...i, season: prima.season, episode: prima.episode } : i)));
+      showToast("Qualcosa non torna, riprovo");
+    } finally {
+      setAvanzando((a) => a.filter((x) => x !== item.id));
+    }
+  }
+
+  // "Continua a guardare": le serie iniziate e non finite.
+  const iniziate = list.filter((i) => i.kind === "serie" && !i.seen && i.episode != null);
 
   // ── Tocco lungo ───────────────────────────────────────────────────────────
   // 450ms fermi sulla locandina aprono il menu. Il dito che si sposta annulla
@@ -537,6 +619,37 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         </div>
       )}
 
+      {/* Continua a guardare — solo se ci sono serie iniziate. Sui film questa
+          fascia non esiste proprio. */}
+      {!search.trim() && iniziate.length > 0 && (
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 10px" }}>Continua a guardare</div>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -20px", padding: "0 20px 4px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
+            {iniziate.map((i) => (
+              <div key={i.id} style={{ flex: "none", width: 104, scrollSnapAlign: "start" }}>
+                <div onClick={() => openDetail(i)} style={{ ...POSTER, cursor: "pointer" }}>
+                  {i.poster && <img src={i.poster} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: "var(--k-text)" }}>
+                    S{i.season ?? 1} E{i.episode ?? 1}
+                  </span>
+                  <button
+                    onClick={() => avanzaEpisodio(i)}
+                    disabled={avanzando.includes(i.id)}
+                    aria-label={`Visto un episodio di ${i.title}`}
+                    style={{ width: 44, height: 44, flex: "none", marginRight: -6, borderRadius: 12, border: 0, background: "var(--k-accent)", color: "var(--k-accent-ink)", fontSize: 13, fontWeight: 800, cursor: "pointer", opacity: avanzando.includes(i.id) ? 0.5 : 1 }}
+                  >
+                    +1
+                  </button>
+                </div>
+                <div style={{ ...SOTTO, marginTop: 2 }}>{i.title}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* la griglia, una sola */}
       {aggiorno ? (
         <div style={GRID}>{[0, 1, 2, 3, 4, 5].map(scheletro)}</div>
@@ -645,6 +758,48 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
                 )}
               </div>
             </div>
+
+            {/* Serie: a che punto sei. Sui film questo blocco non compare. */}
+            {detItem.kind === "serie" && (
+              <div style={{ marginTop: 18, padding: 14, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14 }}>
+                <div style={{ fontSize: 14, color: "var(--k-text)", fontWeight: 600 }}>
+                  {detItem.episode != null
+                    ? `Sei a S${detItem.season ?? 1}E${detItem.episode}${serieInfo?.totalSeasons ? ` di ${serieInfo.totalSeasons} stagion${serieInfo.totalSeasons === 1 ? "e" : "i"}` : ""}`
+                    : "Non hai ancora cominciato"}
+                </div>
+                {serieInfo?.nextAirDate && giornoDi(serieInfo.nextAirDate) && (
+                  <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 4 }}>
+                    Prossimo episodio: {giornoDi(serieInfo.nextAirDate)}
+                  </div>
+                )}
+
+                {/* correzione a mano: la gente salta episodi e recupera */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                  <span style={{ fontSize: 12.5, color: "var(--k-text-3)", flex: "none" }}>Stagione</span>
+                  <select
+                    value={detItem.season ?? 1}
+                    onChange={(e) => correggiPunto(detItem, Number(e.target.value), detItem.episode ?? 1)}
+                    style={{ height: 44, minWidth: 66, background: "var(--k-bg)", border: "1px solid var(--k-line)", borderRadius: 10, color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", padding: "0 8px" }}
+                  >
+                    {Array.from({ length: Math.max(serieInfo?.totalSeasons ?? 1, detItem.season ?? 1, 1) }, (_, k) => k + 1).map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: 12.5, color: "var(--k-text-3)", flex: "none" }}>Episodio</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={detItem.episode ?? 1}
+                    onChange={(e) => correggiPunto(detItem, detItem.season ?? 1, Math.max(1, Number(e.target.value) || 1))}
+                    style={{ height: 44, width: 72, background: "var(--k-bg)", border: "1px solid var(--k-line)", borderRadius: 10, color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", padding: "0 10px", boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <button onClick={() => avanzaEpisodio(detItem)} disabled={avanzando.includes(detItem.id)} className="ds-btn primary" style={{ width: "100%", height: 46, marginTop: 12, fontSize: 14.5, fontWeight: 700, opacity: avanzando.includes(detItem.id) ? 0.5 : 1 }}>
+                  +1 episodio
+                </button>
+              </div>
+            )}
 
             {/* Il voto viene PRIMA della trama se il titolo è già visto: la trama
                non serve più a chi l'ha visto, il voto sì. */}

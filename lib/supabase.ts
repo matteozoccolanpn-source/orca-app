@@ -767,6 +767,12 @@ export interface WatchItem {
   tmdbId: number | null;
   tmdbType: string | null;  // 'movie' | 'tv'
   year: string | null;
+  // Serie: a che punto sei. Sui film restano tutti null e non cambia niente.
+  season: number | null;         // stagione in corso
+  episode: number | null;        // ultimo episodio visto di quella stagione
+  totalSeasons: number | null;   // quanto e' lunga (da TMDB, tenuta in tabella)
+  totalEpisodes: number | null;
+  nextAirDate: string | null;    // quando esce il prossimo (YYYY-MM-DD)
 }
 
 /** Tutta la watchlist: prima i "da vedere" (più recenti in alto), poi i visti. */
@@ -780,9 +786,11 @@ export async function getWatchlist(): Promise<WatchItem[]> {
   const base: string = "id, title, kind, info, link, seen";
   const conVoto = base + ", rating, note, seen_at";
   const conTmdb = conVoto + ", tmdb_id, tmdb_type, poster, genre, year";
+  const conSerie = conTmdb + ", season, episode, total_seasons, total_episodes, next_air_date";
   const leggi = async (campi: string) =>
     (await db()).from("watchlist").select(campi).order("seen", { ascending: true }).order("created_at", { ascending: false });
-  let res = await leggi(conTmdb);
+  let res = await leggi(conSerie);
+  if (res.error) res = await leggi(conTmdb);
   if (res.error) res = await leggi(conVoto);
   if (res.error) res = await leggi(base);
   if (res.error) {
@@ -805,7 +813,43 @@ export async function getWatchlist(): Promise<WatchItem[]> {
     tmdbId: (r.tmdb_id as number | null) ?? null,
     tmdbType: (r.tmdb_type as string | null) ?? null,
     year: (r.year as string | null) ?? null,
+    season: (r.season as number | null) ?? null,
+    episode: (r.episode as number | null) ?? null,
+    totalSeasons: (r.total_seasons as number | null) ?? null,
+    totalEpisodes: (r.total_episodes as number | null) ?? null,
+    nextAirDate: (r.next_air_date as string | null) ?? null,
   }));
+}
+
+/** Una riga sola della watchlist. Serve alla rotta del "+1 episodio", che deve
+ *  sapere dov'era arrivato l'utente PRIMA di far avanzare il conto: il punto di
+ *  partenza si legge dal database, mai dal client. */
+export async function getWatchItem(id: string): Promise<WatchItem | null> {
+  const tutti = await getWatchlist();
+  return tutti.find((i) => i.id === id) ?? null;
+}
+
+/** Salva a che punto è una serie. Non lancia: se le colonne non ci sono ancora,
+ *  l'errore finisce nei log e la serie continua a funzionare come oggi. */
+export async function setWatchProgress(
+  id: string,
+  d: { season?: number | null; episode?: number | null; totalSeasons?: number | null; totalEpisodes?: number | null; nextAirDate?: string | null }
+): Promise<boolean> {
+  const patch: Record<string, unknown> = {};
+  if (d.season !== undefined) patch.season = d.season;
+  if (d.episode !== undefined) patch.episode = d.episode;
+  if (d.totalSeasons !== undefined) patch.total_seasons = d.totalSeasons;
+  if (d.totalEpisodes !== undefined) patch.total_episodes = d.totalEpisodes;
+  if (d.nextAirDate !== undefined) patch.next_air_date = d.nextAirDate;
+  if (!Object.keys(patch).length) return true;
+  try {
+    const { error } = await (await db()).from("watchlist").update(patch).eq("id", id);
+    if (error) { console.error("Supabase: setWatchProgress:", error.message); return false; }
+    return true;
+  } catch (e) {
+    console.error("Supabase: setWatchProgress:", e);
+    return false;
+  }
 }
 
 /** Scrive i dati TMDB su una riga già esistente (recupero dei titoli vecchi).
@@ -866,6 +910,11 @@ export async function addWatchItem(f: {
     tmdbId: (r.tmdb_id as number | null) ?? null,
     tmdbType: (r.tmdb_type as string | null) ?? null,
     year: (r.year as string | null) ?? null,
+    season: null,
+    episode: null,
+    totalSeasons: null,
+    totalEpisodes: null,
+    nextAirDate: null,
   };
 }
 

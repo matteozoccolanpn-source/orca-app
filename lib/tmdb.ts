@@ -510,6 +510,58 @@ export async function searchWithProviders(q: string, abbonamenti: string[] = [])
   }
 }
 
+// ============================================================================
+// SERIE: A CHE PUNTO SEI
+// Una serie non è un film con la spunta: ha stagioni ed episodi. Qui si legge
+// da TMDB quanto è lunga e quando esce il prossimo.
+//
+// Cache UN giorno, non sette come il resto: gli episodi escono, e una serie in
+// onda con dati vecchi di una settimana direbbe la cosa sbagliata.
+// ============================================================================
+
+export type SeriesInfo = {
+  /** Quante stagioni "vere" (gli speciali, stagione 0, non contano). */
+  totalSeasons: number;
+  totalEpisodes: number;
+  /** Quanti episodi per stagione: { 1: 8, 2: 10 }. */
+  episodiPerStagione: Record<number, number>;
+  /** Quando esce il prossimo episodio (YYYY-MM-DD), se TMDB lo sa. */
+  nextAirDate: string | null;
+};
+
+export async function seriesProgressInfo(tmdbId: number): Promise<SeriesInfo | null> {
+  const key = process.env.TMDB_API_KEY;
+  if (!key || !tmdbId) return null;
+  const isV4 = key.includes(".");
+  const withKey = (u: string) => (isV4 ? u : `${u}${u.includes("?") ? "&" : "?"}api_key=${key}`);
+  try {
+    const r = await fetch(withKey(`https://api.themoviedb.org/3/tv/${tmdbId}?language=it-IT`), {
+      next: { revalidate: 86400 },   // 1 giorno
+      headers: isV4 ? { Authorization: `Bearer ${key}` } : undefined,
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const stagioni = (Array.isArray(d?.seasons) ? d.seasons : []) as { season_number: number; episode_count: number }[];
+    const episodiPerStagione: Record<number, number> = {};
+    for (const s of stagioni) {
+      // stagione 0 = speciali: non fa parte del percorso normale
+      if (s.season_number > 0 && s.episode_count > 0) episodiPerStagione[s.season_number] = s.episode_count;
+    }
+    const numeri = Object.keys(episodiPerStagione).map(Number);
+    return {
+      totalSeasons: typeof d?.number_of_seasons === "number" && d.number_of_seasons > 0
+        ? Math.max(d.number_of_seasons, numeri.length ? Math.max(...numeri) : 0)
+        : (numeri.length ? Math.max(...numeri) : 0),
+      totalEpisodes: typeof d?.number_of_episodes === "number" ? d.number_of_episodes : Object.values(episodiPerStagione).reduce((a, b) => a + b, 0),
+      episodiPerStagione,
+      nextAirDate: typeof d?.next_episode_to_air?.air_date === "string" ? d.next_episode_to_air.air_date : null,
+    };
+  } catch (e) {
+    console.error("TMDB serie: errore per", tmdbId, e);
+    return null;   // niente dati: la serie continua a funzionare come un titolo unico
+  }
+}
+
 export async function primaryGenre(title: string, kind?: string): Promise<string | null> {
   const key = process.env.TMDB_API_KEY;
   if (!key || !title.trim()) return null;
