@@ -145,6 +145,22 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Apertura diretta del Profilo da un link: serve all'invito "dimmi a cosa sei
+  // abbonato" che sta nella ricerca di Guarda, che altrimenti scaricherebbe qui
+  // l'utente senza aprirgli niente. Il parametro si toglie subito dall'URL.
+  useEffect(() => {
+    if (demo) return;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("profilo") === "1") {
+        setProfileOpen(true);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("profilo");
+        window.history.replaceState(null, "", url);
+      }
+    } catch { /* no-op */ }
+  }, [demo]);
+
   // nome + città salvati sul dispositivo
   useEffect(() => {
     try {

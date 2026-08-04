@@ -27,6 +27,12 @@ import { useSuggest } from "@/app/components/keiko/SuggestProvider";
      adesso è un filtro, non una sezione che ripete le stesse locandine. */
 
 type ToastState = { msg: string; action?: string; onAction?: () => void } | null;
+/* Una riga della ricerca trasversale. La calcola il server (/api/watch/search),
+   che sa già quali abbonamenti ha l'utente. */
+type Ricerca = {
+  tmdbId: number; tmdbType: "movie" | "tv"; title: string; year: string | null; poster: string | null;
+  flatrate: string[]; rent: string[]; buy: string[]; tue: string[];
+};
 type Scheda = "da-vedere" | "visti" | "tutti";
 type Tipo = "tutti" | "film" | "serie";
 type Ordine = "recenti" | "alfabetico" | "voto";
@@ -93,6 +99,13 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
 
   // menu del tocco lungo
   const [menuItem, setMenuItem] = useState<WatchItem | null>(null);
+
+  // ricerca trasversale: cerca una volta e dice dove si vede
+  const [ric, setRic] = useState<Ricerca[]>([]);
+  const [ricLoading, setRicLoading] = useState(false);
+  const [haScelto, setHaScelto] = useState(true);   // true finché non si sa: niente inviti a vuoto
+  const [invitoChiuso, setInvitoChiuso] = useState(false);
+  const [aggiunti, setAggiunti] = useState<number[]>([]);
 
   // tira-per-aggiornare
   const [tiro, setTiro] = useState(0);          // quanto è stato tirato, in px
@@ -204,6 +217,61 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
       setList((l) => [data.item!, ...l]);
       showToast("Preso in carico ✓");
     } catch { showToast("Qualcosa non torna, riprovo"); }
+  }
+
+  // ── Ricerca trasversale ───────────────────────────────────────────────────
+  // Si aspettano 350ms dall'ultimo tasto: chi scrive "interstellar" non fa
+  // dodici ricerche. La richiesta precedente viene annullata.
+  const ricAbort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) { setRic([]); setRicLoading(false); ricAbort.current?.abort(); return; }
+    const t = setTimeout(async () => {
+      ricAbort.current?.abort();
+      const ctrl = new AbortController();
+      ricAbort.current = ctrl;
+      setRicLoading(true);
+      try {
+        const res = await fetch(`/api/watch/search?q=${encodeURIComponent(q)}`, { credentials: "include", signal: ctrl.signal });
+        const d = await res.json();
+        setRic((d?.risultati ?? []) as Ricerca[]);
+        setHaScelto(d?.haScelto !== false);
+      } catch {
+        /* annullata o fallita: si tiene quello che c'è */
+      } finally {
+        if (!ctrl.signal.aborted) setRicLoading(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  /* La riga della disponibilità. Nessun prezzo scritto a mano: TMDB non manda
+     i prezzi, quindi si dice "a noleggio" e basta, mai una cifra. */
+  function disponibilita(r: Ricerca): { segno: string; testo: string; forte: boolean } {
+    if (r.tue.length) return { segno: "✅", testo: `Ce l'hai su ${r.tue.join(", ")}`, forte: true };
+    if (r.flatrate.length) return { segno: "🟡", testo: `C'è su ${r.flatrate.slice(0, 3).join(", ")}`, forte: false };
+    if (r.rent.length || r.buy.length) return { segno: "💶", testo: "Solo a noleggio", forte: false };
+    return { segno: "✗", testo: "Non in streaming in Italia", forte: false };
+  }
+
+  async function aggiungiDaRicerca(r: Ricerca) {
+    setAggiunti((a) => [...a, r.tmdbId]);
+    try {
+      const res = await fetch("/api/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        // l'id viaggia col titolo: il server non lo cerca una seconda volta
+        body: JSON.stringify({ title: r.title, kind: r.tmdbType === "tv" ? "serie" : "film", tmdbId: r.tmdbId, tmdbType: r.tmdbType }),
+      });
+      const data = (await res.json()) as { item?: WatchItem };
+      if (!res.ok || !data.item) throw new Error();
+      setList((l) => [data.item!, ...l]);
+      showToast("Preso in carico ✓");
+    } catch {
+      setAggiunti((a) => a.filter((x) => x !== r.tmdbId));
+      showToast("Qualcosa non torna, riprovo");
+    }
   }
 
   // ── Tocco lungo ───────────────────────────────────────────────────────────
@@ -368,8 +436,62 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
         <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) { doAdd(search.trim()); setSearch(""); } }} placeholder="Cerca o aggiungi un titolo…" style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0, minHeight: 44 }} />
         <button onClick={() => suggest.startInput()} className="ds-btn primary" style={{ height: 44, padding: "0 14px", fontSize: 13, flex: "none" }}>✨ Consiglio</button>
       </div>
-      {search.trim() && (
-        <button onClick={() => { doAdd(search.trim()); setSearch(""); }} className="ds-btn" style={{ width: "100%", height: 44, marginTop: 8, fontSize: 13 }}>＋ Aggiungi «{search.trim()}»</button>
+      {/* risultati della ricerca trasversale: una ricerca sola, e per ognuno
+          dove si vede. Prima quelli che l'utente può guardare subito. */}
+      {search.trim().length >= 2 && (
+        <div style={{ marginTop: 10 }}>
+          {ricLoading && ric.length === 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 4px", color: "var(--k-text-2)", fontSize: 13.5 }}>
+              <span className="ds-spin" style={{ width: 16, height: 16, border: "2px solid var(--k-line)", borderTopColor: "var(--k-accent)", borderRadius: "50%", display: "inline-block" }} />
+              Guardo dove si trova…
+            </div>
+          )}
+
+          {ric.map((r) => {
+            const d = disponibilita(r);
+            const giaInLista = list.some((i) => i.tmdbId === r.tmdbId) || aggiunti.includes(r.tmdbId);
+            return (
+              <div key={`${r.tmdbType}-${r.tmdbId}`} style={{ display: "flex", gap: 12, alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--k-line)" }}>
+                <div style={{ width: 42, flex: "none", aspectRatio: "2 / 3", borderRadius: 7, overflow: "hidden", background: "var(--k-surface)" }}>
+                  {r.poster && <img src={r.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--k-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.title}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--k-text-3)", marginTop: 1 }}>
+                    {[r.year, r.tmdbType === "tv" ? "Serie" : "Film"].filter(Boolean).join(" · ")}
+                  </div>
+                  <div style={{ fontSize: 12, marginTop: 3, color: d.forte ? "var(--k-ok)" : "var(--k-text-2)", fontWeight: d.forte ? 700 : 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {d.segno} {d.testo}
+                  </div>
+                </div>
+                <button
+                  onClick={() => aggiungiDaRicerca(r)}
+                  disabled={giaInLista}
+                  aria-label={giaInLista ? "Già in lista" : `Aggiungi ${r.title}`}
+                  style={{ width: 44, height: 44, flex: "none", borderRadius: 12, cursor: giaInLista ? "default" : "pointer", fontSize: 20, fontWeight: 700, display: "grid", placeItems: "center", background: giaInLista ? "transparent" : "var(--k-accent)", border: giaInLista ? "1px solid var(--k-line)" : 0, color: giaInLista ? "var(--k-text-3)" : "var(--k-accent-ink)" }}
+                >
+                  {giaInLista ? "✓" : "+"}
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Se non ha ancora detto a cosa è abbonato, la riga sopra dice solo
+              "c'è su X". Qui gli si chiede, una volta sola. */}
+          {!haScelto && ric.length > 0 && !invitoChiuso && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, padding: "10px 12px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12 }}>
+              <span style={{ flex: 1, fontSize: 12.5, color: "var(--k-text-2)", lineHeight: 1.45 }}>
+                Dimmi a cosa sei abbonato e ti dico dove ce l&apos;hai già.
+              </span>
+              <button onClick={() => router.push("/?profilo=1")} className="ds-btn" style={{ height: 44, padding: "0 14px", fontSize: 13, flex: "none" }}>Scegli</button>
+              <button onClick={() => setInvitoChiuso(true)} aria-label="Non ora" style={{ width: 44, height: 44, flex: "none", background: "none", border: 0, color: "var(--k-text-3)", fontSize: 16, cursor: "pointer" }}>✕</button>
+            </div>
+          )}
+
+          {!ricLoading && ric.length === 0 && (
+            <button onClick={() => { doAdd(search.trim()); setSearch(""); }} className="ds-btn" style={{ width: "100%", height: 44, marginTop: 4, fontSize: 13 }}>＋ Aggiungi «{search.trim()}»</button>
+          )}
+        </div>
       )}
 
       {/* schede + filtri */}

@@ -1191,6 +1191,44 @@ export async function touchLastSeen(): Promise<void> {
   }
 }
 
+// ── Gli abbonamenti dell'utente (ricerca trasversale) ───────────────────────
+// Stanno sulla stessa riga di `profile`, in una colonna `platforms` (text[]).
+// Come per onboarded_at, si leggono e si scrivono a parte da getProfile(): una
+// riga con la sola lista degli abbonamenti conta comunque come "scheda
+// allenamento non compilata", e getProfile risponderebbe null.
+
+/** Le piattaforme a cui l'utente dice di essere abbonato. [] se non l'ha detto. */
+export async function getPlatforms(): Promise<string[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  try {
+    const { data, error } = await (await db())
+      .from("profile")
+      .select("platforms")
+      .eq("user_id", uid)
+      .maybeSingle();
+    if (error) {
+      console.error("Abbonamenti: lettura fallita:", error.message);
+      return [];   // colonna non ancora creata: si fa finta che non ne abbia
+    }
+    const p = data?.platforms;
+    return Array.isArray(p) ? (p as string[]) : [];
+  } catch (e) {
+    console.error("Abbonamenti: lettura fallita:", e);
+    return [];
+  }
+}
+
+/** Salva la lista. La riga di profilo viene creata se non c'è. */
+export async function savePlatforms(platforms: string[]): Promise<void> {
+  const uid = await currentUserId();
+  if (!uid) throw new Error("Supabase: utente non autenticato");
+  const { error } = await (await db())
+    .from("profile")
+    .upsert({ user_id: uid, platforms }, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
+}
+
 // ── K14b — "l'onboarding l'ho già fatto" ────────────────────────────────────
 // Va ricordato sul SERVER, non sul telefono: su iPhone l'app aperta dall'icona
 // ha uno storage tutto suo, separato da Safari. Chi fa l'onboarding nel browser,

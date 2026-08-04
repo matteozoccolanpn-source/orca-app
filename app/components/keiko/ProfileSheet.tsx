@@ -74,6 +74,41 @@ export default function ProfileSheet({
     }
   }
 
+  // Abbonamenti: servono alla ricerca in Guarda per dire "ce l'hai già su X"
+  // invece di elencare piattaforme che l'utente non ha. Arrivano insieme al
+  // profilo, quindi nessuna chiamata in più.
+  const [abbonamenti, setAbbonamenti] = useState<string[] | null>(null);
+  const [piattaforme, setPiattaforme] = useState<string[]>([]);
+  const [abbMsg, setAbbMsg] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/profile", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        setAbbonamenti(Array.isArray(d?.platforms) ? d.platforms : []);
+        setPiattaforme(Array.isArray(d?.piattaformeDisponibili) ? d.piattaformeDisponibili : []);
+      })
+      .catch(() => setAbbonamenti([]));
+  }, []);
+
+  async function cambiaAbbonamento(nome: string) {
+    if (!abbonamenti) return;
+    const prima = abbonamenti;
+    const dopo = abbonamenti.includes(nome) ? abbonamenti.filter((x) => x !== nome) : [...abbonamenti, nome];
+    setAbbonamenti(dopo); setAbbMsg(null);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ platforms: dopo }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAbbonamenti(prima);
+      setAbbMsg("Non sono riuscito a salvare. Riprovo?");
+    }
+  }
+
   // Profilo allenamento & dieta (il "seme"): modificabile da qui per sempre,
   // anche dopo la generazione della scheda. Lazy: si carica quando apri la sezione.
   const [fitOpen, setFitOpen] = useState(false);
@@ -257,6 +292,41 @@ export default function ProfileSheet({
             )
           )}
           {fitMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{fitMsg}</p>}
+        </div>
+
+        {/* Abbonamenti — servono a Guarda per dire "ce l'hai già su X" */}
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--k-line)" }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>I tuoi abbonamenti</div>
+          <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2, lineHeight: 1.45 }}>
+            Così quando cerchi un titolo ti dico dove ce l&apos;hai già, invece di mandarti a pagare.
+          </div>
+          {abbonamenti === null ? (
+            <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "12px 2px 0" }}>Carico…</p>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+              {piattaforme.map((p) => {
+                const on = abbonamenti.includes(p);
+                return (
+                  <button
+                    key={p}
+                    onClick={() => cambiaAbbonamento(p)}
+                    role="checkbox"
+                    aria-checked={on}
+                    style={{
+                      height: 44, padding: "0 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit",
+                      fontSize: 13.5, fontWeight: on ? 700 : 500,
+                      background: on ? "var(--k-accent)" : "var(--k-surface)",
+                      border: `1px solid ${on ? "var(--k-accent)" : "var(--k-line)"}`,
+                      color: on ? "var(--k-accent-ink)" : "var(--k-text-2)",
+                    }}
+                  >
+                    {on ? "✓ " : ""}{p}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {abbMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{abbMsg}</p>}
         </div>
 
         {/* Consensi — qui si tolgono. Nessuno dei due è obbligatorio. */}

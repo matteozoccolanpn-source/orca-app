@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { addWatchItem, setWatchItemSeen, setWatchItemReview, deleteWatchItem } from '@/lib/supabase'
-import { resolveTitle, kindFromTmdbType } from '@/lib/tmdb'
+import { resolveTitle, resolveById, kindFromTmdbType } from '@/lib/tmdb'
 
 // API della watchlist "Da guardare". Auth-guarded come /api/todos.
 // POST   { title, kind?, info?, link? } → aggiunge, risponde con l'item
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const denied = await guard()
   if (denied) return denied
 
-  let body: { title?: string; kind?: string; info?: string | null; link?: string | null }
+  let body: { title?: string; kind?: string; info?: string | null; link?: string | null; tmdbId?: number; tmdbType?: string }
   try {
     body = await req.json()
   } catch {
@@ -35,8 +35,16 @@ export async function POST(req: NextRequest) {
   // escono id, tipo, locandina, genere e anno. Da adesso in poi ogni scheda
   // (trama, piattaforme, simili) parte dall'id e guarda lo stesso film.
   // Se TMDB non trova niente si salva lo stesso, con la regola del client.
+  //
+  // Se chi chiama l'id ce l'ha GIÀ (viene dalla ricerca trasversale, dove il
+  // titolo è stato appena trovato), non si cerca una seconda volta: si prendono
+  // i dati dall'id e basta.
   let kind = body.kind === 'serie' ? 'serie' : 'film'
-  const risolto = await resolveTitle(title, kind)
+  const idDaClient = Number(body.tmdbId)
+  const tipoDaClient = body.tmdbType === 'tv' || body.tmdbType === 'movie' ? body.tmdbType : null
+  const risolto = Number.isFinite(idDaClient) && idDaClient > 0 && tipoDaClient
+    ? await resolveById(idDaClient, tipoDaClient)
+    : await resolveTitle(title, kind)
   if (risolto) kind = kindFromTmdbType(risolto.tmdbType)
 
   try {

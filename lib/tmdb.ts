@@ -276,6 +276,32 @@ export async function resolveTitle(title: string, kind?: string): Promise<Resolv
   }
 }
 
+/** Come resolveTitle, ma partendo dall'id: nessuna ricerca. Serve a chi l'id
+ *  ce l'ha già (la ricerca trasversale), per non cercare due volte lo stesso
+ *  titolo e rischiare di finire su un omonimo. */
+export async function resolveById(tmdbId: number, tmdbType: TmdbType): Promise<ResolvedTitle | null> {
+  const s = tmdbSetup();
+  if (!s) return null;
+  try {
+    const r = await fetch(s.withKey(`https://api.themoviedb.org/3/${tmdbType}/${tmdbId}?language=it-IT`), s.init);
+    if (!r.ok) return null;
+    const d = await r.json();
+    const uscita: string = d?.release_date || d?.first_air_date || "";
+    const g = Array.isArray(d?.genres) ? (d.genres as { id: number; name: string }[])[0] : null;
+    return {
+      tmdbId,
+      tmdbType,
+      title: ((d?.title || d?.name) ?? "").trim(),
+      poster: d?.poster_path ? `${IMG_BASE}${d.poster_path}` : null,
+      genre: g ? (GENRE_IT[g.id] ?? g.name ?? null) : null,
+      year: uscita ? uscita.slice(0, 4) : null,
+    };
+  } catch (e) {
+    console.error("TMDB resolve (id): errore per", tmdbId, e);
+    return null;
+  }
+}
+
 /** film/serie dal tipo TMDB. Non chiama niente: è solo una traduzione. */
 export function kindFromTmdbType(tmdbType: string): "film" | "serie" {
   return tmdbType === "tv" ? "serie" : "film";
@@ -377,6 +403,109 @@ export async function similarTitlesById(tmdbId: number, tmdbType: TmdbType): Pro
       .map((r) => ({ title: (r.title || r.name) as string, kind: kindFromTmdbType(tmdbType), poster: `${IMG}${r.poster_path}` }));
   } catch (e) {
     console.error("TMDB similar (id): errore per", tmdbId, e);
+    return [];
+  }
+}
+
+// ============================================================================
+// RICERCA TRASVERSALE — "ce l'hai già su X"
+//
+// Netflix cerca dentro Netflix, Prime dentro Prime. Chi ha quattro abbonamenti
+// apre quattro app per sapere dove sta un titolo, e ogni tanto noleggia una
+// cosa che aveva già inclusa altrove. Qui si cerca UNA volta e si risponde con
+// dove sta, mettendo davanti quello che si può vedere subito senza pagare.
+// ============================================================================
+
+/** Le piattaforme italiane fra cui l'utente sceglie i suoi abbonamenti. */
+export const PIATTAFORME_IT = [
+  "Netflix", "Prime Video", "Disney+", "Now", "Apple TV+",
+  "RaiPlay", "Mediaset Infinity", "Paramount+", "TIMVision", "Crunchyroll",
+] as const;
+
+/** TMDB scrive i nomi a modo suo ("Amazon Prime Video", "Disney Plus", "NOW"…).
+ *  Qui si riportano a quelli della nostra lista, così il confronto con gli
+ *  abbonamenti dell'utente non fallisce per una parola di differenza.
+ *  null = piattaforma che non è nella lista (resta col nome di TMDB). */
+export function normalizzaPiattaforma(nome: string): string | null {
+  const n = nome.toLowerCase();
+  if (n.includes("netflix")) return "Netflix";
+  if (n.includes("prime") || n.includes("amazon")) return "Prime Video";
+  if (n.includes("disney")) return "Disney+";
+  if (n.includes("crunchyroll")) return "Crunchyroll";   // prima di "now": nessun conflitto, ma teniamo l'ordine esplicito
+  if (n.includes("timvision")) return "TIMVision";
+  if (n.includes("paramount")) return "Paramount+";
+  if (n.includes("mediaset") || n.includes("infinity")) return "Mediaset Infinity";
+  if (n.includes("rai")) return "RaiPlay";
+  if (n.includes("apple")) return "Apple TV+";
+  if (n.includes("now") || n.includes("sky")) return "Now";
+  return null;
+}
+
+export type RisultatoRicerca = {
+  tmdbId: number;
+  tmdbType: TmdbType;
+  title: string;
+  year: string | null;
+  poster: string | null;
+  /** In abbonamento (incluso): i nomi normalizzati dove si può. */
+  flatrate: string[];
+  rent: string[];
+  buy: string[];
+  /** Le piattaforme DELL'UTENTE che ce l'hanno in abbonamento. */
+  tue: string[];
+};
+
+/** Cerca un titolo e, per i primi 8 con locandina, dice dove si vede in Italia.
+ *  Una sola search/multi, poi le piattaforme in parallelo PER ID (mai per
+ *  nome: cercare di nuovo rischierebbe di pescare un omonimo).
+ *  `abbonamenti` = quelli dell'utente; serve a riempire `tue` e a ordinare. */
+export async function searchWithProviders(q: string, abbonamenti: string[] = []): Promise<RisultatoRicerca[]> {
+  const s = tmdbSetup();
+  if (!s || !q.trim()) return [];
+  try {
+    const res = await fetch(
+      s.withKey(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(q)}&language=it-IT&page=1`),
+      s.init
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results = (data?.results ?? []) as {
+      id: number; media_type?: string; poster_path?: string | null;
+      title?: string; name?: string; release_date?: string; first_air_date?: string;
+    }[];
+    const scelti = results
+      .filter((r) => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path)
+      .slice(0, 8);
+
+    const miei = new Set(abbonamenti);
+    const righe = await Promise.all(
+      scelti.map(async (r) => {
+        const tmdbType: TmdbType = r.media_type === "tv" ? "tv" : "movie";
+        const p = await watchProvidersById(r.id, tmdbType);
+        const nomi = (arr: WatchProvider[] | undefined) =>
+          [...new Set((arr ?? []).map((x) => normalizzaPiattaforma(x.name) ?? x.name))];
+        const flatrate = nomi(p?.flatrate);
+        const uscita = r.release_date || r.first_air_date || "";
+        return {
+          tmdbId: r.id,
+          tmdbType,
+          title: (r.title || r.name || "").trim(),
+          year: uscita ? uscita.slice(0, 4) : null,
+          poster: r.poster_path ? `${IMG_BASE}${r.poster_path}` : null,
+          flatrate,
+          rent: nomi(p?.rent),
+          buy: nomi(p?.buy),
+          tue: flatrate.filter((n) => miei.has(n)),
+        } as RisultatoRicerca;
+      })
+    );
+
+    // Prima quello che si può vedere SUBITO senza pagare altro, poi quello che
+    // è in abbonamento da qualche parte, poi il resto.
+    const punteggio = (r: RisultatoRicerca) => (r.tue.length ? 0 : r.flatrate.length ? 1 : (r.rent.length || r.buy.length) ? 2 : 3);
+    return righe.sort((a, b) => punteggio(a) - punteggio(b));
+  } catch (e) {
+    console.error("TMDB ricerca: errore per", q, e);
     return [];
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getProfile, saveProfile } from '@/lib/supabase'
+import { getProfile, saveProfile, getPlatforms, savePlatforms } from '@/lib/supabase'
+import { PIATTAFORME_IT } from '@/lib/tmdb'
 
 // API del profilo (S1 rework allenamento) — il "seme" della personalizzazione,
 // condiviso tra allenamento e dieta. Auth-guarded come le altre route.
@@ -14,8 +15,10 @@ const STILI = new Set(['duro', 'chill'])
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const profile = await getProfile()
-  return NextResponse.json({ profile })
+  // `platforms` viaggia a parte: una riga con i soli abbonamenti conta come
+  // "scheda allenamento non compilata", e getProfile risponderebbe null.
+  const [profile, platforms] = await Promise.all([getProfile(), getPlatforms()])
+  return NextResponse.json({ profile, platforms, piattaformeDisponibili: PIATTAFORME_IT })
 }
 
 export async function POST(req: NextRequest) {
@@ -23,6 +26,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let body: {
+    platforms?: unknown
     obiettivo?: string
     livello?: string
     sessioni?: { palestra?: number; corsa?: number }
@@ -33,6 +37,20 @@ export async function POST(req: NextRequest) {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Body non valido' }, { status: 400 })
+  }
+
+  // Gli abbonamenti sono indipendenti dalla scheda: se arrivano SOLO quelli,
+  // si salvano e si risponde, senza pretendere gli altri campi.
+  if (Array.isArray(body.platforms)) {
+    const valide = new Set<string>(PIATTAFORME_IT)
+    const scelte = [...new Set((body.platforms as unknown[]).filter((p): p is string => typeof p === 'string' && valide.has(p)))]
+    try {
+      await savePlatforms(scelte)
+    } catch (e) {
+      console.error('Abbonamenti: salvataggio fallito:', e)
+      return NextResponse.json({ error: 'Salvataggio abbonamenti fallito' }, { status: 502 })
+    }
+    if (Object.keys(body).length === 1) return NextResponse.json({ success: true, platforms: scelte })
   }
 
   const obiettivo = OBIETTIVI.has(body.obiettivo ?? '') ? body.obiettivo! : null
