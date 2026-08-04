@@ -86,6 +86,11 @@ export default function Onboarding({ accountName, name, city, onName, onCity, on
 
   function chiudi(haSalvato: boolean) {
     try { localStorage.removeItem(PASSO_SALVATO); } catch { /* no-op */ }
+    // K14b — si segna sul SERVER che l'onboarding è finito, in qualunque
+    // contesto sia stato fatto. Da qui in poi non riparte più: né in Safari né
+    // dall'icona, che su iPhone hanno storage separati.
+    // Non si aspetta la risposta: se fallisse, il peggio è rivederlo una volta.
+    fetch("/api/profile/onboarded", { method: "POST", credentials: "include", keepalive: true }).catch(() => {});
     onDone(haSalvato);
   }
 

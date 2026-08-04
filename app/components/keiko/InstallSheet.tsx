@@ -53,12 +53,18 @@ function Passo({ n, icona, children }: { n: number; icona?: React.ReactNode; chi
   );
 }
 
-export default function InstallSheet({ modo, onClose, onFatto, zIndex = 95 }: {
+export default function InstallSheet({ modo, onClose, onFatto, onNonOra, primaDellOnboarding = false, zIndex = 95 }: {
   modo: Exclude<CosaMostrare, null>;
   /** chiusura "non ora": rimanda, non ripropone domani */
   onClose: () => void;
   /** gli avvisi sono stati attivati davvero */
   onFatto?: () => void;
+  /** K14b: "Non ora" quando l'invito arriva PRIMA dell'onboarding — non chiude
+   *  e basta, fa partire l'onboarding qui nel browser. */
+  onNonOra?: () => void;
+  /** K14b: l'invito arriva prima dell'onboarding (browser da telefono, mai
+   *  fatto). Cambia il testo: qui installare viene prima di tutto il resto. */
+  primaDellOnboarding?: boolean;
   zIndex?: number;
 }) {
   const [busy, setBusy] = useState(false);
@@ -108,6 +114,13 @@ export default function InstallSheet({ modo, onClose, onFatto, zIndex = 95 }: {
 
         {modo === "guida-ios" && (
           <>
+            {/* K14b: quando l'invito precede l'onboarding, la prima riga dice
+                perché conviene installare ADESSO invece che dopo. */}
+            {primaDellOnboarding && (
+              <p style={{ fontSize: 14.5, color: "var(--k-text)", fontWeight: 600, lineHeight: 1.5, margin: "10px 2px 8px" }}>
+                Installami prima: notifiche e posizione funzionano solo dall&apos;icona. Ci metti 10 secondi.
+              </p>
+            )}
             <p style={{ fontSize: 14.5, color: "var(--k-text-2)", lineHeight: 1.55, margin: "10px 2px 6px" }}>
               Da lì posso avvisarti: quando esci per il treno, quando c&apos;è da allenarsi, quando scade un to-do.
               Dal browser non ci riesco.
@@ -122,9 +135,22 @@ export default function InstallSheet({ modo, onClose, onFatto, zIndex = 95 }: {
             <p style={{ fontSize: 13, color: "var(--k-text-3)", lineHeight: 1.55, margin: "14px 2px 0", paddingTop: 14, borderTop: "1px solid var(--k-line)" }}>
               Poi aprimi dall&apos;icona 🐋: da lì ti chiedo il permesso per gli avvisi.
             </p>
+            {/* K14b: aprendo dall'icona iPhone tratta Keiko come un'app a sé, con
+                i suoi cookie. Dirlo prima evita lo spavento del "e perché mi
+                richiede l'accesso?". */}
+            {primaDellOnboarding && (
+              <p style={{ fontSize: 11.5, color: "var(--k-text-3)", lineHeight: 1.5, margin: "10px 2px 0" }}>
+                Dall&apos;icona ti richiederà l&apos;accesso Google una volta: è normale, per iPhone è un&apos;app separata.
+              </p>
+            )}
             <button onClick={chiudiRimandando} className="ds-btn primary" style={{ width: "100%", height: 48, marginTop: 18, fontSize: 15, fontWeight: 700 }}>
               Ho capito
             </button>
+            {onNonOra && (
+              <button onClick={() => { rimanda(); onNonOra(); }} style={{ background: "none", border: 0, color: "var(--k-text-3)", fontSize: 13.5, cursor: "pointer", width: "100%", marginTop: 12, padding: 8 }}>
+                Non ora
+              </button>
+            )}
           </>
         )}
 
@@ -136,7 +162,7 @@ export default function InstallSheet({ modo, onClose, onFatto, zIndex = 95 }: {
             <button onClick={aggiungiSuAndroid} disabled={busy} className="ds-btn primary" style={{ width: "100%", height: 48, marginTop: 20, fontSize: 15, fontWeight: 700, opacity: busy ? 0.5 : 1 }}>
               {busy ? "…" : "Aggiungi Keiko"}
             </button>
-            <button onClick={chiudiRimandando} style={{ background: "none", border: 0, color: "var(--k-text-3)", fontSize: 13.5, cursor: "pointer", width: "100%", marginTop: 12, padding: 8 }}>
+            <button onClick={() => { if (onNonOra) { rimanda(); onNonOra(); } else chiudiRimandando(); }} style={{ background: "none", border: 0, color: "var(--k-text-3)", fontSize: 13.5, cursor: "pointer", width: "100%", marginTop: 12, padding: 8 }}>
               Non ora
             </button>
           </>

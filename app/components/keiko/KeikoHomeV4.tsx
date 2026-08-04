@@ -10,7 +10,7 @@ import DaySheet from "./DaySheet";
 import ProfileSheet from "./ProfileSheet";
 import InstallSheet from "./InstallSheet";
 import Onboarding from "./Onboarding";
-import { cosaMostrare, daProporre, type CosaMostrare } from "@/lib/install-client";
+import { cosaMostrare, daProporre, daIcona, daTelefono, type CosaMostrare } from "@/lib/install-client";
 import CalendarSheet from "./CalendarSheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor, glyphFor } from "@/lib/smart-image";
@@ -29,7 +29,7 @@ function dayTitle(key: string): string {
   catch { return key; }
 }
 
-export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string }) {
+export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
   const [selEv, setSelEv] = useState<LiveEvent | null>(null);
@@ -150,20 +150,52 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
     try {
       const n = localStorage.getItem("keiko-name"); if (n) setName(n);
       const c = localStorage.getItem("keiko-city"); if (c) setCity(c);
-      if (!localStorage.getItem("keiko-onboarded")) setOnboard(true);
     } catch { /* no-op */ }
   }, []);
-  // K15 — l'invito ad aggiungere Keiko alla schermata Home (e poi gli avvisi).
-  // Arriva DOPO l'onboarding e dopo un attimo: la regola è che l'atmosfera viene
-  // dopo il momento wow, mai prima. L'attesa serve anche ad Android, che lancia
-  // il suo invito a installare qualche istante dopo il caricamento.
+
+  // K14b — che cosa mostrare all'apertura.
+  //
+  // L'onboarding "già fatto" lo sa il SERVER (`onboardedAt`), non il telefono:
+  // su iPhone l'app aperta dall'icona ha uno storage separato da Safari, quindi
+  // chi lo faceva nel browser se lo ritrovava da capo dopo aver installato.
+  //
+  //   dall'icona      · mai fatto  → onboarding
+  //   dall'icona      · già fatto  → home (i permessi li chiede K15, se servono)
+  //   browser telefono· mai fatto  → prima l'invito a installare; "Non ora" fa
+  //                                  partire l'onboarding lì
+  //   browser telefono· già fatto  → home
+  //   computer        · mai fatto  → onboarding e basta (non c'è niente da installare)
+  const [invitoPrima, setInvitoPrima] = useState<CosaMostrare>(null);
+  const [fattoQui, setFattoQui] = useState(false);   // finito ora, prima che il server si aggiorni
+  const onboardingFatto = !!onboardedAt || fattoQui;
+
   useEffect(() => {
-    if (demo || onboard) return;
-    try { if (!localStorage.getItem("keiko-onboarded")) return; } catch { return; }
+    if (demo || onboardingFatto) return;
+    // Il telefono può saperlo prima del server (onboarding appena finito e
+    // pagina non ancora ricaricata): vale come "fatto", non si ripropone.
+    try { if (localStorage.getItem("keiko-onboarded")) { setFattoQui(true); return; } } catch { /* no-op */ }
+
+    const modo = cosaMostrare();
+    const daInstallare = modo === "guida-ios" || modo === "guida-android";
+    if (!daIcona() && daTelefono() && daInstallare) setInvitoPrima(modo);
+    else setOnboard(true);
+  }, [demo, onboardingFatto]);
+
+  // K15 — l'invito ad aggiungere Keiko alla schermata Home (e poi gli avvisi).
+  // Arriva DOPO l'onboarding e dopo un attimo: l'atmosfera viene dopo il momento
+  // wow, mai prima. L'attesa serve anche ad Android, che lancia il suo invito a
+  // installare qualche istante dopo il caricamento.
+  // Nota K14b: la condizione guarda `onboardingFatto`, non più il solo
+  // localStorage. Chi ha fatto l'onboarding in Safari e apre dall'icona ha uno
+  // storage vuoto lì: senza questo non gli verrebbero mai chiesti gli avvisi,
+  // che sono proprio la ragione per cui ha installato.
+  useEffect(() => {
+    if (demo || onboard || invitoPrima) return;
+    if (!onboardingFatto) return;
     if (!daProporre()) return;
     const t = setTimeout(() => setInvito(cosaMostrare()), 1500);
     return () => clearTimeout(t);
-  }, [demo, onboard]);
+  }, [demo, onboard, invitoPrima, onboardingFatto]);
 
   const saveName = (v: string) => { setName(v); try { localStorage.setItem("keiko-name", v); } catch { /* no-op */ } };
   const saveCity = (v: string) => { setCity(v); try { localStorage.setItem("keiko-city", v); } catch { /* no-op */ } };
@@ -378,6 +410,20 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
         />
       )}
       {invito && !profileOpen && <InstallSheet modo={invito} onClose={() => setInvito(null)} />}
+
+      {/* K14b — l'invito a installare PRIMA dell'onboarding (solo browser da
+          telefono, onboarding mai fatto). "Non ora" non chiude e basta: fa
+          partire l'onboarding qui, così chi non vuole installare non resta a
+          mani vuote. */}
+      {invitoPrima && !demo && (
+        <InstallSheet
+          modo={invitoPrima}
+          primaDellOnboarding
+          onNonOra={() => { setInvitoPrima(null); setOnboard(true); }}
+          onClose={() => { setInvitoPrima(null); setOnboard(true); }}
+        />
+      )}
+
       {onboard && !demo && (
         <Onboarding
           accountName={accountName}
@@ -387,6 +433,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
           onCity={saveCity}
           onDone={(haSalvatoEvento) => {
             try { localStorage.setItem("keiko-onboarded", "1"); } catch { /* no-op */ }
+            setFattoQui(true);
             setOnboard(false);
             // L'evento della schermata 2 è già nel database: senza questo la home
             // resterebbe quella caricata prima, cioè vuota.

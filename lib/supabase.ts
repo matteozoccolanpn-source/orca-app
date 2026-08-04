@@ -1136,6 +1136,45 @@ export async function touchLastSeen(): Promise<void> {
   }
 }
 
+// ── K14b — "l'onboarding l'ho già fatto" ────────────────────────────────────
+// Va ricordato sul SERVER, non sul telefono: su iPhone l'app aperta dall'icona
+// ha uno storage tutto suo, separato da Safari. Chi fa l'onboarding nel browser,
+// installa e apre dall'icona, senza questo se lo ritroverebbe da capo.
+
+/** Quando l'utente ha finito l'onboarding, o null se non l'ha mai finito.
+ *  Legge SOLO quella colonna: `getProfile()` non va bene, perché una riga con
+ *  la scheda allenamento vuota la considera (giustamente) "profilo non
+ *  compilato" e tornerebbe null anche a chi l'onboarding l'ha finito. */
+export async function getOnboardedAt(): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  try {
+    const { data, error } = await (await db())
+      .from("profile")
+      .select("onboarded_at")
+      .eq("user_id", uid)
+      .maybeSingle();
+    if (error) {
+      console.error("K14b: lettura onboarded_at fallita:", error.message);
+      return null;   // nel dubbio si rifà l'onboarding: meglio di una home muta
+    }
+    return (data?.onboarded_at as string) ?? null;
+  } catch (e) {
+    console.error("K14b: lettura onboarded_at fallita:", e);
+    return null;
+  }
+}
+
+/** Segna che l'onboarding è finito. `mark_onboarded` crea da sé la riga di
+ *  profilo se manca (verificato), quindi vale anche per chi non ha mai
+ *  compilato la scheda allenamento. */
+export async function markOnboarded(): Promise<void> {
+  const uid = await currentUserId();
+  if (!uid) throw new Error("Supabase: utente non autenticato");
+  const { error } = await serviceDb().rpc("mark_onboarded", { p_user: uid });
+  if (error) throw new Error(error.message);
+}
+
 export interface Numeri {
   iscritti: number;
   attivi7: number;

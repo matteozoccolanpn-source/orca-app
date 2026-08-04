@@ -47,6 +47,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITO),
   title: "Keiko",
   description: DESCRIZIONE,
+  // L'icona che iOS usa quando Keiko finisce nella schermata Home.
+  // (favicon.ico non sta qui: è `app/favicon.ico`, che Next collega da sé.)
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     type: "website",
     siteName: "Keiko",
@@ -84,7 +89,6 @@ export default function RootLayout({
       className={`dark ${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <head>
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Tema scuro UNICO: forza .dark prima del primo paint e cancella
            eventuali preferenze "chiaro" salvate (keiko-theme/keiko-mood),
            così l'app non può più ribaltarsi in chiaro. */}

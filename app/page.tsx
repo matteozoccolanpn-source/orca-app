@@ -2,7 +2,7 @@ import SwipeShell from "./components/SwipeShell";
 import KeikoPreview from "./components/keiko/KeikoPreview";
 import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
-import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist } from "@/lib/supabase";
+import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt } from "@/lib/supabase";
 import { posterFor } from "@/lib/tmdb";
 import { resolveEventImage } from "@/lib/event-image";
 import { cityImage } from "@/lib/unsplash";
@@ -30,7 +30,9 @@ export default async function Home({
   const session = await requireLogin();
   const classic = "classic" in sp;
   const v2 = "v2" in sp;   // paracadute: Home precedente
-  const [events, diet, workout, trainedDays, trips, todos, watchlist] = await Promise.all([
+  // `onboardedAt` viaggia insieme al resto (K14b): niente chiamata di rete in
+  // più dal telefono, è una query in parallelo alle altre.
+  const [events, diet, workout, trainedDays, trips, todos, watchlist, onboardedAt] = await Promise.all([
     getUpcomingTickets(),
     getDietPlan(),
     getWorkoutPlan(),
@@ -38,6 +40,7 @@ export default async function Home({
     getAllTripPlans(),
     getTodos(),
     getWatchlist(),
+    getOnboardedAt(),
   ]);
 
   // Server action passata all'appbar della Home per il logout discreto.
@@ -109,5 +112,5 @@ export default async function Home({
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.
-  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} />;
+  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} onboardedAt={onboardedAt} />;
 }

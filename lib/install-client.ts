@@ -38,6 +38,15 @@ export function daIcona(): boolean {
   return iosStandalone || window.matchMedia("(display-mode: standalone)").matches;
 }
 
+/** true se siamo su un telefono. Serve a K14b: sul computer non si installa
+ *  niente, quindi l'onboarding parte diretto nel browser. Si guarda il tocco
+ *  E la larghezza: un portatile con schermo touch non è un telefono. */
+export function daTelefono(): boolean {
+  if (typeof window === "undefined") return false;
+  const tocco = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  return tocco && window.innerWidth < 900;
+}
+
 /** true se il browser ci ha offerto l'invito a installare (Android/Chrome). */
 export function invitoAndroidPronto(): boolean {
   return invitoAndroid !== null;
