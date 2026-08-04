@@ -1065,6 +1065,19 @@ export async function getProfile(): Promise<ProfileData | null> {
     return null;
   }
   if (!data) return null;
+  // Riga vuota = profilo NON compilato. La riga può esistere senza che nessuno
+  // abbia compilato niente, perché la crea `touchLastSeen()` (K9) per poter
+  // contare chi apre l'app. Senza questo controllo l'onboarding di /allenamento
+  // sparirebbe a chi non ha mai toccato la scheda.
+  //
+  // ATTENZIONE per chi passa di qui: "vuoto" si giudica SOLO sui campi della
+  // scheda allenamento, quelli qui sotto. Le colonne di servizio della stessa
+  // riga — `last_seen_at` (K9) e `onboarded_at` (K14b) — NON vanno contate:
+  // si riempiono da sole senza che l'utente abbia compilato niente, e includerle
+  // farebbe sparire l'onboarding di /allenamento a chi non ha mai fatto la scheda.
+  // Per lo stesso motivo la select qui sopra non le chiede nemmeno.
+  const campiScheda = [data.obiettivo, data.livello, data.sessioni, data.vincoli, data.stile];
+  if (campiScheda.every((c) => !c)) return null;
   return {
     obiettivo: (data.obiettivo as string) ?? null,
     livello: (data.livello as string) ?? null,
@@ -1091,6 +1104,75 @@ export async function saveProfile(patch: Partial<Omit<ProfileData, "updatedAt">>
   };
   const { error } = await (await db()).from("profile").upsert(row, { onConflict: "user_id" });
   if (error) throw new Error(error.message);
+}
+
+// ============================================================================
+// K9 — LA RIGA DEI NUMERI
+// `touch_last_seen` (docs/sql/last_seen.sql) scrive al massimo una volta al
+// giorno per persona: si protegge da sola dalle scritture ripetute.
+// ============================================================================
+
+/** Segna che l'utente loggato ha aperto Keiko. Non lancia mai: è contabilità,
+ *  non deve poter rompere l'apertura dell'app. */
+export async function touchLastSeen(): Promise<void> {
+  const uid = await currentUserId();
+  if (!uid) return;
+  try {
+    const sb = serviceDb();
+    // La funzione aggiorna una riga di `profile`. Chi non ha mai compilato il
+    // profilo quella riga non ce l'ha, e non verrebbe contato mai: qui la si
+    // crea vuota. `getProfile()` continua a leggerla come "non compilato",
+    // quindi l'onboarding di /allenamento non cambia.
+    // ignoreDuplicates = INSERT ... ON CONFLICT DO NOTHING: non tocca chi c'è già.
+    const { error: creata } = await sb
+      .from("profile")
+      .upsert({ user_id: uid }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (creata) console.error("K9: riga profilo non creata:", creata.message);
+
+    const { error } = await sb.rpc("touch_last_seen", { p_user: uid });
+    if (error) console.error("K9: touch_last_seen fallita:", error.message);
+  } catch (e) {
+    console.error("K9: touch_last_seen fallita:", e);
+  }
+}
+
+export interface Numeri {
+  iscritti: number;
+  attivi7: number;
+  attivi30: number;
+  conContenuti: number;
+}
+
+/** I quattro numeri. Legge con la service-role: deve vedere TUTTI gli utenti,
+ *  non solo chi guarda. La schermata che la usa è visibile al solo proprietario. */
+export async function getNumeri(): Promise<Numeri> {
+  const sb = serviceDb();
+  const da = (giorni: number) => new Date(Date.now() - giorni * 24 * 60 * 60 * 1000).toISOString();
+
+  const [tutti, a7, a30, tickets, diete, schede] = await Promise.all([
+    sb.from("profile").select("*", { count: "exact", head: true }),
+    sb.from("profile").select("*", { count: "exact", head: true }).gt("last_seen_at", da(7)),
+    sb.from("profile").select("*", { count: "exact", head: true }).gt("last_seen_at", da(30)),
+    sb.from("tickets").select("user_id"),
+    sb.from("diet_plan").select("user_id"),
+    sb.from("workout_plan").select("user_id"),
+  ]);
+
+  // "quanti hanno caricato qualcosa": l'unione delle tre tabelle, contata una
+  // volta per persona (chi ha eventi E dieta conta uno).
+  const con = new Set<string>();
+  for (const r of [tickets, diete, schede]) {
+    for (const riga of (r.data ?? []) as { user_id: string | null }[]) {
+      if (riga.user_id) con.add(riga.user_id);
+    }
+  }
+
+  return {
+    iscritti: tutti.count ?? 0,
+    attivi7: a7.count ?? 0,
+    attivi30: a30.count ?? 0,
+    conContenuti: con.size,
+  };
 }
 
 // ============================================================================

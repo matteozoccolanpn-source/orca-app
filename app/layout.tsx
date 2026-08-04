@@ -4,6 +4,7 @@ import "./globals.css";
 import "./ds.css";
 import GlobalChrome from "@/components/GlobalChrome";
 import VersionGuard from "@/components/VersionGuard";
+import SeenPing from "@/components/SeenPing";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import SuggestProvider from "@/app/components/keiko/SuggestProvider";
 
@@ -114,6 +115,7 @@ export default function RootLayout({
           </SuggestProvider>
         </TooltipProvider>
         <GlobalChrome />
+        <SeenPing />
         <VersionGuard buildId={process.env.VERCEL_GIT_COMMIT_SHA ?? "dev"} />
       </body>
     </html>
