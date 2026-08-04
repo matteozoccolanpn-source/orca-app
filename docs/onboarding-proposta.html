@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keiko — Onboarding, proposta</title>
+<style>
+:root{
+  --bg:#0F1113; --bg2:#141719;
+  --card:#1B1F22; --card2:#22272B;
+  --line:rgba(255,255,255,.09);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 30px rgba(0,0,0,.45);
+  --text:#F3EFE8; --text2:#C9CFD4; --text3:#8B959C;
+  --amber:#FFB84D; --amber-ink:#20170A;
+  --ok:#8FE0A0; --alert:#E2705F;
+  --page:#F2F4F3; --ptxt:#12203A; --ptxt2:#4f6178; --pline:#dfe4e6;
+  --cat-cena:linear-gradient(150deg,#d8693d,#5e2414);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ptxt);
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.disp{font-family:Fraunces,Georgia,"Iowan Old Style",serif;font-weight:600;letter-spacing:-.02em}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px 90px}
+
+header{background:var(--bg);color:var(--text);padding:44px 0 40px;border-bottom:3px solid var(--amber);margin-bottom:30px;
+ background-image:radial-gradient(80% 120% at 12% 0%, rgba(255,184,77,.14), transparent 62%)}
+header .eyebrow{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#9aa6ad;margin-bottom:12px}
+header h1{margin:0 0 10px;font-size:34px;letter-spacing:-.03em}
+header p{margin:0;max-width:720px;color:#c3cbd1;font-size:15.5px;line-height:1.65}
+
+h2.sec{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ptxt2);margin:48px 0 6px;font-weight:700;border-top:1px solid var(--pline);padding-top:16px}
+p.secsub{margin:0 0 24px;color:var(--ptxt2);font-size:14.5px;max-width:780px;line-height:1.65}
+.row{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+.unit{width:300px}
+.unit .cap{font-size:15px;font-weight:650;margin:15px 0 4px;letter-spacing:-.01em}
+.unit .cap span{color:var(--ptxt2);font-weight:500}
+.unit .why{font-size:12.8px;color:var(--ptxt2);line-height:1.55}
+.unit .why b{color:var(--ptxt)}
+
+/* telefono */
+.phone{width:300px;height:630px;border-radius:38px;background:var(--bg);border:8px solid #05070a;
+ box-shadow:0 18px 48px rgba(18,32,58,.28);overflow:hidden;position:relative;color:var(--text)}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:104px;height:21px;background:#05070a;border-radius:0 0 14px 14px;z-index:20}
+.st{display:flex;justify-content:space-between;padding:8px 19px 0;font-size:10px;color:var(--text3)}
+.scr{padding:0 20px;height:calc(100% - 22px);display:flex;flex-direction:column;position:relative}
+
+.prog{display:flex;gap:5px;margin:16px 0 24px}
+.prog i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.13);font-style:normal}
+.prog i.on{background:var(--amber)}
+
+.big{font-size:25px;line-height:1.16;margin:0 0 10px}
+.sub{font-size:13.5px;color:var(--text2);line-height:1.55;margin:0 0 18px}
+.hero-emoji{font-size:40px;margin-bottom:10px}
+
+.field{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:13px 14px;font-size:14px;color:var(--text3);margin-bottom:9px}
+.field.filled{color:var(--text)}
+.field .lab{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
+
+.btn{border-radius:999px;padding:13px;text-align:center;font-size:14.5px;font-weight:700;background:var(--amber);color:var(--amber-ink)}
+.btn.g{background:transparent;border:1px solid var(--line);color:var(--text);font-weight:600}
+.skip{text-align:center;font-size:13px;color:var(--text3);margin-top:12px}
+.bottom{margin-top:auto;padding-bottom:22px}
+.back{position:absolute;top:14px;left:20px;font-size:17px;color:var(--text3);z-index:5}
+
+.chipx{display:inline-block;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;
+ padding:7px 12px;font-size:12.5px;color:var(--text2);margin:0 6px 7px 0}
+.chipx.amber{background:rgba(255,184,77,.13);border-color:rgba(255,184,77,.32);color:var(--amber)}
+
+/* card evento risultato */
+.evt{position:relative;border-radius:18px;overflow:hidden;border:1px solid rgba(0,0,0,.5);box-shadow:var(--shadow);margin:4px 0 12px}
+.evt .art{position:absolute;inset:0;background:var(--cat-cena)}
+.evt .art:before{content:"";position:absolute;inset:0;background:radial-gradient(80% 60% at 20% 0%,rgba(255,255,255,.2),transparent 60%)}
+.evt .art:after{content:"";position:absolute;left:0;right:0;bottom:0;height:65%;background:linear-gradient(180deg,transparent,rgba(4,8,16,.78))}
+.evt .in{position:relative;z-index:2;padding:14px;min-height:118px;display:flex;flex-direction:column;justify-content:flex-end}
+.evt .catlab{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);font-weight:700;position:absolute;top:12px;left:14px}
+.evt h4{margin:0;font-size:17px;letter-spacing:-.015em;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.evt .m{font-size:12.5px;color:var(--text2);margin-top:4px}
+.evt .m b{color:var(--amber)}
+
+.consent{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.04);border:1px solid var(--line);
+ border-radius:14px;padding:12px 13px;margin-bottom:9px}
+.box{width:19px;height:19px;border-radius:6px;border:1.5px solid rgba(255,255,255,.3);flex:0 0 19px;margin-top:1px}
+.box.on{background:var(--amber);border-color:var(--amber);position:relative}
+.box.on:after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--amber-ink);font-size:12px;font-weight:800}
+.consent .t{font-size:12.8px;line-height:1.45}
+.consent .t b{display:block;font-size:13.5px;margin-bottom:2px}
+.consent .t span{color:var(--text3)}
+
+.mini{font-size:11px;color:var(--text3);line-height:1.5;text-align:center}
+.link{color:var(--amber)}
+
+.note{background:#fff;border:1px solid var(--pline);border-left:4px solid var(--amber);border-radius:14px;padding:18px 20px;margin:26px 0 0;font-size:14px;line-height:1.7;color:var(--ptxt2)}
+.note b{color:var(--ptxt)}
+.note.red{border-left-color:#c0554a}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:14px 0 0;background:#fff;border-radius:12px;overflow:hidden}
+th{text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ptxt2);background:#f7f9f9;padding:10px 14px;font-weight:700}
+td{border-top:1px solid var(--pline);padding:11px 14px;vertical-align:top;line-height:1.5}
+.foot{margin-top:48px;padding-top:18px;border-top:1px solid var(--pline);font-size:12.5px;color:#7d8f9c;line-height:1.6}
+@media(max-width:700px){.unit,.phone{width:100%;max-width:312px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Proposta · 4 agosto 2026</div>
+    <h1 class="disp">Onboarding di Keiko</h1>
+    <p>Quattro schermate invece di tre, ma con un ordine diverso: <strong>prima si vede funzionare, poi si danno i dati</strong>. E si esce con un evento vero già dentro, invece che con una home vuota.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="note red">
+  <b>Il problema di oggi, in una riga.</b> Le tre schermate attuali chiedono nome e città, poi spiegano l'app con un muro di testo. L'utente arriva alla home avendo <b>dato due dati e non aver visto niente funzionare</b> — e trova una home vuota. In un funnel a più passaggi il drop-off mediano è del 20-35% per schermata: ogni domanda fatta prima del valore costa persone.<br><br>
+  <b>E il nome ce l'hai già.</b> L'accesso è con Google: nome ed email arrivano da lì. Chiederli dopo il login è chiedere una cosa che sai già.
+</div>
+
+<h2 class="sec">Le quattro schermate</h2>
+<p class="secsub">Barra di avanzamento, possibilità di tornare indietro, "Salta" sempre disponibile. Se uno salta tutto, l'app deve funzionare comunque.</p>
+
+<div class="row">
+
+  <!-- 1 -->
+  <div class="unit">
+    <div class="phone"><div class="notch"></div>
+      <div class="st"><span>9:41</span><span>▮▮▮ ⌁ 87%</span></div>
+      <div class="scr">
+        <div class="prog"><i class="on"></i><i></i><i></i><i></i></div>
+        <div class="hero-emoji">🐋</div>
+        <div class="big disp">Ciao Matteo,<br>sono Keiko.</div>
+        <div class="sub">Tengo insieme la tua settimana: eventi, dieta, allenamento, cosa guardare. Tu me lo dici come viene, al resto ci penso io.</div>
+
+        <div style="margin-top:6px">
+          <span class="chipx amber">«volo domani 6:00»</span>
+          <span class="chipx">📸 uno screenshot</span>
+          <span class="chipx">📄 il PDF della dieta</span>
+        </div>
+
+        <div class="bottom">
+          <div class="btn">Comincia</div>
+          <div class="mini" style="margin-top:14px">Nome preso dal tuo account Google. <span class="link">Non sei tu?</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">1 · Benvenuto <span>— non chiede niente</span></div>
+    <div class="why">Il nome arriva da Google, <b>non lo chiedi</b>. Le tre pillole mostrano cosa può ricevere senza spiegarlo a parole. Zero campi da riempire.</div>
+  </div>
+
+  <!-- 2 -->
+  <div class="unit">
+    <div class="phone"><div class="notch"></div>
+      <div class="st"><span>9:41</span><span>▮▮▮ ⌁ 87%</span></div>
+      <div class="scr">
+        <div class="back">‹</div>
+        <div class="prog"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+        <div class="big disp">Provami subito.</div>
+        <div class="sub">Scrivi una cosa che hai da fare, come la diresti a voce.</div>
+
+        <div class="field filled">cena venerdì alle 20 da Marco</div>
+        <div style="margin-bottom:14px">
+          <span class="chipx">palestra giovedì 19</span>
+          <span class="chipx">dentista il 12 alle 9:30</span>
+        </div>
+
+        <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:7px">Ecco cosa capisco</div>
+        <div class="evt">
+          <div class="art"></div>
+          <div class="in">
+            <div class="catlab">🍽 Ristorante</div>
+            <h4>Cena da Marco</h4>
+            <div class="m"><b>ven 7 agosto · 20:00</b></div>
+          </div>
+        </div>
+
+        <div class="bottom">
+          <div class="btn">Salvalo, è giusto</div>
+          <div class="skip">Modifica · Salta</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">2 · Il momento wow <span>— la schermata che decide tutto</span></div>
+    <div class="why">L'utente <b>vede la magia prima di dare qualunque dato</b>. E l'evento resta: esce dall'onboarding con la home già viva invece che vuota. Se salta, nessun problema.</div>
+  </div>
+
+  <!-- 3 -->
+  <div class="unit">
+    <div class="phone"><div class="notch"></div>
+      <div class="st"><span>9:41</span><span>▮▮▮ ⌁ 87%</span></div>
+      <div class="scr">
+        <div class="back">‹</div>
+        <div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+        <div class="hero-emoji">📍</div>
+        <div class="big disp">Dove ti trovo?</div>
+        <div class="sub">Mi serve per il meteo del giorno e per dirti quando uscire di casa. La cambi quando vuoi dal profilo.</div>
+
+        <div class="field"><div class="lab">Città</div>Es. Milano</div>
+
+        <div class="bottom">
+          <div class="btn">Avanti</div>
+          <div class="skip">Non ora</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">3 · La città <span>— l'unica cosa che chiedi</span></div>
+    <div class="why">Chiesta <b>dopo</b> che hanno visto funzionare l'app, e con il perché scritto: meteo e "quando uscire". Un dato solo, e saltabile.</div>
+  </div>
+
+  <!-- 4 -->
+  <div class="unit">
+    <div class="phone"><div class="notch"></div>
+      <div class="st"><span>9:41</span><span>▮▮▮ ⌁ 87%</span></div>
+      <div class="scr">
+        <div class="back">‹</div>
+        <div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <div class="big disp" style="font-size:22px">Due cose, poi ti lascio in pace.</div>
+        <div class="sub" style="font-size:12.8px">I tuoi dati sono tuoi: niente pubblicità, niente rivendita. Il database è in Europa; per leggere foto e PDF mi appoggio a un'intelligenza artificiale che elabora negli Stati Uniti, con le garanzie di legge. Cancelli tutto quando vuoi, dal profilo.</div>
+
+        <div class="consent">
+          <div class="box on"></div>
+          <div class="t"><b>Dieta e Allenamento</b><span>Per tenere il tuo piano mi servi il consenso sui dati di salute. Serve solo per queste due sezioni, e lo togli quando vuoi.</span></div>
+        </div>
+        <div class="consent">
+          <div class="box"></div>
+          <div class="t"><b>Avvisami per email</b><span>Solo quando aggiungo qualcosa che ti serve. Poche volte l'anno.</span></div>
+        </div>
+
+        <div class="bottom">
+          <div class="btn">Iniziamo</div>
+          <div class="mini" style="margin-top:12px"><span class="link">Come tratto i tuoi dati</span> · <span class="link">Non è un consiglio medico</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">4 · Trasparenza <span>— non un muro legale</span></div>
+    <div class="why">Tre righe leggibili, il link all'informativa completa, e <b>due caselle separate, nessuna obbligatoria</b>. Chi non spunta la prima usa Keiko senza Dieta e Allenamento.</div>
+  </div>
+
+</div>
+
+<h2 class="sec">5 e 6 · Installazione e notifiche — già fatte ✅</h2>
+<p class="secsub">Queste due esistono già e sono state verificate sul telefono. Non vanno rifatte: qui servono a vedere la sequenza completa e a capire dove si incastrano. La regola che le governa è una sola — <strong>il permesso non si chiede mai dove fallirebbe</strong>.</p>
+
+<div class="row">
+
+  <!-- 5 -->
+  <div class="unit">
+    <div class="phone"><div class="notch"></div>
+      <div class="st"><span>9:41</span><span>▮▮▮ ⌁ 87%</span></div>
+      <div class="scr" style="justify-content:flex-end;padding-bottom:0">
+        <div style="opacity:.25;padding-top:30px">
+          <div style="font-size:11px;letter-spacing:.1em;color:var(--text3)">MAR 4 &nbsp; MER 5 &nbsp; GIO 6</div>
+          <div style="height:90px;border-radius:16px;background:var(--cat-cena);margin-top:12px;opacity:.5"></div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:18px 18px 22px;margin:0 -20px;box-shadow:0 -10px 40px rgba(0,0,0,.6)">
+          <div style="width:34px;height:3px;border-radius:2px;background:rgba(255,255,255,.2);margin:0 auto 14px"></div>
+          <div style="display:flex;gap:11px;align-items:flex-start;margin-bottom:10px">
+            <div style="width:34px;height:34px;border-radius:50%;background:#3a3325;display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 34px">🐋</div>
+            <div class="big disp" style="font-size:19px;margin:0;flex:1">Mettimi nella tua schermata Home</div>
+          </div>
+          <div class="sub" style="font-size:12.5px;margin-bottom:12px">Da lì posso avvisarti: quando esci per il treno, quando c'è da allenarsi, quando scade un to-do. Dal browser non ci riesco.</div>
+          <div style="border-top:1px solid var(--line);padding:9px 0;display:flex;align-items:center;gap:10px;font-size:12.5px">
+            <span style="width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3)">1</span>
+            <span style="flex:1">Tocca <b>Condividi</b>, in fondo</span>
+            <span style="width:30px;height:30px;border-radius:8px;background:rgba(255,184,77,.12);display:flex;align-items:center;justify-content:center;color:var(--amber)">⇧</span>
+          </div>
+          <div style="border-top:1px solid var(--line);padding:9px 0;display:flex;align-items:center;gap:10px;font-size:12.5px">
+            <span style="width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3)">2</span>
+            <span style="flex:1">Scegli <b>Aggiungi a schermata Home</b></span>
+            <span style="width:30px;height:30px;border-radius:8px;background:rgba(255,184,77,.12);display:flex;align-items:center;justify-content:center;color:var(--amber)">＋</span>
+          </div>
+          <div style="border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:9px 0;display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:11px">
+            <span style="width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3)">3</span>
+            <span style="flex:1">Tocca <b>Aggiungi</b>, in alto a destra</span>
+          </div>
+          <div class="mini" style="text-align:left;margin-bottom:11px">Poi aprimi dall'icona 🐋: da lì ti chiedo il permesso per gli avvisi.</div>
+          <div class="btn">Ho capito</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">5 · Installazione <span>— 1,5 s dopo la home</span></div>
+    <div class="why">Compare solo dal browser su iPhone. <b>Nessun permesso chiesto qui</b>: su iOS un "no" non si recupera più. Se la chiudi torna dopo 7 giorni, poi 30, poi mai più.</div>
+  </div>
+
+  <!-- 6 -->
+  <div class="unit">
+    <div class="phone"><div class="notch"></div>
+      <div class="st"><span>9:41</span><span>▮▮▮ ⌁ 87%</span></div>
+      <div class="scr" style="justify-content:flex-end;padding-bottom:0">
+        <div style="opacity:.25;padding-top:30px">
+          <div style="font-size:11px;letter-spacing:.1em;color:var(--text3)">MAR 4 &nbsp; MER 5 &nbsp; GIO 6</div>
+          <div style="height:90px;border-radius:16px;background:var(--cat-cena);margin-top:12px;opacity:.5"></div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:18px 18px 22px;margin:0 -20px;box-shadow:0 -10px 40px rgba(0,0,0,.6)">
+          <div style="width:34px;height:3px;border-radius:2px;background:rgba(255,255,255,.2);margin:0 auto 14px"></div>
+          <div style="display:flex;gap:11px;align-items:center;margin-bottom:12px">
+            <div style="width:34px;height:34px;border-radius:50%;background:#3a3325;display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 34px">🐋</div>
+            <div class="big disp" style="font-size:21px;margin:0">Ti avviso io</div>
+          </div>
+          <div class="sub" style="font-size:13px;margin-bottom:18px">Quando è ora di uscire per il treno, quando c'è da allenarsi, quando scade un to-do. Solo le tue cose: niente altro.</div>
+          <div class="btn">Avvisami</div>
+          <div class="skip">Non ora</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">6 · Notifiche <span>— solo dall'icona</span></div>
+    <div class="why">Arriva <b>solo</b> quando Keiko è aperta dalla schermata Home. Un tocco su "Avvisami" e parte il permesso di iOS. La frase <em>"solo le tue cose: niente altro"</em> è la promessa che fa dire sì.</div>
+  </div>
+
+</div>
+
+<h2 class="sec">Cosa succede dopo</h2>
+<p class="secsub">L'onboarding finisce qui. Il resto arriva quando serve, non tutto insieme all'inizio — è il principio dell'"onboarding a scomparsa" già scritto nella tua bussola.</p>
+
+<table>
+  <tr><th style="width:30%">Momento</th><th>Cosa arriva</th></tr>
+  <tr><td><b>1,5 s dopo la home</b></td><td>Il pannello <b>"Mettimi nella schermata Home"</b> — già fatto, K15. Nessun permesso chiesto nel browser.</td></tr>
+  <tr><td><b>Aperta dall'icona</b></td><td><b>"Ti avviso io"</b> → il permesso notifiche. Già fatto.</td></tr>
+  <tr><td>Prima volta su <b>Dieta</b></td><td>"Carica il piano del tuo nutrizionista" + l'avvertenza sanitaria. Non prima.</td></tr>
+  <tr><td>Prima volta su <b>Allenamento</b></td><td>Obiettivo, livello, sessioni a settimana. Non prima.</td></tr>
+  <tr><td>Prima volta su <b>Guarda</b></td><td>"Aggiungi un titolo — anche solo «quel film di Nolan»".</td></tr>
+</table>
+
+<h2 class="sec">Le cose "da app seria" che oggi mancano</h2>
+
+<table>
+  <tr><th style="width:34%">Cosa</th><th>Perché conta</th></tr>
+  <tr><td><b>Tornare indietro</b></td><td>Oggi si va solo avanti. Un utente che sbaglia il nome non può correggerlo senza rifare tutto.</td></tr>
+  <tr><td><b>Uscire con qualcosa dentro</b></td><td>Chi salta tutto oggi arriva a una home vuota. L'evento della schermata 2 risolve lo stato vuoto senza dati finti.</td></tr>
+  <tr><td><b>Il nome da Google</b></td><td>Ce l'hai già dal login. Chiederlo dà l'impressione che l'app non sappia chi sei.</td></tr>
+  <tr><td><b>Il perché di ogni domanda</b></td><td>"Mi serve per il meteo e per dirti quando uscire" converte molto più di un campo senza spiegazione.</td></tr>
+  <tr><td><b>Riprendere dove si era rimasti</b></td><td>Se l'app si chiude a metà onboarding, deve ripartire dalla schermata giusta, non da capo.</td></tr>
+  <tr><td><b>Salvare i consensi</b></td><td>Tabella <code>consents</code>: chi, cosa, quando, quale versione del testo. Serve per poter dimostrare — e per la revoca dal profilo.</td></tr>
+  <tr><td><b>Rifare l'onboarding</b></td><td>Una voce nel profilo per rivederlo. Utile a te per le prove, e a chi non ha capito.</td></tr>
+  <tr><td><b>Se il parsing fallisce</b></td><td>Nella schermata 2 l'AI può sbagliare. Serve il caso "non ho capito, correggi tu" — mai un errore tecnico in faccia al primo minuto.</td></tr>
+</table>
+
+<div class="note">
+  <b>La regola che tiene insieme tutto.</b> L'onboarding non serve a raccogliere dati: serve a portare l'utente al primo momento in cui l'app fa qualcosa per lui. Ogni schermata che non avvicina a quel momento è una schermata da togliere. Per questo il nome sparisce, la spiegazione a tre paragrafi sparisce, e al loro posto entra una cosa sola: <b>scrivi una frase e guarda cosa succede</b>.
+</div>
+
+<div class="foot">
+  Proposta di onboarding per Keiko, 4 agosto 2026. Costruita sui token di <code>app/ds.css</code> e sulle regole di <code>docs/UI-VOICE.md</code>. Il font display è reso con un fallback serif: nell'app resta Fraunces.
+</div>
+
+</div>
+</body>
+</html>

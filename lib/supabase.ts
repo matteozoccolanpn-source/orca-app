@@ -1094,6 +1094,62 @@ export async function saveProfile(patch: Partial<Omit<ProfileData, "updatedAt">>
 }
 
 // ============================================================================
+// CONSENSI (K2/K14) — tabella `consents`. Nessuno dei due è obbligatorio:
+// senza 'salute' Keiko funziona, solo senza Dieta e Allenamento.
+// La revoca non cancella la riga: la mette a `accettato = false`, così resta
+// scritto da quando. Vedi docs/sql/consents.sql.
+// ============================================================================
+
+/** La versione del testo mostrato all'utente. Si cambia SOLO se cambia il testo. */
+export const VERSIONE_CONSENSI = "2026-08-04";
+
+export type TipoConsenso = "salute" | "email";
+
+export interface Consenso {
+  tipo: TipoConsenso;
+  accettato: boolean;
+  versioneTesto: string;
+  quando: string;
+}
+
+/** I consensi dell'utente loggato. Chi non ha mai risposto non ha righe. */
+export async function getConsents(): Promise<Consenso[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data, error } = await (await db())
+    .from("consents")
+    .select("tipo, accettato, versione_testo, timestamp")
+    .eq("user_id", uid);
+  if (error) {
+    console.error("Supabase: failed to fetch consents:", error.message);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    tipo: r.tipo as TipoConsenso,
+    accettato: r.accettato === true,
+    versioneTesto: (r.versione_testo as string) ?? "",
+    quando: (r.timestamp as string) ?? "",
+  }));
+}
+
+/** Segna un consenso come dato o revocato. La riga resta: cambia lo stato. */
+export async function setConsent(tipo: TipoConsenso, accettato: boolean): Promise<void> {
+  const uid = await currentUserId();
+  if (!uid) throw new Error("Supabase: utente non autenticato");
+  const { error } = await (await db()).from("consents").upsert(
+    {
+      user_id: uid,
+      tipo,
+      accettato,
+      versione_testo: VERSIONE_CONSENSI,
+      timestamp: new Date().toISOString(),
+    },
+    { onConflict: "user_id,tipo" }
+  );
+  if (error) throw new Error(error.message);
+}
+
+// ============================================================================
 // K4 — "CANCELLA TUTTI I MIEI DATI"
 //
 // Cancella davvero tutto quello che l'app sa di UNA persona, e solo di quella.
@@ -1130,6 +1186,7 @@ export const TABELLE_PERSONALI = [
   "trips",              // viaggi (tabella storica, può non esserci più)
   "push_subscriptions", // notifiche
   "profile",            // obiettivo, livello, vincoli
+  "consents",           // consensi dati e revoche
 ] as const;
 
 export interface EsitoCancellazione {

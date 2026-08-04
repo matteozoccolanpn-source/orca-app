@@ -26,7 +26,8 @@ export default async function Home({
   //   /?v2      → KeikoPreview (la Home usata finora)
   //   /?classic → SwipeShell   (la primissima Home)
   const sp = await searchParams;
-  await requireLogin();
+  // Il nome dell'account Google: l'onboarding non lo chiede più, lo mostra.
+  const session = await requireLogin();
   const classic = "classic" in sp;
   const v2 = "v2" in sp;   // paracadute: Home precedente
   const [events, diet, workout, trainedDays, trips, todos, watchlist] = await Promise.all([
@@ -108,5 +109,5 @@ export default async function Home({
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.
-  return <KeikoHomeV4 live={live} logoutAction={logout} />;
+  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} />;
 }

@@ -12,7 +12,7 @@ import InstallSheet from "./InstallSheet";
 import SheetShell from "./SheetShell";
 
 export default function ProfileSheet({
-  name, onName, city, onCity, onClose, logoutAction,
+  name, onName, city, onCity, onClose, logoutAction, onRivediOnboarding,
 }: {
   name: string;
   onName: (v: string) => void;
@@ -20,6 +20,8 @@ export default function ProfileSheet({
   onCity?: (v: string) => void;
   onClose: () => void;
   logoutAction?: () => Promise<void>;
+  /** Rifà l'onboarding da capo (utile per le prove e per chi non ha capito). */
+  onRivediOnboarding?: () => void;
 }) {
   const [notif, setNotif] = useState(false);
   const [notifBusy, setNotifBusy] = useState(false);
@@ -32,6 +34,45 @@ export default function ProfileSheet({
   const [guida, setGuida] = useState(false);
   useEffect(() => { setIos(isIos()); setDaHome(daIcona()); checkNotifications().then(setNotif); }, []);
   const serveGuida = ios && !daHome;
+
+  // Consensi (K2/K14): qui si REVOCANO. Si caricano all'apertura del pannello,
+  // così lo stato mostrato è quello vero del database, non un'ipotesi.
+  const [consensi, setConsensi] = useState<{ salute: boolean; email: boolean } | null>(null);
+  const [consBusy, setConsBusy] = useState<string | null>(null);
+  const [consMsg, setConsMsg] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/consents", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        const lista = (d?.consensi ?? []) as { tipo: string; accettato: boolean }[];
+        setConsensi({
+          salute: lista.some((x) => x.tipo === "salute" && x.accettato),
+          email: lista.some((x) => x.tipo === "email" && x.accettato),
+        });
+      })
+      .catch(() => setConsensi({ salute: false, email: false }));
+  }, []);
+
+  async function cambiaConsenso(tipo: "salute" | "email") {
+    if (!consensi) return;
+    const nuovo = !consensi[tipo];
+    setConsBusy(tipo); setConsMsg(null);
+    setConsensi({ ...consensi, [tipo]: nuovo });          // risposta immediata al tocco
+    try {
+      const res = await fetch("/api/consents", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tipo, accettato: nuovo }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setConsensi({ ...consensi, [tipo]: !nuovo });        // non è passata: torno com'era
+      setConsMsg("Non sono riuscito a salvare. Riprovo?");
+    } finally {
+      setConsBusy(null);
+    }
+  }
 
   // Profilo allenamento & dieta (il "seme"): modificabile da qui per sempre,
   // anche dopo la generazione della scheda. Lazy: si carica quando apri la sezione.
@@ -218,6 +259,46 @@ export default function ProfileSheet({
           {fitMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{fitMsg}</p>}
         </div>
 
+        {/* Consensi — qui si tolgono. Nessuno dei due è obbligatorio. */}
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--k-line)" }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>Consensi</div>
+          <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>Li togli quando vuoi, anche subito</div>
+          {consensi === null ? (
+            <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "12px 2px 0" }}>Carico…</p>
+          ) : (
+            <>
+              <RigaConsenso
+                titolo="Dieta e allenamento"
+                sotto="Dati di salute. Senza, quelle due sezioni non si usano; il resto funziona."
+                on={consensi.salute}
+                busy={consBusy === "salute"}
+                onToggle={() => cambiaConsenso("salute")}
+              />
+              <RigaConsenso
+                titolo="Avvisami per email"
+                sotto="Solo quando aggiungo qualcosa che ti serve."
+                on={consensi.email}
+                busy={consBusy === "email"}
+                onToggle={() => cambiaConsenso("email")}
+              />
+            </>
+          )}
+          {consMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{consMsg}</p>}
+        </div>
+
+        {/* Rivedere l'onboarding — utile per le prove e per chi non ha capito */}
+        {onRivediOnboarding && (
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--k-line)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>Come funziona Keiko</div>
+                <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>Rivedi la presentazione dall&apos;inizio</div>
+              </div>
+              <button onClick={onRivediOnboarding} className="ds-btn" style={{ height: 40, padding: "0 16px", fontSize: 13, flex: "none" }}>Rivedi</button>
+            </div>
+          </div>
+        )}
+
         {logoutAction && (
           <form action={logoutAction} style={{ marginTop: 26 }}>
             <button type="submit" className="ds-btn" style={{ width: "100%", height: 48 }}>Esci</button>
@@ -293,5 +374,35 @@ export default function ProfileSheet({
         />
       )}
     </SheetShell>
+  );
+}
+
+/* Una riga di consenso: acceso/spento, con l'interruttore a destra.
+   Toglierlo è un tocco solo — la revoca dev'essere facile quanto il consenso. */
+function RigaConsenso({ titolo, sotto, on, busy, onToggle }: {
+  titolo: string; sotto: string; on: boolean; busy: boolean; onToggle: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--k-text)" }}>{titolo}</div>
+        <div style={{ fontSize: 12, color: "var(--k-text-3)", marginTop: 2, lineHeight: 1.45 }}>{sotto}</div>
+      </div>
+      <button
+        onClick={onToggle}
+        disabled={busy}
+        role="switch"
+        aria-checked={on}
+        aria-label={titolo}
+        style={{
+          width: 48, height: 28, borderRadius: 999, flex: "none", cursor: "pointer", position: "relative",
+          background: on ? "var(--k-accent)" : "var(--k-surface)",
+          border: `1px solid ${on ? "var(--k-accent)" : "var(--k-line)"}`,
+          opacity: busy ? 0.5 : 1, transition: "background .16s",
+        }}
+      >
+        <span style={{ position: "absolute", top: 2, left: on ? 22 : 2, width: 22, height: 22, borderRadius: "50%", background: on ? "var(--k-accent-ink)" : "var(--k-text-3)", transition: "left .16s" }} />
+      </button>
+    </div>
   );
 }

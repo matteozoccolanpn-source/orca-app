@@ -29,7 +29,7 @@ function dayTitle(key: string): string {
   catch { return key; }
 }
 
-export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void> }) {
+export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
   const [selEv, setSelEv] = useState<LiveEvent | null>(null);
@@ -366,15 +366,32 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
           canOpenEvent={(id) => eventById(id) !== null}
         />
       )}
-      {profileOpen && <ProfileSheet name={name} onName={saveName} city={city} onCity={saveCity} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}
+      {profileOpen && (
+        <ProfileSheet
+          name={name} onName={saveName} city={city} onCity={saveCity}
+          onClose={() => setProfileOpen(false)} logoutAction={logoutAction}
+          onRivediOnboarding={() => {
+            try { localStorage.removeItem("keiko-onboarding-passo"); } catch { /* no-op */ }
+            setProfileOpen(false);
+            setOnboard(true);
+          }}
+        />
+      )}
       {invito && !profileOpen && <InstallSheet modo={invito} onClose={() => setInvito(null)} />}
       {onboard && !demo && (
         <Onboarding
+          accountName={accountName}
           name={name}
           city={city}
           onName={saveName}
           onCity={saveCity}
-          onDone={() => { try { localStorage.setItem("keiko-onboarded", "1"); } catch { /* no-op */ } setOnboard(false); }}
+          onDone={(haSalvatoEvento) => {
+            try { localStorage.setItem("keiko-onboarded", "1"); } catch { /* no-op */ }
+            setOnboard(false);
+            // L'evento della schermata 2 è già nel database: senza questo la home
+            // resterebbe quella caricata prima, cioè vuota.
+            if (haSalvatoEvento) router.refresh();
+          }}
         />
       )}
       {calOpen && (
