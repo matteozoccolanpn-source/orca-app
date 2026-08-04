@@ -8,7 +8,9 @@ import EventSheet from "./EventSheet";
 import AskSheet from "./AskSheet";
 import DaySheet from "./DaySheet";
 import ProfileSheet from "./ProfileSheet";
+import InstallSheet from "./InstallSheet";
 import Onboarding from "./Onboarding";
+import { cosaMostrare, daProporre, type CosaMostrare } from "@/lib/install-client";
 import CalendarSheet from "./CalendarSheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor, glyphFor } from "@/lib/smart-image";
@@ -36,6 +38,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
   const [profileOpen, setProfileOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   const [onboard, setOnboard] = useState(false);
+  const [invito, setInvito] = useState<CosaMostrare>(null);   // K15
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [weather, setWeather] = useState<{ tempC: number; emoji: string; text: string } | null>(null);
@@ -150,6 +153,18 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
       if (!localStorage.getItem("keiko-onboarded")) setOnboard(true);
     } catch { /* no-op */ }
   }, []);
+  // K15 — l'invito ad aggiungere Keiko alla schermata Home (e poi gli avvisi).
+  // Arriva DOPO l'onboarding e dopo un attimo: la regola è che l'atmosfera viene
+  // dopo il momento wow, mai prima. L'attesa serve anche ad Android, che lancia
+  // il suo invito a installare qualche istante dopo il caricamento.
+  useEffect(() => {
+    if (demo || onboard) return;
+    try { if (!localStorage.getItem("keiko-onboarded")) return; } catch { return; }
+    if (!daProporre()) return;
+    const t = setTimeout(() => setInvito(cosaMostrare()), 1500);
+    return () => clearTimeout(t);
+  }, [demo, onboard]);
+
   const saveName = (v: string) => { setName(v); try { localStorage.setItem("keiko-name", v); } catch { /* no-op */ } };
   const saveCity = (v: string) => { setCity(v); try { localStorage.setItem("keiko-city", v); } catch { /* no-op */ } };
 
@@ -352,6 +367,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction }: { live
         />
       )}
       {profileOpen && <ProfileSheet name={name} onName={saveName} city={city} onCity={saveCity} onClose={() => setProfileOpen(false)} logoutAction={logoutAction} />}
+      {invito && !profileOpen && <InstallSheet modo={invito} onClose={() => setInvito(null)} />}
       {onboard && !demo && (
         <Onboarding
           name={name}

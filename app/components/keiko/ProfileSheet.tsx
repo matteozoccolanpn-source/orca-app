@@ -6,7 +6,9 @@
    quindi nella home v4 non c'era modo di iscriversi (= notifiche mai ricevute). */
 import { useEffect, useState } from "react";
 import { checkNotifications, enableNotifications, disableNotifications, isIos } from "@/lib/push-client";
+import { daIcona, dimenticaRinvio } from "@/lib/install-client";
 import ProfiloForm, { type ProfiloValori } from "./ProfiloForm";
+import InstallSheet from "./InstallSheet";
 import SheetShell from "./SheetShell";
 
 export default function ProfileSheet({
@@ -23,7 +25,13 @@ export default function ProfileSheet({
   const [notifBusy, setNotifBusy] = useState(false);
   const [notifMsg, setNotifMsg] = useState<string | null>(null);
   const [ios, setIos] = useState(false);
-  useEffect(() => { setIos(isIos()); checkNotifications().then(setNotif); }, []);
+  // K15: su iPhone dal browser gli avvisi NON si possono attivare. Invece di
+  // farli fallire, il tasto apre la guida. `daHome` parte a true così, nel
+  // primo istante prima del controllo, non lampeggia la guida a chi non serve.
+  const [daHome, setDaHome] = useState(true);
+  const [guida, setGuida] = useState(false);
+  useEffect(() => { setIos(isIos()); setDaHome(daIcona()); checkNotifications().then(setNotif); }, []);
+  const serveGuida = ios && !daHome;
 
   // Profilo allenamento & dieta (il "seme"): modificabile da qui per sempre,
   // anche dopo la generazione della scheda. Lazy: si carica quando apri la sezione.
@@ -92,6 +100,9 @@ export default function ProfileSheet({
   }
 
   async function toggleNotif() {
+    // Su iPhone dal browser il permesso non si può nemmeno chiedere: si apre la
+    // guida, invece di sbattere in faccia un errore che non si può risolvere lì.
+    if (!notif && serveGuida) { setGuida(true); return; }
     setNotifBusy(true); setNotifMsg(null);
     try {
       if (notif) {
@@ -99,8 +110,8 @@ export default function ProfileSheet({
         setNotif(false); setNotifMsg("Notifiche disattivate.");
       } else {
         const r = await enableNotifications();
-        if (r.ok) { setNotif(true); setNotifMsg("Notifiche attive ✅"); }
-        else if (r.error === "ios-install") setNotifMsg("Su iPhone: installa Keiko (Condividi → Aggiungi a Home) e attiva da lì.");
+        if (r.ok) { dimenticaRinvio(); setNotif(true); setNotifMsg("Notifiche attive ✅"); }
+        else if (r.error === "ios-install") { setGuida(true); return; }
         else if (r.error === "denied") setNotifMsg("Permesso negato dal browser.");
         else if (r.error === "no-key") setNotifMsg("Config VAPID mancante nella build.");
         else if (r.error === "unsupported") setNotifMsg("Notifiche non supportate qui.");
@@ -163,12 +174,17 @@ export default function ProfileSheet({
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>Notifiche</div>
-              <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>Promemoria di eventi e to-do{ios ? " · su iPhone installa Keiko dalla Home" : ""}</div>
+              <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>
+                {serveGuida ? "Prima aggiungimi alla tua schermata Home" : "Promemoria di eventi e to-do"}
+              </div>
             </div>
             <button onClick={toggleNotif} disabled={notifBusy} className={`ds-btn${notif ? "" : " primary"}`} style={{ height: 40, padding: "0 16px", fontSize: 13, opacity: notifBusy ? 0.5 : 1, flex: "none" }}>
-              {notifBusy ? "…" : notif ? "Attive ✓" : "Attiva"}
+              {notifBusy ? "…" : notif ? "Attive ✓" : serveGuida ? "Come si fa" : "Attiva"}
             </button>
           </div>
+          {serveGuida && !notif && (
+            <button onClick={() => setGuida(true)} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginTop: 10, padding: "2px 2px" }}>Mostrami i passaggi</button>
+          )}
           {notif && (
             <button onClick={testNotif} disabled={notifBusy} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginTop: 10, padding: "2px 2px" }}>Invia notifica di prova</button>
           )}
@@ -266,6 +282,16 @@ export default function ProfileSheet({
           {delMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{delMsg}</p>}
         </div>
       </div>
+
+      {/* K15: la guida resta raggiungibile da qui per sempre, anche per chi ha
+          chiuso l'invito automatico. Sta sopra il Profilo (zIndex 92). */}
+      {guida && (
+        <InstallSheet
+          modo="guida-ios"
+          zIndex={96}
+          onClose={() => { setGuida(false); checkNotifications().then(setNotif); }}
+        />
+      )}
     </SheetShell>
   );
 }
