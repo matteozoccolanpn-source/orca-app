@@ -45,6 +45,52 @@ export default function ProfileSheet({
     }
   }
 
+  // K4 — "cancella tutti i miei dati". Registro serio (docs/UI-VOICE.md §2):
+  // niente emoji, niente battute. Due passaggi: si apre la conferma e si scrive
+  // CANCELLA a mano, così non si arriva qui con un tocco sbagliato.
+  const [delOpen, setDelOpen] = useState(false);
+  const [delWord, setDelWord] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
+  const [delMsg, setDelMsg] = useState<string | null>(null);
+  const [delDone, setDelDone] = useState(false);
+
+  async function deleteAll() {
+    setDelBusy(true); setDelMsg(null);
+    let riuscito = false;
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ conferma: "CANCELLA" }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.ok) {
+        riuscito = true;
+      } else {
+        setDelMsg(d?.error ? String(d.error) : "Qualcosa non torna: i tuoi dati sono ancora al loro posto. Riprova.");
+      }
+    } catch {
+      setDelMsg("Qualcosa non torna: i tuoi dati sono ancora al loro posto. Riprova.");
+    } finally {
+      setDelBusy(false);
+    }
+    if (!riuscito) return;
+
+    // Il database è pulito. Restano le tracce su questo dispositivo: l'iscrizione
+    // alle notifiche del browser e quello che sta nel telefono (nome, città, temi).
+    setDelDone(true);
+    setDelMsg("Fatto. Non ho più niente di tuo. Ti riporto all'accesso.");
+    try { await disableNotifications(); } catch { /* la riga sul server è già sparita */ }
+    try {
+      for (const k of ["keiko-name", "keiko-city", "keiko-mood", "keiko-theme", "keiko-onboarded"]) {
+        localStorage.removeItem(k);
+      }
+    } catch { /* niente localStorage: pazienza */ }
+    if (logoutAction) await logoutAction();
+    else window.location.href = "/login";
+  }
+
   async function toggleNotif() {
     setNotifBusy(true); setNotifMsg(null);
     try {
@@ -161,6 +207,64 @@ export default function ProfileSheet({
             <button type="submit" className="ds-btn" style={{ width: "100%", height: 48 }}>Esci</button>
           </form>
         )}
+
+        {/* K4 — i tuoi dati. Ultima sezione: si arriva qui apposta, non per caso. */}
+        <div style={{ marginTop: 26, paddingTop: 18, borderTop: "1px solid var(--k-line)" }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>I tuoi dati</div>
+          <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2, lineHeight: 1.5 }}>
+            Eventi, to-do, dieta, allenamento, viaggi, watchlist, profilo e notifiche: tutto quello che Keiko sa di te.
+          </div>
+
+          {!delOpen ? (
+            <button
+              onClick={() => { setDelOpen(true); setDelWord(""); setDelMsg(null); }}
+              className="ds-btn"
+              style={{ marginTop: 12, width: "100%", height: 44, fontSize: 13.5, color: "#e57373", borderColor: "rgba(229,115,115,.35)" }}
+            >
+              Cancella tutti i miei dati
+            </button>
+          ) : (
+            <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: "var(--k-surface)", border: "1px solid rgba(229,115,115,.35)" }}>
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>Cancello tutto?</div>
+              <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "8px 0 0", lineHeight: 1.5 }}>
+                Spariscono i tuoi eventi, i to-do, la dieta, l&apos;allenamento, i viaggi, la watchlist, il profilo e le notifiche.
+                Non si torna indietro: dopo non posso ripescarli.
+              </p>
+              <label style={{ display: "block", fontSize: 12.5, color: "var(--k-text-3)", margin: "14px 2px 6px" }}>
+                Scrivi CANCELLA per confermare
+              </label>
+              <input
+                value={delWord}
+                onChange={(e) => setDelWord(e.target.value)}
+                placeholder="CANCELLA"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                disabled={delBusy || delDone}
+                style={{ width: "100%", background: "var(--k-bg)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 15, fontFamily: "inherit", outline: 0 }}
+              />
+              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                <button
+                  onClick={() => { setDelOpen(false); setDelWord(""); setDelMsg(null); }}
+                  disabled={delBusy || delDone}
+                  className="ds-btn"
+                  style={{ flex: 1, height: 44, fontSize: 13.5 }}
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={deleteAll}
+                  disabled={delWord.trim() !== "CANCELLA" || delBusy || delDone}
+                  className="ds-btn"
+                  style={{ flex: 1, height: 44, fontSize: 13.5, color: "#e57373", borderColor: "rgba(229,115,115,.35)", opacity: delWord.trim() !== "CANCELLA" || delBusy || delDone ? 0.45 : 1 }}
+                >
+                  {delBusy ? "Sto cancellando…" : "Cancella tutto"}
+                </button>
+              </div>
+            </div>
+          )}
+          {delMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{delMsg}</p>}
+        </div>
       </div>
     </SheetShell>
   );

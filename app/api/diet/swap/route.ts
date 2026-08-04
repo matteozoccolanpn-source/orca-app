@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
+import { spendAi, claudeFetch, isAiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 
 // Scambio del singolo alimento dentro un'opzione (una riga di testo).
 // Due mestieri in base al body:
@@ -51,18 +52,18 @@ Rispondi SOLO con JSON valido, nessun testo attorno:
 { "alimenti": ["alimento 1", "alimento 2"] }
 Italiano.`
 
-  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+  // Tetto costi (K6): uno scambio è una richiesta piccola → vale 1.
+  try {
+    await spendAi('cattura')
+  } catch (e) {
+    if (isAiCapReached(e)) return NextResponse.json({ error: AI_CAP_MESSAGE }, { status: 429 })
+    throw e
+  }
+
+  const claudeRes = await claudeFetch({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: prompt }],
   })
 
   if (!claudeRes.ok) {

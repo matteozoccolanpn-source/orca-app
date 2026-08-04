@@ -1,6 +1,6 @@
 // Server-side only — SUPABASE_SERVICE_ROLE_KEY must never reach the client bundle.
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { userDb } from "./supabase-user";
 import { detectClusters, type TicketInput } from "./incastri";
 import { currentUserId } from "./user";
@@ -50,22 +50,32 @@ function emojiForType(type: string | undefined): string {
   }
 }
 
-// Interruttore multi-utente (Blocco C). SPENTO in produzione (MULTIUSER_RLS != "1")
-// -> il livello dati usa la chiave service-role come SEMPRE (nessun cambiamento).
-// ACCESO -> interroga il DB "come utente" (client per-utente) e le policy RLS del
-// database garantiscono la privacy. Si accende solo dopo i test di isolamento.
-const MULTIUSER_RLS = process.env.MULTIUSER_RLS === "1";
+// Interruttore multi-utente (Blocco C). DEVE valere "1": il livello dati
+// interroga il DB "come utente" (client per-utente) e le policy RLS del database
+// garantiscono la privacy.
+// NIENTE PIU' RIPIEGO SILENZIOSO: se la variabile manca (o vale altro), db()
+// LANCIA invece di tornare al client service-role. Un ripiego silenzioso
+// significherebbe girare con "tutti vedono tutto" senza che nessuno se ne accorga:
+// meglio un'app rotta e rumorosa che un'app che perde i dati fra utenti.
+const MULTIUSER_RLS_RAW = process.env.MULTIUSER_RLS;
+const MULTIUSER_RLS = MULTIUSER_RLS_RAW === "1";
 
 async function db() {
-  if (!MULTIUSER_RLS) return serviceDb();
+  if (!MULTIUSER_RLS) {
+    throw new Error(
+      MULTIUSER_RLS_RAW === undefined || MULTIUSER_RLS_RAW === ""
+        ? 'MULTIUSER_RLS mancante: rifiuto di girare senza isolamento dati (imposta MULTIUSER_RLS="1")'
+        : `MULTIUSER_RLS="${MULTIUSER_RLS_RAW}" non valido: rifiuto di girare senza isolamento dati (l'unico valore accettato e' "1")`
+    );
+  }
   const u = await userDb();
   if (!u) throw new Error("Supabase: utente non autenticato");
   return u.db;
 }
 
-// Client service-role (scavalca RLS): usato quando l'interruttore e' spento e per
-// compiti amministrativi. NON usarlo sul percorso dati a interruttore acceso.
-function serviceDb() {
+// Client service-role (scavalca RLS): SOLO compiti amministrativi senza sessione
+// (i cron). NON e' piu' il ripiego di db(): sul percorso dati non va usato mai.
+export function serviceDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase: missing env vars (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)");
@@ -1081,4 +1091,104 @@ export async function saveProfile(patch: Partial<Omit<ProfileData, "updatedAt">>
   };
   const { error } = await (await db()).from("profile").upsert(row, { onConflict: "user_id" });
   if (error) throw new Error(error.message);
+}
+
+// ============================================================================
+// K4 — "CANCELLA TUTTI I MIEI DATI"
+//
+// Cancella davvero tutto quello che l'app sa di UNA persona, e solo di quella.
+// Due reti indipendenti, perché qui sbagliare vuol dire cancellare i dati di
+// qualcun altro:
+//   1) il client è quello "come utente" (token firmato): le policy RLS del
+//      database lasciano toccare solo le righe con user_id = auth.uid();
+//   2) ogni DELETE porta comunque `.eq("user_id", uid)` scritto a mano.
+// Se una delle due si rompesse, l'altra regge da sola. Verificato con un terzo
+// utente finto: con il token di A e l'uid di B non sparisce nessuna riga di B.
+//
+// `usage` (il contatore del tetto AI, K6) è fuori da questo giro: è invisibile
+// agli utenti (nessuna policy), quindi la svuota il client di servizio con il
+// filtro sull'utente scritto a mano.
+//
+// Restano fuori di proposito:
+//   `films_catalog`   — cache dei film, condivisa, nessun dato personale
+//   `notification_runs` — registro del cron, nessun dato personale
+//   `search_log`      — non ha `user_id`: non è cancellabile per persona (K70)
+// ============================================================================
+
+/** Le tabelle con dati personali, nell'ordine in cui si svuotano
+ *  (i figli prima dei genitori: `workout_set` prima di `workout_session`). */
+export const TABELLE_PERSONALI = [
+  "tickets",            // eventi
+  "todos",              // to-do
+  "watchlist",          // da guardare
+  "diet_plan",          // dieta
+  "workout_plan",       // scheda
+  "workout_log",        // giorni allenati
+  "workout_set",        // le serie vere
+  "workout_session",    // le sedute
+  "trip_plans",         // itinerari
+  "trips",              // viaggi (tabella storica, può non esserci più)
+  "push_subscriptions", // notifiche
+  "profile",            // obiettivo, livello, vincoli
+] as const;
+
+export interface EsitoCancellazione {
+  tabella: string;
+  righe: number;
+  saltata?: string;  // la tabella non esiste su questo database: niente da fare
+  errore?: string;
+}
+
+/** true se l'errore è "questa tabella non esiste", non un guasto vero. */
+function tabellaAssente(error: { code?: string; message?: string }): boolean {
+  const code = error.code ?? "";
+  const msg = (error.message ?? "").toLowerCase();
+  return code === "42P01" || code === "PGRST205" || msg.includes("does not exist") || msg.includes("schema cache");
+}
+
+/** Il motore vero. Sta a parte da `deleteAllMyData()` così si può provare fuori
+ *  da una richiesta HTTP (script di verifica) senza toccare i dati di nessuno. */
+export async function deleteDataForUser(client: SupabaseClient, uid: string): Promise<EsitoCancellazione[]> {
+  if (!uid) throw new Error("Cancellazione: manca l'utente");
+  const esiti: EsitoCancellazione[] = [];
+  for (const tabella of TABELLE_PERSONALI) {
+    const { count, error } = await client.from(tabella).delete({ count: "exact" }).eq("user_id", uid);
+    if (error) {
+      esiti.push(tabellaAssente(error)
+        ? { tabella, righe: 0, saltata: "tabella assente" }
+        : { tabella, righe: 0, errore: error.message });
+    } else {
+      esiti.push({ tabella, righe: count ?? 0 });
+    }
+  }
+  return esiti;
+}
+
+/** La riga del contatore AI (K6). Invisibile agli utenti → serve il servizio. */
+export async function deleteUsageForUser(uid: string): Promise<EsitoCancellazione> {
+  if (!uid) throw new Error("Cancellazione: manca l'utente");
+  try {
+    const { count, error } = await serviceDb().from("usage").delete({ count: "exact" }).eq("user_id", uid);
+    if (error) {
+      return tabellaAssente(error)
+        ? { tabella: "usage", righe: 0, saltata: "tabella assente" }
+        : { tabella: "usage", righe: 0, errore: error.message };
+    }
+    return { tabella: "usage", righe: count ?? 0 };
+  } catch (e) {
+    return { tabella: "usage", righe: 0, errore: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Cancella tutto quello che l'app sa dell'utente LOGGATO. */
+export async function deleteAllMyData(): Promise<{ ok: boolean; totale: number; esiti: EsitoCancellazione[] }> {
+  const uid = await currentUserId();
+  if (!uid) throw new Error("Supabase: utente non autenticato");
+  const esiti = await deleteDataForUser(await db(), uid);
+  esiti.push(await deleteUsageForUser(uid));
+  return {
+    ok: esiti.every((e) => !e.errore),
+    totale: esiti.reduce((n, e) => n + e.righe, 0),
+    esiti,
+  };
 }

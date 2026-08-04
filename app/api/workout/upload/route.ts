@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { saveWorkoutPlan, type WorkoutWeek } from '@/lib/supabase'
+import { spendAi, claudeFetch, isAiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 
 // Legge una scheda di allenamento da foto multiple + PDF + testo, la fa
 // strutturare a Claude e la salva. Stesse lezioni della dieta: 60s, tetto
@@ -11,6 +12,14 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Tetto costi (K6): leggere una scheda intera è un'operazione pesante → vale 5.
+  try {
+    await spendAi('piano')
+  } catch (e) {
+    if (isAiCapReached(e)) return NextResponse.json({ error: AI_CAP_MESSAGE }, { status: 429 })
+    throw e
   }
 
   const formData = await req.formData()
@@ -52,18 +61,10 @@ export async function POST(req: NextRequest) {
     text: text ? `${WORKOUT_PARSE_PROMPT}\n\nNota aggiuntiva dall'utente: ${text}` : WORKOUT_PARSE_PROMPT,
   })
 
-  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 16000,
-      messages: [{ role: 'user', content }],
-    }),
+  const claudeRes = await claudeFetch({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 16000,
+    messages: [{ role: 'user', content }],
   })
 
   if (!claudeRes.ok) {

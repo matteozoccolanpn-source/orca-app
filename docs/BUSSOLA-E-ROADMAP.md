@@ -1,5 +1,24 @@
 # Keiko — Bussola e Roadmap
 
+> ## ★ AGGIORNAMENTO 3 AGOSTO 2026
+> **Keiko è un progetto personale + amici** (vedi `VISION.md` e `ROADMAP.md`).
+> La roadmap operativa qui sotto resta valida come ordine tecnico; cade solo la pressione
+> commerciale. Il piano di monetizzazione è in `NON-ORA.md`.
+>
+> ### Il filtro nuovo, da usare insieme alle 4 regole del §1
+> **Se togliessi questa cosa da Keiko e la vendessi da sola, varrebbe meno?**
+> - **Sì, molto meno** → è Keiko ✅ (agenda, dieta, allenamento, ricettario, spesa, viaggio condiviso)
+> - **Uguale** → è un'altra app dentro la tua ❌ (feed di recensioni, aggregatore Spotify)
+>
+> Il criterio **non è** "esiste già altrove" — esiste già tutto. È **"si potenzia stando qui"**,
+> che è poi la regola 3 detta bene: *non dover aprire otto app*.
+>
+> ### Tre corollari
+> 1. **Rispondere ≠ intrattenere.** "Cosa guardo stasera?" toglie fatica ✅ · un feed di recensioni la aggiunge ❌ (e contraddice il posizionamento anti-economia-dell'attenzione).
+> 2. **Gli eventi sono il substrato**, non un dominio fra gli altri: senza agenda il piano del nutrizionista è un PDF morto.
+> 3. **Keiko esegue i piani, non li scrive.** Vale come posizionamento e come vincolo legale (art. 348 c.p.: i piani alimentari personalizzati sono atto riservato).
+
+
 > Documento vivo. È la nostra bussola: quando un'idea o una feature non è chiara,
 > si torna qui e si controlla se rispetta la filosofia. Scritto in italiano semplice,
 > aggiornato il 2026-07-02.

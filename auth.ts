@@ -8,6 +8,10 @@ import Google from "next-auth/providers/google"
 const THIRTY_DAYS = 60 * 60 * 24 * 30
 const useSecureCookies = process.env.NODE_ENV === "production"
 
+// Il proprietario dell'app. Serve alle rotte di diagnostica (`/api/debug/*`),
+// che devono essere visibili solo a lui e non a tutti gli invitati.
+export const OWNER_EMAIL = "matteo.zoccolan.pn@gmail.com"
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Google],
   session: { strategy: "jwt", maxAge: THIRTY_DAYS },
@@ -30,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn({ user }) {
       // Lista invitati (privato, solo queste email possono entrare).
       const allowed = [
-        "matteo.zoccolan.pn@gmail.com",
+        OWNER_EMAIL,
         "subbafederica@gmail.com",
       ]
       return allowed.includes((user.email ?? "").trim().toLowerCase())

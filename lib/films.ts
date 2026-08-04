@@ -11,6 +11,7 @@
 // Stesso schema e modello di lib/trip-enrich.ts (nessun modello nuovo).
 
 import { getFreshCatalog, saveCatalogFilms, type CatalogFilm } from "./supabase";
+import { spendAi, claudeFetch } from "./ai";
 
 const MODEL = "claude-sonnet-4-5";
 
@@ -28,15 +29,7 @@ async function callClaude(userContent: string, maxSearches: number): Promise<str
   ];
 
   for (let guard = 0; guard < 5; guard++) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 2048, messages, tools }),
-    });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 2048, messages, tools });
     if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
     const data = await res.json();
 
@@ -103,6 +96,7 @@ function parsePicks(raw: string): FilmPick[] {
 /** FASE 1: risposta veloce (titolo secco → 1 risultato; consiglio → 3-4 proposte). */
 export async function suggestWatch(query: string): Promise<FilmPick[]> {
   if (!process.env.ANTHROPIC_API_KEY) return [];
+  await spendAi("cattura"); // tetto costi (K6) — la rotta traduce l'eccezione in messaggio
   const catalogo = await getFreshCatalog(60);
 
   const prompt = `Richiesta dell'utente per la sua lista "da guardare" (Italia): "${query}"
@@ -136,6 +130,14 @@ Regole:
 /** FASE 2 (background): allarga la ricerca e salva ~12-15 titoli affini nel catalogo. */
 export async function deepenFilmCatalog(query: string): Promise<void> {
   if (!process.env.ANTHROPIC_API_KEY) return;
+
+  // Tetto costi (K6): questa è la fase 2, gira in background e serve solo a
+  // riempire la cache. Se la giornata è finita si salta senza far rumore.
+  try {
+    await spendAi("cattura");
+  } catch {
+    return;
+  }
 
   const prompt = `Un utente italiano ha chiesto per la sua watchlist: "${query}"
 

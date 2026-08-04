@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth, OWNER_EMAIL } from "@/auth";
 import { spotifyArtistImage } from "@/lib/spotify";
 import { mealImage } from "@/lib/food";
 import { exerciseImage } from "@/lib/wger";
@@ -7,9 +8,17 @@ import { placeImage } from "@/lib/google-places";
 
 // Diagnosi temporanea delle fonti immagine. Apri /api/img-check nel browser (loggato).
 // Dice quali chiavi ci sono, lo stato grezzo di Google Places, e un esempio per fonte.
+// Visibile SOLO al proprietario (K69, stessa regola di /api/debug/*): ogni apertura
+// spende chiamate a pagamento e mostra lo stato delle chiavi.
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await auth();
+  const email = (session?.user?.email ?? "").trim().toLowerCase();
+  if (email !== OWNER_EMAIL) {
+    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  }
+
   // stato grezzo della Places API (NEW): mostra l'errore preciso di Google
   let placesStatus = "chiave assente";
   const gkey = process.env.GOOGLE_PLACES_API_KEY;

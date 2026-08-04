@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { auth, OWNER_EMAIL } from "@/auth";
 import { NextResponse } from "next/server";
 import { currentUserId } from "@/lib/user";
 import { userDb } from "@/lib/supabase-user";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // Diagnostica multi-utente: prova il percorso "come utente" (token firmato + RLS)
 // su OGNI tabella usata dall'app, in ISOLAMENTO (indipendente dall'interruttore
-// MULTIUSER_RLS). Auth-guarded. Da rimuovere dopo la diagnosi.
+// MULTIUSER_RLS). Visibile SOLO al proprietario (K67). Da rimuovere dopo la diagnosi.
 const TABLES = [
   "tickets", "todos", "watchlist", "diet_plan", "workout_plan",
   "workout_log", "trip_plans", "trips", "push_subscriptions",
@@ -16,13 +16,18 @@ const TABLES = [
 
 export async function GET() {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Solo il proprietario. Per chiunque altro la rotta finge di non esistere (404),
+  // così non si scopre nemmeno che esiste una diagnostica.
+  const email = (session?.user?.email ?? "").trim().toLowerCase();
+  if (email !== OWNER_EMAIL) {
+    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  }
 
   const uid = await currentUserId();
   const secret = process.env.SUPABASE_JWT_SECRET ?? "";
   const head: Record<string, unknown> = {
     uid,
-    email: session.user?.email ?? null,
+    email,
     secretLen: secret.length,
   };
 

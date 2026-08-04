@@ -5,6 +5,7 @@
 // Senza chiave → null (resta il gradiente).
 
 import { unstable_cache } from "next/cache";
+import { spendAi, claudeFetch } from "./ai";
 
 const MODEL = "claude-sonnet-4-5";
 
@@ -13,23 +14,27 @@ const translateFood = unstable_cache(
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return itName;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({
+      // Tetto costi (K6) — caso speciale: questa chiamata sta DENTRO una cache di
+      // Next, dove non si possono leggere i cookie, quindi non si sa di chi è.
+      // Si registra sulla riga "sistema" (consumo visibile, nessun tetto): è la
+      // chiamata più piccola dell'app (30 token) e gira una volta ogni 30 giorni
+      // per piatto, quindi non è da lì che arriva la spesa.
+      await spendAi("cattura", { origine: "sistema" });
+      const res = await claudeFetch(
+        {
           model: MODEL,
           max_tokens: 30,
           system:
             "Traduci il nome di un cibo/pasto italiano in un termine di ricerca INGLESE semplice e generico, adatto a un database di ricette. Esempi: 'Uova strapazzate' -> 'scrambled eggs'; 'Petto di pollo alla griglia' -> 'grilled chicken breast'; 'Yogurt greco' -> 'greek yogurt'. Rispondi SOLO col termine inglese, nient'altro.",
           messages: [{ role: "user", content: itName }],
-        }),
-        cache: "no-store",
-      });
+        },
+        { origine: "sistema" }
+      );
       if (!res.ok) return itName;
       const data = await res.json();
       const text = (data?.content ?? [])
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
+        .filter((b: { type?: string }) => b.type === "text")
+        .map((b: { text?: string }) => b.text ?? "")
         .join("")
         .trim();
       return text || itName;

@@ -10,6 +10,8 @@
 // Il tool web-search costa $10 ogni 1000 ricerche: la chiamata parte SOLO
 // per i to-do che sembrano contenere un luogo o un evento.
 
+import { spendAi, claudeFetch } from "./ai";
+
 const MODEL = "claude-sonnet-4-5";
 
 type Msg = { role: string; content: unknown };
@@ -53,15 +55,7 @@ async function callClaude(userContent: string): Promise<string> {
   ];
 
   for (let guard = 0; guard < 4; guard++) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1024, messages, tools }),
-    });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 1024, messages, tools });
     if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
     const data = await res.json();
 
@@ -85,6 +79,14 @@ async function callClaude(userContent: string): Promise<string> {
 export async function resolveTodoPlace(text: string, day: string): Promise<ResolvedPlace> {
   const empty: ResolvedPlace = { title: null, location: null, phone: null, time: null, info: null, link: null, linkLabel: null };
   if (!process.env.ANTHROPIC_API_KEY) return empty;
+
+  // Tetto costi (K6): vale 1. Se la giornata è finita il to-do si salva lo stesso,
+  // solo senza luogo e orario — esattamente come quando la ricerca non trova nulla.
+  try {
+    await spendAi("cattura");
+  } catch {
+    return empty;
+  }
 
   const prompt = `Testo di un promemoria personale (italiano): "${text}"
 Il promemoria è per il giorno: ${day}

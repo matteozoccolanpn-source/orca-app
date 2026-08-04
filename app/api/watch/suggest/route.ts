@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { auth } from '@/auth'
 import { suggestWatch, deepenFilmCatalog } from '@/lib/films'
+import { isAiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 import { posterFor } from '@/lib/tmdb'
 
 // Fase 1 con ricerca web: può volerci qualche decina di secondi.
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, films: withPosters })
   } catch (e) {
+    // Tetto costi (K6): non è un guasto, è la giornata finita → parole di Keiko.
+    if (isAiCapReached(e)) return NextResponse.json({ error: AI_CAP_MESSAGE }, { status: 429 })
     console.error('suggestWatch fallita:', e)
     return NextResponse.json({ error: 'Ricerca fallita, riprova' }, { status: 502 })
   }

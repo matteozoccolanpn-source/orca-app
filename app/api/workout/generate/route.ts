@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getProfile, saveWorkoutPlan, type WorkoutWeek } from '@/lib/supabase'
+import { spendAi, claudeFetch, isAiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 
 // S2 rework allenamento — L0: genera una scheda BASE dal profilo (per chi non ha
 // il PDF del professionista). Stessa pipeline dell'upload: Claude → week JSON →
@@ -32,18 +33,18 @@ export async function POST() {
     profile.stile ? `- Stile preferito: ${profile.stile === 'duro' ? 'tosto ma sostenibile' : 'rilassato, senza pressione'}` : null,
   ].filter(Boolean).join('\n')
 
-  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: `${WORKOUT_GENERATE_PROMPT}\n\nProfilo dell'utente:\n${righe}` }],
-    }),
+  // Tetto costi (K6): generare una settimana intera è un'operazione pesante → vale 5.
+  try {
+    await spendAi('piano')
+  } catch (e) {
+    if (isAiCapReached(e)) return NextResponse.json({ error: AI_CAP_MESSAGE }, { status: 429 })
+    throw e
+  }
+
+  const claudeRes = await claudeFetch({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 8000,
+    messages: [{ role: 'user', content: `${WORKOUT_GENERATE_PROMPT}\n\nProfilo dell'utente:\n${righe}` }],
   })
 
   if (!claudeRes.ok) {

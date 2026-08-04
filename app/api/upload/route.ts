@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
+import { spendAi, claudeFetch, isAiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Tetto costi (K6): una cattura vale 1. Se la giornata è finita, Claude non
+  // viene chiamato affatto e l'utente legge il messaggio di Keiko, non un errore.
+  try {
+    await spendAi('cattura')
+  } catch (e) {
+    if (isAiCapReached(e)) return NextResponse.json({ error: AI_CAP_MESSAGE }, { status: 429 })
+    throw e
   }
 
   const formData = await req.formData()
@@ -56,18 +66,10 @@ export async function POST(req: NextRequest) {
     ]
   }
 
-  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      messages: claudeMessages,
-    }),
+  const claudeRes = await claudeFetch({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 1024,
+    messages: claudeMessages,
   })
 
   if (!claudeRes.ok) {

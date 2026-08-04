@@ -4,6 +4,7 @@
 // Riusa modello, chiave e pattern web-search già presenti nell'app.
 
 import { getTicketForEnrich, saveTicketEnrichment, type EventEnrichment } from "./supabase";
+import { spendAi, claudeFetch } from "./ai";
 
 const MODEL = "claude-sonnet-4-5";
 type Msg = { role: string; content: unknown };
@@ -20,15 +21,7 @@ async function callClaudeWebSearch(userContent: string): Promise<string> {
   ];
 
   for (let guard = 0; guard < 5; guard++) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1500, messages, tools }),
-    });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 1500, messages, tools });
     if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
     const data = await res.json();
     if (data.stop_reason === "pause_turn") {
@@ -61,6 +54,15 @@ export async function enrichEvent(id: string): Promise<EventEnrichment | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const ev = await getTicketForEnrich(id);
   if (!ev) return null;
+
+  // Tetto costi (K6): l'arricchimento usa la ricerca web → vale 1, pagato una
+  // volta sola anche se il loop qui sotto fa più giri. Se la giornata è finita
+  // l'evento resta senza extra: nessun messaggio, non l'ha chiesto l'utente.
+  try {
+    await spendAi("cattura");
+  } catch {
+    return null;
+  }
 
   const prompt = `Evento dell'utente: "${ev.title}" (tipo: ${ev.type}${ev.location ? `, luogo: ${ev.location}` : ""}${ev.datetime ? `, quando: ${ev.datetime}` : ""}).
 

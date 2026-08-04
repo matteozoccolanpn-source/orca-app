@@ -14,6 +14,7 @@ import {
   type TripPlanRow,
   type TicketDetail,
 } from "./supabase";
+import { spendAi, claudeFetch } from "./ai";
 
 const MODEL = "claude-sonnet-4-5"; // stesso modello dell'app, nessun modello nuovo
 
@@ -32,15 +33,7 @@ async function callClaudeWebSearch(userContent: string): Promise<string> {
   ];
 
   for (let guard = 0; guard < 6; guard++) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 4096, messages, tools }),
-    });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 4096, messages, tools });
     if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
     const data = await res.json();
 
@@ -162,6 +155,10 @@ export async function enrichTripPlan(clusterKey: string): Promise<{ ok: boolean;
   const trip = await getTripPlanByKey(clusterKey);
   if (!trip) throw new Error(`trip_plan non trovato: ${clusterKey}`);
 
+  // Tetto costi (K6): è l'operazione più cara che c'è (ricerca web ripetuta) → vale 10.
+  // Pagato una volta sola, anche se il loop pause_turn fa più giri.
+  await spendAi("viaggio");
+
   const tickets = await getTicketsByIds(trip.ticket_ids);
   const prompt = buildPrompt(trip, tickets);
   const text = await callClaudeWebSearch(prompt);
@@ -195,6 +192,11 @@ export async function editTripSlot(
   const plan = (trip.plan ?? {}) as { slot?: EditSlot[] };
   const slots = Array.isArray(plan.slot) ? plan.slot : [];
   if (slotIndex < 0 || slotIndex >= slots.length) throw new Error("slot inesistente");
+
+  // Tetto costi (K6): riscrive un solo slot, ma usa la stessa ricerca web del
+  // pianificatore → per ora vale 10 come il viaggio. Se all'uso risulta troppo
+  // caro per quello che fa, qui si cambia in "cattura" e vale 1.
+  await spendAi("viaggio");
 
   const attuale = slots[slotIndex];
   // Contesto compatto: tutta la sequenza (solo quando + prima opzione),

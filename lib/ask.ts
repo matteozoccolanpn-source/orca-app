@@ -2,11 +2,22 @@
 // (eventi, to-do, dieta, allenamento). Riusa il modello e la chiave già in uso
 // nel resto dell'app — nessuna dipendenza o modello nuovo.
 
+import { spendAi, claudeFetch, isAiCapReached, AI_CAP_MESSAGE } from "./ai";
+
 const MODEL = "claude-sonnet-4-5";
 
 export async function askKeiko(q: string, context: unknown): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY) {
     return "Al momento non riesco a rispondere (manca la configurazione AI).";
+  }
+
+  // Tetto costi (K6): una domanda vale 1. Se la giornata è finita, Keiko lo dice
+  // con parole sue — che qui è già la risposta giusta da mostrare a schermo.
+  try {
+    await spendAi("cattura");
+  } catch (e) {
+    if (isAiCapReached(e)) return AI_CAP_MESSAGE;
+    throw e;
   }
 
   const oggi = new Date().toLocaleDateString("it-IT", {
@@ -25,20 +36,12 @@ La dieta e l'allenamento sono organizzati per giorno della settimana (lun, mar, 
   ];
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 600, system, messages }),
-    });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 600, system, messages });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const text = (data?.content ?? [])
-      .filter((b: { type: string }) => b.type === "text")
-      .map((b: { text: string }) => b.text)
+      .filter((b: { type?: string }) => b.type === "text")
+      .map((b: { text?: string }) => b.text ?? "")
       .join("")
       .trim();
     return text || "Su questa non ho ancora una risposta 😊";
