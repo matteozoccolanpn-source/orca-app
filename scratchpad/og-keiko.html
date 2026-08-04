@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<!-- Sorgente dell'anteprima link (og:image), 1200x630.
+     I colori NON sono scelti qui: sono quelli di app/ds.css
+       fondo   #0C0E13  (--k-bg, lo stesso del manifest)
+       testo   #F3EFE8  (--k-text)
+       accento #FFB84D  (--k-accent)
+     Il marchio è il tracciato di docs/logo/keiko-logo.svg, il wordmark è
+     "kei" + "ko" in accento come nella barra alta della home. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    background: #0C0E13;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 34px;
+    font-family: Inter, -apple-system, sans-serif;
+  }
+  .marchio { width: 340px; color: #F3EFE8; display: block; }
+  .wordmark {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 600; letter-spacing: -.02em;
+    font-size: 104px; line-height: 1;
+    color: #F3EFE8;
+  }
+  .wordmark span { color: #FFB84D; }
+  .tagline {
+    font-size: 32px; font-weight: 400; letter-spacing: .01em;
+    color: #BCC1C9;
+  }
+</style>
+</head>
+<body>
+  <svg class="marchio" viewBox="0 0 100 72" fill="currentColor" aria-hidden="true">
+    <path fill-rule="evenodd" d="M10 54 C16 40 32 32 50 32 C58 32 66 34 72 38 C78 34 85 32 92 33 C90 39 86 44 81 47 C80 54 74 60 64 62 C48 66 20 64 10 54 Z M82.2 40 A6.5 3.4 -18 1 0 69.8 42 A6.5 3.4 -18 1 0 82.2 40 Z"/>
+    <path d="M44 34 C43 22 47 10 56 2 C57 14 54 26 50 34 Z"/>
+  </svg>
+  <div class="wordmark">kei<span>ko</span></div>
+  <div class="tagline">Il tuo calendario, organizzato</div>
+</body>
+</html>

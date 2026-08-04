@@ -30,9 +30,39 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+// Anteprima dei link (WhatsApp, Telegram, iMessage): serve un indirizzo
+// ASSOLUTO, altrimenti l'immagine non viene scaricata e resta l'icona generica.
+// In produzione l'indirizzo lo mette Vercel da sé; in locale vale localhost.
+// Con un dominio tuo, NEXT_PUBLIC_SITE_URL ha la precedenza su tutto.
+const SITO =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
+const DESCRIZIONE = "Il tuo calendario, organizzato";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITO),
   title: "Keiko",
-  description: "Il tuo calendario, organizzato",
+  description: DESCRIZIONE,
+  openGraph: {
+    type: "website",
+    siteName: "Keiko",
+    locale: "it_IT",
+    url: "/",
+    title: "Keiko",
+    description: DESCRIZIONE,
+    images: [{ url: "/og-keiko.png", width: 1200, height: 630, alt: "Keiko" }],
+  },
+  // summary_large_image = l'immagine grande sopra il titolo, non la miniatura
+  // quadrata. La leggono anche altri servizi quando manca il tag og.
+  twitter: {
+    card: "summary_large_image",
+    title: "Keiko",
+    description: DESCRIZIONE,
+    images: ["/og-keiko.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
