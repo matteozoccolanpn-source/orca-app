@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { addWatchItem, setWatchItemSeen, setWatchItemReview, deleteWatchItem } from '@/lib/supabase'
-import { tmdbKind } from '@/lib/tmdb'
+import { resolveTitle, kindFromTmdbType } from '@/lib/tmdb'
 
 // API della watchlist "Da guardare". Auth-guarded come /api/todos.
 // POST   { title, kind?, info?, link? } → aggiunge, risponde con l'item
@@ -31,13 +31,23 @@ export async function POST(req: NextRequest) {
   if (!title || title.length > 200) {
     return NextResponse.json({ error: 'Titolo mancante o troppo lungo' }, { status: 400 })
   }
-  // Etichetta film/serie: TMDB decide (es. "The Bear" → serie); se non trova, tiene la regola del client.
+  // Il titolo si risolve QUI, una volta sola: una sola ricerca su TMDB da cui
+  // escono id, tipo, locandina, genere e anno. Da adesso in poi ogni scheda
+  // (trama, piattaforme, simili) parte dall'id e guarda lo stesso film.
+  // Se TMDB non trova niente si salva lo stesso, con la regola del client.
   let kind = body.kind === 'serie' ? 'serie' : 'film'
-  const detected = await tmdbKind(title)
-  if (detected) kind = detected
+  const risolto = await resolveTitle(title, kind)
+  if (risolto) kind = kindFromTmdbType(risolto.tmdbType)
 
   try {
-    const item = await addWatchItem({ title, kind, info: body.info ?? null, link: body.link ?? null })
+    const item = await addWatchItem({
+      title, kind, info: body.info ?? null, link: body.link ?? null,
+      tmdbId: risolto?.tmdbId ?? null,
+      tmdbType: risolto?.tmdbType ?? null,
+      poster: risolto?.poster ?? null,
+      genre: risolto?.genre ?? null,
+      year: risolto?.year ?? null,
+    })
     return NextResponse.json({ success: true, item })
   } catch (e) {
     console.error('Watchlist add error:', e)

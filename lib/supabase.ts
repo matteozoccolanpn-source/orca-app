@@ -759,18 +759,32 @@ export interface WatchItem {
   rating: number | null;  // voto personale (orche 1-5); null = non votato
   note: string | null;    // nota/recensione personale
   seen_at: string | null; // quando è stato segnato "visto" (per "guardati di recente")
-  poster: string | null; // URL copertina (TMDB) — additivo; null se non ancora popolato
-  genre: string | null;  // genere primario (TMDB) — riempito a runtime come poster
+  poster: string | null; // URL copertina (TMDB) — ora salvata in tabella
+  genre: string | null;  // genere primario (TMDB) — ora salvato in tabella
+  // Il titolo risolto UNA volta su TMDB, quando lo aggiungi. Con questi due
+  // campi tutte le schede (trama, piattaforme, simili) guardano lo STESSO film,
+  // e non serve più cercarlo per nome a ogni apertura.
+  tmdbId: number | null;
+  tmdbType: string | null;  // 'movie' | 'tv'
+  year: string | null;
 }
 
 /** Tutta la watchlist: prima i "da vedere" (più recenti in alto), poi i visti. */
 export async function getWatchlist(): Promise<WatchItem[]> {
-  // NB: `poster` non è colonna del DB (popolata a runtime). `rating`/`note` sono
-  // additivi: si provano, e se le colonne non ci sono ancora si ripiega senza —
-  // così un deploy prima della migrazione SQL non rompe la pagina.
+  // Colonne additive, a scalini: si prova la versione più ricca e si scende se
+  // il database non ha ancora quelle colonne. Così un deploy PRIMA della SQL non
+  // rompe la pagina — è lo stesso schema già usato per rating/note.
+  //   1° tentativo: tutto, comprese le colonne TMDB
+  //   2° tentativo: senza le TMDB (deploy fatto, SQL non ancora eseguita)
+  //   3° tentativo: solo le colonne di sempre
   const base: string = "id, title, kind, info, link, seen";
-  let res = await (await db()).from("watchlist").select(base + ", rating, note, seen_at").order("seen", { ascending: true }).order("created_at", { ascending: false });
-  if (res.error) res = await (await db()).from("watchlist").select(base).order("seen", { ascending: true }).order("created_at", { ascending: false });
+  const conVoto = base + ", rating, note, seen_at";
+  const conTmdb = conVoto + ", tmdb_id, tmdb_type, poster, genre, year";
+  const leggi = async (campi: string) =>
+    (await db()).from("watchlist").select(campi).order("seen", { ascending: true }).order("created_at", { ascending: false });
+  let res = await leggi(conTmdb);
+  if (res.error) res = await leggi(conVoto);
+  if (res.error) res = await leggi(base);
   if (res.error) {
     console.error("Supabase: getWatchlist:", res.error.message);
     return [];
@@ -786,19 +800,57 @@ export async function getWatchlist(): Promise<WatchItem[]> {
     rating: (r.rating as number | null) ?? null,
     note: (r.note as string | null) ?? null,
     seen_at: (r.seen_at as string | null) ?? null,
-    poster: null,
-    genre: null,
+    poster: (r.poster as string | null) ?? null,
+    genre: (r.genre as string | null) ?? null,
+    tmdbId: (r.tmdb_id as number | null) ?? null,
+    tmdbType: (r.tmdb_type as string | null) ?? null,
+    year: (r.year as string | null) ?? null,
   }));
 }
 
-export async function addWatchItem(f: { title: string; kind?: string; info?: string | null; link?: string | null }): Promise<WatchItem> {
-  const { data, error } = await (await db())
-    .from("watchlist")
-    .insert({ user_id: await currentUserId(), title: f.title, kind: f.kind ?? "film", info: f.info ?? null, link: f.link ?? null })
-    .select("id, title, kind, info, link, seen")
-    .single();
-  if (error) throw new Error(error.message);
-  const r = data as Record<string, unknown>;
+/** Scrive i dati TMDB su una riga già esistente (recupero dei titoli vecchi).
+ *  Non lancia: è un miglioramento, non deve poter rompere la pagina. Se le
+ *  colonne non ci sono ancora, l'errore finisce nei log e basta. */
+export async function setWatchItemTmdb(
+  id: string,
+  d: { tmdbId?: number | null; tmdbType?: string | null; poster?: string | null; genre?: string | null; year?: string | null }
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (d.tmdbId !== undefined) patch.tmdb_id = d.tmdbId;
+  if (d.tmdbType !== undefined) patch.tmdb_type = d.tmdbType;
+  if (d.poster !== undefined) patch.poster = d.poster;
+  if (d.genre !== undefined) patch.genre = d.genre;
+  if (d.year !== undefined) patch.year = d.year;
+  if (!Object.keys(patch).length) return;
+  try {
+    const { error } = await (await db()).from("watchlist").update(patch).eq("id", id);
+    if (error) console.error("Supabase: setWatchItemTmdb:", error.message);
+  } catch (e) {
+    console.error("Supabase: setWatchItemTmdb:", e);
+  }
+}
+
+export async function addWatchItem(f: {
+  title: string; kind?: string; info?: string | null; link?: string | null;
+  // dati TMDB risolti una volta sola al momento dell'aggiunta
+  tmdbId?: number | null; tmdbType?: string | null; poster?: string | null; genre?: string | null; year?: string | null;
+}): Promise<WatchItem> {
+  const comuni = { user_id: await currentUserId(), title: f.title, kind: f.kind ?? "film", info: f.info ?? null, link: f.link ?? null };
+  const tmdb = { tmdb_id: f.tmdbId ?? null, tmdb_type: f.tmdbType ?? null, poster: f.poster ?? null, genre: f.genre ?? null, year: f.year ?? null };
+
+  // Come in getWatchlist: si prova con le colonne nuove, e se il database non
+  // le ha ancora si reinserisce senza. Un deploy prima della SQL continua a
+  // salvare il titolo, solo senza i dati TMDB.
+  const inserisci = async (riga: Record<string, unknown>, campi: string) =>
+    (await db()).from("watchlist").insert(riga).select(campi).single();
+
+  const campiRicchi = "id, title, kind, info, link, seen, tmdb_id, tmdb_type, poster, genre, year";
+  let res = await inserisci({ ...comuni, ...tmdb }, campiRicchi);
+  if (res.error) res = await inserisci(comuni, "id, title, kind, info, link, seen");
+  if (res.error) throw new Error(res.error.message);
+
+  // il `select` è una stringa scelta a runtime, quindi il tipo qui è generico
+  const r = res.data as unknown as Record<string, unknown>;
   return {
     id: r.id as string,
     title: r.title as string,
@@ -810,7 +862,10 @@ export async function addWatchItem(f: { title: string; kind?: string; info?: str
     note: null,
     seen_at: null,
     poster: (r.poster as string | null) ?? null,
-    genre: null,
+    genre: (r.genre as string | null) ?? null,
+    tmdbId: (r.tmdb_id as number | null) ?? null,
+    tmdbType: (r.tmdb_type as string | null) ?? null,
+    year: (r.year as string | null) ?? null,
   };
 }
 
