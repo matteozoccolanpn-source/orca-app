@@ -78,7 +78,7 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
             <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 6px" }}>✨ Consiglio di Keiko</h3>
             <p style={{ fontSize: 13, color: C.t3, margin: "0 0 14px" }}>Che serata è? es. «commedia leggera», «thriller» (vuoto = a sorpresa)</p>
             <div style={{ display: "flex", gap: 8 }}>
-              <input autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { const q = text; setInputOpen(false); run(q); } }} placeholder="Tipo di serata…" style={{ flex: 1, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", color: C.text, fontSize: 14, fontFamily: "inherit", outline: 0 }} />
+              <input autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { const q = text; setInputOpen(false); run(q); } }} placeholder="Tipo di serata…" style={{ flex: 1, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", color: C.text, fontSize: 16, fontFamily: "inherit", outline: 0 }} />
               <button onClick={() => { const q = text; setInputOpen(false); run(q); }} style={{ height: 44, padding: "0 18px", border: 0, borderRadius: 12, background: C.accent, color: C.ink, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Chiedi</button>
             </div>
           </motion.div>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import "./ds.css";
@@ -42,6 +42,18 @@ const SITO =
     : "http://localhost:3000");
 
 const DESCRIZIONE = "Il tuo calendario, organizzato";
+
+// Keiko è un'app da telefono: non si ingrandisce con le dita e non si gira.
+// `viewportFit: "cover"` è la riga che fa funzionare gli env(safe-area-inset-*)
+// già usati in mezza app: senza, valgono zero, ed è il motivo per cui aperta
+// dall'icona (barra di stato trasparente) l'intestazione finiva sotto l'orologio.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITO),
@@ -96,6 +108,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html:
               "(function(){try{document.documentElement.classList.add('dark');localStorage.removeItem('keiko-theme');localStorage.removeItem('keiko-mood');}catch(e){}})()",
+          }}
+        />
+        {/* Blocca il pizzico per ingrandire. Serve perché in Safari come sito
+           (non aperta dall'icona) iOS ignora `user-scalable: false`: l'unico
+           modo è fermare i suoi gesti, che sono un'invenzione di WebKit e non
+           esistono sugli altri browser. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault()},{passive:false})})}catch(e){}})()",
           }}
         />
         {/* DEV ONLY — Keiko è una PWA: in sviluppo un service worker residuo

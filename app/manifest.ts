@@ -16,6 +16,10 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Il calendario della tua vita",
     start_url: "/",
     display: "standalone",
+    // Keiko si usa in verticale. Vale su Android: iPhone il manifesto non lo
+    // legge, e da web non c'è modo di bloccargli la rotazione — per quello c'è
+    // il pannello di components/RuotaIlTelefono.tsx.
+    orientation: "portrait",
     background_color: "#0C0E13",
     theme_color: "#0C0E13",
     // "any maskable": la stessa icona vale sia com'è sia ritagliata dal sistema

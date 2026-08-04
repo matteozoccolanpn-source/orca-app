@@ -47,7 +47,7 @@ export default function HeyKeikoBar() {
           type="text"
           readOnly
           placeholder="Chiedi a Keiko…"
-          className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:[color:var(--app-faint)]"
+          className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:[color:var(--app-faint)]"
           style={{ color: "var(--app-text)" }}
         />
         <button

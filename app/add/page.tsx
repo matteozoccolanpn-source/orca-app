@@ -247,7 +247,7 @@ export default function AddPage() {
               onChange={(e) => setTextInput(e.target.value)}
               placeholder="volo domani 6am Ryanair MXP-LGW, cena giovedì con Marco, treno Roma venerdì..."
               className="w-full h-40 rounded-2xl border border-border/40 bg-muted/30
-                         p-4 text-sm resize-none
+                         p-4 text-base resize-none
                          focus:outline-none focus:ring-1 focus:ring-primary/40
                          placeholder:text-muted-foreground/40"
             />

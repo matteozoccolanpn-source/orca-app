@@ -261,8 +261,45 @@ html:not(.dark) .keiko-bubble { display: none; }
     background-attachment: fixed;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
+    /* toglie il doppio tocco per ingrandire, lascia lo scorrimento normale */
+    touch-action: pan-x pan-y;
   }
   html {
     @apply font-sans;
+    /* impedisce a iOS di gonfiare il testo da solo quando si gira il telefono */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  /* Rete di sicurezza: sotto i 16px iOS ingrandisce la pagina da solo appena
+     tocchi un campo, e non torna più indietro. Vale per i campi che NON hanno
+     una misura propria: lo stile in linea e le classi vincono su questa, quindi
+     quelli vanno sistemati dove sono scritti. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* "Keiko si usa in verticale" — il pannello di components/RuotaIlTelefono.tsx.
+   Spento sempre, tranne quando lo schermo è girato ED è basso: così si accende
+   sui telefoni in orizzontale e resta spento su iPad e computer, che in
+   orizzontale sono comunque alti. Sta fuori da @layer base apposta: deve stare
+   sopra a tutto, onboarding e fogli compresi. */
+.keiko-ruota {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .keiko-ruota {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: var(--k-bg);
   }
 }

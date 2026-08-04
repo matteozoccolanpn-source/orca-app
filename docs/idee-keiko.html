@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Keiko — tutte le idee</title>
+<style>
+  :root{
+    --bg:#0C0E13; --card:#141821; --card2:#1A1F2B; --line:#252B38;
+    --ink:#F4F1E8; --dim:#8B93A5; --accent:#FFB84D; --new:#6FD3B2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:0 0 120px}
+  header{padding:28px 20px 16px;border-bottom:1px solid var(--line)}
+  h1{margin:0 0 6px;font-size:26px;letter-spacing:-.02em}
+  .sub{color:var(--dim);font-size:14px;margin:0}
+  .legend{display:flex;gap:14px;margin-top:14px;font-size:12px;color:var(--dim);flex-wrap:wrap}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+  .dot.o{background:var(--accent)} .dot.n{background:var(--new)}
+  .filters{display:flex;gap:8px;padding:14px 20px;position:sticky;top:0;background:var(--bg);
+    border-bottom:1px solid var(--line);z-index:5;overflow-x:auto}
+  .f{border:1px solid var(--line);background:transparent;color:var(--dim);
+    padding:7px 14px;border-radius:999px;font-size:13px;white-space:nowrap;cursor:pointer}
+  .f.on{background:var(--ink);color:#0C0E13;border-color:var(--ink);font-weight:600}
+  section{padding:26px 20px 4px}
+  h2{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);
+    margin:0 0 4px;font-weight:700}
+  .stitle{color:var(--dim);font-size:13px;margin:0 0 14px}
+  .row{display:flex;gap:12px;align-items:flex-start;background:var(--card);
+    border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:8px;
+    cursor:pointer;transition:border-color .15s,background .15s}
+  .row:hover{border-color:#39435a}
+  .row.sel{background:var(--card2);border-color:var(--accent)}
+  .n{flex:0 0 auto;min-width:34px;height:24px;border-radius:7px;display:flex;
+    align-items:center;justify-content:center;font-size:12px;font-weight:700;
+    background:#20263280;color:var(--dim);border:1px solid var(--line)}
+  .row.new .n{color:var(--new);border-color:#2A4A40}
+  .row.sel .n{background:var(--accent);color:#0C0E13;border-color:var(--accent)}
+  .t{flex:1;font-size:15px}
+  .t small{display:block;color:var(--dim);font-size:12.5px;margin-top:3px}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#0C0E13F2;
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+    display:flex;gap:12px;align-items:center}
+  .count{flex:1;font-size:14px;color:var(--dim)}
+  .count b{color:var(--ink)}
+  button.act{background:var(--accent);color:#0C0E13;border:0;border-radius:11px;
+    padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer}
+  button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line);
+    border-radius:11px;padding:11px 14px;font-size:14px;cursor:pointer}
+  .out{padding:0 20px;margin-top:10px}
+  textarea{width:100%;min-height:90px;background:var(--card);color:var(--ink);
+    border:1px solid var(--accent);border-radius:12px;padding:12px;font-size:14px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .hid{display:none}
+  small.w{border-left:2px solid;padding-left:9px;margin-top:7px;line-height:1.45}
+  small.w b{font-weight:700;letter-spacing:.01em}
+  small.w.l{border-color:#FF6B6B;color:#FFA8A8} small.w.l b{color:#FF6B6B}
+  small.w.a{border-color:#FFB84D;color:#D9B98A} small.w.a b{color:#FFB84D}
+  small.w.t{border-color:#5A6478;color:#8B93A5} small.w.t b{color:#A9B2C4}
+  .row[data-w="l"]{border-color:#5A2B2B}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tutte le idee di Keiko</h1>
+  <p class="sub">256 idee: le 140 dei tuoi documenti più 116 nuove.
+     Le <b>179 che hai scelto</b> sono già segnate. Sotto alcune trovi un'avvertenza:
+     usa il filtro <b>Solo con avvertenza</b> per leggerle tutte di fila.</p>
+  <div class="legend">
+    <span><i class="dot o"></i>già pensate</span>
+    <span><i class="dot n"></i>nuove</span>
+    <span style="color:#FF6B6B">■ da risolvere prima</span>
+    <span style="color:#FFB84D">■ con un paletto</span>
+    <span style="color:#8B93A5">■ limite tecnico</span>
+  </div>
+</header>
+
+<div class="filters">
+  <button class="f on" data-f="all">Tutte</button>
+  <button class="f" data-f="new">Solo nuove</button>
+  <button class="f" data-f="old">Solo già pensate</button>
+  <button class="f" data-f="sel">Solo scelte</button>
+  <button class="f" data-f="warn">Solo con avvertenza</button>
+</div>
+
+<main id="app"></main>
+
+<div class="out hid" id="outbox">
+  <textarea id="out" readonly></textarea>
+</div>
+
+<div class="bar">
+  <div class="count"><b id="c">0</b> scelte</div>
+  <button class="ghost" id="clear">Azzera</button>
+  <button class="act" id="copy">Copia i numeri</button>
+</div>
+
+<script>
+const DATA = [
+ {h:"1 · Il cervello che incrocia i domini", s:"La cosa che nessun'altra app fa: la dieta sa del volo, l'allenamento sa della cena.", i:[
+  [1,0,"Il consiglio del giorno anche in home, una riga sotto il saluto"],
+  [2,0,"Il consiglio arriva come notifica il mattino, ad app chiusa"],
+  [3,0,"Dieta × calendario: cena fuori stasera → pranzo leggero"],
+  [4,0,"Guarda × calendario: sveglia alle 5 → stasera un episodio, non un film"],
+  [5,0,"Viaggio × allenamento: in trasferta → seduta a corpo libero da 20'"],
+  [6,0,"Dopo un concerto a mezzanotte → niente sveglia-palestra, riprogramma"],
+  [7,0,"I consigli nascono da regole scritte, non da un modello, dove si può"],
+  [8,0,"Il «perché»: ogni consiglio mostra su tap la regola che l'ha generato"],
+  [9,0,"👍/👎 su ogni consiglio, e le regole si tarano"],
+  [10,0,"Tono duro o rilassato, scelto da te per ogni area"],
+  [11,0,"Riepilogo della domenica: cosa hai fatto, cosa arriva"],
+  [12,0,"Settimana difficile: se il calendario è pieno, Keiko abbassa le pretese e lo dice"],
+  [13,0,"Il profilo che Keiko si costruisce su di te, leggibile e correggibile"],
+  [141,1,"Il consiglio del mattino in UNA frase sola, per chi l'app non la apre"],
+  [142,1,"«Com'è andata ieri?»: una riga al risveglio che confronta ieri col tuo solito"],
+  [143,1,"Modalità recupero: dopo tre giorni pieni ti propone un giorno vuoto e te lo difende"],
+  [144,1,"Il coach parla al plurale con chi vive con te: «stasera cena fuori per entrambi»"],
+  [145,1,"«Hai 40 minuti liberi»: quando si apre un buco, propone cosa infilarci"],
+  [146,1,"Semaforo della settimana in home: verde, giallo, rosso"],
+  [147,1,"«Non dirmelo più»: ogni consiglio si può zittire per sempre su quel tema"],
+  [148,1,"Pioggia domani e avevi corsa all'aperto → propone il cambio la sera prima"],
+  [149,1,"Ricorda i tuoi no: tre rifiuti del lunedì e smette di proporlo il lunedì"],
+  [150,1,"Il mese in tre numeri, non in un paragrafo"],
+  [151,1,"«Cosa sai di me»: le 5 cose che Keiko ha dedotto, cancellabili una per una"],
+ ]},
+ {h:"2 · Butta dentro, Keiko capisce", s:"Niente API da chiedere agli altri: screenshot, foto, testo. Questa via non la chiude nessuno.", i:[
+  [14,0,"Screenshot di Strava/Garmin/tapis roulant → allenamento registrato"],
+  [15,0,"«Condividi su Keiko» da qualsiasi app, senza aprirla"],
+  [16,0,"Foto del piatto → finisce nel diario della dieta"],
+  [17,0,"Scontrino della spesa → cosa puoi cucinare con quello che hai"],
+  [18,0,"PDF del biglietto aereo → evento e tappa di viaggio"],
+  [19,0,"Un solo messaggio, più eventi: «volo venerdì e hotel sabato»"],
+  [20,0,"Input a voce, stesso risultato del testo"],
+  [21,0,"Parser esteso: arrivo, binario, carrozza, posto"],
+  [22,0,"Correggi parlando: «non è alle 6, è alle 16»"],
+  [23,0,"Controllo severo su tutto quello che torna dal modello, prima di salvare"],
+  [24,0,"Niente doppioni se riprovi due volte"],
+  [25,0,"Vedi a che punto è: in lavorazione, fatto, fallito, e puoi riprovare"],
+  [26,0,"Indirizzo email a cui inoltrare le conferme"],
+  [27,0,"Screenshot della bilancia o della pressione → misure"],
+  [28,0,"«Trasloco vita»: importi anni di storia al primo avvio"],
+  [152,1,"Incolli un link e basta: evento Facebook, pagina di un locale, biglietteria"],
+  [153,1,"Screenshot di una chat con «ci vediamo giovedì alle 21» → evento"],
+  [154,1,"Foto del menù → il ristorante resta salvato coi piatti, per la volta dopo"],
+  [155,1,"Screenshot di una storia Instagram → to-do «andarci»"],
+  [156,1,"Foto della scheda cartacea della palestra → sessione"],
+  [157,1,"«Rifallo come l'altra volta»: ripeti l'ultimo inserimento simile"],
+  [158,1,"Senza rete l'input resta in coda e parte da solo dopo"],
+  [159,1,"Ti mostra cosa NON ha capito, non solo cosa ha capito"],
+  [160,1,"Cinque screenshot insieme → cinque eventi"],
+  [161,1,"Correggi toccando la parte sbagliata, senza riscrivere tutto"],
+  [162,1,"Storico degli input: cosa hai buttato dentro e cosa ne è uscito"],
+ ]},
+ {h:"3 · Viaggi", s:"Il pezzo firma. Oggi tutti si fermano al prima di partire.", i:[
+  [29,0,"Lavori lunghi in background: i viaggi complessi non si impuntano più"],
+  [30,0,"Se il piano fallisce lo dice, con messaggi chiari e riprova"],
+  [31,0,"Mai posti chiusi quel giorno, orari verificati, fonti citate"],
+  [32,0,"All'apertura ricontrolla solo quello che cambia (scioperi, orari)"],
+  [33,0,"Viaggi lunghi e multi-città, timeline per data"],
+  [34,0,"Cambia un'attività scegliendo fra alternative già pronte"],
+  [35,0,"Vista destinazioni e giorno per giorno"],
+  [36,0,"Mappa con i pin e la rotta"],
+  [37,0,"Notti pianificate e tempi di spostamento in un colpo d'occhio"],
+  [38,0,"Budget del viaggio per categoria"],
+  [39,0,"Cosa mettere in valigia, per meteo e durata"],
+  [40,0,"Carichi il TUO itinerario scritto a mano e Keiko lo arricchisce"],
+  [41,0,"Tutti i documenti del viaggio in un posto solo"],
+  [42,0,"Itinerario condivisibile"],
+  [43,0,"Meteo a destinazione dentro l'itinerario"],
+  [44,0,"Bucket list e mappa dei posti già visti"],
+  [45,0,"Durante il viaggio la home DIVENTA il viaggio"],
+  [46,0,"A fine viaggio Keiko scrive il diario da solo"],
+  [163,1,"«Chi viene?»: aggiungi le persone e ognuna vede il piano"],
+  [164,1,"Conto diviso: chi ha pagato cosa, saldo finale"],
+  [165,1,"Piano B pioggia: per ogni giorno un'alternativa al chiuso già pronta"],
+  [166,1,"«Quanto camminiamo oggi»: km e tempo a piedi prima di uscire"],
+  [167,1,"Le tappe saltate tornano in fondo come «magari domani», non spariscono"],
+  [168,1,"Orari nell'ora del posto, con l'ora di casa piccola sotto"],
+  [169,1,"Quattro frasi utili nella lingua del posto, offline. Non un corso"],
+  [170,1,"Il viaggio finito diventa una pagina sola da mandare agli amici"],
+  [171,1,"«Rifacciamo quello»: duplica un viaggio passato cambiando le date"],
+  [172,1,"Numeri utili del posto salvati offline"],
+  [173,1,"Spese convertite al cambio del giorno in cui hai pagato"],
+  [174,1,"Countdown alla partenza, e la valigia si accende da sola a due giorni"],
+ ]},
+ {h:"4 · La memoria", s:"I dati ce li hai già. Questa sezione costa poco e affeziona molto.", i:[
+  [47,0,"Storico per tipo con i prezzi che hai pagato davvero"],
+  [48,0,"«Un anno fa oggi»: il ricordo in home"],
+  [49,0,"Contatori di vita: concerti, città, km, film"],
+  [50,0,"Recap annuale condivisibile, stile Wrapped"],
+  [51,0,"Statistiche per persona: «con lei: 12 cene, 3 concerti, 1 viaggio»"],
+  [52,0,"Cerchi nel passato parlando: «quand'è che sono stato a Napoli?»"],
+  [53,0,"Grafico dei progressi in palestra"],
+  [54,0,"«Quanti ne ho visti questo mese» nella sezione Guarda"],
+  [175,1,"Mappa dei posti dove hai messo piede, che si riempie da sola"],
+  [176,1,"La striscia dell'anno: 365 quadratini, uno per giorno, colorati per cosa hai fatto"],
+  [177,1,"«La prima volta che»: prima volta in una città, primo concerto di un artista"],
+  [178,1,"Classifica dei posti dove sei tornato più volte"],
+  [179,1,"Quest'anno contro l'anno scorso, su tre numeri che scegli tu"],
+  [180,1,"Tagghi una serata con una faccina e ritrovi «le serate belle»"],
+  [181,1,"Il tuo anno in una immagine sola da mandare in giro a dicembre"],
+  [182,1,"«Non ci torno»: lista nera personale, col motivo"],
+  [183,1,"Anniversari automatici: un anno da quel viaggio, dieci concerti visti"],
+ ]},
+ {h:"5 · Intrattenimento e amici", s:"Il buco lasciato da TV Time. È l'unica area che ha bisogno degli amici per esistere.", i:[
+  [55,0,"Da quello che guardi nasce il profilo dei tuoi gusti"],
+  [56,0,"Una pagina sola: film, serie, podcast, musica"],
+  [57,0,"Podcast seguiti, ultime puntate, notifica nuova puntata"],
+  [58,0,"Collegamento Spotify: i tuoi ascolti diventano segnali"],
+  [59,0,"Collegamento YouTube leggero: iscrizioni e piaciuti"],
+  [60,0,"«Cosa vedo stasera?» in base al tempo che hai davvero"],
+  [61,0,"Podcast scelto sulla durata del viaggio"],
+  [62,0,"Playlist legata alla tappa del viaggio"],
+  [63,0,"Notifica quando un titolo esce o arriva su una piattaforma che hai"],
+  [64,0,"Filtri per genere, piattaforma, durata"],
+  [65,0,"Trailer e «simile a…» nel dettaglio"],
+  [66,0,"Import da Letterboxd/IMDb"],
+  [67,0,"Poster, durata e logo piattaforma ovunque"],
+  [68,0,"Serata a due: incrocio della tua lista con quella di chi hai accanto"],
+  [184,1,"Voto e due righe su quello che hai finito"],
+  [185,1,"Sulla card di un titolo vedi solo le recensioni dei TUOI amici"],
+  [186,1,"Feed: cosa hanno visto i tuoi amici questa settimana"],
+  [187,1,"«Chi me lo consiglia»: chi fra i tuoi lo ha amato, prima di iniziarlo"],
+  [188,1,"Lista condivisa «da vedere insieme» con una persona"],
+  [189,1,"Il duello: stesso film, due voti, si scopre chi è più severo"],
+  [190,1,"«Stasera in due»: incrocia la tua lista con quella di chi hai davanti"],
+  [191,1,"Il consiglio dell'amico che ti somiglia di più, calcolato sui voti"],
+  [192,1,"Recensioni con spoiler che si aprono solo se hai segnato «visto»"],
+  [193,1,"Classifica dell'anno del gruppo: i cinque più votati fra gli amici"],
+  [194,1,"«Sto guardando adesso»: stato leggero che sparisce dopo 24 ore"],
+  [195,1,"Notifica quando un amico finisce una serie che hai in lista"],
+  [196,1,"Gruppo di visione: tre amici, una serie, un episodio a settimana"],
+ ]},
+ {h:"6 · Salute e allenamento", s:"Qui gli amici cambiano tutto: allenarsi da soli è un dovere, in due è un appuntamento.", i:[
+  [69,0,"Cronometro della sessione e timer di recupero"],
+  [70,0,"Immagini degli esercizi affidabili"],
+  [71,0,"Se salti un giorno, la scheda si riprogramma da sola"],
+  [72,0,"Scambia un allenamento come scambi un pasto"],
+  [73,0,"Report mensile dell'allenamento"],
+  [74,0,"Sposta esercizi e giorni senza rifare la scheda"],
+  [75,0,"Obiettivi settimanali con l'anello che li mostra"],
+  [76,0,"Una pagina Salute sola: peso, corse, palestra, sonno"],
+  [77,0,"Foto prima/dopo, private"],
+  [78,0,"Promemoria acqua e pasti, solo se hai scelto il profilo duro"],
+  [79,0,"Festeggiamento a fine seduta: animazione e vibrazione"],
+  [80,0,"La scheda che evolve coi tuoi dati"],
+  [197,1,"Allenamento condiviso: stessa scheda con un amico, vedete chi ha fatto cosa"],
+  [198,1,"La striscia dei giorni di fila, senza drammi quando si rompe"],
+  [199,1,"Una sfida a settimana fra amici. Una sola, semplice"],
+  [200,1,"«Oggi mi sento»: un tocco prima di iniziare, e il coach ne tiene conto"],
+  [201,1,"I record personali si accendono da soli quando li batti"],
+  [202,1,"Allenamento da vacanza senza attrezzi, costruito sulla destinazione"],
+  [203,1,"«Quanto ho spinto»: confronto con la stessa seduta di un mese fa"],
+  [204,1,"Il compagno silenzioso: vedi SE si è allenato, non i dettagli"],
+  [205,1,"Foto del peso sulla macchina → carico registrato senza scrivere"],
+  [206,1,"Fine mese: le tre cose migliorate. Non un report"],
+ ]},
+ {h:"7 · Dieta", s:"Regola ferma: Keiko esegue il piano di un professionista, non lo scrive mai.", i:[
+  [81,0,"Macro e calorie per pasto e per giornata"],
+  [82,0,"Vista della giornata intera e lista della spesa aggregata"],
+  [83,0,"Cook mode passo-passo con timer"],
+  [84,0,"Dettaglio del pasto con foto vera e azioni: cuoci, pianifica, scambia"],
+  [85,0,"Profilo dieta rilassato o rigido"],
+  [86,0,"Sgarro intelligente: Keiko SA che hai la cena fuori e ricalibra la settimana"],
+  [87,0,"Mini-card dei prossimi giorni davvero leggibili"],
+  [207,1,"In home solo il prossimo pasto. Niente altro"],
+  [208,1,"Scambio pasto con un tap fra i piatti della settimana"],
+  [209,1,"Lista spesa da spuntare al supermercato, ordinata per corsia"],
+  [210,1,"«Ho mangiato fuori»: un tocco, la settimana si ricalibra senza colpe"],
+  [211,1,"La foto del piatto entra nel diario senza scrivere nulla"],
+  [212,1,"Ricetta a schermo pieno mentre cucini, schermo che non si spegne"],
+  [213,1,"«Cosa ho in casa» → cosa posso farci stasera"],
+  [214,1,"La tua dieta e quella di chi vive con te sullo stesso schermo, per la spesa"],
+  [249,1,"Ricettario da TikTok: incolli il link e la ricetta si salva, con copertina e autore"],
+  [250,1,"Se la ricetta è solo parlata: screenshot degli ingredienti a schermo o del commento fissato"],
+  [251,1,"Dal ricettario alla lista della spesa con un tap"],
+  [252,1,"«Questa la cucino giovedì»: la ricetta va in agenda e la spesa si aggiorna da sola"],
+  [253,1,"Cerchi per ingrediente: «cosa faccio col pollo?»"],
+  [254,1,"Le ricette salvate dai tuoi amici, nello stesso feed"],
+  [255,1,"«Già fatta»: segni quando l'hai cucinata e com'è venuta"],
+  [256,1,"Instagram e YouTube Shorts con lo stesso meccanismo del link"],
+ ]},
+ {h:"8 · Eventi, calendario, notifiche", s:"Il quotidiano. È quello che ti fa aprire l'app tutti i giorni.", i:[
+  [88,0,"To-do «vedi la partita» arricchiti: risultato, orario, dove vederla"],
+  [89,0,"«Esci alle» calcolato sul traffico vero"],
+  [90,0,"Sentinella ritardi: notifica solo se il ritardo è verificato"],
+  [91,0,"Il giorno stesso: binario e gate aggiornati"],
+  [92,0,"Il biglietto vero conservato, QR a schermo pieno"],
+  [93,0,"Anticipo della notifica scelto per singolo evento"],
+  [94,0,"Concerto → playlist dell'artista; film → trailer"],
+  [95,0,"Vista mese e agenda"],
+  [96,0,"Ricorrenze e abitudini"],
+  [97,0,"Anteprima dell'evento prima di salvarlo"],
+  [98,0,"Meteo preso dal luogo dell'evento, non dalla città generica"],
+  [99,0,"Conto alla rovescia per gli eventi importanti"],
+  [100,0,"La notifica ti porta sulla card giusta, e silenzio fra le 23 e le 7"],
+  [101,0,"Sincronia con Google Calendar"],
+  [102,0,"Widget sulla schermata home col prossimo evento"],
+  [103,0,"Scegli tu la foto di un evento"],
+  [104,0,"I viaggi vengono proposti, non creati di nascosto"],
+  [215,1,"«Ci sono anch'io»: un amico segna che va allo stesso evento"],
+  [216,1,"Il gruppo dell'evento: chi viene, a che ora, dove ci si trova"],
+  [217,1,"Un tap per dire «sto arrivando» a chi ti aspetta"],
+  [218,1,"I compleanni e gli appuntamenti fissi dei tuoi amici"],
+  [219,1,"«Quella cosa che dicevamo»: to-do senza data che ogni tanto riemerge"],
+  [220,1,"La sveglia calcolata all'indietro dall'evento, non messa a mano"],
+  [221,1,"Se annulli un evento, ti chiede se liberare anche il resto della giornata"],
+  [222,1,"Il giorno dopo: «com'è andata?», e basta una faccina"],
+ ]},
+ {h:"9 · Chiedi a Keiko", s:"Da barra di ricerca a mani che fanno le cose.", i:[
+  [105,0,"Crea, sposta, elimina parlando — con conferma obbligatoria"],
+  [106,0,"Storico delle conversazioni e risposta che si scrive mentre arriva"],
+  [107,0,"I suggerimenti nella barra calcolati sulla tua agenda vera"],
+  [108,0,"Link toccabili nella risposta e domande già pronte"],
+  [109,0,"Tetto ai costi per utente, con «Keiko riposa fino a domani»"],
+  [110,0,"Il viaggio lungo costruito conversando"],
+  [223,1,"Comandi corti: «sposta cena a domani» e basta"],
+  [224,1,"«Che ho fatto ieri?» risponde dai tuoi dati, non dal web"],
+  [225,1,"Le domande che fai spesso diventano bottoni"],
+  [226,1,"Rispondi alla notifica per creare qualcosa, senza aprire l'app"],
+  [227,1,"«Spiegami perché» su ogni cosa che Keiko ha deciso"],
+  [228,1,"Dettatura di una frase sola mentre guidi"],
+ ]},
+ {h:"10 · Come si usa", s:"La differenza fra «carina» e «la apro dieci volte al giorno».", i:[
+  [111,0,"Pagine che salgono dal basso e swipe fra le sezioni"],
+  [112,0,"Vibrazione sulle spunte e «✓ Salvato»"],
+  [113,0,"Tira per aggiornare, e annulla ovunque"],
+  [114,0,"Schermate vuote con l'orca, e scheletri di caricamento ovunque"],
+  [115,0,"Profilo ampliato: unità, anticipo, tema"],
+  [116,0,"Primo avvio guidato: città, dieta, allenamento"],
+  [117,0,"Accessibilità: contrasto, tocchi grandi, testo che si ingrandisce"],
+  [118,0,"Un solo sistema di card e spaziature identiche ovunque"],
+  [119,0,"Senza rete leggi comunque l'ultimo stato"],
+  [120,0,"I fix noti in coda (primo tap ingoiato, ricerca in Guarda, ecc.)"],
+  [229,1,"Apertura in mezzo secondo: mostra i dati vecchi mentre carica i nuovi"],
+  [230,1,"Tema chiaro, per chi il nero non lo regge"],
+  [231,1,"Tocco lungo su qualsiasi card = azioni, senza menù"],
+  [232,1,"La home cambia da sola: mattina, pomeriggio, sera"],
+  [233,1,"Modalità una mano: le cose importanti in basso"],
+  [234,1,"«Cosa è cambiato»: torni dopo giorni e vedi cos'è successo"],
+  [235,1,"Il suono giusto quando spunti. Uno solo, ma bello"],
+  [236,1,"Scorciatoie dalla schermata di blocco per le tre cose che fai sempre"],
+ ]},
+ {h:"11 · Le fondamenta", s:"Non si vedono, ma quando mancano si vede eccome. Molte sono già fatte.", i:[
+  [121,0,"Multi-utente completo ✅ fatto"],
+  [122,0,"Privacy, consensi, cancellazione account ✅ fatto"],
+  [123,0,"RLS vera su tutte le tabelle ✅ fatto"],
+  [124,0,"Decidere: restare PWA o fare il wrapper per gli store"],
+  [125,0,"Tracciamento errori e riprova automatica"],
+  [126,0,"Test sui punti fragili: date, aggiornamento eventi, incastri"],
+  [127,0,"Migrazioni versionate, indici, backup"],
+  [128,0,"Limiti di frequenza e header di sicurezza"],
+  [129,0,"Controllo che i lavori automatici girino davvero"],
+  [130,0,"Pulizia dello schema morto"],
+  [131,0,"Telemetria minima d'uso ✅ fatto in parte (/numeri)"],
+  [237,1,"Backup settimanale dei tuoi dati in un file che scarichi"],
+  [238,1,"«Come sta Keiko»: una pagina sola con lo stato di tutto, solo per te"],
+  [239,1,"Il diario degli errori: li vedi tu prima che li vedano gli amici"],
+  [240,1,"Modalità ospite per far provare l'app senza dare dati veri"],
+  [241,1,"Cancelli un pezzo solo (solo la dieta, solo i film) senza cancellare tutto"],
+  [242,1,"Quanto ci mette ogni schermata, così te ne accorgi se peggiora"],
+ ]},
+ {h:"12 · Gli amici (e, un giorno, il resto)", s:"La parte commerciale è parcheggiata per scelta. Questi sono i pezzi che servono comunque.", i:[
+  [132,0,"La frase di vendita e la landing — parcheggiato"],
+  [133,0,"Il video da 30 secondi — parcheggiato"],
+  [134,0,"Ogni condivisione è un invito"],
+  [135,0,"Freemium a strati — parcheggiato"],
+  [136,0,"Costi per utente misurati subito ✅ fatto"],
+  [137,0,"Lista d'attesa dal giorno zero — parcheggiato"],
+  [138,0,"Il recap dell'anno come motore social"],
+  [139,0,"Beta chiusa → aperta → lancio — parcheggiato"],
+  [140,0,"Nome, orca, voce italiana: è già un marchio, usalo uguale ovunque"],
+  [243,1,"Invito con un codice di sei lettere. Niente email, niente moduli"],
+  [244,1,"Il gruppo chiuso: gli amici di Keiko sono un gruppo, non una lista"],
+  [245,1,"Una pagina «guarda cosa fa» da mostrare a chi non ce l'ha"],
+  [246,1,"Un posto dentro l'app dove i tuoi amici ti scrivono cosa non va"],
+  [247,1,"Quando un amico non apre l'app da due settimane, lo sai solo tu"],
+  [248,1,"Il muro delle richieste: gli amici propongono, votano, tu decidi"],
+ ]},
+];
+
+// Avvertenze: 'l' = problema legale da risolvere prima di farla · 'a' = si può fare,
+// ma con un paletto preciso · 't' = limite tecnico, non legale.
+const WARN = {
+  // ——— DIETA · art. 348 c.p.: il piano lo scrive il professionista, non Keiko
+  86:['l',"Ricalibrare la settimana = modificare il piano nutrizionale, atto riservato. Falla così: Keiko sposta o scambia SOLO fra i pasti che il professionista ha già previsto, e non tocca mai le quantità."],
+  210:['l',"Stesso problema di 86: «la settimana si ricalibra» è una modifica del piano. Versione lecita: registra lo sgarro, niente rosso, e la frase è «domani si riprende», non nuove quantità."],
+  81:['a',"Mostrare i macro del piatto che il professionista ha previsto: sì. Calcolare il TUO fabbisogno giornaliero: no, è prescrizione."],
+  208:['a',"Lecito solo se gli scambi sono quelli che il professionista ha autorizzato nel piano. Non un'alternativa inventata da Keiko."],
+  213:['a',"Ricetta generica: sì. Se la presenti come «va bene per la tua dieta» diventa consiglio nutrizionale."],
+  16:['a',"Registrare il pasto: sì. Stimare le calorie e dirti di conseguenza cosa mangiare dopo: no."],
+  211:['a',"Come 16: il diario sì, il giudizio no."],
+  17:['a',"Suggerire ricette con quello che hai: sì. Suggerirle «per stare nel piano»: no."],
+
+  // ——— ALLENAMENTO
+  80:['a',"Keiko che riscrive la scheda da sola è il confine con la fisioterapia. Tienila su persone sane e su carichi, non su patologie o infortuni. Il piano resta del PT."],
+  202:['a',"Un allenamento a corpo libero per adulti sani va bene, con l'avviso. Mai se la persona ha dichiarato un infortunio."],
+  71:['a',"Spostare un giorno va bene: sposta, non prescrive."],
+
+  // ——— SALUTE · dispositivo medico (MDR)
+  27:['a',"Registrare peso e pressione: sì. Interpretarli («pressione alta, fai X») ti fa diventare un dispositivo medico. Mostra il numero, taci il giudizio."],
+  76:['a',"Stesso limite di 27: la pagina Salute raccoglie e mostra, non diagnostica."],
+
+  // ——— DATI DI ALTRE PERSONE · GDPR art. 9 (salute = categoria particolare)
+  214:['l',"Sono dati sanitari di un'altra persona sul tuo schermo. Serve il suo consenso esplicito, dato dentro l'app, revocabile, e deve poter vedere cosa vedi tu. Non basta che ve lo siate detti a voce."],
+  247:['l',"Sapere che un amico non apre l'app da due settimane, senza che lui lo sappia, è sorveglianza. O lo vedete entrambi, o non esiste."],
+  197:['a',"Allenamento condiviso = dati sulla salute condivisi. Consenso esplicito di entrambi, e si deve poter staccare in un tocco."],
+  199:['a',"Una sfida espone i dati di allenamento del gruppo. Stesso consenso di 197."],
+  204:['a',"È la versione giusta di 197: mostra SE si è allenato, non i numeri. Se devi sceglierne una, scegli questa."],
+  186:['a',"Il feed espone cosa guardano i tuoi amici. Deve valere solo fra amicizie reciproche e accettate, mai automatiche."],
+  194:['a',"Uno stato «sto guardando adesso» dice dove sei e cosa fai. Facoltativo e spegnibile, non attivo di default."],
+  153:['a',"Lo screenshot contiene messaggi di altre persone. Tienilo il tempo di estrarre l'evento, poi cancellalo."],
+  155:['a',"Come 153: dentro c'è roba di qualcun altro. Non conservare l'immagine."],
+
+  // ——— BENESSERE (non è legge, è non fare male alle persone)
+  198:['a',"Le strisce fanno sentire in colpa. Se si rompe non deve succedere niente di drammatico: nessun numero azzerato in faccia."],
+  77:['a',"Foto prima/dopo: private, facoltative, e mai messe a confronto da Keiko di sua iniziativa."],
+  78:['a',"Promemoria su acqua e pasti: solo se li ha chiesti lui. Altrimenti è assillo, non aiuto."],
+
+  // ——— LIMITI TECNICI (non legali)
+  15:['t',"Su iPhone «Condividi su Keiko» non esiste: WebKit non implementa lo share target. Si fa con un Comando rapido, oppure serve il wrapper nativo."],
+  102:['t',"I widget richiedono un'app nativa. Da PWA non si fanno."],
+  236:['t',"Le scorciatoie dalla schermata di blocco richiedono l'app nativa o i Comandi rapidi."],
+  58:['t',"Spotify in modalità sviluppo accetta massimo 25 utenti. Oltre serve la loro approvazione."],
+  59:['t',"Gli scope Google sensibili richiedono la verifica di Google. Non è difficile, ma sono settimane."],
+  101:['t',"Come 59: leggere il calendario è uno scope sensibile, va verificato."],
+  152:['t',"Gli eventi Facebook sono chiusi allo scraping e vietati dalle loro condizioni. Gli altri link sì."],
+  89:['t',"Google Routes si paga a chiamata. Sostenibile in cinque, da tenere d'occhio in settanta."],
+
+  // ——— RICETTARIO
+  249:['t',"TikTok non dà la trascrizione del parlato, e scaricare il video è contro le loro condizioni. Ufficialmente puoi prendere copertina, autore, didascalia e link (endpoint oEmbed pubblico). Se la ricetta è detta a voce e non scritta, serve il 250."],
+  254:['a',"Mandare agli amici la TUA copia del testo di un altro è ripubblicazione. Condividi il link al video originale, non la trascrizione."],
+  252:['a',"Come 213: la ricetta si può pianificare, ma non presentare come «conforme al tuo piano»."],
+};
+
+const WLAB = {l:'Da risolvere prima', a:'Con un paletto', t:'Limite tecnico'};
+
+// Le 179 che hai scelto il 4 agosto: la pagina si apre già con queste segnate.
+const SCELTE = [1,3,4,5,6,8,9,10,12,13,14,15,16,17,18,19,20,21,22,24,26,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,68,69,70,71,72,73,74,75,76,78,79,80,82,83,84,88,100,104,105,106,107,108,109,111,112,113,114,115,116,117,118,119,120,121,122,123,130,131,141,144,145,147,148,149,151,152,153,155,157,160,161,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,209,210,211,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238];
+
+const sel = new Set(SCELTE);
+const app = document.getElementById('app');
+
+DATA.forEach(sec=>{
+  const s = document.createElement('section');
+  s.innerHTML = `<h2>${sec.h}</h2><p class="stitle">${sec.s}</p>`;
+  sec.i.forEach(([n,isNew,t])=>{
+    const r = document.createElement('div');
+    r.className = 'row' + (isNew ? ' new' : '') + (sel.has(n) ? ' sel' : '');
+    r.dataset.n = n; r.dataset.new = isNew;
+    const w = WARN[n];
+    if(w) r.dataset.w = w[0];
+    r.innerHTML = `<div class="n">${n}</div><div class="t">${t}` +
+      (w ? `<small class="w ${w[0]}"><b>${WLAB[w[0]]}</b> — ${w[1]}</small>` : '') +
+      `</div>`;
+    r.onclick = ()=>{
+      if(sel.has(n)){sel.delete(n); r.classList.remove('sel');}
+      else {sel.add(n); r.classList.add('sel');}
+      refresh();
+    };
+    s.appendChild(r);
+  });
+  app.appendChild(s);
+});
+
+let filter = 'all';
+function refresh(){
+  document.getElementById('c').textContent = sel.size;
+  document.querySelectorAll('.row').forEach(r=>{
+    const isNew = r.dataset.new === '1';
+    const isSel = sel.has(+r.dataset.n);
+    let show = true;
+    if(filter==='new') show = isNew;
+    if(filter==='old') show = !isNew;
+    if(filter==='sel') show = isSel;
+    if(filter==='warn') show = !!r.dataset.w;
+    r.style.display = show ? '' : 'none';
+  });
+  document.querySelectorAll('section').forEach(s=>{
+    const any = [...s.querySelectorAll('.row')].some(r=>r.style.display!=='none');
+    s.style.display = any ? '' : 'none';
+  });
+}
+document.querySelectorAll('.f').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('.f').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); filter = b.dataset.f; refresh();
+  };
+});
+document.getElementById('clear').onclick = ()=>{
+  sel.clear();
+  document.querySelectorAll('.row').forEach(r=>r.classList.remove('sel'));
+  document.getElementById('outbox').classList.add('hid');
+  refresh();
+};
+document.getElementById('copy').onclick = ()=>{
+  const nums = [...sel].sort((a,b)=>a-b).join(', ');
+  const txt = nums ? 'Voglio fare queste: ' + nums : 'Non hai scelto niente.';
+  const box = document.getElementById('outbox');
+  document.getElementById('out').value = txt;
+  box.classList.remove('hid');
+  try{ navigator.clipboard.writeText(txt); }catch(e){}
+  document.getElementById('out').scrollIntoView({behavior:'smooth', block:'center'});
+};
+refresh();
+</script>
+</body>
+</html>

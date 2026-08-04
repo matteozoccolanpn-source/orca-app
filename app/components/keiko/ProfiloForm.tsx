@@ -144,7 +144,7 @@ export default function ProfiloForm({
         value={vincoli}
         onChange={(e) => setVincoli(e.target.value)}
         placeholder="es. ginocchio delicato, niente stacchi…"
-        style={{ width: "100%", boxSizing: "border-box", background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 13px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0 }}
+        style={{ width: "100%", boxSizing: "border-box", background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 13px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0 }}
       />
 
       {err && <p style={{ fontSize: 13, color: "#E2705F", margin: "10px 0 0" }}>{err}</p>}

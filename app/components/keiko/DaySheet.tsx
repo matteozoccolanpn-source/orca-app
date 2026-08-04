@@ -126,7 +126,7 @@ export default function DaySheet({
 
         {!demo && (
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <input value={newText} onChange={(e) => setNewText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="Aggiungi un promemoria…" style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 14px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0 }} />
+            <input value={newText} onChange={(e) => setNewText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="Aggiungi un promemoria…" style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 14px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0 }} />
             <button onClick={add} disabled={!newText.trim()} className="ds-btn primary" style={{ height: 44, padding: "0 16px", opacity: newText.trim() ? 1 : 0.4 }}>Aggiungi</button>
           </div>
         )}

@@ -194,7 +194,7 @@ export default function ProfileSheet({
           value={name}
           onChange={(e) => onName(e.target.value)}
           placeholder="Il tuo nome"
-          style={{ width: "100%", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 15, fontFamily: "inherit", outline: 0 }}
+          style={{ width: "100%", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0 }}
         />
         <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "8px 2px 0" }}>Keiko lo usa per salutarti in home.</p>
 
@@ -205,7 +205,7 @@ export default function ProfileSheet({
               value={city ?? ""}
               onChange={(e) => onCity(e.target.value)}
               placeholder="Es. Milano"
-              style={{ width: "100%", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 15, fontFamily: "inherit", outline: 0 }}
+              style={{ width: "100%", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0 }}
             />
             <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "8px 2px 0" }}>Per il meteo di oggi nella home.</p>
           </>
@@ -338,7 +338,7 @@ export default function ProfileSheet({
                 autoCorrect="off"
                 spellCheck={false}
                 disabled={delBusy || delDone}
-                style={{ width: "100%", background: "var(--k-bg)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 15, fontFamily: "inherit", outline: 0 }}
+                style={{ width: "100%", background: "var(--k-bg)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0 }}
               />
               <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
                 <button

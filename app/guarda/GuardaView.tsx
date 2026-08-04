@@ -194,7 +194,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
 
       {/* barra ricerca / aggiungi — in alto (non in fondo) */}
       <div style={{ display: "flex", gap: 8, margin: "16px 0 0" }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) { doAdd(search.trim()); setSearch(""); } }} placeholder="Cerca o aggiungi un titolo…" style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 14px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0 }} />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) { doAdd(search.trim()); setSearch(""); } }} placeholder="Cerca o aggiungi un titolo…" style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 14px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0 }} />
         <button onClick={() => suggest.startInput()} className="ds-btn primary" style={{ height: 42, padding: "0 14px", fontSize: 13, flex: "none" }}>✨ Consiglio</button>
       </div>
       {search.trim() && (
@@ -349,7 +349,7 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
                     ))}
                     {detRating > 0 && <button onClick={() => { setDetRating(0); saveReview(detItem, 0, detNote); }} style={{ background: "none", border: 0, color: "var(--k-text-3)", fontSize: 12, cursor: "pointer", marginLeft: 8 }}>azzera</button>}
                   </div>
-                  <textarea value={detNote} onChange={(e) => setDetNote(e.target.value)} placeholder="Una nota sui tuoi gusti… (facoltativa)" rows={2} style={{ width: "100%", marginTop: 10, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "10px 12px", color: "var(--k-text)", fontSize: 14, fontFamily: "inherit", outline: 0, resize: "vertical", boxSizing: "border-box" }} />
+                  <textarea value={detNote} onChange={(e) => setDetNote(e.target.value)} placeholder="Una nota sui tuoi gusti… (facoltativa)" rows={2} style={{ width: "100%", marginTop: 10, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "10px 12px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0, resize: "vertical", boxSizing: "border-box" }} />
                   <button onClick={() => saveReview(detItem, detRating, detNote)} className="ds-btn" style={{ height: 38, padding: "0 14px", marginTop: 8, fontSize: 13 }}>Salva nota</button>
                 </div>
 

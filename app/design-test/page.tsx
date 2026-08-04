@@ -679,7 +679,7 @@ function AskOrCaBar() {
           type="text"
           readOnly
           placeholder="Chiedi a OrCa"
-          className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#6b6b6b]"
+          className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-[#6b6b6b]"
           style={{ color: C.text }}
         />
       </div>

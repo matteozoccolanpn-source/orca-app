@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 import HeyKeikoBar from "./HeyKeikoBar";
 import AddButton from "./AddButton";
+import RuotaIlTelefono from "./RuotaIlTelefono";
 
 /* Chrome globale della vecchia app (barra "Chiedi a Keiko" flottante + FAB ＋).
  * Dopo l'inversione dell'interruttore la home NUOVA è il default: la chrome
@@ -24,9 +25,14 @@ function Inner() {
 
 export default function GlobalChrome() {
   // useSearchParams richiede un confine Suspense.
+  // RuotaIlTelefono sta FUORI da <Inner />: quella si spegne ovunque tranne
+  // sulla home vecchia, mentre il telefono si può girare in qualsiasi schermata.
   return (
-    <Suspense fallback={null}>
-      <Inner />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <Inner />
+      </Suspense>
+      <RuotaIlTelefono />
+    </>
   );
 }
