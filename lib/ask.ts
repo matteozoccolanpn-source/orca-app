@@ -36,7 +36,7 @@ La dieta e l'allenamento sono organizzati per giorno della settimana (lun, mar, 
   ];
 
   try {
-    const res = await claudeFetch({ model: MODEL, max_tokens: 600, system, messages });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 600, system, messages }, undefined, { operazione: "cattura", modello: MODEL });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const text = (data?.content ?? [])

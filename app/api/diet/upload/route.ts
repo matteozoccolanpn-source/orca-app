@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     model: 'claude-sonnet-4-5',
     max_tokens: 16000,
     messages: [{ role: 'user', content }],
-  })
+  }, undefined, { operazione: 'piano' })
 
   if (!claudeRes.ok) {
     const err = await claudeRes.text()

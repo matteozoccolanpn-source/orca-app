@@ -28,7 +28,8 @@ const translateFood = unstable_cache(
             "Traduci il nome di un cibo/pasto italiano in un termine di ricerca INGLESE semplice e generico, adatto a un database di ricette. Esempi: 'Uova strapazzate' -> 'scrambled eggs'; 'Petto di pollo alla griglia' -> 'grilled chicken breast'; 'Yogurt greco' -> 'greek yogurt'. Rispondi SOLO col termine inglese, nient'altro.",
           messages: [{ role: "user", content: itName }],
         },
-        { origine: "sistema" }
+        { origine: "sistema" },
+        { operazione: "cattura", modello: MODEL }
       );
       if (!res.ok) return itName;
       const data = await res.json();

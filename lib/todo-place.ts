@@ -55,7 +55,7 @@ async function callClaude(userContent: string): Promise<string> {
   ];
 
   for (let guard = 0; guard < 4; guard++) {
-    const res = await claudeFetch({ model: MODEL, max_tokens: 1024, messages, tools });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 1024, messages, tools }, undefined, { operazione: "cattura", modello: MODEL });
     if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
     const data = await res.json();
 

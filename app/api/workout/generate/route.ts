@@ -45,7 +45,7 @@ export async function POST() {
     model: 'claude-sonnet-4-5',
     max_tokens: 8000,
     messages: [{ role: 'user', content: `${WORKOUT_GENERATE_PROMPT}\n\nProfilo dell'utente:\n${righe}` }],
-  })
+  }, undefined, { operazione: 'piano' })
 
   if (!claudeRes.ok) {
     const err = await claudeRes.text()

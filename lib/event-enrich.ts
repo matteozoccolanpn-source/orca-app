@@ -21,7 +21,7 @@ async function callClaudeWebSearch(userContent: string): Promise<string> {
   ];
 
   for (let guard = 0; guard < 5; guard++) {
-    const res = await claudeFetch({ model: MODEL, max_tokens: 1500, messages, tools });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 1500, messages, tools }, undefined, { operazione: "cattura", modello: MODEL });
     if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
     const data = await res.json();
     if (data.stop_reason === "pause_turn") {

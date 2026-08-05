@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     model: 'claude-sonnet-4-5',
     max_tokens: 1024,
     messages: claudeMessages,
-  })
+  }, undefined, { operazione: 'cattura' })
 
   if (!claudeRes.ok) {
     const err = await claudeRes.text()

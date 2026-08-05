@@ -13,9 +13,11 @@
 //      i token si sommano tutti).
 //
 // Il peso: le operazioni non costano uguale, quindi non valgono uno.
-//   cattura (screenshot/testo, domanda, to-do, film) = 1
-//   piano   (dieta o scheda da PDF, scheda generata) = 5
-//   viaggio (pianificatore con ricerca web)          = 10
+//   cattura  (screenshot/testo, domanda, to-do)       = 1
+//   catalogo (riempimento di sfondo della lista film)  = 1
+//   piano    (dieta o scheda da PDF, scheda generata) = 5
+//   consiglio ("cosa guardo": due chiamate piccole)   = 2
+//   viaggio  (pianificatore con ricerca web)          = 10
 // La soglia resta spiegabile ("hai finito le operazioni di oggi") ma riflette
 // la spesa vera.
 
@@ -25,10 +27,18 @@ import { currentUserId } from "./user";
 const TZ = "Europe/Rome";
 
 /** Il tipo di operazione. Cambiare i pesi qui sotto, non nei punti di chiamata. */
-export type AiOperazione = "cattura" | "piano" | "viaggio";
+export type AiOperazione = "cattura" | "catalogo" | "consiglio" | "piano" | "viaggio";
 
 const PESI: Record<AiOperazione, number> = {
   cattura: 1,
+  // Stesso peso della cattura, nome diverso: costa uguale ma è un'altra cosa, e
+  // mescolata agli screenshot nel registro non si capirebbe più chi spende cosa.
+  catalogo: 1,
+  // Era 10 quando il consiglio cercava sul web e costava ~25 centesimi. Da C3 i
+  // candidati li da' TMDB (gratis) e a Claude restano due chiamate piccole:
+  // capire la richiesta e scegliere fra i candidati. Misurato: ~2 centesimi,
+  // come due catture. Se un giorno la ricerca web tornasse, torna anche il 10.
+  consiglio: 2,
   piano: 5,
   viaggio: 10,
 };
@@ -131,6 +141,55 @@ async function registra(
   }
 }
 
+// ── REGISTRO DELLE OPERAZIONI (usage_log) ───────────────────────────────────
+// A fianco di `usage`, non al posto suo: `usage` dice quanto si è speso, questo
+// dice DI COSA. Sono due cose separate apposta — il tetto continua a leggere
+// solo `usage`, e se questo registro non funzionasse il tetto non se ne
+// accorgerebbe nemmeno.
+// Nessun contenuto: solo il nome dell'operazione e i numeri. Vedi
+// docs/sql/usage_log.sql.
+
+/** Una riga del registro. Tutti i numeri sono facoltativi: la riga scritta da
+ *  `spendAi` ha solo il nome dell'operazione. */
+interface RigaRegistro {
+  userId: string;
+  origine: AiOrigine;
+  operazione: string;
+  tokenIn?: number;
+  tokenOut?: number;
+  modello?: string;
+  ricercheWeb?: number;
+  /** Token riletti dalla cache: sono dentro `tokenIn`, ma costano un decimo. */
+  cacheLetti?: number;
+  /** Token messi in cache: dentro `tokenIn`, costano 1,25 volte. */
+  cacheScritti?: number;
+}
+
+/** Scrive una riga nel registro. Non lancia mai: contare non deve rompere l'app. */
+async function annota(r: RigaRegistro): Promise<void> {
+  const db = contatoreDb();
+  if (!db) return;   // già segnalato da registra(): non si raddoppia il rumore
+  try {
+    const { error } = await db.from("usage_log").insert({
+      user_id: r.userId,
+      operazione: r.operazione,
+      origine: r.origine,
+      token_in: r.tokenIn ?? 0,
+      token_out: r.tokenOut ?? 0,
+      modello: r.modello ?? null,
+      ricerche_web: r.ricercheWeb ?? 0,
+      token_in_cache_read: r.cacheLetti ?? 0,
+      token_in_cache_write: r.cacheScritti ?? 0,
+    });
+    if (error) {
+      // Tipico se docs/sql/usage_log.sql non è ancora stato eseguito.
+      console.error("[usage_log] riga non scritta (hai eseguito docs/sql/usage_log.sql?):", error.message);
+    }
+  } catch (e) {
+    console.error("[usage_log] riga non scritta:", e);
+  }
+}
+
 /** Quante "operazioni" ha già speso oggi. -1 se il contatore non è leggibile. */
 async function speseOggi(userId: string | null, origine: AiOrigine): Promise<number> {
   const db = contatoreDb();
@@ -175,6 +234,9 @@ export async function spendAi(op: AiOperazione, ctx?: AiCtx): Promise<void> {
   // "sistema" non viene mai fermata: si registra e basta.
 
   await registra(userId, origine, peso, 0, 0);
+  // In più (e solo dopo che il tetto ha detto sì): il nome dell'operazione nel
+  // registro. Se fallisce non cambia niente — il tetto ha già fatto il suo.
+  await annota({ userId, origine, operazione: op });
 }
 
 /** Un blocco della risposta di Claude (testo, uso di uno strumento, …). */
@@ -184,11 +246,23 @@ export interface ClaudeBlock {
   [k: string]: unknown;
 }
 
+/** Il conto che Claude allega a ogni risposta.
+ *  `server_tool_use.web_search_requests` è l'unico dato che dice quante ricerche
+ *  web sono partite davvero: si fatturano a parte dai token, e senza questo
+ *  numero si può solo tirare a indovinare. */
+export interface ClaudeUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+  server_tool_use?: { web_search_requests?: number };
+}
+
 /** Il corpo JSON della risposta di Claude. */
 export interface ClaudeJson {
   stop_reason?: string;
   content?: ClaudeBlock[];
-  usage?: Record<string, number>;
+  usage?: ClaudeUsage;
   [k: string]: unknown;
 }
 
@@ -205,7 +279,25 @@ export interface ClaudeResponse {
  * Stessa forma di risposta (`ok`, `status`, `json()`, `text()`), in più registra
  * i token consumati. NON controlla la soglia: quello lo fa `spendAi`.
  */
-export async function claudeFetch(body: unknown, ctx?: AiCtx): Promise<ClaudeResponse> {
+/** Il modello sta già nel corpo della richiesta: se chi chiama non lo passa,
+ *  lo si legge da lì invece di scrivere null. */
+function modelloDi(body: unknown): string | undefined {
+  const m = (body as { model?: unknown })?.model;
+  return typeof m === "string" ? m : undefined;
+}
+
+/** Contesto per il registro: quale operazione sta girando e con quale modello.
+ *  È tutto facoltativo — chi non lo passa finisce come "sconosciuta". */
+export interface AiTraccia {
+  operazione?: AiOperazione | "sconosciuta";
+  modello?: string;
+}
+
+export async function claudeFetch(
+  body: unknown,
+  ctx?: AiCtx,
+  traccia?: AiTraccia
+): Promise<ClaudeResponse> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -228,10 +320,43 @@ export async function claudeFetch(body: unknown, ctx?: AiCtx): Promise<ClaudeRes
       const tokenIn =
         (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
       const tokenOut = u.output_tokens ?? 0;
-      if (tokenIn || tokenOut) {
+      // Le ricerche web NON sono token: si pagano a ricerca, a parte. Claude le
+      // conta qui, ed è l'unico posto dove il numero vero esiste.
+      const ricerche = u.server_tool_use?.web_search_requests ?? 0;
+
+      // Cache dei prompt: i due numeri che dicono se si è accesa davvero.
+      // `letti` sono i token riletti dalla cache (costano un decimo), `scritti`
+      // quelli messi in cache la prima volta (costano 1,25 volte). In un ciclo
+      // con più giri (ricerca web), dal SECONDO giro in poi `letti` deve essere
+      // alto: se resta a zero la cache non sta funzionando, e va capito perché
+      // prima di dare per buono il risparmio.
+      console.log(
+        JSON.stringify({
+          tag: "ai.cache",
+          letti: u.cache_read_input_tokens ?? 0,
+          scritti: u.cache_creation_input_tokens ?? 0,
+          nuovi: u.input_tokens ?? 0,
+          out: tokenOut,
+          ricerche,
+        })
+      );
+      if (tokenIn || tokenOut || ricerche) {
         const { userId, origine } = await risolviCtx(ctx);
         // chiamate = 0: il peso dell'operazione l'ha già addebitato spendAi.
         await registra(userId, origine, 0, tokenIn, tokenOut);
+        // e la stessa cosa nel registro, stavolta con il nome dell'operazione.
+        // Senza `traccia` si scrive "sconosciuta": mezzo dato è meglio di niente.
+        await annota({
+          userId,
+          origine,
+          operazione: traccia?.operazione ?? "sconosciuta",
+          tokenIn,
+          tokenOut,
+          modello: traccia?.modello ?? modelloDi(body),
+          ricercheWeb: ricerche,
+          cacheLetti: u.cache_read_input_tokens ?? 0,
+          cacheScritti: u.cache_creation_input_tokens ?? 0,
+        });
       }
     } catch (e) {
       console.error("[usage] token non registrati:", e);
@@ -244,4 +369,120 @@ export async function claudeFetch(body: unknown, ctx?: AiCtx): Promise<ClaudeRes
     json: async () => JSON.parse(raw),
     text: async () => raw,
   };
+}
+
+// ── Lettura del registro (la usa /numeri) ───────────────────────────────────
+
+// ⚠️ PREZZI SCRITTI A MANO — controllati sul listino di Anthropic il 6 agosto 2026
+// (https://platform.claude.com/docs/en/about-claude/pricing).
+// Un prezzo a mano che invecchia in silenzio è proprio quello che la bussola
+// vieta: qui è accettabile SOLO perché /numeri è una pagina interna che vede
+// solo il proprietario, e solo finché questa data resta accanto al numero.
+// Quando cambia il listino, o quando si cambia modello, questo va rifatto.
+export const PREZZI_PER_MTOK: Record<string, { in: number; out: number }> = {
+  "claude-sonnet-4-5": { in: 3, out: 15 },
+  "claude-haiku-4-5": { in: 1, out: 5 },
+};
+// Le ricerche web non si pagano a token: si pagano a ricerca ($10 ogni 1.000),
+// più i token dei risultati che stanno già nel conto qui sopra.
+export const PREZZO_RICERCA_WEB = 10 / 1000;
+export const PREZZI_AGGIORNATI_AL = "6 agosto 2026";
+
+/** I moltiplicatori della cache, uguali per tutti i modelli: un token riletto
+ *  dalla cache costa un decimo, uno appena messo in cache 1,25 volte. */
+const CACHE_LETTURA = 0.1;
+const CACHE_SCRITTURA = 1.25;
+
+/** Quanto è costata una riga del registro, in dollari.
+ *
+ *  `token_in` è il totale in entrata, ma dentro ci stanno tre cose che NON
+ *  costano uguale: i token nuovi (prezzo pieno), quelli riletti dalla cache (un
+ *  decimo) e quelli messi in cache (1,25 volte). Tenendoli separati il conto è
+ *  quello vero, non un "non più di così". */
+function stimaDollari(r: {
+  modello: string | null;
+  tokenIn: number;
+  tokenOut: number;
+  ricerche: number;
+  cacheLetti: number;
+  cacheScritti: number;
+}): number {
+  const p = PREZZI_PER_MTOK[r.modello ?? ""] ?? PREZZI_PER_MTOK["claude-sonnet-4-5"];
+  // Quel che resta è "nuovo". Il max(0) protegge dalle righe scritte prima che
+  // esistessero le due colonne, dove i pezzi non tornano.
+  const nuovi = Math.max(0, r.tokenIn - r.cacheLetti - r.cacheScritti);
+  const entrata = nuovi + r.cacheLetti * CACHE_LETTURA + r.cacheScritti * CACHE_SCRITTURA;
+  return (entrata / 1e6) * p.in + (r.tokenOut / 1e6) * p.out + r.ricerche * PREZZO_RICERCA_WEB;
+}
+
+export interface UsoOperazione {
+  operazione: string;
+  volte: number;      // quante volte l'utente ha chiesto quella cosa
+  chiamate: number;   // quante richieste sono partite verso Claude (la ricerca web ne fa più d'una)
+  ricercheWeb: number; // ricerche vere, contate da Claude: si fatturano a parte
+  cacheLetti: number;  // quanti dei token in entrata sono arrivati dalla cache
+  tokenIn: number;
+  tokenOut: number;
+  dollari: number;
+}
+
+/** Ultimi N giorni, raggruppato per operazione. [] se la tabella non c'è ancora.
+ *
+ *  Come si contano le "volte": nel registro ci sono due tipi di riga. Quella
+ *  scritta da `spendAi` all'inizio dell'operazione ha zero token ed è UNA per
+ *  operazione — quelle sono le volte. Le altre le scrive `claudeFetch`, una per
+ *  richiesta davvero partita: con la ricerca web una sola operazione ne fa 3-4,
+ *  e contarle tutte direbbe "4 consigli" dove l'utente ne ha chiesto uno. */
+export async function usoPerOperazione(giorni = 7): Promise<UsoOperazione[]> {
+  const db = contatoreDb();
+  if (!db) return [];
+  const da = new Date(Date.now() - giorni * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await db
+    .from("usage_log")
+    .select("operazione, token_in, token_out, modello, ricerche_web, token_in_cache_read, token_in_cache_write")
+    .gt("ts", da);
+  if (error) {
+    console.error("[usage_log] lettura fallita (hai eseguito docs/sql/usage_log.sql?):", error.message);
+    return [];
+  }
+  const per = new Map<string, UsoOperazione>();
+  type Riga = {
+    operazione: string;
+    token_in: number;
+    token_out: number;
+    modello: string | null;
+    ricerche_web: number | null;
+    token_in_cache_read: number | null;
+    token_in_cache_write: number | null;
+  };
+  for (const r of (data ?? []) as Riga[]) {
+    const k = r.operazione || "sconosciuta";
+    const v =
+      per.get(k) ??
+      { operazione: k, volte: 0, chiamate: 0, ricercheWeb: 0, cacheLetti: 0, tokenIn: 0, tokenOut: 0, dollari: 0 };
+    const tIn = Number(r.token_in) || 0;
+    const tOut = Number(r.token_out) || 0;
+    const cerca = Number(r.ricerche_web) || 0;
+    const letti = Number(r.token_in_cache_read) || 0;
+    const scritti = Number(r.token_in_cache_write) || 0;
+    if (tIn === 0 && tOut === 0) {
+      v.volte += 1;              // riga di spendAi: una per operazione
+    } else {
+      v.chiamate += 1;
+      v.ricercheWeb += cerca;
+      v.tokenIn += tIn;
+      v.tokenOut += tOut;
+      v.cacheLetti += letti;
+      v.dollari += stimaDollari({
+        modello: r.modello,
+        tokenIn: tIn,
+        tokenOut: tOut,
+        ricerche: cerca,
+        cacheLetti: letti,
+        cacheScritti: scritti,
+      });
+    }
+    per.set(k, v);
+  }
+  return [...per.values()].sort((a, b) => b.dollari - a.dollari);
 }

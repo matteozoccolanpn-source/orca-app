@@ -276,6 +276,54 @@ export async function resolveTitle(title: string, kind?: string): Promise<Resolv
   }
 }
 
+/** Come resolveTitle, ma pretende che il titolo trovato sia QUELLO scritto,
+ *  non un parente. Serve a riconoscere "aggiungi Breaking Bad": `resolveTitle`
+ *  lì risponde "El Camino: Il film di Breaking Bad", perché a parità di
+ *  punteggio preferisce i film, e il titolo secco non veniva riconosciuto.
+ *  null se nessun risultato corrisponde davvero. */
+export async function resolveExactTitle(query: string): Promise<ResolvedTitle | null> {
+  const s = tmdbSetup();
+  if (!s || !query.trim()) return null;
+  const pulisci = (t: string) =>
+    t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+  const cercato = pulisci(query);
+  if (!cercato) return null;
+  try {
+    const res = await fetch(
+      s.withKey(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}&language=it-IT&page=1`),
+      s.init
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results = (data?.results ?? []) as {
+      id: number; media_type?: string; poster_path?: string | null; genre_ids?: number[];
+      title?: string; name?: string; release_date?: string; first_air_date?: string; popularity?: number;
+    }[];
+    const validi = results.filter((r) => r.media_type === "movie" || r.media_type === "tv");
+    // Uguale prima di "comincia per": senza questo "Breaking Bad" pescherebbe
+    // "Breaking Bad Wolf" se capitasse più in alto.
+    const uguali = validi.filter((r) => pulisci(r.title || r.name || "") === cercato);
+    const pool = uguali.length ? uguali : validi.filter((r) => pulisci(r.title || r.name || "").startsWith(cercato));
+    const hit = pool.filter((r) => r.poster_path)[0] ?? pool[0];
+    if (!hit) return null;
+
+    const tmdbType: TmdbType = hit.media_type === "tv" ? "tv" : "movie";
+    const uscita = hit.release_date || hit.first_air_date || "";
+    const gid = hit.genre_ids?.[0];
+    return {
+      tmdbId: hit.id,
+      tmdbType,
+      title: (hit.title || hit.name || query).trim(),
+      poster: hit.poster_path ? `${IMG_BASE}${hit.poster_path}` : null,
+      genre: gid != null ? (GENRE_IT[gid] ?? null) : null,
+      year: uscita ? uscita.slice(0, 4) : null,
+    };
+  } catch (e) {
+    console.error("TMDB titolo esatto: errore per", query, e);
+    return null;
+  }
+}
+
 /** Come resolveTitle, ma partendo dall'id: nessuna ricerca. Serve a chi l'id
  *  ce l'ha già (la ricerca trasversale), per non cercare due volte lo stesso
  *  titolo e rischiare di finire su un omonimo. */
@@ -581,5 +629,304 @@ export async function primaryGenre(title: string, kind?: string): Promise<string
     return gid != null ? (GENRE_IT[gid] ?? null) : null;
   } catch {
     return null;
+  }
+}
+
+// ============================================================================
+// SCOPRIRE TITOLI SENZA CERCARE SUL WEB (C3)
+//
+// Prima il consiglio funzionava così: Claude cercava sul web "commedie italiane
+// su Netflix", leggeva degli articoli e riportava quello che aveva letto. Due
+// difetti: i risultati di ricerca rientravano come token in ingresso (il grosso
+// dei ~75.000 token per consiglio), e la piattaforma veniva da un articolo —
+// mentre "Dove vederlo", due tocchi più in là, la chiede a TMDB. Stessa app,
+// due risposte diverse.
+//
+// TMDB ha già tutto: /discover filtra per genere, anno, voto, durata E
+// piattaforma italiana. Gratis, strutturato, aggiornato. Il lavoro di Claude
+// smette di essere "cerca" e diventa "capisci cosa vuole" e "scegli e spiega".
+// ============================================================================
+
+/** Le piattaforme italiane con il loro id TMDB. Si LEGGONO da TMDB, non si
+ *  scrivono a mano: gli id cambiano e non te ne accorgeresti finché il filtro
+ *  non smette di funzionare in silenzio. Cache 30 giorni. */
+export async function providerIdsIT(): Promise<Record<string, number>> {
+  const s = tmdbSetup();
+  if (!s) return {};
+  const init = { ...s.init, next: { revalidate: 2592000 } };  // 30 giorni
+
+  // Più fornitori TMDB cadono sullo stesso nostro nome, e sceglierne uno a caso
+  // sarebbe un errore silenzioso: "Apple TV Store" (noleggio) non è "Apple TV+"
+  // (abbonamento), e "Sky Go" non è "NOW". Quindi si raccolgono tutti e si
+  // sceglie: prima chi ha il nome che comincia come il nostro, poi chi TMDB
+  // mette più in alto per l'Italia (display_priority più basso = più usato).
+  const semplice = (s2: string) => s2.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const candidati: Record<string, { id: number; prefisso: boolean; priorita: number }[]> = {};
+
+  try {
+    for (const tipo of ["movie", "tv"] as const) {
+      const res = await fetch(
+        s.withKey(`https://api.themoviedb.org/3/watch/providers/${tipo}?watch_region=IT&language=it-IT`),
+        init
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const p of (data?.results ?? []) as {
+        provider_id: number;
+        provider_name: string;
+        display_priorities?: Record<string, number>;
+      }[]) {
+        const nome = normalizzaPiattaforma(p.provider_name);
+        if (!nome) continue;
+        (candidati[nome] ??= []).push({
+          id: p.provider_id,
+          prefisso: semplice(p.provider_name).startsWith(semplice(nome)),
+          priorita: p.display_priorities?.IT ?? 999,
+        });
+      }
+    }
+  } catch (e) {
+    console.error("TMDB provider IT: errore", e);
+  }
+
+  const mappa: Record<string, number> = {};
+  for (const [nome, lista] of Object.entries(candidati)) {
+    lista.sort((a, b) => Number(b.prefisso) - Number(a.prefisso) || a.priorita - b.priorita);
+    mappa[nome] = lista[0].id;
+  }
+  return mappa;
+}
+
+/** I filtri che Claude estrae dalla frase dell'utente. Tutti facoltativi:
+ *  quello che non dice non filtra. */
+export type FiltriScoperta = {
+  tipo?: "film" | "serie" | "entrambi";
+  /** Nomi italiani, gli stessi di GENRE_IT ("Commedia", "Crime", …). */
+  generi?: string[];
+  annoDa?: number;
+  annoA?: number;
+  /** Minuti. Solo per i film: su una serie TMDB non filtra la durata. */
+  durataMax?: number;
+  votoMin?: number;
+  /** Quanti voti servono perché la media conti: senza, esce fuori di tutto. */
+  votiMin?: number;
+  /** Nomi normalizzati ("Netflix", "Now"…). Vuoto = tutte. */
+  piattaforme?: string[];
+  /** Lingua originale ISO ("it", "en", "ko"…). "commedia ITALIANA" non è un
+   *  genere: è questo. Senza, discover risponde con le commedie americane. */
+  lingua?: string;
+  /** L'argomento, in INGLESE ("nature", "boxing", "time travel"). I generi non
+   *  bastano: "un documentario sulla natura" col solo genere Documentario
+   *  restituiva "Indagini ad alta quota". Le parole chiave di TMDB sì. */
+  parolaChiave?: string;
+};
+
+export type CandidatoScoperto = {
+  tmdbId: number;
+  tmdbType: TmdbType;
+  titolo: string;
+  anno: string | null;
+  generi: string[];
+  voto: number | null;
+  /** Minuti. Resta null: discover NON restituisce la durata (verificato sulle
+   *  risposte vere). Il filtro `durataMax` funziona lo stesso, perché a tagliare
+   *  è TMDB con `with_runtime.lte` — arrivano già solo i titoli abbastanza
+   *  corti. Il campo resta qui per il giorno in cui servisse leggerla davvero. */
+  durata: number | null;
+  locandina: string | null;
+};
+
+/** GENRE_IT al contrario: dal nome italiano all'id TMDB. Costruita una volta. */
+const GENRE_ID_DA_NOME: Record<string, number> = Object.entries(GENRE_IT).reduce(
+  (acc, [id, nome]) => {
+    // Il primo vince: "Guerra" sta sia sui film (10752) che sulle serie (10768),
+    // e discover accetta l'id del tipo che sta interrogando — quello sbagliato
+    // semplicemente non filtra niente, non rompe.
+    if (acc[nome.toLowerCase()] == null) acc[nome.toLowerCase()] = Number(id);
+    return acc;
+  },
+  {} as Record<string, number>
+);
+
+function generiInId(generi: string[] | undefined): string {
+  if (!generi?.length) return "";
+  const ids = generi
+    .map((g) => GENRE_ID_DA_NOME[g.trim().toLowerCase()])
+    .filter((x): x is number => typeof x === "number");
+  return ids.length ? ids.join(",") : "";
+}
+
+/** L'id TMDB di una parola chiave. Le parole chiave sono in inglese: "natura"
+ *  non trova niente, "nature" sì. Cache 30 giorni: non cambiano mai. */
+export async function keywordId(parola: string): Promise<number | null> {
+  const s = tmdbSetup();
+  if (!s || !parola.trim()) return null;
+  try {
+    const res = await fetch(
+      s.withKey(`https://api.themoviedb.org/3/search/keyword?query=${encodeURIComponent(parola)}&page=1`),
+      { ...s.init, next: { revalidate: 2592000 } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const primo = (data?.results ?? [])[0] as { id?: number } | undefined;
+    return typeof primo?.id === "number" ? primo.id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Chiede a TMDB dei candidati che rispettano i filtri. Al massimo 30.
+ *  Cache 1 giorno: i cataloghi delle piattaforme si muovono, ma non ogni ora.
+ *  [] se manca la chiave o se TMDB non risponde — chi chiama ha un ripiego. */
+export async function discoverTitles(f: FiltriScoperta, pagine = 1): Promise<CandidatoScoperto[]> {
+  const s = tmdbSetup();
+  if (!s) return [];
+  const init = { ...s.init, next: { revalidate: 86400 } };   // 1 giorno
+
+  const tipi: TmdbType[] =
+    f.tipo === "film" ? ["movie"] : f.tipo === "serie" ? ["tv"] : ["movie", "tv"];
+
+  // Le piattaforme: da nome a id. Se non se ne riconosce nessuna si lascia
+  // perdere il filtro invece di restituire zero risultati.
+  let providers = "";
+  if (f.piattaforme?.length) {
+    const mappa = await providerIdsIT();
+    const ids = f.piattaforme.map((p) => mappa[p]).filter((x): x is number => typeof x === "number");
+    providers = ids.join("|");   // "|" = una qualsiasi di queste
+  }
+
+  const generi = generiInId(f.generi);
+  const kw = f.parolaChiave ? await keywordId(f.parolaChiave) : null;
+
+  const chiedi = async (conParolaChiave: boolean) => {
+   const perTipo = await Promise.all(
+    tipi.flatMap((tipo) => Array.from({ length: Math.max(1, pagine) }, (_, i) => [tipo, i + 1] as const)).map(async ([tipo, pagina]) => {
+      const q = new URLSearchParams({
+        watch_region: "IT",
+        language: "it-IT",
+        sort_by: "popularity.desc",
+        include_adult: "false",
+        page: String(pagina),
+      });
+      if (conParolaChiave && kw != null) q.set("with_keywords", String(kw));
+      if (providers) {
+        q.set("with_watch_providers", providers);
+        // "flatrate" = incluso nell'abbonamento. Senza questo entrano anche i
+        // titoli solo a noleggio, e "ce l'hai già" diventerebbe falso.
+        q.set("with_watch_monetization_types", "flatrate");
+      }
+      if (generi) q.set("with_genres", generi);
+      if (f.lingua) q.set("with_original_language", f.lingua);
+      if (f.votoMin != null) q.set("vote_average.gte", String(f.votoMin));
+      // Senza un minimo di voti la classifica la vincono i titoli con 3 voti a 10.
+      q.set("vote_count.gte", String(f.votiMin ?? 50));
+      if (f.annoDa != null) q.set(tipo === "movie" ? "primary_release_date.gte" : "first_air_date.gte", `${f.annoDa}-01-01`);
+      if (f.annoA != null) q.set(tipo === "movie" ? "primary_release_date.lte" : "first_air_date.lte", `${f.annoA}-12-31`);
+      // La durata TMDB la filtra solo sui film.
+      if (f.durataMax != null && tipo === "movie") q.set("with_runtime.lte", String(f.durataMax));
+
+      try {
+        const res = await fetch(s.withKey(`https://api.themoviedb.org/3/discover/${tipo}?${q}`), init);
+        if (!res.ok) { console.error("TMDB discover:", res.status, tipo); return []; }
+        const data = await res.json();
+        return ((data?.results ?? []) as {
+          id: number; title?: string; name?: string; poster_path?: string | null;
+          release_date?: string; first_air_date?: string; genre_ids?: number[];
+          vote_average?: number; runtime?: number;
+        }[]).map((r) => {
+          const uscita = r.release_date || r.first_air_date || "";
+          return {
+            tmdbId: r.id,
+            tmdbType: tipo,
+            titolo: (r.title || r.name || "").trim(),
+            anno: uscita ? uscita.slice(0, 4) : null,
+            generi: (r.genre_ids ?? []).map((g) => GENRE_IT[g]).filter(Boolean),
+            voto: typeof r.vote_average === "number" ? Math.round(r.vote_average * 10) / 10 : null,
+            durata: typeof r.runtime === "number" ? r.runtime : null,
+            locandina: r.poster_path ? `${IMG_BASE}${r.poster_path}` : null,
+          } as CandidatoScoperto;
+        });
+      } catch (e) {
+        console.error("TMDB discover: errore", tipo, e);
+        return [];
+      }
+    })
+  );
+
+   // Se si sono chiesti entrambi i tipi si alternano film e serie, così una
+   // richiesta generica non torna 30 film e nessuna serie.
+   const meta = Math.ceil(perTipo.length / 2) || 1;
+   const a = perTipo.slice(0, meta).flat();
+   const b = perTipo.slice(meta).flat();
+   const misto: CandidatoScoperto[] = [];
+   for (let i = 0; i < Math.max(a.length, b.length); i++) {
+     if (a[i]) misto.push(a[i]);
+     if (b[i]) misto.push(b[i]);
+   }
+   return misto.filter((c) => c.titolo).slice(0, 30);
+  };
+
+  const conKw = await chiedi(true);
+  // La parola chiave a volte stringe troppo ("boxing" su una piattaforma sola):
+  // meglio dei candidati generici che nessun candidato.
+  if (kw != null && conKw.length < 5) {
+    console.warn("[discover] parola chiave troppo stretta:", f.parolaChiave, "->", conKw.length);
+    return chiedi(false);
+  }
+  return conKw;
+}
+
+/** La durata VERA di un film, in minuti. Serve perché `with_runtime.lte` di
+ *  discover non è affidabile: chiedendo "sotto i 70 minuti" TMDB restituisce
+ *  anche Free Guy, che ne dura 115 (verificato). Quindi il filtro di discover
+ *  serve a stringere il campo, ma il taglio vero si fa qui, sul dato del
+ *  singolo titolo. null se TMDB non lo sa. */
+export async function runtimeById(tmdbId: number): Promise<number | null> {
+  const s = tmdbSetup();
+  if (!s) return null;
+  try {
+    const r = await fetch(s.withKey(`https://api.themoviedb.org/3/movie/${tmdbId}?language=it-IT`), s.init);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return typeof d?.runtime === "number" && d.runtime > 0 ? d.runtime : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Le raccomandazioni di TMDB per un titolo che l'utente ha nominato
+ *  ("stile Quo Vado"). Stessa forma dei candidati di discover. */
+export async function recommendationsById(tmdbId: number, tmdbType: TmdbType): Promise<CandidatoScoperto[]> {
+  const s = tmdbSetup();
+  if (!s) return [];
+  try {
+    const res = await fetch(
+      s.withKey(`https://api.themoviedb.org/3/${tmdbType}/${tmdbId}/recommendations?language=it-IT&page=1`),
+      { ...s.init, next: { revalidate: 86400 } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return ((data?.results ?? []) as {
+      id: number; title?: string; name?: string; poster_path?: string | null;
+      release_date?: string; first_air_date?: string; genre_ids?: number[]; vote_average?: number;
+    }[])
+      .map((r) => {
+        const uscita = r.release_date || r.first_air_date || "";
+        return {
+          tmdbId: r.id,
+          tmdbType,
+          titolo: (r.title || r.name || "").trim(),
+          anno: uscita ? uscita.slice(0, 4) : null,
+          generi: (r.genre_ids ?? []).map((g) => GENRE_IT[g]).filter(Boolean),
+          voto: typeof r.vote_average === "number" ? Math.round(r.vote_average * 10) / 10 : null,
+          durata: null,
+          locandina: r.poster_path ? `${IMG_BASE}${r.poster_path}` : null,
+        } as CandidatoScoperto;
+      })
+      .filter((c) => c.titolo)
+      .slice(0, 10);
+  } catch (e) {
+    console.error("TMDB raccomandazioni: errore per", tmdbId, e);
+    return [];
   }
 }

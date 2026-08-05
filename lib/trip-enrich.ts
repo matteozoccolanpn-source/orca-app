@@ -33,7 +33,7 @@ async function callClaudeWebSearch(userContent: string): Promise<string> {
   ];
 
   for (let guard = 0; guard < 6; guard++) {
-    const res = await claudeFetch({ model: MODEL, max_tokens: 4096, messages, tools });
+    const res = await claudeFetch({ model: MODEL, max_tokens: 4096, messages, tools }, undefined, { operazione: "viaggio", modello: MODEL });
     if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
     const data = await res.json();
 

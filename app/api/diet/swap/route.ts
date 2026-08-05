@@ -64,7 +64,7 @@ Italiano.`
     model: 'claude-sonnet-4-5',
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
-  })
+  }, undefined, { operazione: 'cattura' })
 
   if (!claudeRes.ok) {
     const err = await claudeRes.text()
