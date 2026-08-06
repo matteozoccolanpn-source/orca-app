@@ -666,7 +666,7 @@ export default function KeikoPreview({ live, logoutAction }: { live?: LiveHome; 
                     {(liveEv.enrichment?.links ?? []).map((l, i) => (
                       <a key={i} href={l.url} target="_blank" rel="noreferrer" className="btn line" style={{ display: "flex", width: "100%", marginBottom: 8, textDecoration: "none", justifyContent: "flex-start" }}>🔗 {l.label}</a>
                     ))}
-                    {!liveEv.enrichment && (
+                    {!liveEv.enrichment?.summary && (
                       <p style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 10px" }}>Keiko può cercare online info e link utili su questo evento.</p>
                     )}
                     <button className="btn line" style={{ width: "100%" }} disabled={enriching} onClick={() => refreshEnrich(liveEv.id)}>{enriching ? "Cerco online…" : "🔄 Aggiorna info da Keiko"}</button>

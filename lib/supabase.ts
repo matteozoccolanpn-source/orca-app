@@ -9,6 +9,10 @@ export interface EventEnrichment {
   summary: string;
   links: { label: string; url: string }[];
   updatedAt: string;
+  /** Foto del luogo (Google Places), risolta UNA volta e poi riusata.
+   *  `name` null = cercata e non trovata: si ricorda anche quello, altrimenti
+   *  gli eventi senza foto ripagherebbero la ricerca a ogni apertura. */
+  placePhoto?: { name: string | null; at: string };
 }
 
 export interface Ticket {
@@ -1034,6 +1038,23 @@ export async function getTicketForEnrich(id: string): Promise<{ title: string; t
 export async function saveTicketEnrichment(id: string, enrichment: EventEnrichment): Promise<void> {
   const { error } = await (await db()).from("tickets").update({ enrichment }).eq("id", id);
   if (error) console.warn("[enrichment] save fallito (colonna `enrichment` creata?):", error.message);
+}
+
+/** Salva SOLO il nome della foto del luogo dentro `enrichment`, senza toccare
+ *  il resto (summary e link li scrive l'AI, e sovrascriverli sarebbe una
+ *  perdita di dati). Legge, unisce, riscrive: succede una volta per evento.
+ *  Non lancia mai: se fallisce, si è solo perso il risparmio, non la foto. */
+export async function savePlacePhotoName(id: string, name: string | null): Promise<void> {
+  try {
+    const client = await db();
+    const { data } = await client.from("tickets").select("enrichment").eq("id", id).maybeSingle();
+    const attuale = (data?.enrichment as EventEnrichment | null) ?? null;
+    const nuovo = { ...(attuale ?? {}), placePhoto: { name, at: new Date().toISOString() } };
+    const { error } = await client.from("tickets").update({ enrichment: nuovo }).eq("id", id);
+    if (error) console.warn("[places] nome foto non salvato:", error.message);
+  } catch (e) {
+    console.warn("[places] nome foto non salvato:", e);
+  }
 }
 
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */

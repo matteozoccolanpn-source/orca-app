@@ -131,7 +131,7 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
                 {(ev.enrichment?.links ?? []).map((l, i) => (
                   <a key={i} href={l.url} target="_blank" rel="noreferrer" className="ds-btn" style={{ width: "100%", marginBottom: 8, justifyContent: "flex-start", textDecoration: "none", height: 44 }}>🔗 {l.label}</a>
                 ))}
-                {!ev.enrichment && <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: 0 }}>Keiko cerca online sito, biglietti e come arrivare — compaiono qui alla creazione dell&apos;evento.</p>}
+                {!ev.enrichment?.summary && <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: 0 }}>Keiko cerca online sito, biglietti e come arrivare — compaiono qui alla creazione dell&apos;evento.</p>}
               </div>
             </div>
           </>

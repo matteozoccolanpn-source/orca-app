@@ -87,7 +87,10 @@ export default async function Home({
     await Promise.all([
       ...eventsToPhoto.map(async (e) => {
         const [img, w] = await Promise.all([
-          resolveEventImage(e.type, e.title, e.location),
+          // L'evento si passa per intero: così il nome della foto di Google si
+          // cerca una volta e poi si riusa da `enrichment`, invece di ripagarlo
+          // a ogni apertura della home.
+          resolveEventImage(e.type, e.title, e.location, { id: e.id, enrichment: e.enrichment }),
           e.location ? weatherFor(e.location) : Promise.resolve(null),
         ]);
         e.image = img;

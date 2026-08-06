@@ -18,6 +18,9 @@ export async function placePhotoName(query: string): Promise<string | null> {
       body: JSON.stringify({ textQuery: q, maxResultCount: 1 }),
       cache: "no-store",
     });
+    // Ogni riga di queste è una chiamata a pagamento: se ne compaiono tante
+    // uguali, vuol dire che qualcuno non sta usando il nome già salvato.
+    console.log(JSON.stringify({ tag: "places.searchText", query: q }));
     if (!res.ok) return null;
     const d = await res.json();
     const name = d?.places?.[0]?.photos?.[0]?.name; // es. "places/XXX/photos/YYY"

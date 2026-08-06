@@ -22,7 +22,10 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": g.headers.get("content-type") ?? "image/jpeg",
-        "Cache-Control": "public, max-age=2592000, immutable",
+        // max-age = il browser di chi l'ha già vista; s-maxage = la CDN di
+        // Vercel, che così serve la stessa foto anche al primo accesso da un
+        // dispositivo nuovo, senza ripagare Google.
+        "Cache-Control": "public, max-age=2592000, s-maxage=2592000, immutable",
       },
     });
   } catch {
