@@ -6,8 +6,17 @@ import GuardaView from "./GuardaView";
 // Sempre dati freschi (come la home): la lista cambia a ogni aggiunta.
 export const dynamic = "force-dynamic";
 
-export default async function GuardaPage() {
+/* `?vota=` — IL PONTE DAL CINEMA (docs/SPEC-BATTITI.md, riga cinema).
+   Il battito del giorno dopo un film porta qui, col titolo già in mano: la
+   pagina lo passa alla vista, che apre la scheda se il film è già in lista o
+   mette il titolo nella ricerca se non c'è ancora. */
+export default async function GuardaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vota?: string }>;
+}) {
   await requireLogin();
+  const { vota } = await searchParams;
   const righe = await getWatchlist();
 
   // Locandina e genere ora stanno in tabella: si chiede a TMDB SOLO per le righe
@@ -59,5 +68,5 @@ export default async function GuardaPage() {
     await Promise.all(daSalvare.map((s) => setWatchItemTmdb(s.id, s.dati)));
   }
 
-  return <GuardaView items={items} />;
+  return <GuardaView items={items} vota={typeof vota === "string" ? vota : undefined} />;
 }

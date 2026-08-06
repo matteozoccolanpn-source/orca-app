@@ -32,6 +32,7 @@ const TYPE_EMOJI: Record<string, string> = {
   concert:    "🎵",
   hotel:      "🏨",
   museum:     "🎨",
+  cinema: "🎬",
   restaurant: "🍽️",
 };
 
@@ -41,6 +42,7 @@ const TYPE_LABEL: Record<string, string> = {
   concert:    "Concerto",
   hotel:      "Hotel",
   museum:     "Museo",
+  cinema: "Cinema",
   restaurant: "Ristorante",
 };
 

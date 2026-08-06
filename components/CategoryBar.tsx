@@ -13,6 +13,7 @@ const CATEGORIES: Category[] = [
   { key: "concert",    label: "Concerti",   emoji: "🎵" },
   { key: "hotel",      label: "Hotel",      emoji: "🏨" },
   { key: "museum",     label: "Musei",      emoji: "🎨" },
+  { key: "cinema", label: "Cinema", emoji: "🎬" },
   { key: "restaurant", label: "Ristoranti", emoji: "🍽️" },
 ];
 

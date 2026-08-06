@@ -131,7 +131,7 @@ Return exactly this shape — ALWAYS a list, even for one event:
 Each element has exactly these fields:
 {
   "title": "short descriptive title of the event",
-  "type": "one of: train, flight, concert, hotel, museum, restaurant, sport, other",
+  "type": "one of: train, flight, concert, cinema, hotel, museum, restaurant, sport, other",
   "datetime": "YYYY-MM-DDTHH:mm:00",
   "location": "place, station, airport, or venue name; empty string if none",
   "city": "the CITY of the event in plain form (e.g. Roma, Milano); empty string if unknown",
@@ -146,6 +146,10 @@ Rules:
   - concert / museum / restaurant: the START or RESERVATION date and time.
   - sport: the race/match START time.
   - other: the main START date and time of the event.
+- cinema: type "cinema" for a film screening at a movie theatre. If the film is
+  named, the title IS the film title ("Dune parte due"), nothing else — no
+  "cinema" prefix, no cinema name (that goes in location). If the film is NOT
+  named, keep a descriptive title ("Cinema con Sara").
 - sport events (F1, MotoGP, football, tennis...): type "sport"; title = clean competition + round name, e.g. "F1 GP Gran Bretagna" (venue like "Silverstone" goes in location, not title).
 - If no time at all is visible, use T00:00:00.
 - Year handling: if the year is NOT visible, choose the year that makes the date fall in the FUTURE relative to today. Never pick a past year when the month/day suggest an upcoming event.
@@ -171,7 +175,7 @@ Forma della risposta — SEMPRE una lista:
 Ogni elemento ha questi campi:
 {
   "title": "titolo breve e descrittivo dell'evento",
-  "type": "uno tra: train, flight, concert, hotel, restaurant, museum, sport, other",
+  "type": "uno tra: train, flight, concert, cinema, hotel, restaurant, museum, sport, other",
   "datetime": "YYYY-MM-DDTHH:mm:00",
   "location": "luogo, stazione, aeroporto o venue; stringa vuota se assente",
   "city": "la CITTÀ dell'evento in forma semplice (es. Roma, Milano); stringa vuota se sconosciuta",
@@ -186,6 +190,11 @@ Regole:
   una cena con l'indicazione del locale e' UN evento. Due eventi sono due cose
   che accadono in momenti o luoghi diversi.
 - type: scegli il più adatto; se incerto usa "other".
+- cinema: type "cinema" quando si va a vedere un film al cinema. Se il messaggio
+  NOMINA il film, il title È il titolo del film e basta ("cinema giovedì: Dune
+  parte due" -> title "Dune parte due"; la sala va in location). Se il film NON
+  è nominato ("cinema con Sara giovedì"), il title resta descrittivo
+  ("Cinema con Sara").
 - eventi sportivi (F1, MotoGP, calcio, tennis...): type "sport"; title = competizione + tappa pulita, es. "F1 GP Gran Bretagna" (il circuito/stadio va in location, non nel title); orario = inizio gara/partita.
 - city: la città dell'evento in forma semplice (es. "Roma"), ANCHE SE la location/venue non la contiene (es. "Tor Vergata" -> "Roma"; "San Siro" -> "Milano"). Per treno/volo usa la città di DESTINAZIONE (arrivo). Stringa vuota solo se davvero sconosciuta.
 - title: mantieni l'italiano se il testo è in italiano. Tienilo breve.

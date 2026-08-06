@@ -23,6 +23,7 @@ export type ImageResult = {
 
 // Mappa il "type" degli eventi dell'app → categoria immagine.
 const TYPE_TO_CAT: Record<string, ImageCategory> = {
+  cinema: "film",
   restaurant: "cena", dinner: "cena", cena: "cena",
   flight: "volo", volo: "volo",
   train: "treno", treno: "treno",

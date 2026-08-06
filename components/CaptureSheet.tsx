@@ -41,7 +41,7 @@ interface Parsed {
 
 const EMOJI: Record<string, string> = {
   train: "🚆", flight: "✈️", hotel: "🏨", concert: "🎵",
-  museum: "🏛️", restaurant: "🍽️", sport: "🏟️", other: "📌",
+  museum: "🏛️", restaurant: "🍽️", sport: "🏟️", cinema: "🎬", other: "📌",
 };
 
 // Le frasi dell'attesa (dal mock). Ruotano ogni 2,3s con dissolvenza.

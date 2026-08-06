@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
   Landmark,
   Package,
+  Clapperboard,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -25,6 +26,7 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
   flight: Plane,
   train: Train,
   concert: Music,
+  cinema: Clapperboard,
   hotel: Building2,
   restaurant: UtensilsCrossed,
   museum: Landmark,
@@ -35,6 +37,7 @@ export const TYPE_OPTIONS = [
   { value: 'flight',     label: 'Volo',       icon: TYPE_ICONS.flight },
   { value: 'train',      label: 'Treno',      icon: TYPE_ICONS.train },
   { value: 'concert',    label: 'Concerto',   icon: TYPE_ICONS.concert },
+  { value: 'cinema',     label: 'Cinema',     icon: TYPE_ICONS.cinema },
   { value: 'hotel',      label: 'Hotel',      icon: TYPE_ICONS.hotel },
   { value: 'restaurant', label: 'Ristorante', icon: TYPE_ICONS.restaurant },
   { value: 'museum',     label: 'Museo',      icon: TYPE_ICONS.museum },

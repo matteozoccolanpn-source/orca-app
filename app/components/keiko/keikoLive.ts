@@ -40,10 +40,10 @@ function countdownDays(iso: string, today: Date): number {
   return Math.round((a.getTime() - b.getTime()) / 86400000);
 }
 
-const TYPE_LABEL: Record<string, string> = { train: "Treno", flight: "Volo", hotel: "Hotel", concert: "Concerto", museum: "Museo", restaurant: "Ristorante", sport: "Sport" };
-const ART_CLASS: Record<string, string> = { train: "train", restaurant: "dinner", flight: "flightA", concert: "concertA", museum: "concertA", sport: "sportA", hotel: "hotel" };
+const TYPE_LABEL: Record<string, string> = { train: "Treno", flight: "Volo", hotel: "Hotel", concert: "Concerto", cinema: "Cinema", museum: "Museo", restaurant: "Ristorante", sport: "Sport" };
+const ART_CLASS: Record<string, string> = { train: "train", restaurant: "dinner", flight: "flightA", concert: "concertA", cinema: "concertA", museum: "concertA", sport: "sportA", hotel: "hotel" };
 // mappa il tipo evento a una delle 5 icone categoria disegnate (.ci)
-const CAT_ICON: Record<string, string> = { train: "treno", restaurant: "cena", flight: "volo", concert: "concerto", sport: "gp", museum: "concerto", hotel: "cena" };
+const CAT_ICON: Record<string, string> = { train: "treno", restaurant: "cena", flight: "volo", concert: "concerto", cinema: "film", sport: "gp", museum: "concerto", hotel: "cena" };
 export function typeLabel(t: string) { return TYPE_LABEL[t?.toLowerCase()] ?? "Evento"; }
 export function artClass(t: string) { return ART_CLASS[t?.toLowerCase()] ?? "train"; }
 export function catIconKey(t: string) { return CAT_ICON[t?.toLowerCase()] ?? "treno"; }

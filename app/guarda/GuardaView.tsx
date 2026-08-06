@@ -70,7 +70,7 @@ function platformUrl(name: string, title: string): string | null {
   return null;
 }
 
-export default function GuardaView({ items }: { items: WatchItem[] }) {
+export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?: string }) {
   const router = useRouter();
   const suggest = useSuggest();
   const [list, setList] = useState<WatchItem[]>(items);
@@ -215,6 +215,36 @@ export default function GuardaView({ items }: { items: WatchItem[] }) {
       if (!res.ok) throw new Error();
     } catch { showToast("Qualcosa non torna, riprovo"); }
   }
+
+  /* IL PONTE DAL CINEMA. Arrivando da /guarda?vota=Dune:
+       - se il film è già in lista → si apre la sua scheda, dove c'è il voto;
+       - se non c'è → il titolo finisce nella ricerca, a fuoco, e con un tocco
+         su + entra in lista (la ricerca TMDB fa il resto);
+       - ?vota= vuoto → solo la ricerca a fuoco: sceglie l'utente.
+     Il parametro si CONSUMA: si pulisce dall'URL subito, altrimenti a ogni
+     refresh la scheda si riaprirebbe da sola. */
+  const ponteFatto = useRef(false);
+  useEffect(() => {
+    if (vota === undefined || ponteFatto.current) return;
+    ponteFatto.current = true;
+
+    const cercato = vota.trim();
+    const semplice = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    const gia = cercato ? items.find((i) => semplice(i.title) === semplice(cercato)) : undefined;
+
+    if (gia) {
+      setScheda(gia.seen ? "visti" : "da-vedere");   // la scheda giusta, o la card non si vedrebbe
+      openDetail(gia);
+    } else {
+      if (cercato) setSearch(cercato);
+      // un attimo dopo il primo render: il campo esiste solo a quel punto
+      setTimeout(() => document.querySelector<HTMLInputElement>('input[placeholder="Cerca o aggiungi un titolo…"]')?.focus(), 60);
+    }
+
+    // via il parametro dall'URL, senza ricaricare la pagina
+    window.history.replaceState(null, "", "/guarda");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vota]);
 
   async function openDetail(item: WatchItem) {
     setMenuItem(null);
