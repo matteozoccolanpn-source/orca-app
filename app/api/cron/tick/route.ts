@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push";
+import { battitoDaNotificare, GIORNI_INDIETRO, GIORNI_AVANTI } from "@/lib/battiti";
 
 const TZ = "Europe/Rome";
 
@@ -122,6 +123,63 @@ export async function GET(req: Request) {
       if (lead != null && lead >= 120 && !e.reminded_imminent_at && minsTo <= 30 && minsTo > 15) {
         await blast(`Tra 30 min: ${e.title}`, "Sta per iniziare", `/?ev=${e.id}`);
         await sb.from("tickets").update({ reminded_imminent_at: now.toISOString() }).eq("id", e.id);
+      }
+    }
+
+    /* (v) I BATTITI — docs/SPEC-BATTITI.md.
+       Sta QUI dentro e non in un cron nuovo: questo giro passa già ogni pochi
+       minuti, sa già quali sono i dispositivi di ogni utente e ha già il
+       "una volta al giorno" (notification_runs). Un secondo scheduler sarebbe
+       una cosa in più da far funzionare, per niente.
+
+       Le regole dure della spec, tutte qui:
+       - silenzio 23-7 (e l'ora è quella di Roma);
+       - solo agli orari che chiede la tabella (13:00 e 19:00): il cron NON sa
+         quali tipi battono a che ora, guarda solo `oraNotifica` del battito;
+       - MASSIMO UNA notifica-battito al giorno per utente;
+       - niente notifica per un battito già visto in home. */
+    if (hour >= 7 && hour < 23) {
+      /* Di norma l'ora è quella vera di Roma. Con `?ora=19:00` si può forzare —
+         ma la rotta è già protetta dal CRON_SECRET, quindi lo può fare solo chi
+         quel segreto ce l'ha: serve a provare i battiti senza aspettare le 13.
+         Il tetto di una notifica al giorno vale lo stesso, anche forzando. */
+      const forzata = new URL(req.url).searchParams.get("ora");
+      const oraDiRoma = forzata ?? `${String(hour).padStart(2, "0")}:00`;
+
+      // L'interruttore del profilo spegne SOLO le notifiche: le card in home
+      // restano. Se la colonna non c'è ancora, si considera acceso (default).
+      const { data: prof } = await sb.from("profile").select("beats_push").eq("user_id", userId).maybeSingle();
+      const battitiAccesi = prof?.beats_push !== false;
+
+      if (battitiAccesi) {
+        const giorno = 24 * 60 * 60 * 1000;
+        const { data: perBattiti } = await sb.from("tickets")
+          .select("id, title, type, datetime, enrichment")
+          .eq("user_id", userId)
+          .gte("datetime", new Date(now.getTime() - GIORNI_INDIETRO * giorno).toISOString())
+          .lte("datetime", new Date(now.getTime() + GIORNI_AVANTI * giorno).toISOString())
+          .not("title", "ilike", "%[PABLO]%");
+
+        const eventi = (perBattiti ?? []).map((e) => ({
+          id: e.id as string,
+          title: (e.title as string) ?? "",
+          type: ((e.type as string) ?? "").toLowerCase(),
+          datetime: (e.datetime as string) ?? null,
+          beats: ((e.enrichment as { beats?: Record<string, string> } | null)?.beats) ?? null,
+        }));
+
+        const battito = battitoDaNotificare(eventi, oraDiRoma, now);
+        // `onceToday` si chiama SOLO se c'è davvero qualcosa da mandare:
+        // altrimenti un giro a vuoto alle 13 brucerebbe anche quello delle 19.
+        if (battito && (await onceToday("battiti"))) {
+          await blast(battito.frase, `${battito.azione.etichetta} →`, "/");
+          // "notificato" nel registro dell'evento, a fusione: enrichment tiene
+          // anche il testo dell'AI e la foto del luogo, che non si toccano.
+          const riga = (perBattiti ?? []).find((e) => e.id === battito.eventoId);
+          const attuale = (riga?.enrichment as Record<string, unknown> | null) ?? {};
+          const beats = { ...((attuale.beats as Record<string, string>) ?? {}), [battito.chiave]: "notificato" };
+          await sb.from("tickets").update({ enrichment: { ...attuale, beats } }).eq("id", battito.eventoId);
+        }
       }
     }
 

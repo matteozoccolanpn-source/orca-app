@@ -78,6 +78,9 @@ export default function ProfileSheet({
   // invece di elencare piattaforme che l'utente non ha. Arrivano insieme al
   // profilo, quindi nessuna chiamata in più.
   const [abbonamenti, setAbbonamenti] = useState<string[] | null>(null);
+  // Interruttore dei battiti: spegne SOLO le notifiche, le card in home restano.
+  const [battiti, setBattiti] = useState(true);
+  const [battitiBusy, setBattitiBusy] = useState(false);
   const [piattaforme, setPiattaforme] = useState<string[]>([]);
   const [abbMsg, setAbbMsg] = useState<string | null>(null);
   useEffect(() => {
@@ -85,6 +88,7 @@ export default function ProfileSheet({
       .then((r) => r.json())
       .then((d) => {
         setAbbonamenti(Array.isArray(d?.platforms) ? d.platforms : []);
+        setBattiti(d?.battiti !== false);
         setPiattaforme(Array.isArray(d?.piattaformeDisponibili) ? d.piattaformeDisponibili : []);
       })
       .catch(() => setAbbonamenti([]));
@@ -265,6 +269,42 @@ export default function ProfileSheet({
             <button onClick={testNotif} disabled={notifBusy} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginTop: 10, padding: "2px 2px" }}>Invia notifica di prova</button>
           )}
           {notifMsg && <p style={{ fontSize: 12.5, color: "var(--k-text-2)", margin: "10px 2px 0" }}>{notifMsg}</p>}
+
+          {/* I BATTITI (docs/SPEC-BATTITI.md): questo spegne solo le notifiche.
+              Le card in home continuano a esserci — l'interruttore chiude il
+              canale, la ✕ sulla card chiude quel battito. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--k-line)" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--k-text)" }}>Battiti</div>
+              <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 2 }}>
+                Ti ricordo un evento prima e dopo. In home restano comunque.
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                const nuovo = !battiti;
+                setBattiti(nuovo);
+                setBattitiBusy(true);
+                try {
+                  await fetch("/api/profile", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ battiti: nuovo }),
+                  });
+                } catch {
+                  setBattiti(!nuovo);   // non è passata: torna com'era
+                } finally {
+                  setBattitiBusy(false);
+                }
+              }}
+              disabled={battitiBusy}
+              className={`ds-btn${battiti ? "" : " primary"}`}
+              style={{ height: 40, padding: "0 16px", fontSize: 13, opacity: battitiBusy ? 0.5 : 1, flex: "none" }}
+            >
+              {battitiBusy ? "…" : battiti ? "Attivi ✓" : "Attiva"}
+            </button>
+          </div>
         </div>
 
         {/* Profilo allenamento & dieta — sempre modificabile, anche dopo la scheda generata */}

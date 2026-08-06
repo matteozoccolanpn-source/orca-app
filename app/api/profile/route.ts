@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getProfile, saveProfile, getPlatforms, savePlatforms } from '@/lib/supabase'
+import { getProfile, saveProfile, getPlatforms, savePlatforms, getBeatsPush, saveBeatsPush } from '@/lib/supabase'
 import { PIATTAFORME_IT } from '@/lib/tmdb'
 
 // API del profilo (S1 rework allenamento) — il "seme" della personalizzazione,
@@ -17,8 +17,8 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   // `platforms` viaggia a parte: una riga con i soli abbonamenti conta come
   // "scheda allenamento non compilata", e getProfile risponderebbe null.
-  const [profile, platforms] = await Promise.all([getProfile(), getPlatforms()])
-  return NextResponse.json({ profile, platforms, piattaformeDisponibili: PIATTAFORME_IT })
+  const [profile, platforms, battiti] = await Promise.all([getProfile(), getPlatforms(), getBeatsPush()])
+  return NextResponse.json({ profile, platforms, piattaformeDisponibili: PIATTAFORME_IT, battiti })
 }
 
 export async function POST(req: NextRequest) {
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let body: {
+    battiti?: unknown
     platforms?: unknown
     obiettivo?: string
     livello?: string
@@ -37,6 +38,18 @@ export async function POST(req: NextRequest) {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Body non valido' }, { status: 400 })
+  }
+
+  // L'interruttore dei battiti è indipendente da tutto il resto, come gli
+  // abbonamenti: se arriva solo lui, si salva e si risponde.
+  if (typeof body.battiti === 'boolean') {
+    try {
+      await saveBeatsPush(body.battiti)
+    } catch (e) {
+      console.error('Battiti: interruttore non salvato:', e)
+      return NextResponse.json({ error: 'Salvataggio non riuscito' }, { status: 502 })
+    }
+    if (Object.keys(body).length === 1) return NextResponse.json({ success: true, battiti: body.battiti })
   }
 
   // Gli abbonamenti sono indipendenti dalla scheda: se arrivano SOLO quelli,
