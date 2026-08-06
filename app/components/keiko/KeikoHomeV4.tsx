@@ -27,7 +27,18 @@ type LiveTodo = LiveHome["days"][string]["todos"][number];
 
 /* L'emoji del battito segue il TIPO dell'evento. Sta qui e non nel motore:
    è vestizione, e un tipo nuovo senza emoji ricade su ✨ senza rompere nulla. */
-const EMOJI_BATTITO: Record<string, string> = { sport: "🏟️", concert: "🎵" };
+const EMOJI_BATTITO: Record<string, string> = { sport: "🏟️", concert: "🎵", cinema: "🎬" };
+
+/* L'etichetta piccola in cima al testo ("DOMANI" / "UN MESE FA"): si ricava da
+   quanto dista l'evento, non dal tipo — così vale anche per i tipi di domani. */
+function etichettaBattito(chiave: "prima" | "dopo", oreDaEvento: number): string {
+  if (chiave === "prima") return "DOMANI";
+  const giorni = Math.round(oreDaEvento / 24);
+  if (giorni <= 1) return "IERI";
+  if (giorni < 25) return `${giorni} GIORNI FA`;
+  if (giorni < 45) return "UN MESE FA";
+  return `${Math.round(giorni / 30)} MESI FA`;
+}
 
 function dayTitle(key: string): string {
   try { return new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Rome" }).format(new Date(key + "T00:00:00")); }
@@ -342,38 +353,63 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
         {gymTxt && <><span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--k-text-3)" }} /><span style={{ color: gym?.trainedToday ? "var(--k-ok)" : "var(--k-text-2)" }}>{gymTxt}</span></>}
       </div>
 
-      {/* IL BATTITO — sotto il saluto, sopra la settimana */}
+      {/* IL BATTITO — sotto il saluto, sopra la settimana.
+          Stessa lingua delle card evento: .ds-card per angoli, bordo e ombra,
+          .ds-ph per la foto (o il gradiente di categoria quando non c'è),
+          .ds-scrim per lo stacco del testo. Niente card nuova da mantenere. */}
       {mostraBattito && battito && (
-        <div
-          style={{
-            display: "flex", alignItems: "center", gap: 12,
-            background: "var(--k-surface)", border: "1px solid var(--k-line)",
-            borderRadius: 16, padding: "12px 12px 12px 14px", margin: "0 0 20px",
-            boxShadow: "var(--k-shadow)",
-          }}
-        >
-          <span aria-hidden style={{ fontSize: 19, flex: "none" }}>{EMOJI_BATTITO[battito.tipo] ?? "✨"}</span>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--k-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {battito.frase}
-            </div>
-            <a
-              href={battito.azione.url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ display: "inline-block", marginTop: 3, fontSize: 12.5, fontWeight: 700, color: "var(--k-accent)", textDecoration: "none" }}
-            >
-              {battito.azione.etichetta} →
-            </a>
-          </div>
+        <div className="ds-card mini" style={{ aspectRatio: "16 / 11", margin: "0 0 20px" }}>
+          {battito.foto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="ds-ph" src={battito.foto} alt="" loading="lazy" decoding="async" />
+          ) : (
+            <div className="ds-ph" style={{ background: `var(--k-cat-${battito.categoria ?? "default"})` }} />
+          )}
+          {!battito.foto && (
+            <div className="ds-glyph" aria-hidden>{EMOJI_BATTITO[battito.tipo] ?? "✨"}</div>
+          )}
+          {/* Lo scrim del design system, rinforzato in basso: il testo deve
+              staccare con QUALUNQUE foto (test in scala di grigi). */}
+          <div className="ds-scrim" />
+          <div
+            aria-hidden
+            style={{
+              position: "absolute", inset: 0, pointerEvents: "none",
+              background: "linear-gradient(180deg, rgba(6,6,8,0) 45%, rgba(6,6,8,.62) 78%, rgba(6,6,8,.88) 100%)",
+            }}
+          />
+
           <button
             type="button"
             onClick={chiudiBattito}
             aria-label="Chiudi"
-            style={{ width: 44, height: 44, flex: "none", display: "grid", placeItems: "center", background: "none", border: 0, color: "var(--k-text-3)", fontSize: 15, cursor: "pointer" }}
+            style={{
+              position: "absolute", top: 8, right: 8, zIndex: 4,
+              width: 44, height: 44, display: "grid", placeItems: "center",
+              background: "none", border: 0, color: "var(--k-text)", cursor: "pointer",
+            }}
           >
-            ✕
+            <span style={{
+              width: 30, height: 30, borderRadius: "50%", display: "grid", placeItems: "center",
+              background: "rgba(12,12,15,.72)", border: "1px solid rgba(255,255,255,.14)",
+              backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", fontSize: 13,
+            }}>✕</span>
           </button>
+
+          <div className="ds-cbody" style={{ zIndex: 2 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".9px", color: "var(--k-text-2)", textShadow: "var(--k-tshadow)" }}>
+              {EMOJI_BATTITO[battito.tipo] ?? "✨"} {etichettaBattito(battito.chiave, battito.oreDaEvento)}
+            </div>
+            <h3 style={{ marginTop: 3 }}>{battito.frase}</h3>
+            <a
+              href={battito.azione.url}
+              target={battito.azione.url.startsWith("/") ? undefined : "_blank"}
+              rel="noreferrer"
+              style={{ display: "inline-block", marginTop: 6, fontSize: 13, fontWeight: 700, color: "var(--k-accent)", textDecoration: "none", textShadow: "var(--k-tshadow)" }}
+            >
+              {battito.azione.etichetta} →
+            </a>
+          </div>
         </div>
       )}
 

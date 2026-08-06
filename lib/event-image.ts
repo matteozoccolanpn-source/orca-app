@@ -8,7 +8,9 @@
 import { spotifyArtistImage } from "./spotify";
 import { sportEventImage } from "./sportsdb";
 import { placePhotoName, placePhotoUrl } from "./google-places";
-import { savePlacePhotoName, type EventEnrichment } from "./supabase";
+import { savePlacePhotoName, saveArtistPhoto, type EventEnrichment } from "./supabase";
+import { gradientFor } from "./smart-image";
+import type { ImmagineDa } from "./battiti";
 import { catFor } from "./smart-image";
 import { unsplashPhoto } from "./unsplash";
 
@@ -67,4 +69,89 @@ export async function resolveEventImage(
   // Se anche questa manca, nel client resta l'illustrazione di categoria.
   const category = catFor(type, title);
   return unsplashPhoto(CAT_QUERY[category] ?? CAT_QUERY.default, title);
+}
+
+
+// ============================================================================
+// LA FOTO DEI BATTITI (docs/SPEC-BATTITI.md)
+//
+// Stessa disciplina di Google Places, imparata a spese nostre: una chiamata
+// esterna si fa UNA volta nella vita dell'evento, e l'esito si ricorda SEMPRE —
+// compreso il "non trovato". Senza quella memoria, un artista che Deezer non
+// conosce farebbe ripartire la ricerca a ogni apertura della home, per sempre.
+//
+// Server-side soltanto: l'indirizzo IP dell'utente non deve arrivare a Deezer.
+// ============================================================================
+
+/** L'evento con quel poco che serve a risolvere una foto. */
+export type EventoPerFoto = {
+  id: string;
+  title: string;
+  type: string;
+  location: string | null;
+  enrichment: EventEnrichment | null;
+};
+
+/** La foto dell'artista, da Deezer. null se non c'è (e il null si ricorda).
+ *  Non lancia mai e non fa aspettare: 1,5 secondi e poi si passa oltre. */
+async function fotoArtista(nome: string, evento: EventoPerFoto): Promise<string | null> {
+  // Già cercata una volta: si riusa l'esito, qualunque fosse.
+  const ricordata = evento.enrichment?.artistPhoto;
+  if (ricordata) return ricordata.url;
+
+  const q = (nome ?? "").trim();
+  if (!q) return null;
+
+  let url: string | null = null;
+  try {
+    // Una riga per chiamata: se un giorno ne compaiono tante uguali, vuol dire
+    // che qualcuno ha rotto la cache e ce ne accorgiamo dai log.
+    console.log(JSON.stringify({ tag: "deezer.artist", q }));
+    const taglia = AbortSignal.timeout(1500);
+    const res = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(q)}&limit=1`, {
+      signal: taglia,
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const d = await res.json();
+      const primo = (d?.data ?? [])[0] as { picture_xl?: string; picture_big?: string } | undefined;
+      const trovata = primo?.picture_xl || primo?.picture_big || null;
+      url = typeof trovata === "string" && trovata.startsWith("http") ? trovata : null;
+    }
+  } catch (e) {
+    // Timeout o rete: si salva "non trovato" e si riproverà solo se un giorno
+    // si cancella il campo. Meglio una card sobria che una home che aspetta.
+    console.warn("[deezer] ricerca fallita per", q, e instanceof Error ? e.message : e);
+  }
+
+  // Si salva SEMPRE, anche il null: è quello che ferma le chiamate ripetute.
+  await saveArtistPhoto(evento.id, url);
+  return url;
+}
+
+/** La foto del luogo dell'evento, con la cache che c'è già (placePhoto). */
+async function fotoLuogo(evento: EventoPerFoto): Promise<string | null> {
+  return fotoDelLuogo(evento.location, { id: evento.id, enrichment: evento.enrichment });
+}
+
+/** Risolve la catena della riga: primo gradino che dà una foto, vince.
+ *  Se non ne dà nessuno resta null e la card userà il gradiente di categoria —
+ *  che non è un errore, è il livello 0 del design system. */
+export async function immaginePerBattito(
+  catena: ImmagineDa[],
+  evento: EventoPerFoto,
+  artista: string
+): Promise<{ foto: string | null; gradiente: string; categoria: string }> {
+  const categoria = catFor(evento.type, evento.title);
+  let foto: string | null = null;
+  for (const passo of catena) {
+    try {
+      foto = passo === "artista" ? await fotoArtista(artista, evento) : await fotoLuogo(evento);
+    } catch (e) {
+      console.warn("[battiti] foto non risolta:", e);
+      foto = null;
+    }
+    if (foto) break;
+  }
+  return { foto, gradiente: gradientFor(categoria), categoria };
 }

@@ -4,6 +4,7 @@ import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt, getTicketsForBeats, saveBeatState } from "@/lib/supabase";
 import { battitoDiOggi, GIORNI_INDIETRO, GIORNI_AVANTI, type Battito } from "@/lib/battiti";
+import { immaginePerBattito } from "@/lib/event-image";
 import { posterFor } from "@/lib/tmdb";
 import { resolveEventImage } from "@/lib/event-image";
 import { cityImage } from "@/lib/unsplash";
@@ -126,8 +127,15 @@ export default async function Home({
     // battito in home non deve riceverlo anche in notifica). Se è già segnato
     // non si riscrive niente, così aprire la home non costa una scrittura.
     if (battito) {
-      const gia = eventi.find((e) => e.id === battito!.eventoId)?.beats?.[battito.chiave];
+      const evento = eventi.find((e) => e.id === battito!.eventoId);
+      const gia = evento?.beats?.[battito.chiave];
       if (!gia) await saveBeatState(battito.eventoId, battito.chiave, "mostrato");
+      // La foto della card: la catena la decide la tabella dei battiti, le
+      // chiamate esterne le fa una volta sola e le ricorda (anche i buchi).
+      if (evento) {
+        const { foto, categoria } = await immaginePerBattito(battito.immagini, evento, battito.artista);
+        battito = { ...battito, foto, categoria };
+      }
     }
   } catch (e) {
     console.error("Battiti non disponibili (la home si carica comunque):", e);

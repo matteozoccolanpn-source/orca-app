@@ -12,6 +12,11 @@ export interface EventEnrichment {
   /** Stato dei battiti dell'evento: { prima: "mostrato", dopo: "chiuso" }.
    *  Vedi docs/SPEC-BATTITI.md — ogni battito compare una volta sola. */
   beats?: Record<string, string> | null;
+  /** Foto dell'artista (Deezer), cercata UNA volta nella vita dell'evento.
+   *  `url: null` NON è un buco: è la memoria del "non trovato", ed è ciò che
+   *  impedisce di richiamare Deezer all'infinito per un artista che non esiste.
+   *  È la lezione imparata con placePhoto. */
+  artistPhoto?: { url: string | null; checked_at: string } | null;
   /** Foto del luogo (Google Places), risolta UNA volta e poi riusata.
    *  `name` null = cercata e non trovata: si ricorda anche quello, altrimenti
    *  gli eventi senza foto ripagherebbero la ricerca a ogni apertura. */
@@ -1093,14 +1098,24 @@ export async function saveTicketEnrichment(id: string, enrichment: EventEnrichme
 export async function getTicketsForBeats(
   giorniIndietro: number,
   giorniAvanti: number
-): Promise<{ id: string; title: string; type: string; datetime: string | null; beats: Record<string, string> | null }[]> {
+): Promise<
+  {
+    id: string;
+    title: string;
+    type: string;
+    datetime: string | null;
+    location: string | null;
+    beats: Record<string, string> | null;
+    enrichment: EventEnrichment | null;
+  }[]
+> {
   const giorno = 24 * 60 * 60 * 1000;
   const da = new Date(Date.now() - giorniIndietro * giorno).toISOString();
   const a = new Date(Date.now() + giorniAvanti * giorno).toISOString();
   try {
     const { data, error } = await (await db())
       .from("tickets")
-      .select("id, title, type, datetime, enrichment")
+      .select("id, title, type, datetime, location, enrichment")
       .gte("datetime", da)
       .lte("datetime", a)
       .order("datetime", { ascending: false })
@@ -1114,7 +1129,9 @@ export async function getTicketsForBeats(
       title: (r.title as string) ?? "",
       type: ((r.type as string) ?? "").toLowerCase(),
       datetime: (r.datetime as string) ?? null,
+      location: (r.location as string) ?? null,
       beats: ((r.enrichment as EventEnrichment | null)?.beats as Record<string, string> | null) ?? null,
+      enrichment: (r.enrichment as EventEnrichment | null) ?? null,
     }));
   } catch (e) {
     console.warn("[battiti] lettura eventi fallita:", e);
@@ -1142,6 +1159,21 @@ export async function saveBeatsPush(acceso: boolean): Promise<void> {
     .from("profile")
     .upsert({ user_id: userId, beats_push: acceso }, { onConflict: "user_id" });
   if (error) throw new Error(error.message);
+}
+
+/** Salva l'esito della ricerca della foto artista — anche quando è "niente".
+ *  Stessa fusione di savePlacePhotoName: il resto di enrichment non si tocca. */
+export async function saveArtistPhoto(id: string, url: string | null): Promise<void> {
+  try {
+    const client = await db();
+    const { data } = await client.from("tickets").select("enrichment").eq("id", id).maybeSingle();
+    const attuale = (data?.enrichment as EventEnrichment | null) ?? null;
+    const nuovo = { ...(attuale ?? {}), artistPhoto: { url, checked_at: new Date().toISOString() } };
+    const { error } = await client.from("tickets").update({ enrichment: nuovo }).eq("id", id);
+    if (error) console.warn("[deezer] foto artista non salvata:", error.message);
+  } catch (e) {
+    console.warn("[deezer] foto artista non salvata:", e);
+  }
 }
 
 /** Segna lo stato di UN battito dentro `enrichment.beats`, senza toccare il
