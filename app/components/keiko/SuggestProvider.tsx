@@ -46,13 +46,17 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
     busy.current = true; setSearching(true); setResults(null);
     try {
       const res = await fetchWithTimeout("/api/watch/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ query: q }) }, 60000);
-      const data = (await res.json()) as { films?: Pick[] };
-      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { films?: Pick[]; error?: string };
+      // Il server ha già scritto la frase giusta (il tetto giornaliero risponde
+      // 429 con le parole di Keiko): buttarla via e dire "qualcosa non torna"
+      // trasforma "hai finito le operazioni di oggi" in un guasto misterioso.
+      if (!res.ok) throw new Error(data?.error || "");
       const picks = (data.films ?? []).slice(0, 3);
       if (!picks.length) { toast("Non ho trovato niente, riformula"); return; }
       setResults(picks);
     } catch (e) {
-      toast(e instanceof Error && e.name === "AbortError" ? "Ci ho messo troppo, riprova" : "Qualcosa non torna, riprova");
+      if (e instanceof Error && e.name === "AbortError") toast("Ci ho messo troppo, riprova");
+      else toast(e instanceof Error && e.message ? e.message : "Qualcosa non torna, riprova");
     } finally { busy.current = false; setSearching(false); }
   }
 
