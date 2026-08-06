@@ -176,6 +176,48 @@ function romeNaiveToUtcIso(datetime: string): string {
   return new Date(guess.getTime() - offset).toISOString();
 }
 
+/** C'e' gia' questo evento in agenda? Restituisce l'id del biglietto esistente.
+ *
+ *  Due eventi sono lo stesso quando: stessa data e ora ESATTA e stesso titolo
+ *  (maiuscole/minuscole non contano), oppure stesso codice di prenotazione.
+ *  Il confronto e' sul DATO, non sul tempo trascorso: la stessa frase rimandata
+ *  domani trova lo stesso doppione di oggi.
+ *
+ *  Solo SELECT, e passa dal client con la RLS come tutto il resto: vede quindi
+ *  soltanto i biglietti di chi sta chiedendo. */
+export async function findDuplicateTicket(fields: {
+  title: string;
+  datetime: string | null;
+  reference?: string | null;
+}): Promise<{ id: string } | null> {
+  const client = await db();
+  const riferimento = (fields.reference ?? "").trim();
+
+  // 1) Il codice di prenotazione, quando c'e', e' la prova piu' forte: due
+  //    biglietti con lo stesso PNR sono lo stesso biglietto.
+  if (riferimento) {
+    const { data } = await client.from("tickets").select("id").eq("reference", riferimento).limit(1);
+    const trovato = (data ?? [])[0] as { id: string } | undefined;
+    if (trovato) return { id: trovato.id };
+  }
+
+  // 2) Altrimenti stessa ora esatta + stesso titolo. Si filtra per data in SQL
+  //    (poche righe: gli eventi alla stessa ora esatta si contano sulle dita) e
+  //    si confronta il titolo qui, senza distinzione fra maiuscole e minuscole.
+  const titolo = (fields.title ?? "").trim();
+  if (!fields.datetime || !titolo) return null;
+  const quando = romeNaiveToUtcIso(fields.datetime);
+  const { data } = await client
+    .from("tickets")
+    .select("id, title")
+    .eq("datetime", quando)
+    .limit(20);
+  const uguale = ((data ?? []) as { id: string; title: string }[]).find(
+    (t) => (t.title ?? "").trim().toLowerCase() === titolo.toLowerCase()
+  );
+  return uguale ? { id: uguale.id } : null;
+}
+
 export async function createTicket(fields: TicketCreate): Promise<{ id: string }> {
   const { data, error } = await (await db())
     .from("tickets")

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { auth } from '@/auth'
-import { createTicket, syncTripPlans } from '@/lib/supabase'
+import { createTicket, syncTripPlans, findDuplicateTicket } from '@/lib/supabase'
 import { autoEnrichNewTrips } from '@/lib/trip-enrich'
 import { enrichEvent } from '@/lib/event-enrich'
 
@@ -21,6 +21,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // NIENTE DOPPIONI (idea 24). Mandare due volte la stessa frase non deve
+    // riempire l'agenda: se l'evento c'e' gia', si risponde con quello che c'e'
+    // e non si scrive niente. Non e' un errore — chi chiama lo dice con le
+    // parole giuste, e nessun arricchimento parte una seconda volta.
+    const esistente = await findDuplicateTicket({ title, datetime, reference })
+    if (esistente) {
+      return NextResponse.json({ success: true, duplicate: true, record: { id: esistente.id } })
+    }
+
     const { id } = await createTicket({ title, type, datetime, location, reference, city })
 
     // Dopo il salvataggio, ricontrolla gli incastri (viaggi) in automatico.

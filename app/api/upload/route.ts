@@ -68,7 +68,9 @@ export async function POST(req: NextRequest) {
 
   const claudeRes = await claudeFetch({
     model: 'claude-sonnet-4-5',
-    max_tokens: 1024,
+    // Cinque eventi invece di uno: 1024 bastavano per un evento, non per cinque.
+    // Il costo non cambia per questo (si paga il generato, non il tetto).
+    max_tokens: 2500,
     messages: claudeMessages,
   }, undefined, { operazione: 'cattura' })
 
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
   const claudeData = await claudeRes.json()
   const rawText = claudeData.content?.[0]?.text ?? ''
 
-  let parsed: {
+  type EventoLetto = {
     title: string
     type: string
     datetime: string
@@ -90,9 +92,19 @@ export async function POST(req: NextRequest) {
     city: string
   }
 
+  let parsed: EventoLetto[]
+
   try {
     const clean = rawText.replace(/```json|```/g, '').trim()
-    parsed = JSON.parse(clean)
+    const dato = JSON.parse(clean)
+    // La forma attesa e' { events: [...] }. Si accetta anche un oggetto singolo:
+    // costa una riga e evita che una risposta storta del modello butti via una
+    // cattura che l'utente ha gia' scritto.
+    const lista = Array.isArray(dato?.events) ? dato.events : Array.isArray(dato) ? dato : [dato]
+    parsed = (lista as EventoLetto[])
+      .filter((e) => e && typeof e.title === 'string' && e.title.trim() && e.datetime)
+      .slice(0, 5)
+    if (parsed.length === 0) throw new Error('nessun evento nella risposta')
   } catch {
     console.error('Failed to parse Claude response:', rawText)
     return NextResponse.json(
@@ -101,15 +113,22 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // `parsed` e' SEMPRE una lista, anche con un evento solo: il client ha un
+  // formato unico da gestire, per il testo come per l'immagine.
   return NextResponse.json({ parsed })
 }
 
 const IMAGE_PARSE_PROMPT = `You are a precise ticket and booking parser for a personal calendar app.
 Extract event information from the image and return ONLY a valid JSON object — no explanations, no markdown, no code fences, no surrounding text.
 
+The image may contain MORE THAN ONE event (e.g. a screenshot with two tickets, an outbound and a return flight, a booking with a hotel and a transfer). Return them ALL, in the order they appear. Maximum 5: if there are more, return the first 5. A single event = a list with one element.
+
 The image can be: a ticket screenshot, a booking confirmation email, a WhatsApp message, or any document containing event/travel/reservation information. Focus on the core event data and ignore headers, footers, legal text, and promotional content.
 
-Return exactly these fields:
+Return exactly this shape — ALWAYS a list, even for one event:
+{ "events": [ { ... }, { ... } ] }
+
+Each element has exactly these fields:
 {
   "title": "short descriptive title of the event",
   "type": "one of: train, flight, concert, hotel, museum, restaurant, sport, other",
@@ -136,11 +155,20 @@ Rules:
 - city: the city where the event takes place, in plain form (e.g. "Roma"), EVEN IF the location/venue name does not contain it (e.g. venue "Tor Vergata" -> city "Roma"; "San Siro" -> "Milano"). For train/flight use the DESTINATION (arrival) city. Empty string only if genuinely unknown.
 - title: use the language of the source (keep Italian if Italian). Keep it short and descriptive.
 - Never invent data. If a field is missing, use an empty string "" (except datetime).
-- Return ONLY the JSON object, nothing else.`
+- Do NOT split one event into several: a train with a change is ONE journey; a
+  ticket and its confirmation email are ONE event.
+- Return ONLY the JSON object with the "events" list, nothing else.`
 
-const TEXT_PARSE_PROMPT = `Sei OrCa. Estrai i dati dell'evento dal testo libero. Restituisci SOLO un oggetto JSON valido — nessuna spiegazione, nessun markdown, nessun code fence, nessun testo aggiuntivo.
+const TEXT_PARSE_PROMPT = `Sei OrCa. Estrai gli eventi dal testo libero. Restituisci SOLO un oggetto JSON valido — nessuna spiegazione, nessun markdown, nessun code fence, nessun testo aggiuntivo.
 
-Campi richiesti:
+Un messaggio puo' contenere PIU' eventi ("volo venerdi' e hotel sabato" = due).
+Estraili TUTTI, nell'ordine in cui compaiono. Massimo 5: se ce ne sono di piu',
+i primi 5. Un evento solo = lista con un elemento.
+
+Forma della risposta — SEMPRE una lista:
+{ "events": [ { ... }, { ... } ] }
+
+Ogni elemento ha questi campi:
 {
   "title": "titolo breve e descrittivo dell'evento",
   "type": "uno tra: train, flight, concert, hotel, restaurant, museum, sport, other",
@@ -154,10 +182,12 @@ Regole:
 - datetime: SEMPRE ISO 8601 SENZA offset timezone e SENZA "Z": YYYY-MM-DDTHH:mm:00.
 - Se l'ora non è specificata usa T12:00:00.
 - Se l'anno non è specificato scegli la data futura più prossima rispetto ad oggi.
-- Se il testo descrive più eventi, estrai solo il primo o quello principale.
+- NON spezzare un evento solo in piu' pezzi: un treno con cambio e' UN viaggio,
+  una cena con l'indicazione del locale e' UN evento. Due eventi sono due cose
+  che accadono in momenti o luoghi diversi.
 - type: scegli il più adatto; se incerto usa "other".
 - eventi sportivi (F1, MotoGP, calcio, tennis...): type "sport"; title = competizione + tappa pulita, es. "F1 GP Gran Bretagna" (il circuito/stadio va in location, non nel title); orario = inizio gara/partita.
 - city: la città dell'evento in forma semplice (es. "Roma"), ANCHE SE la location/venue non la contiene (es. "Tor Vergata" -> "Roma"; "San Siro" -> "Milano"). Per treno/volo usa la città di DESTINAZIONE (arrivo). Stringa vuota solo se davvero sconosciuta.
 - title: mantieni l'italiano se il testo è in italiano. Tienilo breve.
 - Non inventare dati. Se un campo manca usa stringa vuota "" (tranne datetime).
-- Restituisci SOLO il JSON.`
+- Restituisci SOLO il JSON con la lista "events".`
