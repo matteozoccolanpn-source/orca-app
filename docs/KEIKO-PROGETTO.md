@@ -1,7 +1,7 @@
 # KEIKO — documento unico di progetto
 
 > Questo è il documento da tenere agganciato al progetto Claude.
-> Aggiornato il 4 agosto 2026. Se leggi questo file all'inizio di una chat,
+> Aggiornato il 6 agosto 2026. Se leggi questo file all'inizio di una chat,
 > **hai già tutto il contesto: non chiedere a Matteo di rispiegarti il progetto.**
 > Apri parlando di cosa si fa oggi, partendo da §5.
 
@@ -63,13 +63,14 @@ divertente da usare fra amici — non se è vendibile.
   non conservare.
 - **Il backup CSV della dieta non si committa mai nel repo.** Sono dati sanitari.
 
-## 4 · Dove siamo (stato al 4 agosto 2026)
+## 4 · Dove siamo (stato al 6 agosto 2026)
 
 **Stack:** Next.js 16 (Turbopack) · React 19 · TypeScript · Tailwind · shadcn ·
 Framer Motion · PWA · NextAuth v5 con Google · Supabase (regione UE) · Vercel.
-Modello: Claude Sonnet. Repo: `orca-app`. Si lavora con Claude Code.
+Modello: Claude Sonnet (Haiku provato sul consiglio e scartato: perdeva qualità).
+Repo: `orca-app`. Si lavora con Claude Code.
 
-**Fatto e verificato:**
+**Fatto e verificato (base, fino al 4 agosto):**
 - Multi-utente con RLS attiva su tutte le tabelle, provata su dati veri.
   `MULTIUSER_RLS` fallisce **chiuso**: se manca, l'app rifiuta di leggere i dati.
 - Tetto ai costi AI per utente e per giorno (tabella `usage`, funzione `usage_add`).
@@ -79,17 +80,57 @@ Modello: Claude Sonnet. Repo: `orca-app`. Si lavora con Claude Code.
 - Onboarding una volta sola (K14b): in Safari propone di installare, dall'icona fa
   l'onboarding. Il flag `profile.onboarded_at` sta sul **server**, perché su iPhone
   Safari e l'app dell'icona hanno memorie separate.
-- Icone e favicon vere al posto del triangolo di Vercel.
-- Pagina `/numeri` (K9): quattro numeri, 404 per chiunque non sia Matteo.
+- Icone, favicon e og:image a posto; notifica di prova verificata sull'iPhone.
 - `.env.example` completo, SQL tracciate in `docs/sql/`.
 
+**Fatto il 5-6 agosto (la settimana grossa — tutto committato e in produzione):**
+- **Zoom e rotazione**: viewport bloccato, input a 16px (era la causa dello zoom
+  involontario di iOS), `viewport-fit=cover` accende le safe-area. Su iPhone la
+  rotazione non si può bloccare da web: c'è il pannello «Keiko si usa in
+  verticale». Su Android il blocco è nel manifest.
+- **Fondamenta TMDB**: `tmdb_id` in tabella watchlist. Ogni titolo si risolve UNA
+  volta all'aggiunta; poster e genere stanno nel database. Prima: 2 chiamate TMDB
+  per titolo a ogni apertura di Guarda; ora zero.
+- **Guarda rifatta**: tap sulla locandina = scheda (prima segnava «visto»!), tocco
+  lungo = menu azioni, filtri e segmented control, una griglia sola (prima lo
+  stesso titolo appariva fino a 3 volte), schermata vuota, scheletri, voto dal
+  toast. Serie con stagione/episodio («Continua a guardare», +1 episodio).
+- **Ricerca su tutti gli abbonamenti**: nel profilo si spunta quali piattaforme
+  paghi; la ricerca in Guarda mostra «✅ Ce l'hai su Now» e ordina prima quello
+  che è già incluso. Dati TMDB, gratis.
+- **Costi AI, capitolo chiuso** (`docs/PROMPT-COSTI-CONSIGLIO.md` per la storia):
+  - Consiglio film: da ~25-34 cent a **~0,9 cent** e da decine di secondi a ~7s.
+    Non cerca più sul web: Claude traduce la frase in filtri, TMDB discover trova
+    i candidati con le piattaforme vere, Claude sceglie e spiega. Il titolo secco
+    («aggiungi Breaking Bad») non chiama Claude affatto: zero.
+  - Cache dei prompt dove ci sono più giri (consiglio-ripiego, viaggio); tolta
+    dove il giro è unico (costerebbe il 25% in più).
+  - `usage_log` + tabella per-operazione in `/numeri`: si MISURA, non si deduce.
+    Registra anche modello e ricerche web.
+  - Pesi onesti nel tetto: cattura 1, consiglio 2, piano 5, viaggio 10.
+    `AI_CAP_PER_DAY=200` (in `.env.local` E su Vercel): ora è un salvavita contro
+    i loop, non una razione.
+  - Foto dei luoghi (Google Places): il nome si salva in `tickets.enrichment`.
+    Da 4 ricerche a pagamento per OGNI apertura della home a 4 nella vita
+    dell'evento. Effetto collaterale: home da 3s a 0,25s.
+- Fix: il messaggio del tetto («Per oggi mi fermo qui 🌙») ora arriva all'utente;
+  prima il client lo appiattiva su «Qualcosa non torna, riprova».
+
 **Aperto:**
-- Mandare il link ai primi due amici (chiedere prima che iOS hanno: serve 16.4+,
-  sotto quella versione le notifiche non esistono).
-- `logSearch()` è ancora chiamata ma la tabella non c'è più: rumore nei log, da
-  togliere quando capita.
+- **Mandare il link ai primi due amici.** La parte tecnica è finita. Restano:
+  chiedere che iPhone hanno (serve iOS 16.4+) e mandare il messaggio già scritto
+  in `docs/PRIMA-DEGLI-AMICI.md`.
+- Dev e produzione **condividono lo stesso database**: le prove di Claude Code
+  consumano il tetto e possono sporcare dati veri (successo due volte questa
+  settimana). Prima o poi: progetto Supabase separato per lo sviluppo.
+- `films_catalog` e `deepenFilmCatalog` non servono più (il consiglio usa TMDB):
+  da dismettere con calma, come `search_log`. `logSearch()` è ancora chiamata ma
+  la tabella non c'è più: rumore nei log, da togliere quando capita.
 - Le istruzioni del progetto Claude parlano ancora di «OrCa» e «Airtable»: sono
   vecchie, le deve correggere Matteo a mano.
+- Regola imparata sul campo: i pesi del tetto sono legati ai COSTI, non alle
+  funzioni. Quando un costo cambia, il peso va rivisto (c'è il commento in
+  `lib/ai.ts`).
 
 **Storia da non ripetere:** il 31 luglio il piano alimentare di Matteo è sparito
 perché `MULTIUSER_RLS` era spento in locale e `saveDietPlan()` cancella tutte le
@@ -117,8 +158,10 @@ Legenda: `·NEW` = proposta nata il 4 agosto · ⛔ = c'è un problema legale da
 risolvere prima di farla · ⚠️ = si fa, ma con quel paletto preciso ·
 🔧 = limite tecnico, non legale.
 
-**Il prossimo passo consigliato**, quando gli amici saranno dentro: il blocco
-intrattenimento (184 → 186 → 187), perché è l'unico che senza amici non esiste.
+**Il prossimo passo consigliato**: mandare il link (vedi §4 «Aperto»). Poi,
+quando gli amici saranno dentro: il blocco intrattenimento (184 → 186 → 187),
+perché è l'unico che senza amici non esiste. Il 184 (voto a orche) c'è già,
+col gancio nel toast «Visto ✓ Com'era?».
 Nota che 186 dipende dal 184 e dalle amicizie, e che alcune idee scelte dipendono
 da idee **non** scelte (per esempio 145 «hai 40 minuti liberi» ha bisogno del 101,
 la sincronia con Google Calendar).

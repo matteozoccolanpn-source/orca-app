@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keiko — cattura, il flusso intero</title>
+<style>
+  :root{
+    --bg:#0B0D13; --sheet:#141824; --card:#1C2130; --inset:#0F1219;
+    --text:#F4F6FA; --text2:#9BA2B1; --text3:#5D6373;
+    --accent:#FFB84D; --accent2:#FF9A3D; --green:#57D97C;
+    --hair:rgba(255,255,255,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:#06070B;font-family:Inter,-apple-system,system-ui,sans-serif;color:var(--text);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 14px;gap:18px}
+
+  .phone{width:380px;max-width:100%;height:740px;background:var(--bg);border-radius:44px;
+    position:relative;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.07)}
+
+  /* home dietro */
+  .home{position:absolute;inset:0;padding:64px 22px 0}
+  .home .greet{font-size:24px;font-weight:800;letter-spacing:-.03em;opacity:.9}
+  .home .gsub{font-size:13px;color:var(--text2);margin-top:4px}
+  .home .hc{height:78px;border-radius:20px;background:var(--sheet);margin-top:14px;opacity:.8}
+  .dim{position:absolute;inset:0;background:rgba(3,4,7,.6);backdrop-filter:blur(4px);
+    opacity:0;transition:opacity .5s;pointer-events:none}
+  .dim.on{opacity:1}
+
+  /* bolle — identità Keiko, solo durante la lettura */
+  .bubbles{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .8s}
+  .bubbles.on{opacity:1}
+  .bub{position:absolute;bottom:-20px;border-radius:50%;
+    background:radial-gradient(circle at 34% 28%, rgba(255,255,255,.16), rgba(120,170,255,.04) 70%);
+    animation:rise linear infinite}
+  @keyframes rise{to{transform:translateY(-800px) translateX(20px);opacity:0}}
+
+  /* ---------- sheet ---------- */
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--sheet);
+    border-radius:30px 30px 0 0;padding:14px 22px 30px;min-height:400px;
+    box-shadow:0 -24px 60px rgba(0,0,0,.55);
+    transform:translateY(105%);transition:transform .6s cubic-bezier(.32,.72,.25,1)}
+  .sheet.up{transform:none}
+  .grip{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.18);margin:0 auto 6px}
+
+  /* filo di progresso — sostituisce i pallini */
+  .thread{height:2px;border-radius:2px;background:rgba(255,255,255,.07);margin:10px 4px 20px;overflow:hidden}
+  .thread i{display:block;height:100%;width:0%;border-radius:2px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    transition:width .9s cubic-bezier(.4,0,.2,1)}
+
+  .phase{transition:opacity .4s, transform .4s;min-height:280px}
+  .phase.out{opacity:0;transform:translateY(8px);position:absolute;pointer-events:none;left:22px;right:22px}
+  .phase.pre{opacity:0;transform:translateY(8px)}
+
+  .title{font-size:21px;font-weight:800;letter-spacing:-.02em}
+  .sub{font-size:13px;color:var(--text2);margin-top:4px;line-height:1.5}
+
+  .input{background:var(--inset);border-radius:16px;padding:15px 16px;min-height:88px;margin-top:18px;
+    font-size:16px;line-height:1.5;color:var(--text);position:relative}
+  .input .ph{color:var(--text3)}
+  .caret{display:inline-block;width:2px;height:18px;background:var(--accent);vertical-align:-3px;
+    animation:blink 1s steps(1) infinite;border-radius:1px}
+  @keyframes blink{50%{opacity:0}}
+
+  .cta{margin-top:16px;width:100%;min-height:50px;border:0;border-radius:15px;cursor:pointer;
+    font:600 15px Inter,sans-serif;color:#1E1503;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 10px 26px rgba(255,154,61,.28);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .18s, opacity .3s}
+  .cta.press{transform:scale(.96)}
+  .cta.dis{opacity:.35}
+  .alt{margin-top:10px;text-align:center;font-size:13px;font-weight:600;color:var(--text2)}
+
+  /* --- lettura --- */
+  .quote{background:var(--inset);border-radius:16px;padding:13px 16px;margin-top:16px;
+    font-size:13.5px;line-height:1.5;color:var(--text2)}
+  .quote em{font-style:normal;color:var(--text);font-weight:550}
+  .skcard{background:var(--card);border-radius:18px;padding:16px;margin-top:14px;
+    box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .row{display:flex;align-items:center;min-height:36px;gap:12px}
+  .row .k{width:58px;flex:none;font-size:10px;font-weight:700;letter-spacing:.7px;
+    text-transform:uppercase;color:var(--text3)}
+  .sk{height:12px;border-radius:6px;flex:1;max-width:180px;
+    background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.14) 50%,rgba(255,255,255,.06) 75%);
+    background-size:200% 100%;animation:sh 1.5s infinite}
+  @keyframes sh{to{background-position:-200% 0}}
+  .v{font-size:14px;font-weight:550;opacity:0;transform:translateY(5px)}
+  .v.in{animation:pop .4s cubic-bezier(.22,.61,.36,1) forwards}
+  @keyframes pop{to{opacity:1;transform:none}}
+
+  .wl{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13px;color:var(--text2);min-height:22px}
+  .orca{font-size:17px;animation:swim 2.8s ease-in-out infinite}
+  @keyframes swim{0%,100%{transform:translateX(0)}50%{transform:translateX(8px) rotate(-7deg)}}
+  #wmsg{transition:opacity .35s}
+
+  /* --- conferma --- */
+  .ev{background:var(--card);border-radius:18px;padding:14px 16px;margin-top:12px;
+    display:flex;align-items:center;gap:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);
+    opacity:0;transform:translateY(10px)}
+  .ev.in{animation:pop .45s cubic-bezier(.22,.61,.36,1) forwards}
+  .ev .ic{width:42px;height:42px;border-radius:14px;flex:none;display:grid;place-items:center;
+    font-size:19px;background:rgba(255,184,77,.12)}
+  .ev .t{font-size:15px;font-weight:700}
+  .ev .d{font-size:12.5px;color:var(--text2);margin-top:2px}
+  .ev .x{margin-left:auto;color:var(--text3);font-size:13px}
+
+  /* --- toast --- */
+  .toast{position:absolute;left:18px;right:18px;bottom:26px;background:var(--card);
+    border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:11px;
+    box-shadow:0 14px 40px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.06);
+    font-size:13.5px;opacity:0;transform:translateY(16px);
+    transition:all .5s cubic-bezier(.22,.61,.36,1)}
+  .toast.in{opacity:1;transform:none}
+  .tick{width:26px;height:26px;border-radius:50%;background:rgba(87,217,124,.15);
+    display:grid;place-items:center;color:var(--green);font-size:13px;flex:none}
+  .toast b{font-weight:700}
+  .toast .see{margin-left:auto;color:var(--accent);font-weight:700}
+
+  .replay{background:none;border:1px solid rgba(255,255,255,.14);color:var(--text2);
+    font:600 13px Inter,sans-serif;padding:10px 22px;border-radius:999px;cursor:pointer}
+  .replay:hover{color:var(--text)}
+  .cap{font-size:12px;color:var(--text3);text-align:center;max-width:380px;line-height:1.6}
+</style>
+</head>
+<body>
+
+  <div class="phone" id="phone">
+    <div class="home">
+      <div class="greet">Ciao, Matteo</div>
+      <div class="gsub">Giovedì 6 agosto</div>
+      <div class="hc"></div><div class="hc"></div><div class="hc"></div><div class="hc"></div>
+    </div>
+    <div class="dim" id="dim"></div>
+    <div class="bubbles" id="bubbles"></div>
+
+    <div class="sheet" id="sheet">
+      <div class="grip"></div>
+      <div class="thread"><i id="bar"></i></div>
+
+      <!-- 1 · scrivi -->
+      <div class="phase" id="p1">
+        <div class="title">Aggiungi a Keiko</div>
+        <div class="sub">Scrivi, incolla o allega. Ci penso io.</div>
+        <div class="input" id="inp"><span class="ph" id="ph">es. «cena giovedì 20:30 da Marco»</span><span id="typed"></span><span class="caret" id="caret" style="display:none"></span></div>
+        <button class="cta dis" id="send">Invia</button>
+        <div class="alt">⛰ oppure allega uno screenshot</div>
+      </div>
+
+      <!-- 2 · keiko legge -->
+      <div class="phase pre" id="p2">
+        <div class="quote"><em id="quote"></em></div>
+        <div class="skcard">
+          <div class="row" id="r0"><span class="k">Cosa</span><span class="sk"></span></div>
+          <div class="row" id="r1"><span class="k">Quando</span><span class="sk"></span></div>
+          <div class="row" id="r2"><span class="k">Dove</span><span class="sk"></span></div>
+        </div>
+        <div class="wl"><span class="orca">🐋</span><span id="wmsg">Leggo il messaggio…</span></div>
+      </div>
+
+      <!-- 3 · controlli -->
+      <div class="phase pre" id="p3">
+        <div class="title" style="font-size:18px">Ho trovato 2 eventi</div>
+        <div class="sub">Controlla e conferma con un tocco.</div>
+        <div class="ev" id="e1">
+          <div class="ic">✈️</div>
+          <div><div class="t">Volo per Londra</div><div class="d">ven 8 agosto · 08:00</div></div>
+          <span class="x">✕</span>
+        </div>
+        <div class="ev" id="e2">
+          <div class="ic">🏨</div>
+          <div><div class="t">Hotel Astoria</div><div class="d">sab 9 agosto · check-in 14:00</div></div>
+          <span class="x">✕</span>
+        </div>
+        <button class="cta" id="add" style="margin-top:18px">Aggiungi 2 eventi</button>
+      </div>
+    </div>
+
+    <!-- 4 · fatto: foglio giù, toast sulla home -->
+    <div class="toast" id="toast">
+      <span class="tick">✓</span>
+      <span><b>2 in agenda</b></span>
+      <span class="see">Vedi</span>
+    </div>
+  </div>
+
+  <button class="replay" onclick="run()">↻ Rivedi</button>
+  <p class="cap">Un filo che avanza al posto dei pallini · quello che scrivi resta sempre a schermo ·
+  la card si costruisce da sola · alla fine sei subito fuori, la conferma è un tocco leggero sulla home.</p>
+
+<script>
+  const $=id=>document.getElementById(id);
+  const FRASE="volo per Londra venerdì alle 8 e hotel Astoria da sabato";
+  const MSGS=["Leggo il messaggio…","Cerco date e orari…","Sistemo i dettagli…"];
+  const VALS=["Volo per Londra  ·  +1","ven 8 agosto · 08:00","Milano → Londra"];
+  let timers=[];
+
+  const wait=ms=>new Promise(r=>timers.push(setTimeout(r,ms)));
+  function clearAll(){timers.forEach(clearTimeout);timers=[]}
+
+  function swap(a,b){ $(a).classList.add('out'); const el=$(b); el.classList.remove('pre','out'); }
+
+  function makeBubbles(){
+    const box=$('bubbles'); box.innerHTML='';
+    for(let i=0;i<7;i++){
+      const b=document.createElement('span'); b.className='bub';
+      const s=6+Math.round(Math.random()*10);
+      b.style.width=b.style.height=s+'px';
+      b.style.left=(8+Math.random()*84)+'%';
+      b.style.animationDuration=(5+Math.random()*4)+'s';
+      b.style.animationDelay=(Math.random()*3)+'s';
+      box.appendChild(b);
+    }
+  }
+
+  async function run(){
+    clearAll();
+    /* reset */
+    ['p1','p2','p3'].forEach(p=>{$(p).classList.remove('out');});
+    $('p2').classList.add('pre'); $('p3').classList.add('pre');
+    $('sheet').classList.remove('up'); $('dim').classList.remove('on');
+    $('bubbles').classList.remove('on'); $('toast').classList.remove('in');
+    $('bar').style.width='0%';
+    $('typed').textContent=''; $('ph').style.display=''; $('caret').style.display='none';
+    $('send').classList.add('dis'); $('send').classList.remove('press');
+    $('add').classList.remove('press');
+    $('quote').textContent='«'+FRASE+'»';
+    for(let i=0;i<3;i++){const r=$('r'+i);const k=r.querySelector('.k').textContent;
+      r.innerHTML='<span class="k">'+k+'</span><span class="sk"></span>';}
+    $('wmsg').textContent=MSGS[0];
+
+    /* 1 · sheet sale, la frase si scrive da sola */
+    await wait(500);
+    $('dim').classList.add('on'); $('sheet').classList.add('up');
+    await wait(900);
+    $('ph').style.display='none'; $('caret').style.display='';
+    for(let i=0;i<=FRASE.length;i++){
+      $('typed').textContent=FRASE.slice(0,i);
+      await wait(26);
+    }
+    $('send').classList.remove('dis');
+    await wait(650);
+    $('send').classList.add('press');
+    await wait(220);
+
+    /* 2 · keiko legge */
+    swap('p1','p2');
+    $('bar').style.width='45%';
+    $('bubbles').classList.add('on'); makeBubbles();
+    let mi=0;
+    const rot=setInterval(()=>{ mi=(mi+1)%MSGS.length;
+      $('wmsg').style.opacity=0;
+      setTimeout(()=>{$('wmsg').textContent=MSGS[mi];$('wmsg').style.opacity=1;},300);
+    },2300); timers.push(rot);
+    await wait(5200);
+    clearInterval(rot);
+
+    /* i campi si riempiono uno alla volta */
+    for(let i=0;i<3;i++){
+      const r=$('r'+i); const k=r.querySelector('.k').textContent;
+      r.innerHTML='<span class="k">'+k+'</span><span class="v in">'+VALS[i]+'</span>';
+      await wait(240);
+    }
+    await wait(900);
+
+    /* 3 · controlli */
+    swap('p2','p3');
+    $('bar').style.width='80%';
+    $('bubbles').classList.remove('on');
+    await wait(150); $('e1').classList.add('in');
+    await wait(180); $('e2').classList.add('in');
+    await wait(2100);
+    $('add').classList.add('press');
+    await wait(240);
+
+    /* 4 · fuori subito, toast sulla home */
+    $('bar').style.width='100%';
+    await wait(350);
+    $('sheet').classList.remove('up'); $('dim').classList.remove('on');
+    await wait(550);
+    $('toast').classList.add('in');
+    await wait(3200);
+    $('toast').classList.remove('in');
+  }
+
+  run();
+</script>
+</body>
+</html>
