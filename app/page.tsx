@@ -2,7 +2,8 @@ import SwipeShell from "./components/SwipeShell";
 import KeikoPreview from "./components/keiko/KeikoPreview";
 import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
-import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt } from "@/lib/supabase";
+import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt, getTicketsForBeats, saveBeatState } from "@/lib/supabase";
+import { battitoDiOggi, GIORNI_INDIETRO, GIORNI_AVANTI, type Battito } from "@/lib/battiti";
 import { posterFor } from "@/lib/tmdb";
 import { resolveEventImage } from "@/lib/event-image";
 import { cityImage } from "@/lib/unsplash";
@@ -112,8 +113,27 @@ export default async function Home({
   } catch (e) {
     console.error("Arricchimento home fallito (la pagina si carica comunque):", e);
   }
+
+  /* I BATTITI (docs/SPEC-BATTITI.md). Un solo battito in home, il più fresco;
+     se non ne batte nessuno la card non esiste — mai uno stato vuoto.
+     Come tutto il resto dell'arricchimento: se qualcosa va storto, la home si
+     carica lo stesso, semplicemente senza battito. */
+  let battito: Battito | null = null;
+  try {
+    const eventi = await getTicketsForBeats(GIORNI_INDIETRO, GIORNI_AVANTI);
+    battito = battitoDiOggi(eventi);
+    // Si segna "mostrato" UNA volta sola: serve a E2 (chi ha già visto il
+    // battito in home non deve riceverlo anche in notifica). Se è già segnato
+    // non si riscrive niente, così aprire la home non costa una scrittura.
+    if (battito) {
+      const gia = eventi.find((e) => e.id === battito!.eventoId)?.beats?.[battito.chiave];
+      if (!gia) await saveBeatState(battito.eventoId, battito.chiave, "mostrato");
+    }
+  } catch (e) {
+    console.error("Battiti non disponibili (la home si carica comunque):", e);
+  }
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.
-  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} onboardedAt={onboardedAt} />;
+  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} onboardedAt={onboardedAt} battito={battito} />;
 }

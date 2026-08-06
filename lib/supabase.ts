@@ -9,6 +9,9 @@ export interface EventEnrichment {
   summary: string;
   links: { label: string; url: string }[];
   updatedAt: string;
+  /** Stato dei battiti dell'evento: { prima: "mostrato", dopo: "chiuso" }.
+   *  Vedi docs/SPEC-BATTITI.md — ogni battito compare una volta sola. */
+  beats?: Record<string, string> | null;
   /** Foto del luogo (Google Places), risolta UNA volta e poi riusata.
    *  `name` null = cercata e non trovata: si ricorda anche quello, altrimenti
    *  gli eventi senza foto ripagherebbero la ricerca a ogni apertura. */
@@ -1080,6 +1083,86 @@ export async function getTicketForEnrich(id: string): Promise<{ title: string; t
 export async function saveTicketEnrichment(id: string, enrichment: EventEnrichment): Promise<void> {
   const { error } = await (await db()).from("tickets").update({ enrichment }).eq("id", id);
   if (error) console.warn("[enrichment] save fallito (colonna `enrichment` creata?):", error.message);
+}
+
+// ── I BATTITI (docs/SPEC-BATTITI.md) ────────────────────────────────────────
+
+/** Gli eventi che possono battere: quelli intorno a oggi, passati compresi.
+ *  Il motore (lib/battiti.ts) decide chi batte davvero — qui si legge e basta,
+ *  senza sapere niente di tipi e finestre. */
+export async function getTicketsForBeats(
+  giorniIndietro: number,
+  giorniAvanti: number
+): Promise<{ id: string; title: string; type: string; datetime: string | null; beats: Record<string, string> | null }[]> {
+  const giorno = 24 * 60 * 60 * 1000;
+  const da = new Date(Date.now() - giorniIndietro * giorno).toISOString();
+  const a = new Date(Date.now() + giorniAvanti * giorno).toISOString();
+  try {
+    const { data, error } = await (await db())
+      .from("tickets")
+      .select("id, title, type, datetime, enrichment")
+      .gte("datetime", da)
+      .lte("datetime", a)
+      .order("datetime", { ascending: false })
+      .limit(60);
+    if (error) {
+      console.warn("[battiti] lettura eventi fallita:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => ({
+      id: r.id as string,
+      title: (r.title as string) ?? "",
+      type: ((r.type as string) ?? "").toLowerCase(),
+      datetime: (r.datetime as string) ?? null,
+      beats: ((r.enrichment as EventEnrichment | null)?.beats as Record<string, string> | null) ?? null,
+    }));
+  } catch (e) {
+    console.warn("[battiti] lettura eventi fallita:", e);
+    return [];
+  }
+}
+
+/** L'interruttore delle notifiche dei battiti. Acceso di default: se la
+ *  colonna non c'è ancora (SQL non eseguita) la lettura fallisce e si risponde
+ *  comunque `true`, così la funzione non si spegne per una migrazione mancante. */
+export async function getBeatsPush(): Promise<boolean> {
+  try {
+    const { data, error } = await (await db()).from("profile").select("beats_push").maybeSingle();
+    if (error) return true;
+    return (data as { beats_push?: boolean } | null)?.beats_push !== false;
+  } catch {
+    return true;
+  }
+}
+
+/** Accende o spegne le notifiche dei battiti. Le card in home non cambiano. */
+export async function saveBeatsPush(acceso: boolean): Promise<void> {
+  const userId = await currentUserId();
+  const { error } = await (await db())
+    .from("profile")
+    .upsert({ user_id: userId, beats_push: acceso }, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
+}
+
+/** Segna lo stato di UN battito dentro `enrichment.beats`, senza toccare il
+ *  resto (summary, links, placePhoto). Legge, unisce, riscrive — come
+ *  savePlacePhotoName. Non lancia mai: se fallisce, si è perso un segno, non
+ *  un dato dell'utente. */
+export async function saveBeatState(
+  ticketId: string,
+  battito: string,
+  stato: "mostrato" | "chiuso" | "notificato"
+): Promise<void> {
+  try {
+    const client = await db();
+    const { data } = await client.from("tickets").select("enrichment").eq("id", ticketId).maybeSingle();
+    const attuale = (data?.enrichment as EventEnrichment | null) ?? null;
+    const beats = { ...(attuale?.beats ?? {}), [battito]: stato };
+    const { error } = await client.from("tickets").update({ enrichment: { ...(attuale ?? {}), beats } }).eq("id", ticketId);
+    if (error) console.warn("[battiti] stato non salvato:", error.message);
+  } catch (e) {
+    console.warn("[battiti] stato non salvato:", e);
+  }
 }
 
 /** Salva SOLO il nome della foto del luogo dentro `enrichment`, senza toccare

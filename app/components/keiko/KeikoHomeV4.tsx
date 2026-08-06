@@ -15,6 +15,7 @@ import CalendarSheet from "./CalendarSheet";
 import SmartMedia from "@/components/SmartMedia";
 import { catFor, glyphFor } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
+import type { Battito } from "@/lib/battiti";
 import "../../ds.css";
 
 /* HOME v4 (Fase 2 — slice 1): nuova Home col design bloccato, dati VERI.
@@ -24,14 +25,20 @@ import "../../ds.css";
 
 type LiveTodo = LiveHome["days"][string]["todos"][number];
 
+/* L'emoji del battito segue il TIPO dell'evento. Sta qui e non nel motore:
+   è vestizione, e un tipo nuovo senza emoji ricade su ✨ senza rompere nulla. */
+const EMOJI_BATTITO: Record<string, string> = { sport: "🏟️", concert: "🎵" };
+
 function dayTitle(key: string): string {
   try { return new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Rome" }).format(new Date(key + "T00:00:00")); }
   catch { return key; }
 }
 
-export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null }) {
+export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt, battito }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null; battito?: Battito | null }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
+  // Il battito chiuso sparisce subito, senza aspettare il giro del server.
+  const [battitoChiuso, setBattitoChiuso] = useState(false);
   const [selEv, setSelEv] = useState<LiveEvent | null>(null);
   const [askOpen, setAskOpen] = useState(false);
   const [selDay, setSelDay] = useState<string | null>(null);
@@ -227,6 +234,29 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
     return () => { ok = false; };
   }, [city]);
   const greeting = name.trim() ? `Ciao ${name.trim()} 👋` : live.greeting;
+
+  /* IL BATTITO (docs/SPEC-BATTITI.md): una card piccola sotto il saluto, con la
+     frase, l'azione che porta da qualche parte e la ✕ che lo chiude per sempre.
+     Se non c'è battito la card non esiste: mai uno stato vuoto. */
+  const mostraBattito = !!battito && !battitoChiuso;
+  async function chiudiBattito() {
+    if (!battito) return;
+    setBattitoChiuso(true);
+    try {
+      await fetch("/api/beats/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        // keepalive: se chiudi la card e cambi subito pagina, la richiesta parte
+        // lo stesso. Senza, la ✕ si perde e il battito torna al refresh — visto
+        // succedere davvero durante le prove.
+        keepalive: true,
+        body: JSON.stringify({ id: battito.eventoId, battito: battito.chiave }),
+      });
+    } catch {
+      /* se non passa, il battito ricompare al prossimo giro: nessun danno */
+    }
+  }
   const todayN = live.week.find((d) => d.today)?.n ?? null;
   const todayKey = live.week.find((d) => d.today)?.key ?? null;
   const todayTodos = todayKey ? (live.days[todayKey]?.todos ?? []).filter(notHidden).map(withOv) : [];
@@ -311,6 +341,41 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
         {nEventiOggi} event{nEventiOggi === 1 ? "o" : "i"}
         {gymTxt && <><span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--k-text-3)" }} /><span style={{ color: gym?.trainedToday ? "var(--k-ok)" : "var(--k-text-2)" }}>{gymTxt}</span></>}
       </div>
+
+      {/* IL BATTITO — sotto il saluto, sopra la settimana */}
+      {mostraBattito && battito && (
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            background: "var(--k-surface)", border: "1px solid var(--k-line)",
+            borderRadius: 16, padding: "12px 12px 12px 14px", margin: "0 0 20px",
+            boxShadow: "var(--k-shadow)",
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 19, flex: "none" }}>{EMOJI_BATTITO[battito.tipo] ?? "✨"}</span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--k-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {battito.frase}
+            </div>
+            <a
+              href={battito.azione.url}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: "inline-block", marginTop: 3, fontSize: 12.5, fontWeight: 700, color: "var(--k-accent)", textDecoration: "none" }}
+            >
+              {battito.azione.etichetta} →
+            </a>
+          </div>
+          <button
+            type="button"
+            onClick={chiudiBattito}
+            aria-label="Chiudi"
+            style={{ width: 44, height: 44, flex: "none", display: "grid", placeItems: "center", background: "none", border: 0, color: "var(--k-text-3)", fontSize: 15, cursor: "pointer" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* week strip */}
       <div style={{ display: "flex", gap: 6, margin: "0 0 24px" }}>
