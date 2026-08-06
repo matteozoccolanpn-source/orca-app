@@ -22,6 +22,13 @@ Vincoli di sempre: non toccare `lib/` e `app/api/` (solo presentazione); build v
 ogni commit; MAI committare senza ok esplicito di Matteo; la home vecchia resta funzionante
 (v2 dietro interruttore); accent = var(--accent), il viola non esiste.
 
+**DATI DI PROVA**: ogni riga di prova si crea con prefisso `PROVA-` nel titolo e si cancella
+SOLO per elenco di id salvati alla creazione. MAI una DELETE con pattern (`ilike`/`like`/`%`)
+su tabelle vere. Se una DELETE potrebbe toccare dati non di prova: prima la SELECT delle righe,
+mostrarle a Matteo, aspettare l'ok esplicito prima di cancellare.
+(Scritta il 6 agosto 2026 dopo che una `DELETE ... ilike '%Milano Centrale%'`, nata per pulire
+due biglietti di prova, ne ha cancellati quattro veri.)
+
 Auto-verifica: dopo ogni sezione, screenshot dell'app (localhost:3000/?v2) accanto al mockup
 alla stessa larghezza + versione in scala di grigi: ogni card deve staccare dal fondo.
 <!-- END:keiko-redesign-rules -->
