@@ -18,16 +18,52 @@ import { spendAi, claudeFetch } from "./ai";
 
 const MODEL = "claude-sonnet-4-5"; // stesso modello dell'app, nessun modello nuovo
 
-type Msg = { role: string; content: unknown };
+type Blocco = Record<string, unknown>;
+type Msg = { role: string; content: Blocco[] };
 
-/** Chiama Claude col tool web-search, gestendo il loop 'pause_turn'. Ritorna il testo finale. */
-async function callClaudeWebSearch(userContent: string): Promise<string> {
-  const messages: Msg[] = [{ role: "user", content: userContent }];
+/* CACHE DEI PROMPT — la stessa correzione già collaudata in lib/films.ts (C1).
+   Quando Claude si ferma per cercare sul web (`pause_turn`), il ciclo qui sotto
+   rimette la sua risposta nella conversazione e richiama: a ogni giro si
+   rispedisce TUTTA la conversazione, risultati di ricerca compresi. Su un
+   viaggio, che di ricerche ne fa parecchie, gli stessi 20-30.000 token si
+   pagavano quattro o cinque volte.
+
+   Con la cache si paga una volta e i giri dopo la rileggono a un decimo. Il
+   punto di cache è UNO SOLO e si sposta sempre in fondo: ogni giro mette in
+   cache tutto quello che c'è prima, e il giro successivo lo rilegge. (Il
+   massimo consentito è 4 punti contemporanei: tenendone uno solo non ci si
+   avvicina nemmeno.)
+
+   ATTENZIONE, differenza rispetto a films.ts: qui il punto di cache si mette
+   SOLO quando un secondo giro esiste davvero (cioè dopo un `pause_turn`).
+   Misurato su tre viaggi veri: il modello non ha mai usato la ricerca web e ha
+   risposto in UN giro. Scrivere in cache al primo giro, in quel caso, costa il
+   25% in più su ~3.500 token e non lo rilegge nessuno. Marcando solo dai giri
+   successivi, chi fa un giro solo non paga niente e chi ne fa quattro
+   risparmia lo stesso. */
+function segnaPuntoDiCache(messages: Msg[]): void {
+  for (const m of messages) {
+    for (const b of m.content) delete b.cache_control;
+  }
+  const ultimo = messages[messages.length - 1];
+  const blocco = ultimo?.content?.[ultimo.content.length - 1];
+  if (blocco) blocco.cache_control = { type: "ephemeral" };
+}
+
+/** Chiama Claude col tool web-search, gestendo il loop 'pause_turn'. Ritorna il testo finale.
+ *  `maxSearches` va scelto da chi chiama: un piano di viaggio intero e la
+ *  modifica di una singola tappa non hanno bisogno dello stesso numero di
+ *  ricerche, e ogni ricerca si paga ($10 ogni 1.000, più i token dei risultati). */
+async function callClaudeWebSearch(userContent: string, maxSearches: number): Promise<string> {
+  // Il messaggio iniziale va scritto a blocchi (non come stringa): il
+  // `cache_control` sta sul blocco, non sul messaggio.
+  const messages: Msg[] = [{ role: "user", content: [{ type: "text", text: userContent }] }];
+
   const tools = [
     {
       type: "web_search_20250305",
       name: "web_search",
-      max_uses: 6, // tetto alle ricerche per tenere basso il costo
+      max_uses: maxSearches,
       user_location: { type: "approximate", country: "IT", timezone: "Europe/Rome" },
     },
   ];
@@ -39,7 +75,8 @@ async function callClaudeWebSearch(userContent: string): Promise<string> {
 
     // Ricerca lunga: la API mette in pausa → rimando indietro il messaggio e continuo.
     if (data.stop_reason === "pause_turn") {
-      messages.push({ role: "assistant", content: data.content });
+      messages.push({ role: "assistant", content: (data.content ?? []) as Blocco[] });
+      segnaPuntoDiCache(messages);   // il giro dopo rilegge tutto il resto dalla cache
       continue;
     }
 
@@ -161,7 +198,10 @@ export async function enrichTripPlan(clusterKey: string): Promise<{ ok: boolean;
 
   const tickets = await getTicketsByIds(trip.ticket_ids);
   const prompt = buildPrompt(trip, tickets);
-  const text = await callClaudeWebSearch(prompt);
+  // 4 e non 6: un piano di viaggio ha bisogno di poche verifiche operative
+  // (trasporti, chiusure, orari), e ogni ricerca in più costa la ricerca E i
+  // token del risultato. Quattro coprono i casi veri; il sesto era margine.
+  const text = await callClaudeWebSearch(prompt, 4);
 
   let plan: unknown;
   try {
@@ -227,7 +267,9 @@ Riscrivi SOLO questa tappa secondo la richiesta. Regole:
 
 Rispondi SOLO col JSON della tappa, nessun testo fuori.`;
 
-  const text = await callClaudeWebSearch(prompt);
+  // 2 e non 6: qui si riscrive UNA tappa sola. Sei ricerche per spostare una
+  // visita al pomeriggio erano il grosso del costo di una modifica.
+  const text = await callClaudeWebSearch(prompt, 2);
   let nuovo: EditSlot;
   try {
     nuovo = JSON.parse(text.replace(/```json|```/g, "").trim()) as EditSlot;

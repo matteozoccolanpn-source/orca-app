@@ -42,6 +42,15 @@ import { spendAi, claudeFetch, type AiOperazione } from "./ai";
 
 const MODEL = "claude-sonnet-4-5";
 
+/* PROVATO E SCARTATO: il passo A su claude-haiku-4-5.
+   Sulla carta è estrazione pura (frase → JSON di filtri) e Haiku costa un
+   terzo. Alla prova, su cinque richieste quattro davano filtri identici, ma
+   "un documentario sulla natura" diventava `tipo: "film"` invece di
+   "entrambi" — due volte su tre, quindi non è rumore. Effetto visibile:
+   sparivano "Il nostro pianeta" e "Pianeta Terra II", cioè le risposte
+   migliori. Risparmiava ~0,2 centesimi su ~0,9: non vale una risposta
+   peggiore. Se un giorno si riprova, il punto da guardare è quello. */
+
 type Blocco = Record<string, unknown>;
 type Msg = { role: string; content: Blocco[] };
 
