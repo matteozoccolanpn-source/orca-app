@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keiko — Cucina, ripensata</title>
+<style>
+  :root{
+    --bg:#0B0D13; --card:#171B26; --inset:#10131B;
+    --text:#F4F6FA; --text2:#9BA2B1; --text3:#5D6373;
+    --accent:#FFB84D; --accent2:#FF9A3D; --green:#57D97C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#06070B;font-family:Inter,-apple-system,system-ui,sans-serif;color:var(--text);
+    display:flex;flex-direction:column;align-items:center;padding:24px 14px;gap:14px;min-height:100vh}
+  .tabs{display:flex;gap:8px}
+  .tabs button{background:var(--card);border:0;color:var(--text2);font:600 12.5px Inter;
+    padding:9px 16px;border-radius:999px;cursor:pointer}
+  .tabs button.on{background:var(--accent);color:#1E1503}
+  .phone{width:390px;max-width:100%;height:800px;background:var(--bg);border-radius:44px;
+    overflow:hidden;position:relative;box-shadow:0 40px 100px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.07)}
+  .scr{position:absolute;inset:0;overflow-y:auto;padding:56px 18px 90px;transition:opacity .35s;
+    scrollbar-width:none}
+  .scr::-webkit-scrollbar{display:none}
+  .hidden{opacity:0;pointer-events:none}
+
+  /* ======== SCHERMO 1 — CUCINA (home) ======== */
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:1.2px;color:var(--text3);text-transform:uppercase}
+  .big{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1.12;margin-top:6px}
+  .ask{margin-top:18px;background:var(--card);border-radius:20px;padding:6px 6px 6px 18px;
+    display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  .ask input{flex:1;background:none;border:0;outline:0;color:var(--text);font:400 16px Inter;min-width:0}
+  .ask .go{width:46px;height:46px;border-radius:16px;border:0;flex:none;cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));font-size:18px;color:#1E1503;font-weight:800}
+  .chips{display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding-bottom:4px}
+  .chip{flex:none;background:var(--inset);border:1px solid rgba(255,255,255,.08);color:var(--text2);
+    font:600 12.5px Inter;padding:8px 14px;border-radius:999px;cursor:pointer}
+  .chip.on{background:rgba(255,184,77,.14);border-color:rgba(255,184,77,.4);color:var(--accent)}
+  .hint{margin-top:10px;font-size:12px;color:var(--text3);line-height:1.5}
+  .hint b{color:var(--text2);font-weight:600}
+
+  .sect{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 12px}
+  .sect h2{font-size:16px;font-weight:800;letter-spacing:-.01em}
+  .sect span{font-size:12px;font-weight:700;color:var(--accent)}
+
+  .shelf{display:flex;gap:12px;overflow-x:auto;margin:0 -18px;padding:0 18px 6px}
+  .r-mini{flex:none;width:150px;cursor:pointer}
+  .r-mini .ph{height:110px;border-radius:16px;position:relative;overflow:hidden;
+    background:linear-gradient(150deg,#3a2f22,#1a1512)}
+  .r-mini .ph i{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;font-style:normal;opacity:.9}
+  .r-mini .t{font-size:12.5px;font-weight:600;margin-top:7px;line-height:1.3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .r-mini .a{font-size:11px;color:var(--text3);margin-top:2px}
+  .fatte{display:inline-block;background:rgba(87,217,124,.14);color:var(--green);font-size:10px;
+    font-weight:700;border-radius:999px;padding:2px 7px;position:absolute;top:8px;left:8px}
+
+  /* badge piattaforma */
+  .pf{position:absolute;bottom:8px;right:8px;width:26px;height:26px;border-radius:8px;
+    display:grid;place-items:center;background:rgba(0,0,0,.65)}
+  .pf svg{display:block}
+
+  /* ======== SCHERMO 2 — RISULTATI ======== */
+  .backrow{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .backrow .bk{font-size:24px;color:var(--text2);cursor:pointer;background:none;border:0}
+  .q-echo{background:var(--inset);border-radius:14px;padding:11px 14px;font-size:13px;color:var(--text2);
+    margin-top:12px;line-height:1.45}
+  .q-echo b{color:var(--accent);font-weight:650}
+  .res{margin-top:14px;border-radius:22px;overflow:hidden;position:relative;cursor:pointer;
+    box-shadow:0 12px 30px rgba(0,0,0,.35)}
+  .res .img{height:190px;position:relative;background:linear-gradient(150deg,#4a3a24,#211812)}
+  .res .img i{position:absolute;inset:0;display:grid;place-items:center;font-size:56px;font-style:normal}
+  .res .grad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(6,7,11,.9))}
+  .res .info{position:absolute;left:14px;right:14px;bottom:12px}
+  .res .rt{font-size:16.5px;font-weight:750;line-height:1.22;letter-spacing:-.01em;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .res .ra{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:12px;color:var(--text2)}
+  .res .save{position:absolute;top:12px;right:12px;height:36px;padding:0 14px;border-radius:999px;
+    border:0;background:rgba(6,7,11,.65);backdrop-filter:blur(8px);color:#fff;font:650 12.5px Inter;cursor:pointer}
+  .res .save.done{background:var(--green);color:#0A2413}
+  .pf2{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.12)}
+
+  /* ======== SCHERMO 3 — RICETTA (V2) ======== */
+  .hero{margin:-56px -18px 0;height:260px;position:relative;background:linear-gradient(150deg,#4a3a24,#211812)}
+  .hero i{position:absolute;inset:0;display:grid;place-items:center;font-size:72px;font-style:normal}
+  .hero .grad{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,7,11,.5),transparent 30%,rgba(11,13,19,1))}
+  .hero .bk2{position:absolute;top:52px;left:14px;width:38px;height:38px;border-radius:13px;border:0;
+    background:rgba(6,7,11,.55);backdrop-filter:blur(8px);color:#fff;font-size:18px;cursor:pointer}
+  .hero .who{position:absolute;left:18px;bottom:14px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2)}
+  .rtitle{font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-top:10px}
+  .meta{display:flex;gap:8px;margin-top:12px}
+  .meta span{background:var(--inset);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--text2)}
+  .ingr{margin-top:20px;background:var(--card);border-radius:20px;padding:16px}
+  .ingr h3,.steps h3{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+  .ing{display:flex;align-items:center;gap:11px;padding:8px 0;font-size:14.5px}
+  .ing .ck{width:22px;height:22px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);flex:none}
+  .ing.done .ck{background:var(--green);border-color:var(--green)}
+  .ing.done{color:var(--text3);text-decoration:line-through}
+  .ing b{margin-left:auto;color:var(--text2);font-weight:600;font-size:13px}
+  .spesa{display:flex;gap:8px;margin-top:14px}
+  .spesa button{flex:1;min-height:46px;border-radius:14px;border:0;font:650 13px Inter;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px}
+  .spesa .lst{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#1E1503}
+  .spesa .amz{background:var(--inset);color:var(--text);border:1px solid rgba(255,255,255,.1)}
+  .steps{margin-top:18px;background:var(--card);border-radius:20px;padding:16px}
+  .step{display:flex;gap:12px;padding:10px 0;font-size:14px;line-height:1.5;color:var(--text2)}
+  .step .n{width:26px;height:26px;border-radius:50%;background:rgba(255,184,77,.14);color:var(--accent);
+    font:800 12.5px Inter;display:grid;place-items:center;flex:none}
+  .cook{position:sticky;bottom:0;margin:18px -18px -90px;padding:14px 18px calc(20px + 12px);
+    background:linear-gradient(180deg,transparent,var(--bg) 30%)}
+  .cook button{width:100%;min-height:54px;border-radius:17px;border:0;cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#1E1503;font:750 15.5px Inter;
+    box-shadow:0 12px 30px rgba(255,154,61,.3)}
+  .legal{font-size:10.5px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.5}
+
+  /* ---- zona ① il piano ---- */
+  .piano{margin-top:16px;border-radius:22px;overflow:hidden;position:relative;cursor:pointer;
+    box-shadow:0 12px 32px rgba(0,0,0,.4)}
+  .piano .img{height:170px;position:relative;background:linear-gradient(150deg,#2c4a24,#121f10)}
+  .piano .img i{position:absolute;inset:0;display:grid;place-items:center;font-size:52px;font-style:normal}
+  .piano .grad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 25%,rgba(6,7,11,.92))}
+  .piano .info{position:absolute;left:16px;right:16px;bottom:13px}
+  .piano .when{font-size:10.5px;font-weight:800;letter-spacing:1px;color:var(--accent)}
+  .piano .pt{font-size:17.5px;font-weight:750;letter-spacing:-.01em;margin-top:3px}
+  .piano .ck-btn{margin-top:9px;display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);
+    backdrop-filter:blur(6px);border-radius:999px;padding:8px 14px;font:650 12.5px Inter}
+  .strip{display:flex;align-items:center;gap:0;margin:14px 2px 0}
+  .dot{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;cursor:pointer}
+  .dot .o{width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.25)}
+  .dot.done .o{background:var(--green);border-color:var(--green)}
+  .dot.now .o{border-color:var(--accent);box-shadow:0 0 0 4px rgba(255,184,77,.16)}
+  .dot small{font-size:10px;color:var(--text3);font-weight:600}
+  .dot.now small{color:var(--accent)}
+  .strip-line{flex:1;height:1.5px;background:rgba(255,255,255,.12);margin-bottom:17px;min-width:10px}
+
+  /* ---- pastiglia spesa + foglio ---- */
+  .pill{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;z-index:5;
+    background:var(--card);border-radius:999px;padding:12px 20px;display:flex;align-items:center;gap:9px;
+    font:700 13.5px Inter;cursor:pointer;box-shadow:0 14px 36px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.09)}
+  .pill b{color:var(--accent)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:8;background:#141824;
+    border-radius:28px 28px 0 0;padding:14px 20px 30px;box-shadow:0 -20px 60px rgba(0,0,0,.6);
+    transform:translateY(105%);transition:transform .45s cubic-bezier(.32,.72,.25,1)}
+  .sheet.up{transform:none}
+  .sheet .grip{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.2);margin:0 auto 14px}
+  .sheet h3{font-size:17px;font-weight:800;letter-spacing:-.01em}
+  .sheet .src{font-size:11px;color:var(--text3);margin-top:2px}
+  .sp-it{display:flex;align-items:center;gap:11px;padding:9px 0;font-size:14.5px}
+  .sp-it .ck{width:22px;height:22px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);flex:none}
+  .sp-it.done .ck{background:var(--green);border-color:var(--green)}
+  .sp-it.done{color:var(--text3);text-decoration:line-through}
+  .sp-it .from{margin-left:auto;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px}
+  .sp-it .from.p{background:rgba(87,217,124,.13);color:var(--green)}
+  .sp-it .from.r{background:rgba(255,184,77,.13);color:var(--accent)}
+  .sheet .amz2{width:100%;min-height:46px;border-radius:14px;border:1px solid rgba(255,255,255,.1);
+    background:var(--inset);color:var(--text);font:650 13px Inter;cursor:pointer;margin-top:12px}
+
+  .toast{position:absolute;left:16px;right:16px;bottom:20px;background:var(--card);border-radius:14px;
+    padding:12px 15px;display:flex;align-items:center;gap:10px;font-size:13px;
+    box-shadow:0 14px 40px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.07);
+    opacity:0;transform:translateY(14px);transition:all .4s cubic-bezier(.22,.61,.36,1);max-width:358px;margin:0 auto}
+  .toast.in{opacity:1;transform:none}
+  .cap{font-size:12px;color:var(--text3);max-width:400px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+  <div class="tabs">
+    <button id="t0" class="on" onclick="go(0)">1 · Cucina</button>
+    <button id="t1" onclick="go(1)">2 · Risultati</button>
+    <button id="t2" onclick="go(2)">3 · Ricetta (V2)</button>
+  </div>
+
+  <div class="phone">
+
+    <!-- ===== 1 · HOME CUCINA ===== -->
+    <div class="scr" id="s0">
+      <div class="eyebrow">Cucina</div>
+
+      <!-- ① IL PIANO: hero del prossimo pasto + striscia della giornata -->
+      <div class="piano">
+        <div class="img"><i>🍚</i><div class="grad"></div>
+          <div class="info">
+            <div class="when">TRA 20 MINUTI · PRANZO · DAL TUO PIANO</div>
+            <div class="pt">Riso, pollo e zucchine</div>
+            <div class="ck-btn">▶ Cucina con me</div>
+          </div>
+        </div>
+      </div>
+      <div class="strip">
+        <span class="dot done"><span class="o"></span><small>8:00</small></span>
+        <span class="strip-line"></span>
+        <span class="dot now"><span class="o"></span><small>13:00</small></span>
+        <span class="strip-line"></span>
+        <span class="dot"><span class="o"></span><small>16:30</small></span>
+        <span class="strip-line"></span>
+        <span class="dot"><span class="o"></span><small>20:00</small></span>
+      </div>
+
+      <!-- ② LA DOMANDA -->
+      <div class="big" style="font-size:21px;margin-top:26px">Cosa mangiamo?</div>
+
+      <div class="ask">
+        <input value="serata tra amici per la partita" readonly>
+        <button class="go">→</button>
+      </div>
+      <div class="chips">
+        <span class="chip on">Virale</span><span class="chip">Fit</span>
+        <span class="chip on">Easy</span><span class="chip">Veloce</span><span class="chip">Veg</span>
+      </div>
+      <div class="hint">💡 Keiko capisce la situazione: qui cercherà <b>panini, stuzzichini e cose da stadio</b> — non «serata amici».</div>
+
+      <div class="sect"><h2>Il tuo ricettario</h2><span>12 · vedi tutte</span></div>
+      <div class="shelf">
+        <div class="r-mini">
+          <div class="ph"><i>🍗</i><span class="fatte">fatta 3×</span>
+            <span class="pf"><svg width="14" height="14" viewBox="0 0 24 24"><path fill="#fff" d="M9.5 8.5v7l6-3.5z"/><rect x="2" y="5" width="20" height="14" rx="4" fill="none" stroke="#FF0033" stroke-width="2.4"/></svg></span>
+          </div>
+          <div class="t">Pollo alla cacciatora tenerissimo</div><div class="a">Franceska Chef</div>
+        </div>
+        <div class="r-mini">
+          <div class="ph" style="background:linear-gradient(150deg,#24303f,#131a22)"><i>🍝</i>
+            <span class="pf"><svg width="13" height="13" viewBox="0 0 24 24"><path fill="#fff" d="M16.6 5.8c-1-.7-1.7-1.9-1.8-3.3h-3v13.1a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .8.1V9.9a5.9 5.9 0 1 0 5 5.8V9.4c1.1.8 2.5 1.3 4 1.3v-3c-.9 0-1.7-.3-2.3-.9z"/></svg></span>
+          </div>
+          <div class="t">Carbonara cremosa senza panna</div><div class="a">MoltoFood</div>
+        </div>
+        <div class="r-mini">
+          <div class="ph" style="background:linear-gradient(150deg,#3f2430,#221318)"><i>🥗</i>
+            <span class="pf"><svg width="13" height="13" viewBox="0 0 24 24"><path fill="#fff" d="M16.6 5.8c-1-.7-1.7-1.9-1.8-3.3h-3v13.1a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .8.1V9.9a5.9 5.9 0 1 0 5 5.8V9.4c1.1.8 2.5 1.3 4 1.3v-3c-.9 0-1.7-.3-2.3-.9z"/></svg></span>
+          </div>
+          <div class="t">Bowl estiva 10 minuti</div><div class="a">TiMangio</div>
+        </div>
+      </div>
+
+      <div class="sect"><h2>Da rifare</h2></div>
+      <div class="q-echo">🍗 È un mese che non fai il <b>pollo alla cacciatora</b> — e l'hai fatto 3 volte. Stasera?</div>
+    </div>
+
+    <!-- ===== 2 · RISULTATI ===== -->
+    <div class="scr hidden" id="s1">
+      <div class="backrow"><button class="bk" onclick="go(0)">‹</button>
+        <div><div class="eyebrow">Trovate · 6</div></div>
+      </div>
+      <div class="q-echo">Hai chiesto <b>«serata tra amici per la partita»</b> → cerco: <b>panini sfiziosi · stuzzichini · finger food</b></div>
+
+      <div class="res" onclick="go(2)">
+        <div class="img"><i>🥪</i><div class="grad"></div>
+          <button class="save" id="sv1" onclick="event.stopPropagation();salva(this)">＋ Salva</button>
+          <div class="info">
+            <div class="rt">Panini per la partita: 3 idee che spaccano</div>
+            <div class="ra"><span class="pf2"><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#fff" d="M16.6 5.8c-1-.7-1.7-1.9-1.8-3.3h-3v13.1a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .8.1V9.9a5.9 5.9 0 1 0 5 5.8V9.4c1.1.8 2.5 1.3 4 1.3v-3c-.9 0-1.7-.3-2.3-.9z"/></svg></span> MoltoFood · TikTok</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="res">
+        <div class="img" style="background:linear-gradient(150deg,#24303f,#131a22)"><i>🌮</i><div class="grad"></div>
+          <button class="save" onclick="event.stopPropagation();salva(this)">＋ Salva</button>
+          <div class="info">
+            <div class="rt">Nachos al forno in 15 minuti</div>
+            <div class="ra"><span class="pf2"><svg width="13" height="13" viewBox="0 0 24 24"><path fill="#fff" d="M9.5 8.5v7l6-3.5z"/><rect x="2" y="5" width="20" height="14" rx="4" fill="none" stroke="#FF0033" stroke-width="2.4"/></svg></span> Fatto in Casa da Benedetta · YouTube</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="res">
+        <div class="img" style="background:linear-gradient(150deg,#3f3524,#1f1a12)"><i>🍟</i><div class="grad"></div>
+          <button class="save" onclick="event.stopPropagation();salva(this)">＋ Salva</button>
+          <div class="info">
+            <div class="rt">Patatine croccanti come al pub</div>
+            <div class="ra"><span class="pf2"><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#fff" d="M16.6 5.8c-1-.7-1.7-1.9-1.8-3.3h-3v13.1a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .8.1V9.9a5.9 5.9 0 1 0 5 5.8V9.4c1.1.8 2.5 1.3 4 1.3v-3c-.9 0-1.7-.3-2.3-.9z"/></svg></span> DovealSud · TikTok</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 3 · RICETTA (V2) ===== -->
+    <div class="scr hidden" id="s2">
+      <div class="hero"><i>🥪</i><div class="grad"></div>
+        <button class="bk2" onclick="go(1)">‹</button>
+        <div class="who"><span class="pf2"><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#fff" d="M16.6 5.8c-1-.7-1.7-1.9-1.8-3.3h-3v13.1a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .8.1V9.9a5.9 5.9 0 1 0 5 5.8V9.4c1.1.8 2.5 1.3 4 1.3v-3c-.9 0-1.7-.3-2.3-.9z"/></svg></span> MoltoFood · guarda il video originale →</div>
+      </div>
+      <div class="rtitle">Panini per la partita:<br>3 idee che spaccano</div>
+      <div class="meta"><span>⏱ 20 min</span><span>🍽 4 persone</span><span>👌 facile</span></div>
+
+      <div class="ingr">
+        <h3>Ingredienti · tocca quello che hai già</h3>
+        <div class="ing done" onclick="this.classList.toggle('done')"><span class="ck"></span>Pane ciabatta<b>4</b></div>
+        <div class="ing" onclick="this.classList.toggle('done')"><span class="ck"></span>Porchetta<b>300 g</b></div>
+        <div class="ing" onclick="this.classList.toggle('done')"><span class="ck"></span>Provola affumicata<b>200 g</b></div>
+        <div class="ing" onclick="this.classList.toggle('done')"><span class="ck"></span>Friarielli<b>1 barattolo</b></div>
+        <div class="spesa">
+          <button class="lst">🛒 In lista spesa (3)</button>
+          <button class="amz">Amazon Fresh ↗</button>
+        </div>
+      </div>
+
+      <div class="steps">
+        <h3>Come si fa · dalla descrizione del video</h3>
+        <div class="step"><span class="n">1</span>Taglia la ciabatta e scaldala 3 minuti in forno a 200°.</div>
+        <div class="step"><span class="n">2</span>Salta i friarielli in padella con aglio e olio.</div>
+        <div class="step"><span class="n">3</span>Componi: porchetta, provola, friarielli. Torna in forno 4 minuti.</div>
+      </div>
+
+      <div class="cook"><button>▶ Cucina con me — passo per passo</button>
+        <div class="legal">Ricetta estratta dalla descrizione del creator, non modificata.<br>Keiko non dà consigli nutrizionali.</div>
+      </div>
+    </div>
+
+    <!-- pastiglia spesa (solo sulla home) + foglio -->
+    <div class="pill" id="pill" onclick="document.getElementById('spesa').classList.add('up')">🛒 Spesa · <b>6</b></div>
+    <div class="sheet" id="spesa">
+      <div class="grip" onclick="this.parentElement.classList.remove('up')"></div>
+      <h3>La spesa</h3>
+      <div class="src">Dal piano della settimana e dalle tue ricette</div>
+      <div style="margin-top:12px">
+        <div class="sp-it" onclick="this.classList.toggle('done')"><span class="ck"></span>Pollo<b style="margin-left:6px;color:var(--text2);font-weight:600">600 g</b><span class="from p">piano</span></div>
+        <div class="sp-it" onclick="this.classList.toggle('done')"><span class="ck"></span>Zucchine<span class="from p">piano</span></div>
+        <div class="sp-it done" onclick="this.classList.toggle('done')"><span class="ck"></span>Riso basmati<span class="from p">piano</span></div>
+        <div class="sp-it" onclick="this.classList.toggle('done')"><span class="ck"></span>Porchetta<span class="from r">ricetta</span></div>
+        <div class="sp-it" onclick="this.classList.toggle('done')"><span class="ck"></span>Provola affumicata<span class="from r">ricetta</span></div>
+        <div class="sp-it" onclick="this.classList.toggle('done')"><span class="ck"></span>Friarielli<span class="from r">ricetta</span></div>
+      </div>
+      <button class="amz2">Cerca su Amazon Fresh ↗</button>
+    </div>
+
+    <div class="toast" id="toast"><span style="color:var(--green)">✓</span><span>Nel ricettario</span></div>
+  </div>
+
+  <p class="cap">La pagina intera: ① il piano (hero del prossimo pasto + striscia della giornata — chi non ha
+  un piano non vede questa zona) · ② la domanda con l'interprete · ③ il ricettario. La 🛒 pastiglia apre la
+  spesa unificata (piano + ricette, con l'etichetta di provenienza). Tocca le card per navigare; il «Salva»
+  diventa spunta, niente barre lunghe.</p>
+
+<script>
+  function go(n){
+    for(let i=0;i<3;i++){
+      document.getElementById('s'+i).classList.toggle('hidden', i!==n);
+      document.getElementById('t'+i).classList.toggle('on', i===n);
+    }
+    document.getElementById('pill').style.display = n===0 ? 'flex' : 'none';
+    document.getElementById('spesa').classList.remove('up');
+  }
+  function salva(btn){
+    btn.textContent='✓ Salvata'; btn.classList.add('done');
+    const t=document.getElementById('toast');
+    t.classList.add('in'); setTimeout(()=>t.classList.remove('in'), 1800);
+  }
+</script>
+</body>
+</html>
