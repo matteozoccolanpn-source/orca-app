@@ -1,7 +1,7 @@
 # KEIKO — documento unico di progetto
 
 > Questo è il documento da tenere agganciato al progetto Claude.
-> Aggiornato il 6 agosto 2026. Se leggi questo file all'inizio di una chat,
+> Aggiornato il 7 agosto 2026. Se leggi questo file all'inizio di una chat,
 > **hai già tutto il contesto: non chiedere a Matteo di rispiegarti il progetto.**
 > Apri parlando di cosa si fa oggi, partendo da §5.
 
@@ -116,7 +116,31 @@ Repo: `orca-app`. Si lavora con Claude Code.
 - Fix: il messaggio del tetto («Per oggi mi fermo qui 🌙») ora arriva all'utente;
   prima il client lo appiattiva su «Qualcosa non torna, riprova».
 
+**Fatto il 6-7 agosto:**
+- **Cattura multi-evento** (idee 19+24): «volo venerdì e hotel sabato» crea due
+  eventi; riprovare non crea doppioni («era già in agenda», mai rosso).
+- **Cattura rivestita**: quello che scrivi resta a schermo, card scheletro che
+  si compila, filo di progresso, foglio che si chiude subito + toast. Mock di
+  riferimento: `docs/mockups/cattura-attesa-mock.html`.
+- **I BATTITI** (spec: `docs/SPEC-BATTITI.md`): un evento torna prima (formazioni,
+  playlist) e dopo (highlights, «rivivi»). Motore unico + tabella; card in home
+  con foto (Deezer per gli artisti, match severo sul nome); notifiche nei tempi
+  morti (13/19, max 1/giorno, silenzio 23-7, interruttore nel profilo). Regola
+  d'ingresso: NIENTE AZIONE, NIENTE BATTITO. Ponte cinema→Guarda: il giorno dopo
+  il film si vota in Guarda (tipo `cinema` nuovo nel parser).
+- **CUCINA V1** (spec: `docs/SPEC-CUCINA.md`): sezione nuova `/cucina` — «pollo e
+  patate» + chip → ricette vere TikTok/YouTube con miniature (oEmbed), salva nel
+  ricettario (tabella `recipes`, RLS). Ricerca via **Tavily** (1.000/mese gratis,
+  cache 7gg per query) — ⚠️ Google Custom Search è CHIUSA ai nuovi clienti, non
+  riprovarci. Zero AI: il tetto non si tocca. V2 (estrazione ricetta + cook mode)
+  nella spec.
+- Storia del 7 agosto da non ripetere: Claude Code ha cancellato 4 biglietti veri
+  con una DELETE a pattern → ricreati, e ora AGENTS.md ha la regola ferrea sui
+  dati di prova (prefisso PROVA-, cancellazione solo per id).
+
 **Aperto:**
+- **Ripensare la sezione dieta da capo** — deciso da Matteo il 7 agosto (vedi
+  nota in SPEC-CUCINA): ora che Cucina esiste, la vista dieta attuale va rifatta.
 - **Mandare il link ai primi due amici.** La parte tecnica è finita. Restano:
   chiedere che iPhone hanno (serve iOS 16.4+) e mandare il messaggio già scritto
   in `docs/PRIMA-DEGLI-AMICI.md`.
