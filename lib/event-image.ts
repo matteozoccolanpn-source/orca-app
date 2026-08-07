@@ -94,7 +94,30 @@ export type EventoPerFoto = {
 
 /** La foto dell'artista, da Deezer. null se non c'è (e il null si ricorda).
  *  Non lancia mai e non fa aspettare: 1,5 secondi e poi si passa oltre. */
-async function fotoArtista(nome: string, evento: EventoPerFoto): Promise<string | null> {
+/** Confronto dei nomi senza fronzoli: minuscole, niente accenti, niente
+ *  punteggiatura. "ULTIMO" = "Ultimo"; "Ultimo Impero" resta un'altra cosa. */
+function stessoNome(a: string, b: string): boolean {
+  const pulisci = (x: string) =>
+    (x ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+  const x = pulisci(a);
+  return x.length > 0 && x === pulisci(b);
+}
+
+/** La foto dell'artista, da Deezer. null se non c'è (e il null si ricorda).
+ *  Non lancia mai e non fa aspettare: 1,5 secondi e poi si passa oltre.
+ *
+ *  COME SI SCEGLIE, e perché così. Non basta prendere il primo risultato:
+ *  cercando "Ultimo" Deezer restituisce QUATTRO artisti con quel nome esatto, e
+ *  il primo ha 25 fan mentre il cantante vero ne ha 119.000. Quindi due filtri,
+ *  in quest'ordine:
+ *    1. il nome deve COINCIDERE (niente "Ultimo Impero" al posto di "Ultimo");
+ *    2. fra gli omonimi vince chi ha più ascoltatori.
+ *  Se nessuno passa il primo filtro non si prende niente: meglio la foto del
+ *  luogo che la faccia di uno sconosciuto. */
+async function fotoArtista(
+  nome: string,
+  evento: EventoPerFoto
+): Promise<string | null> {
   // Già cercata una volta: si riusa l'esito, qualunque fosse.
   const ricordata = evento.enrichment?.artistPhoto;
   if (ricordata) return ricordata.url;
@@ -103,20 +126,29 @@ async function fotoArtista(nome: string, evento: EventoPerFoto): Promise<string 
   if (!q) return null;
 
   let url: string | null = null;
+  let scelto: { name?: string; nb_fan?: number } | null = null;
   try {
     // Una riga per chiamata: se un giorno ne compaiono tante uguali, vuol dire
     // che qualcuno ha rotto la cache e ce ne accorgiamo dai log.
     console.log(JSON.stringify({ tag: "deezer.artist", q }));
-    const taglia = AbortSignal.timeout(1500);
-    const res = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(q)}&limit=1`, {
-      signal: taglia,
+    const res = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(q)}&limit=5`, {
+      signal: AbortSignal.timeout(1500),
       cache: "no-store",
     });
     if (res.ok) {
       const d = await res.json();
-      const primo = (d?.data ?? [])[0] as { picture_xl?: string; picture_big?: string } | undefined;
-      const trovata = primo?.picture_xl || primo?.picture_big || null;
-      url = typeof trovata === "string" && trovata.startsWith("http") ? trovata : null;
+      const candidati = ((d?.data ?? []) as { name?: string; nb_fan?: number; picture_xl?: string; picture_big?: string }[])
+        .filter((a) => stessoNome(a.name ?? "", q))
+        .sort((a, b) => (b.nb_fan ?? 0) - (a.nb_fan ?? 0));
+      const vincitore = candidati[0];
+      const foto = vincitore?.picture_xl || vincitore?.picture_big || null;
+      if (typeof foto === "string" && foto.startsWith("http")) {
+        url = foto;
+        scelto = vincitore;
+      }
+      if (!vincitore) {
+        console.log(JSON.stringify({ tag: "deezer.artist.scartato", q, motivo: "nessun nome coincidente" }));
+      }
     }
   } catch (e) {
     // Timeout o rete: si salva "non trovato" e si riproverà solo se un giorno
@@ -125,7 +157,9 @@ async function fotoArtista(nome: string, evento: EventoPerFoto): Promise<string 
   }
 
   // Si salva SEMPRE, anche il null: è quello che ferma le chiamate ripetute.
-  await saveArtistPhoto(evento.id, url);
+  // Col nome e i fan di chi abbiamo preso: è la ricevuta che rende una foto
+  // sbagliata riconoscibile senza doverla guardare.
+  await saveArtistPhoto(evento.id, url, { name: scelto?.name ?? null, fans: scelto?.nb_fan ?? null });
   return url;
 }
 
