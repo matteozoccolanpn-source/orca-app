@@ -25,7 +25,7 @@ export default function KeikoShell({
   title, badge, backHref = "/", active, children,
 }: {
   title: string;
-  badge?: string;
+  badge?: React.ReactNode;   // testo, oppure un comando (es. il link al Ricettario)
   backHref?: string;
   active?: Tab;
   children: React.ReactNode;

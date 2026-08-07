@@ -47,6 +47,15 @@ verificato, e in attesa.
 - DPIA formale, eventuale DPO, assicurazione E&O, marchio UE
 - Obblighi di trasparenza AI Act art. 50, Codice del Consumo (recesso 14 giorni), EAA
 
+**Affiliazione sui link** *(aggiunto il 7 agosto 2026)*
+- Keiko genera link in uscita (Booking/hotel, biglietti, Amazon per gli
+  ingredienti del ricettario): tecnicamente basta un parametro di affiliazione.
+- Chi NON paga: Spotify, YouTube, TikTok, JustWatch — cioè i link più frequenti.
+- Con ~5 utenti rende centesimi al mese; richiede disclosure agli utenti; e
+  incrina la bussola («link diretto» funziona perché è nell'interesse di chi
+  usa, non di chi guadagna sul click).
+- Si riapre con lo stesso criterio di tutto il resto: attivi a 30 giorni, novembre.
+
 **Soglie e criteri di kill**
 - Le 13 soglie decisionali con date (report, capitolo 12)
 - D30 ≥30% · ≥25 paganti non-amici · churn ≤10% · ecc.

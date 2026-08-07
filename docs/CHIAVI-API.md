@@ -12,6 +12,7 @@
 | Spotify | foto artisti (concerti) | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | da prendere |
 | Google Places | foto luoghi reali (ristoranti/hotel/musei/città) | `GOOGLE_PLACES_API_KEY` | da prendere (serve fatturazione Google, gratis fino a soglia) |
 | Spoonacular | foto piatti (dieta) | `SPOONACULAR_KEY` | da prendere |
+| Tavily | ricerca ricette (Cucina) | `TAVILY_API_KEY` | da prendere (gratis, 1.000/mese) |
 | TheSportsDB | stemmi/foto sport | `THESPORTSDB_KEY` | opzionale (funziona con chiave di test "3") |
 | Open-Meteo | meteo sugli eventi | — | ❌ nessuna chiave |
 | wger | immagini esercizi | — | ❌ nessuna chiave |
@@ -53,3 +54,41 @@ Nessuna chiave. Funzionano appena fai il deploy.
 - **Ottimi/costanti**: TMDB (film), Spotify (artisti), Google Places (luoghi), meteo.
 - **A tratti** (nomi in italiano vs database inglesi): Spoonacular (piatti), wger
   (esercizi), TheSportsDB. Dove non trovano, resta il gradiente pulito (mai brutto).
+
+## TAVILY_API_KEY — la ricerca delle ricette (Cucina)
+
+A cosa serve: la sezione Cucina cerca video di ricette su TikTok e YouTube.
+Nessuna AI e nessun costo: e' una ricerca, non un giudizio
+(docs/SPEC-CUCINA.md).
+
+Come si prende, in tre passi:
+
+1. **L'account** — vai su **app.tavily.com** e registrati (basta una mail, non
+   chiede la carta).
+2. **La chiave** — appena dentro, la dashboard mostra le tue API key. Copiane
+   una: comincia per `tvly-`.
+3. **Mettila a posto** — in locale nel `.env.local` come `TAVILY_API_KEY=tvly-...`,
+   su Vercel fra le Environment Variables (tutti e tre gli ambienti). Nessun
+   riavvio da fare a mano: al primo deploy c'e'.
+
+Quota: **1.000 crediti gratis al mese**, e una ricerca "basic" come la nostra ne
+vale 1. Ogni ricerca viene messa in cache 7 giorni: la stessa domanda non
+consuma due volte.
+
+Se manca: la pagina /cucina resta intera e dice che la ricerca arriva presto.
+Il ricettario gia' salvato continua a funzionare.
+
+**BRAVE_SEARCH_KEY** — ripiego. Brave ha tolto il piano gratuito ad agosto 2026,
+quindi di norma questa resta vuota. Il codice la supporta ancora e la usa se
+Tavily manca: se un giorno tornasse conveniente, basta valorizzarla.
+
+### Perche' non piu' Google Custom Search (7 agosto 2026)
+
+`GOOGLE_CSE_KEY` e `GOOGLE_CSE_CX` **non esistono piu'**. Google ha chiuso la
+Custom Search JSON API ai nuovi clienti — sulla pagina developers c'e' scritto
+"not available for new customers" — e da lì i 403 a raffica di quella mattina.
+Se le trovi ancora nel tuo `.env.local` o su Vercel, cancellale: il codice non
+le guarda piu'.
+
+Le anteprime dei video (miniatura, titolo, autore) NON richiedono chiavi:
+arrivano dagli oEmbed pubblici di TikTok e YouTube.

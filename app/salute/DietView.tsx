@@ -56,7 +56,19 @@ export default function DietView({
   heroImage?: string | null;
 }) {
   return (
-    <KeikoShell title="Dieta" backHref="/" active="dieta">
+    <KeikoShell
+      title="Dieta"
+      backHref="/"
+      active="dieta"
+      /* L'unico ponte verso Cucina, che è una sezione a sé (docs/SPEC-CUCINA.md):
+         un comando nell'intestazione. Nel corpo della dieta non entra niente —
+         né ricette né suggerimenti: solo la porta. */
+      badge={
+        <a href="/cucina" style={{ color: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, minHeight: 34, padding: "0 4px" }}>
+          🍳 Ricettario
+        </a>
+      }
+    >
       <DietBody week={week} updatedAt={updatedAt} heroImage={heroImage} />
     </KeikoShell>
   );

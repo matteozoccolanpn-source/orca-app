@@ -15,8 +15,12 @@ export interface EventEnrichment {
   /** Foto dell'artista (Deezer), cercata UNA volta nella vita dell'evento.
    *  `url: null` NON è un buco: è la memoria del "non trovato", ed è ciò che
    *  impedisce di richiamare Deezer all'infinito per un artista che non esiste.
-   *  È la lezione imparata con placePhoto. */
-  artistPhoto?: { url: string | null; checked_at: string } | null;
+   *  È la lezione imparata con placePhoto.
+   *
+   *  `name` e `fans` sono la RICEVUTA: dicono CHI abbiamo preso. Senza, una foto
+   *  sbagliata non è verificabile — è successo davvero, con un omonimo da 25
+   *  fan al posto del cantante da 119.000. */
+  artistPhoto?: { url: string | null; name?: string | null; fans?: number | null; checked_at: string } | null;
   /** Foto del luogo (Google Places), risolta UNA volta e poi riusata.
    *  `name` null = cercata e non trovata: si ricorda anche quello, altrimenti
    *  gli eventi senza foto ripagherebbero la ricerca a ogni apertura. */
@@ -1163,12 +1167,19 @@ export async function saveBeatsPush(acceso: boolean): Promise<void> {
 
 /** Salva l'esito della ricerca della foto artista — anche quando è "niente".
  *  Stessa fusione di savePlacePhotoName: il resto di enrichment non si tocca. */
-export async function saveArtistPhoto(id: string, url: string | null): Promise<void> {
+export async function saveArtistPhoto(
+  id: string,
+  url: string | null,
+  chi?: { name?: string | null; fans?: number | null }
+): Promise<void> {
   try {
     const client = await db();
     const { data } = await client.from("tickets").select("enrichment").eq("id", id).maybeSingle();
     const attuale = (data?.enrichment as EventEnrichment | null) ?? null;
-    const nuovo = { ...(attuale ?? {}), artistPhoto: { url, checked_at: new Date().toISOString() } };
+    const nuovo = {
+      ...(attuale ?? {}),
+      artistPhoto: { url, name: chi?.name ?? null, fans: chi?.fans ?? null, checked_at: new Date().toISOString() },
+    };
     const { error } = await client.from("tickets").update({ enrichment: nuovo }).eq("id", id);
     if (error) console.warn("[deezer] foto artista non salvata:", error.message);
   } catch (e) {
@@ -1212,6 +1223,92 @@ export async function savePlacePhotoName(id: string, name: string | null): Promi
   } catch (e) {
     console.warn("[places] nome foto non salvato:", e);
   }
+}
+
+// ── CUCINA (docs/SPEC-CUCINA.md) ───────────────────────────────────────────
+// Il ricettario: solo LINK a video che stanno su TikTok/YouTube, col titolo e
+// la miniatura che l'oEmbed pubblico restituisce. Niente contenuto copiato.
+
+export interface Recipe {
+  id: string;
+  title: string;
+  url: string;
+  thumbnail: string | null;
+  author: string | null;
+  platform: string;
+  createdAt: string;
+}
+
+/** Le ricette salvate, le più recenti in alto. [] se la tabella non c'è ancora:
+ *  la pagina deve funzionare anche prima che la SQL sia stata eseguita. */
+export async function getRecipes(): Promise<Recipe[]> {
+  try {
+    const { data, error } = await (await db())
+      .from("recipes")
+      .select("id, title, url, thumbnail, author, platform, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      console.warn("[cucina] lettura ricettario fallita (hai eseguito docs/sql/cucina.sql?):", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => ({
+      id: r.id as string,
+      title: (r.title as string) ?? "",
+      url: (r.url as string) ?? "",
+      thumbnail: (r.thumbnail as string) ?? null,
+      author: (r.author as string) ?? null,
+      platform: (r.platform as string) ?? "web",
+      createdAt: (r.created_at as string) ?? "",
+    }));
+  } catch (e) {
+    console.warn("[cucina] lettura ricettario fallita:", e);
+    return [];
+  }
+}
+
+/** Salva una ricetta. Se c'è già (stesso link) non la duplica: la restituisce. */
+export async function saveRecipe(r: {
+  title: string;
+  url: string;
+  thumbnail?: string | null;
+  author?: string | null;
+  platform?: string | null;
+}): Promise<Recipe> {
+  const riga = {
+    user_id: await currentUserId(),
+    title: r.title.trim().slice(0, 300),
+    url: r.url.trim(),
+    thumbnail: r.thumbnail ?? null,
+    author: r.author ?? null,
+    platform: r.platform ?? "web",
+  };
+  const { data, error } = await (await db())
+    .from("recipes")
+    .upsert(riga, { onConflict: "user_id,url" })
+    .select("id, title, url, thumbnail, author, platform, created_at")
+    .single();
+  if (error) throw new Error(error.message);
+  const d = data as Record<string, unknown>;
+  return {
+    id: d.id as string,
+    title: d.title as string,
+    url: d.url as string,
+    thumbnail: (d.thumbnail as string) ?? null,
+    author: (d.author as string) ?? null,
+    platform: (d.platform as string) ?? "web",
+    createdAt: (d.created_at as string) ?? "",
+  };
+}
+
+/** Toglie una ricetta dal ricettario. La RLS fa sì che si possa togliere solo
+ *  la propria — ma se la riga non è tua la DELETE non fallisce: semplicemente
+ *  non tocca niente. Senza guardare quante righe ha cancellato, l'app direbbe
+ *  "fatto" a chi non ha cancellato nulla. Quindi si guarda. */
+export async function deleteRecipe(id: string): Promise<boolean> {
+  const { data, error } = await (await db()).from("recipes").delete().eq("id", id).select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
 
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */
