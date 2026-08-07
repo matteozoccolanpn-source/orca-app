@@ -17,6 +17,7 @@ import {
   Check,
   Trash2,
   X,
+  ChevronRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { DietWeek, DietMeal } from "@/lib/supabase";
@@ -56,19 +57,7 @@ export default function DietView({
   heroImage?: string | null;
 }) {
   return (
-    <KeikoShell
-      title="Dieta"
-      backHref="/"
-      active="dieta"
-      /* L'unico ponte verso Cucina, che è una sezione a sé (docs/SPEC-CUCINA.md):
-         un comando nell'intestazione. Nel corpo della dieta non entra niente —
-         né ricette né suggerimenti: solo la porta. */
-      badge={
-        <a href="/cucina" style={{ color: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, minHeight: 34, padding: "0 4px" }}>
-          🍳 Ricettario
-        </a>
-      }
-    >
+    <KeikoShell title="Dieta" backHref="/" active="dieta">
       <DietBody week={week} updatedAt={updatedAt} heroImage={heroImage} />
     </KeikoShell>
   );
@@ -165,6 +154,9 @@ function DietBody({ week, updatedAt, heroImage = null }: { week: DietWeek | null
         </div>
       </div>
 
+      {/* ---------- IL PONTE VERSO CUCINA ---------- */}
+      <CucinaCard />
+
       {/* ---------- UPLOAD (aperto da "Carica settimana", o sempre se manca la dieta) ---------- */}
       {(uploadOpen || !hasDiet) && (
         <UploadPanel
@@ -226,6 +218,44 @@ function DietBody({ week, updatedAt, heroImage = null }: { week: DietWeek | null
         </>
       )}
     </>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * L'unico ponte verso Cucina, che resta una sezione a sé
+ * (docs/SPEC-CUCINA.md). Era un comando nell'intestazione: da iPhone
+ * finiva sotto l'orologio, dove non si tocca. Ora è una card come le
+ * altre — trio fill + bordo + ombra (docs/UI-REGOLE-BASE §1) — e il
+ * bersaglio è tutta la riga, non un'icona.
+ *
+ * Il paletto resta: qui c'è una PORTA, non ricette né suggerimenti. La
+ * dieta non parla con Cucina.
+ * ------------------------------------------------------------------ */
+function CucinaCard() {
+  return (
+    <a
+      href="/cucina"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        minHeight: 64,
+        padding: "0 14px",
+        marginTop: 12,
+        background: "var(--card)",
+        border: "1px solid var(--card-line)",
+        borderRadius: "var(--r-lg)",
+        boxShadow: "var(--shadow)",
+        textDecoration: "none",
+      }}
+    >
+      <span style={{ fontSize: 22, lineHeight: 1, flex: "none" }} aria-hidden="true">🍳</span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: "block", fontSize: "var(--fs-md)", fontWeight: 800, color: "var(--text)" }}>Ricettario</span>
+        <span style={{ display: "block", fontSize: "var(--fs-xs)", color: "var(--text-2)", marginTop: 2 }}>Cerca e salva le ricette</span>
+      </span>
+      <ChevronRight style={{ width: 18, height: 18, flex: "none", color: "var(--text-3)" }} />
+    </a>
   );
 }
 

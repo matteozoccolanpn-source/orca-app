@@ -405,7 +405,13 @@
   }
 .keiko .view.open {transform:none}
 .keiko .view::before {content:"";position:absolute;inset:0;background:var(--ambient);pointer-events:none}
-.keiko .viewHead {position:relative;display:flex;align-items:center;gap:10px;padding:18px 16px 10px}
+/* Il padding-top porta dentro env(safe-area-inset-top) perche' il layout e'
+   viewportFit:"cover" (app/layout.tsx): senza, il viewport parte dal bordo
+   FISICO dello schermo e i primi ~59px di un iPhone col notch stanno sotto
+   orologio e batteria. Ci finivano il tasto indietro, il titolo e il badge --
+   disegnati, ma intoccabili. Vale per ogni pagina che usa lo shell: si
+   sistema qui una volta sola, non pagina per pagina. */
+.keiko .viewHead {position:relative;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top, 0px) + 18px) 16px 10px}
 .keiko .viewHead .back {
     width:36px;height:36px;border-radius:50%;border:1px solid var(--card-line);background:var(--card);
     color:var(--text-2);font-size:16px;cursor:pointer;display:grid;place-items:center;
