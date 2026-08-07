@@ -45,4 +45,11 @@ next-env.d.ts
 # artefatti tool di verifica (screenshot MCP)
 .playwright-mcp/
 .claude/
-.claude/
+
+# il banco di lavoro: screenshot di verifica, prove, appunti. Serve a chi
+# lavora, non al repo.
+scratchpad/
+
+# il cestino di sessione: ci finisce quello che sta per sparire. Non deve mai
+# entrare nel repo, nemmeno per sbaglio.
+_to_delete/
