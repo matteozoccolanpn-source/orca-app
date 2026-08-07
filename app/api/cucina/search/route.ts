@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { auth } from '@/auth'
+import { currentUserId } from '@/lib/user'
+import { spendAi, claudeFetch, AiCapReached } from '@/lib/ai'
+import { bastaCosi, ripulisciTraduzione, type Interpretazione } from '@/lib/cucina'
 
 /* CUCINA — la ricerca (docs/SPEC-CUCINA.md, §2).
  *
- * ZERO AI: cercare ricette è una query, non un giudizio. Le anteprime arrivano
- * dagli oEmbed pubblici di TikTok e YouTube, che non chiedono chiavi.
- * `spendAi` non c'entra: questa rotta non tocca Claude né il tetto giornaliero.
+ * LA RICERCA È GRATIS, L'INTERPRETE QUASI. Cercare ricette resta una query e
+ * non un giudizio: Tavily costa 1 credito e le anteprime arrivano dagli oEmbed
+ * pubblici di TikTok e YouTube, che non chiedono chiavi.
+ * L'unica parte che tocca Claude è l'INTERPRETE, e solo quando la domanda
+ * descrive una situazione invece di un cibo: «pollo e patate» non lo sveglia
+ * nemmeno. Peso `interprete: 1`, cache 7 giorni, e se fallisce si cerca la
+ * frase così com'è. Il tetto giornaliero non si accorge di questa sezione.
  *
  * FORNITORI, in ordine: Tavily, poi Brave (se un giorno avrà una chiave).
  * Google Custom Search è sparito il 7 agosto 2026: Google l'ha chiuso ai nuovi
@@ -41,11 +48,16 @@ type Risultato = {
   autore: string | null
   piattaforma: 'tiktok' | 'youtube' | 'web'
   dominio: string
+  /* L'estratto di pagina che Tavily restituisce insieme al link. Non si mostra
+   * mai: serve all'estrazione della ricetta (V2), che lo unisce alla caption
+   * per avere qualcosa da leggere. Gratis — è già dentro la risposta che
+   * abbiamo pagato, e non chiederlo vorrebbe dire fare una seconda chiamata. */
+  contenuto: string | null
 }
 
 /** Quel poco che serve a valle: un titolo e un link. Ogni fornitore risponde
  *  con la sua forma, qui diventano una sola. */
-type Grezzo = { title?: string; url?: string }
+type Grezzo = { title?: string; url?: string; content?: string }
 
 function piattaformaDi(url: string): Risultato['piattaforma'] {
   const u = url.toLowerCase()
@@ -93,15 +105,18 @@ const cercaGrezzi = unstable_cache(
   async (fornitore: 'tavily' | 'brave', query: string): Promise<Grezzo[]> => {
     if (fornitore === 'tavily') {
       // POST https://api.tavily.com/search — Authorization: Bearer.
-      // max_results 8 per averne 6 buoni dopo gli scarti; `include_domains`
-      // fa il lavoro che prima facevano gli operatori `site:`.
+      // max_results 16 e non 6: UNA ricerca costa 1 credito che ne torni sei o
+      // sedici, quindi si prende tutto e si paga una volta. La pagina ne mostra
+      // sei per volta e "Mostrane altre" pesca dalle già pagate, senza
+      // ritoccare la rete. `include_domains` fa il lavoro che prima facevano
+      // gli operatori `site:`.
       const res = await fetch('https://api.tavily.com/search', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query, max_results: 8, include_domains: SITI }),
+        body: JSON.stringify({ query, max_results: 16, include_domains: SITI }),
         signal: AbortSignal.timeout(8000),
         cache: 'no-store',   // la cache è quella qui fuori, non due strati
       })
@@ -110,9 +125,10 @@ const cercaGrezzi = unstable_cache(
         throw new Error(`Tavily ha risposto ${res.status}: ${dettaglio}`)
       }
       const d = await res.json()
-      return ((d?.results ?? []) as { title?: string; url?: string }[]).map((r) => ({
+      return ((d?.results ?? []) as { title?: string; url?: string; content?: string }[]).map((r) => ({
         title: r.title,
         url: r.url,
+        content: r.content,
       }))
     }
 
@@ -135,6 +151,65 @@ const cercaGrezzi = unstable_cache(
   { revalidate: 604800 }   // 7 giorni
 )
 
+/* L'INTERPRETE (docs/SPEC-CUCINA.md §2, rivisto).
+ *
+ * «serata tra amici per la partita» non è una ricerca: è una situazione.
+ * Tavily cercherebbe quelle parole e tornerebbe con niente di commestibile.
+ * Una chiamata sola a Haiku, 80 token, nessuno strumento: frase → parole.
+ *
+ * Tre difese, perché questa è la SOLA parte a pagamento della ricerca:
+ *  1. l'euristica di `bastaCosi` la salta del tutto quando la domanda è già
+ *     fatta di cibo — «pollo e patate» non arriva mai qui;
+ *  2. la cache di 7 giorni: la stessa frase si traduce una volta;
+ *  3. `ripulisciTraduzione` butta le risposte assurde, e allora si cerca la
+ *     frase originale. Una ricerca meno furba, mai un errore in faccia.
+ *
+ * userId sta negli ARGOMENTI e non si legge dalla sessione: dentro una cache
+ * di Next i cookie non esistono. In cambio la cache è per persona — e il tetto
+ * giornaliero si addebita solo quando la chiamata avviene davvero, perché a
+ * cache piena questo corpo non gira proprio.
+ */
+const traduci = unstable_cache(
+  async (domanda: string, userId: string | null): Promise<string | null> => {
+    await spendAi('interprete', { userId, origine: 'utente' })
+    const res = await claudeFetch(
+      {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 80,
+        system:
+          "Sei il traduttore di Keiko fra una situazione e la cucina. Ricevi una frase che descrive un'occasione (\"serata tra amici per la partita\", \"cena romantica\", \"pranzo veloce in ufficio\") e rispondi SOLO con 3-5 parole italiane da mettere in un motore di ricerca di ricette: piatti o categorie di cibo, separate da spazi. Niente frasi, niente spiegazioni, niente punteggiatura, nessun a capo. Esempi: \"serata tra amici per la partita\" -> \"panini sfiziosi stuzzichini finger food\"; \"cena romantica\" -> \"primi piatti eleganti pesce\"; \"pranzo veloce ufficio\" -> \"insalate fredde bowl schiscetta\".",
+        messages: [{ role: 'user', content: domanda }],
+      },
+      { userId, origine: 'utente' },
+      { operazione: 'interprete', modello: 'claude-haiku-4-5-20251001' }
+    )
+    if (!res.ok) return null
+    const d = await res.json()
+    const testo = (d?.content ?? [])
+      .filter((b: { type?: string }) => b.type === 'text')
+      .map((b: { text?: string }) => b.text ?? '')
+      .join('')
+    return ripulisciTraduzione(testo, domanda)
+  },
+  ['cucina-interprete'],
+  { revalidate: 604800 }   // 7 giorni
+)
+
+/** Cosa si cerca davvero, e perché. Non lancia MAI: qualunque cosa vada storta
+ *  si ripiega sulla domanda così com'è. */
+async function interpreta(domanda: string, userId: string | null): Promise<Interpretazione> {
+  if (bastaCosi(domanda)) return { originale: domanda, cercato: domanda, viaAi: false }
+  try {
+    const tradotto = await traduci(domanda, userId)
+    if (!tradotto) return { originale: domanda, cercato: domanda, viaAi: false }
+    return { originale: domanda, cercato: tradotto, viaAi: true }
+  } catch (e) {
+    // Tetto giornaliero finito, o modello giù: la ricerca continua lo stesso.
+    if (!(e instanceof AiCapReached)) console.error('[cucina] interprete fallito:', e)
+    return { originale: domanda, cercato: domanda, viaAi: false }
+  }
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -147,9 +222,29 @@ export async function GET(req: NextRequest) {
 
   if (!q) return NextResponse.json({ risultati: [] })
 
-  // La domanda dell'utente + le chip + "ricetta". Il "dove cercare" NON sta
-  // qui: Tavily lo vuole come lista di domini, Brave come operatori.
-  const domanda = [q, ...stili.map((s) => CHIP[s]), 'ricetta'].join(' ')
+  /* LA FINESTRA. `da` è da quale risultato partire, e se ne mandano sempre 6.
+   * I sedici che Tavily ha dato stanno già in cache: scorrere non ricerca, e
+   * soprattutto NON risolve gli oEmbed di quelli che non si vedono — sei
+   * chiamate per volta, non sedici, e solo quando servono davvero. */
+  const PAGINA = 6
+  const da = Math.max(0, Math.min(60, Number(req.nextUrl.searchParams.get('da') ?? 0) || 0))
+  /* «Cerca ancora»: la stessa domanda, girata di poco. Cambia la chiave di
+   * cache, quindi è una ricerca nuova e un credito nuovo — l'unico punto di
+   * questa rotta in cui si spende di proposito. */
+  const ancora = req.nextUrl.searchParams.get('ancora') === '1'
+
+  // Prima si capisce COSA ha chiesto, poi si cerca. Le chip non passano di
+  // qui: sono già parole di ricerca scelte a mano, non c'è niente da tradurre.
+  const interpretazione = await interpreta(q, await currentUserId())
+
+  // Quel che ha capito + le chip + "ricetta". Il "dove cercare" NON sta qui:
+  // Tavily lo vuole come lista di domini, Brave come operatori.
+  const domanda = [
+    interpretazione.cercato,
+    ...stili.map((s) => CHIP[s]),
+    'ricetta',
+    ...(ancora ? ['idee alternative'] : []),
+  ].join(' ')
 
   const fornitore: 'tavily' | 'brave' | null = process.env.TAVILY_API_KEY
     ? 'tavily'
@@ -159,7 +254,7 @@ export async function GET(req: NextRequest) {
 
   // Senza nessuna chiave la sezione non si rompe: lo dice e basta, e il
   // ricettario salvato continua a funzionare (è la parte che conta di più).
-  if (!fornitore) return NextResponse.json({ risultati: [], senzaChiave: true })
+  if (!fornitore) return NextResponse.json({ risultati: [], senzaChiave: true, interpretazione })
 
   const query =
     fornitore === 'brave'
@@ -168,9 +263,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const crudi = await cercaGrezzi(fornitore, query)
-    const grezzi = crudi
-      .filter((r) => typeof r.url === 'string' && r.url.startsWith('http'))
-      .slice(0, 6)
+    const buoni = crudi.filter((r) => typeof r.url === 'string' && r.url.startsWith('http'))
+    const grezzi = buoni.slice(da, da + PAGINA)
 
     // Le anteprime in parallelo: sei chiamate pubbliche, nessuna chiave.
     const risultati: Risultato[] = await Promise.all(
@@ -185,13 +279,22 @@ export async function GET(req: NextRequest) {
           autore: ante?.autore ?? null,
           piattaforma,
           dominio: (() => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return '' } })(),
+          contenuto: typeof r.content === 'string' ? r.content.slice(0, 1200) : null,
         }
       })
     )
 
-    return NextResponse.json({ risultati })
+    return NextResponse.json({
+      risultati,
+      interpretazione,
+      da,
+      /* Ce ne sono altre già pagate da mostrare? Se no, la pagina passa da
+       * «Mostrane altre» a «Cerca ancora», che è un credito vero. */
+      altrePronte: buoni.length > da + PAGINA,
+      totale: buoni.length,
+    })
   } catch (e) {
     console.error('[cucina] ricerca fallita:', e)
-    return NextResponse.json({ risultati: [], errore: 'ricerca non disponibile' }, { status: 200 })
+    return NextResponse.json({ risultati: [], errore: 'ricerca non disponibile', interpretazione }, { status: 200 })
   }
 }

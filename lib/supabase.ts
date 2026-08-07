@@ -1229,6 +1229,19 @@ export async function savePlacePhotoName(id: string, name: string | null): Promi
 // Il ricettario: solo LINK a video che stanno su TikTok/YouTube, col titolo e
 // la miniatura che l'oEmbed pubblico restituisce. Niente contenuto copiato.
 
+/** La ricetta come l'ha scritta il creator, strutturata e basta.
+ *  REGOLA FERREA (docs/SPEC-CUCINA.md §4): qui dentro ci sta SOLO quello che
+ *  era scritto nella descrizione. Quantità assente = campo vuoto, mai dedotta.
+ *  `insufficiente` è una risposta legittima e frequente: vuol dire che la
+ *  ricetta sta nel video e il video si apre, punto. */
+export interface RicettaEstratta {
+  ingredienti?: { nome: string; quantita?: string }[];
+  passi?: string[];
+  tempo?: string | null;
+  porzioni?: string | null;
+  insufficiente?: boolean;
+}
+
 export interface Recipe {
   id: string;
   title: string;
@@ -1237,34 +1250,63 @@ export interface Recipe {
   author: string | null;
   platform: string;
   createdAt: string;
+  /** null = mai estratta. Una volta estratta non si ripaga più. */
+  extracted: RicettaEstratta | null;
+  timesCooked: number;
+}
+
+const CAMPI_RECIPE = "id, title, url, thumbnail, author, platform, created_at";
+const CAMPI_RECIPE_V2 = `${CAMPI_RECIPE}, extracted, times_cooked`;
+
+function mappaRicetta(r: Record<string, unknown>): Recipe {
+  return {
+    id: r.id as string,
+    title: (r.title as string) ?? "",
+    url: (r.url as string) ?? "",
+    thumbnail: (r.thumbnail as string) ?? null,
+    author: (r.author as string) ?? null,
+    platform: (r.platform as string) ?? "web",
+    createdAt: (r.created_at as string) ?? "",
+    extracted: (r.extracted as RicettaEstratta | null) ?? null,
+    timesCooked: (r.times_cooked as number) ?? 0,
+  };
 }
 
 /** Le ricette salvate, le più recenti in alto. [] se la tabella non c'è ancora:
- *  la pagina deve funzionare anche prima che la SQL sia stata eseguita. */
+ *  la pagina deve funzionare anche prima che la SQL sia stata eseguita.
+ *
+ *  Le colonne di V2 (`extracted`, `times_cooked`) si chiedono per prime e, se
+ *  non ci sono ancora, si rilegge senza. Chiedere una colonna che non esiste
+ *  fa fallire TUTTA la select: senza questo secondo giro, il ricettario
+ *  sparirebbe dalla pagina fino all'esecuzione di docs/sql/cucina-v2.sql. */
 export async function getRecipes(): Promise<Recipe[]> {
   try {
-    const { data, error } = await (await db())
-      .from("recipes")
-      .select("id, title, url, thumbnail, author, platform, created_at")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const client = await db();
+    const leggi = (campi: string) =>
+      client.from("recipes").select(campi).order("created_at", { ascending: false }).limit(200);
+
+    let { data, error } = await leggi(CAMPI_RECIPE_V2);
+    if (error) {
+      console.warn("[cucina] niente colonne V2, rileggo senza (hai eseguito docs/sql/cucina-v2.sql?):", error.message);
+      ({ data, error } = await leggi(CAMPI_RECIPE));
+    }
     if (error) {
       console.warn("[cucina] lettura ricettario fallita (hai eseguito docs/sql/cucina.sql?):", error.message);
       return [];
     }
-    return (data ?? []).map((r) => ({
-      id: r.id as string,
-      title: (r.title as string) ?? "",
-      url: (r.url as string) ?? "",
-      thumbnail: (r.thumbnail as string) ?? null,
-      author: (r.author as string) ?? null,
-      platform: (r.platform as string) ?? "web",
-      createdAt: (r.created_at as string) ?? "",
-    }));
+    return ((data ?? []) as unknown as Record<string, unknown>[]).map(mappaRicetta);
   } catch (e) {
     console.warn("[cucina] lettura ricettario fallita:", e);
     return [];
   }
+}
+
+/** Mette via la ricetta estratta. Da qui in poi aprirla non costa più niente.
+ *  Se la colonna non c'è ancora si perde il salvataggio, non la ricetta: chi
+ *  chiama ha già il risultato in mano e lo mostra lo stesso. */
+export async function saveExtracted(id: string, estratta: RicettaEstratta): Promise<void> {
+  const { error } = await (await db()).from("recipes").update({ extracted: estratta }).eq("id", id);
+  if (error) console.warn("[cucina] estrazione non salvata (docs/sql/cucina-v2.sql eseguito?):", error.message);
 }
 
 /** Salva una ricetta. Se c'è già (stesso link) non la duplica: la restituisce. */
@@ -1283,22 +1325,15 @@ export async function saveRecipe(r: {
     author: r.author ?? null,
     platform: r.platform ?? "web",
   };
-  const { data, error } = await (await db())
-    .from("recipes")
-    .upsert(riga, { onConflict: "user_id,url" })
-    .select("id, title, url, thumbnail, author, platform, created_at")
-    .single();
+  const client = await db();
+  const salva = (campi: string) =>
+    client.from("recipes").upsert(riga, { onConflict: "user_id,url" }).select(campi).single();
+
+  // Stesso doppio giro di getRecipes: prima con le colonne V2, poi senza.
+  let { data, error } = await salva(CAMPI_RECIPE_V2);
+  if (error) ({ data, error } = await salva(CAMPI_RECIPE));
   if (error) throw new Error(error.message);
-  const d = data as Record<string, unknown>;
-  return {
-    id: d.id as string,
-    title: d.title as string,
-    url: d.url as string,
-    thumbnail: (d.thumbnail as string) ?? null,
-    author: (d.author as string) ?? null,
-    platform: (d.platform as string) ?? "web",
-    createdAt: (d.created_at as string) ?? "",
-  };
+  return mappaRicetta(data as unknown as Record<string, unknown>);
 }
 
 /** Toglie una ricetta dal ricettario. La RLS fa sì che si possa togliere solo
@@ -1309,6 +1344,111 @@ export async function deleteRecipe(id: string): Promise<boolean> {
   const { data, error } = await (await db()).from("recipes").delete().eq("id", id).select("id");
   if (error) throw new Error(error.message);
   return (data ?? []).length > 0;
+}
+
+/* ── LA SPESA (docs/SPEC-CUCINA.md §7) ─────────────────────────────────────
+ *
+ * Una lista sola, due provenienze che restano distinte: `piano` e `ricetta`.
+ * Si comprano insieme perché si va al supermercato una volta, ma l'etichetta
+ * dice sempre da dove viene una voce — e il piano resta in sola lettura.
+ * Nessuna quantità viene calcolata: si copia quella scritta, o si lascia
+ * vuota. */
+
+export type FonteSpesa = "piano" | "ricetta";
+
+export interface ShoppingItem {
+  id: string;
+  nome: string;
+  quantita: string | null;
+  fonte: FonteSpesa;
+  ref: string | null;
+  spuntato: boolean;
+  createdAt: string;
+}
+
+function mappaSpesa(r: Record<string, unknown>): ShoppingItem {
+  return {
+    id: r.id as string,
+    nome: (r.nome as string) ?? "",
+    quantita: (r.quantita as string) ?? null,
+    fonte: ((r.fonte as string) === "piano" ? "piano" : "ricetta") as FonteSpesa,
+    ref: (r.ref as string) ?? null,
+    spuntato: !!r.spuntato,
+    createdAt: (r.created_at as string) ?? "",
+  };
+}
+
+const CAMPI_SPESA = "id, nome, quantita, fonte, ref, spuntato, created_at";
+
+/** La lista: da comprare in alto, spuntati in fondo. [] se la tabella non c'è
+ *  ancora — la pagina non si rompe per una SQL non ancora eseguita. */
+export async function getShoppingItems(): Promise<ShoppingItem[]> {
+  try {
+    const { data, error } = await (await db())
+      .from("shopping_items")
+      .select(CAMPI_SPESA)
+      .order("spuntato", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(300);
+    if (error) {
+      console.warn("[cucina] lettura spesa fallita (hai eseguito docs/sql/cucina-v2.sql?):", error.message);
+      return [];
+    }
+    return ((data ?? []) as unknown as Record<string, unknown>[]).map(mappaSpesa);
+  } catch (e) {
+    console.warn("[cucina] lettura spesa fallita:", e);
+    return [];
+  }
+}
+
+/** Aggiunge voci. Quella che c'è già (stesso nome, stessa fonte) non si
+ *  duplica: due ricette con la cipolla fanno una voce sola (idea 209).
+ *  Torna la lista aggiornata, così chi chiama non deve rileggere. */
+export async function addShoppingItems(
+  voci: { nome: string; quantita?: string | null; fonte?: FonteSpesa; ref?: string | null }[]
+): Promise<ShoppingItem[]> {
+  const userId = await currentUserId();
+  const righe = voci
+    .map((v) => ({
+      user_id: userId,
+      nome: (v.nome ?? "").trim().slice(0, 120),
+      quantita: (v.quantita ?? "").trim().slice(0, 60) || null,
+      fonte: v.fonte ?? "ricetta",
+      ref: v.ref ?? null,
+    }))
+    .filter((r) => r.nome.length > 0);
+  if (righe.length === 0) return getShoppingItems();
+
+  // ignoreDuplicates: chi c'è già resta com'è (magari l'hai già spuntato, e
+  // riaggiungerlo non deve farlo tornare da comprare).
+  const { error } = await (await db())
+    .from("shopping_items")
+    .upsert(righe, { onConflict: "user_id,nome,fonte", ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+  return getShoppingItems();
+}
+
+/** Spunta / de-spunta una voce al supermercato. */
+export async function toggleShoppingItem(id: string, spuntato: boolean): Promise<boolean> {
+  const { data, error } = await (await db())
+    .from("shopping_items")
+    .update({ spuntato })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+/** Via i fatti. Cancella SOLO le righe già spuntate, e solo le proprie (RLS):
+ *  non è una pulizia a pattern, è "togli quello che ho messo nel carrello". */
+export async function clearDoneShoppingItems(): Promise<number> {
+  const { data, error } = await (await db())
+    .from("shopping_items")
+    .delete()
+    .eq("spuntato", true)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length;
 }
 
 /** Tutti i to-do, ordinati per giorno e poi per creazione. */

@@ -27,10 +27,26 @@ import { currentUserId } from "./user";
 const TZ = "Europe/Rome";
 
 /** Il tipo di operazione. Cambiare i pesi qui sotto, non nei punti di chiamata. */
-export type AiOperazione = "cattura" | "catalogo" | "consiglio" | "piano" | "viaggio";
+export type AiOperazione =
+  | "cattura"
+  | "catalogo"
+  | "consiglio"
+  | "piano"
+  | "viaggio"
+  | "interprete"
+  | "estrazione";
 
 const PESI: Record<AiOperazione, number> = {
   cattura: 1,
+  // CUCINA. Due operazioni piccole, tutte e due da una chiamata sola:
+  //   interprete → "serata tra amici" diventa parole di ricerca. Haiku, 80
+  //     token in uscita: la chiamata più economica dell'app dopo la traduzione
+  //     dei piatti. Scatta SOLO sulle frasi situazionali — "pollo e patate"
+  //     passa dall'euristica e non costa niente.
+  //   estrazione → la ricetta dalla caption del creator. Una volta per ricetta
+  //     nella vita: il risultato si salva, quindi riaprirla non ripaga.
+  interprete: 1,
+  estrazione: 1,
   // Stesso peso della cattura, nome diverso: costa uguale ma è un'altra cosa, e
   // mescolata agli screenshot nel registro non si capirebbe più chi spende cosa.
   catalogo: 1,

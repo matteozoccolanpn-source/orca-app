@@ -1,23 +1,45 @@
 import { requireLogin } from "@/lib/require-login";
-import { getRecipes } from "@/lib/supabase";
+import { getRecipes, getDietPlan, getShoppingItems } from "@/lib/supabase";
+import { giornataDiOggi, prossimoPasto, daRifare } from "@/lib/cucina";
 import CucinaView from "./CucinaView";
 
-/* CUCINA V1 — il ricettario che cerca (docs/SPEC-CUCINA.md).
+/* CUCINA — il ricettario che cerca (docs/SPEC-CUCINA.md).
  *
  * Sezione a sé, come da decisione del 7 agosto: rotta sua, pagina sua. La
- * vista dieta non viene toccata — l'unico ponte è un bottone nell'intestazione
- * di /salute.
+ * vista dieta non viene toccata — l'unico ponte è la card nel corpo di /salute.
  *
- * Il ricettario si legge sempre: anche senza chiave di ricerca la pagina è
- * intera e le ricette salvate ci sono. */
+ * IL PIANO SI LEGGE, E BASTA. `getDietPlan` è una lettura: da qui non si
+ * scrive, non si scambia un pasto, non si confronta niente con le ricette.
+ * La zona ① mostra cosa viene adesso e permette di ESEGUIRLO; le ricette
+ * vivono sotto, separate. È il paletto della spec, e passa da qui.
+ *
+ * Il ricettario si legge sempre: anche senza chiave di ricerca e senza piano
+ * la pagina è intera. */
 export const dynamic = "force-dynamic";
 
 export default async function CucinaPage() {
   await requireLogin();
-  const ricette = await getRecipes();
+
+  // Le tre letture in parallelo: sono indipendenti e nessuna deve far
+  // aspettare le altre.
+  const [ricette, piano, spesa] = await Promise.all([getRecipes(), getDietPlan(), getShoppingItems()]);
+
+  const giornata = giornataDiOggi(piano?.week ?? null);
+  const prossimo = prossimoPasto(giornata);
+
   // Stessa regola della rotta di ricerca: Tavily, oppure Brave. Se cambia lì,
   // cambia anche qui — guardare una chiave sola faceva dire "la ricerca arriva
   // presto" anche quando era configurata.
   const ricercaAttiva = !!(process.env.TAVILY_API_KEY || process.env.BRAVE_SEARCH_KEY);
-  return <CucinaView ricette={ricette} ricercaAttiva={ricercaAttiva} />;
+
+  return (
+    <CucinaView
+      ricette={ricette}
+      ricercaAttiva={ricercaAttiva}
+      giornata={giornata}
+      prossimo={prossimo}
+      rifare={daRifare(ricette)}
+      spesaIniziale={spesa}
+    />
+  );
 }
