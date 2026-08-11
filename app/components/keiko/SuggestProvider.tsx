@@ -1,13 +1,27 @@
 "use client";
 
 // Consiglio di Keiko GLOBALE: vive nel layout, quindi la ricerca (in background),
-// la pillola in basso a destra e il pannello a 3 opzioni SOPRAVVIVONO ai cambi di
-// sezione (Guarda → Dieta → torni e lo ritrovi). Stili "hardcoded" per essere
-// identici su ogni pagina, a prescindere dal set di variabili CSS attivo.
+// la pillola in basso a destra e il pannello dei risultati SOPRAVVIVONO ai cambi
+// di sezione (Guarda → Dieta → torni e lo ritrovi).
+//
+// ONDATA 2 — cambia solo il vestito. La meccanica è quella di prima: stessa
+// rotta, stesso timeout di 60s, stesso `busy`, stesso router.refresh(). Quello
+// che cambia è come si vede, ora nel sistema V2 (app/keiko-v2.css, tutto sotto
+// .k2). Tre decisioni di Matteo dell'11 agosto:
+//  1. il consiglio NON si sposta nella barra di Guarda: resta qui, e da lì lo
+//     apre il tasto terracotta in fondo alla barra;
+//  2. i titoli restano TRE, perché tre ne dà l'API e l'API non si tocca: si
+//     disegnano come tre card motivate in colonna;
+//  3. il tetto giornaliero (429) non è più un toast ma una card dentro il
+//     foglio, con le parole che manda il server — che sono già quelle giuste.
 
-import { createContext, useContext, useRef, useState, type ReactNode, type CSSProperties } from "react";
-import { motion, type PanInfo } from "framer-motion";
+import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+
+import { I } from "@/app/components/v2/icons";
+import { Img } from "@/app/components/v2/Img";
+import { Sheet } from "@/app/components/v2/Sheet";
+import { Feedback } from "@/app/components/v2/Feedback";
 
 type Pick = { title: string; kind: "film" | "serie"; platform: string | null; info: string | null; link: string | null; poster?: string | null };
 type Ctx = { startInput: () => void };
@@ -21,10 +35,11 @@ function fetchWithTimeout(url: string, opts: RequestInit, ms: number) {
   return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t));
 }
 
-const C = { accent: "#f5b44e", ink: "#221803", bg: "#0b0d12", surface: "#171a22", line: "rgba(255,255,255,.10)", text: "#eef0f3", t3: "#8a8f99" };
-const SHEET: CSSProperties = { width: "100%", maxWidth: 440, margin: "0 auto", background: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, boxShadow: "0 -8px 40px rgba(0,0,0,.5)", borderTop: `1px solid ${C.line}`, padding: "12px 20px calc(env(safe-area-inset-bottom) + 22px)" };
-const OVERLAY: CSSProperties = { position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "flex-end" };
-const GRAB: CSSProperties = { width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)", margin: "0 auto 16px" };
+/* I fogli di Keiko vivono nel layout, fuori da qualsiasi `.k2`: senza questo
+   guscio le classi del sistema V2 non li raggiungerebbero. Fondo trasparente e
+   larghezza libera perché `.k2` è pensato per essere UNA pagina, e qui invece
+   è solo il contenitore di un foglio che sta sopra a un'altra pagina. */
+const K2: React.CSSProperties = { background: "transparent", maxWidth: "none", height: "auto" };
 
 export default function SuggestProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -34,22 +49,39 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Pick[] | null>(null);
   const [open, setOpen] = useState(false);
+  /* Il tetto giornaliero: quando c'è, il foglio mostra la card al posto dei
+     titoli. Tiene la frase del server così com'è. */
+  const [capped, setCapped] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const msgT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const toast = (m: string) => { if (msgT.current) clearTimeout(msgT.current); setMsg(m); msgT.current = setTimeout(() => setMsg(null), 4000); };
 
   const startInput = () => { setText(""); setInputOpen(true); };
 
+  function chiudiPannello() {
+    setOpen(false);
+    setResults(null);
+    setCapped(null);
+  }
+
   async function run(query: string) {
     if (busy.current) return;
     const q = query.trim() || "consigliami qualcosa da vedere stasera";
-    busy.current = true; setSearching(true); setResults(null);
+    busy.current = true; setSearching(true); setResults(null); setCapped(null);
     try {
       const res = await fetchWithTimeout("/api/watch/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ query: q }) }, 60000);
       const data = (await res.json()) as { films?: Pick[]; error?: string };
-      // Il server ha già scritto la frase giusta (il tetto giornaliero risponde
-      // 429 con le parole di Keiko): buttarla via e dire "qualcosa non torna"
-      // trasforma "hai finito le operazioni di oggi" in un guasto misterioso.
+
+      // Il tetto giornaliero non è un guasto: è Keiko che dice che si ferma.
+      // Le parole arrivano dal server (429) e si mostrano come sono.
+      if (res.status === 429) {
+        setCapped(data?.error || "Per oggi mi fermo qui 🌙 — le richieste di oggi sono finite. Domani si riparte.");
+        setOpen(true);
+        return;
+      }
+      // Il server ha già scritto la frase giusta anche per gli altri errori:
+      // buttarla via e dire "qualcosa non torna" trasforma un messaggio chiaro
+      // in un guasto misterioso.
       if (!res.ok) throw new Error(data?.error || "");
       const picks = (data.films ?? []).slice(0, 3);
       if (!picks.length) { toast("Non ho trovato niente, riformula"); return; }
@@ -70,60 +102,157 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
     } catch { toast("Non aggiunto, riprova"); }
   }
 
+  const pillaVisibile = searching || ((results || capped) && !open);
+
   return (
     <SuggestCtx.Provider value={{ startInput }}>
       {children}
-      <style>{`@keyframes kk-spin{to{transform:rotate(360deg)}}`}</style>
 
+      {/* ── «che serata è?» ── */}
       {inputOpen && (
-        <div onClick={() => setInputOpen(false)} style={OVERLAY}>
-          <motion.div onClick={(e) => e.stopPropagation()} style={SHEET} initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 460, damping: 42 }} drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }} onDragEnd={(_e: unknown, info: PanInfo) => { if (info.offset.y > 120 || info.velocity.y > 700) setInputOpen(false); }}>
-            <div style={GRAB} />
-            <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 6px" }}>✨ Consiglio di Keiko</h3>
-            <p style={{ fontSize: 13, color: C.t3, margin: "0 0 14px" }}>Che serata è? es. «commedia leggera», «thriller» (vuoto = a sorpresa)</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { const q = text; setInputOpen(false); run(q); } }} placeholder="Tipo di serata…" style={{ flex: 1, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", color: C.text, fontSize: 16, fontFamily: "inherit", outline: 0 }} />
-              <button onClick={() => { const q = text; setInputOpen(false); run(q); }} style={{ height: 44, padding: "0 18px", border: 0, borderRadius: 12, background: C.accent, color: C.ink, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Chiedi</button>
+        <div className="k2" style={K2}>
+          <Sheet onClose={() => setInputOpen(false)}>
+            <div className="plain-head">
+              <h2>Consiglio di Keiko</h2>
             </div>
-          </motion.div>
+            <div className="pad">
+              <div className="sub">
+                Che serata è? Per esempio «commedia leggera» o «thriller». Se lasci vuoto, scelgo a sorpresa.
+              </div>
+              <div className="ask" style={{ marginTop: 16, cursor: "auto" }}>
+                <span style={{ color: "var(--teal)", flex: "none", display: "flex" }}>{I.orca(19)}</span>
+                <input
+                  autoFocus
+                  className="ph-txt"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { const q = text; setInputOpen(false); run(q); } }}
+                  placeholder="Tipo di serata…"
+                  /* 16px: sotto i 16 iOS ingrandisce la pagina da solo */
+                  style={{ background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+                />
+              </div>
+              <button
+                className="cta wide tap"
+                style={{ marginTop: 12 }}
+                onClick={() => { const q = text; setInputOpen(false); run(q); }}
+              >
+                Chiedi
+              </button>
+            </div>
+          </Sheet>
         </div>
       )}
 
-      {(searching || (results && !open)) && (
-        <button onClick={() => { if (results) setOpen(true); }} disabled={searching} style={{ position: "fixed", right: 16, bottom: "calc(100px + env(safe-area-inset-bottom))", zIndex: 65, display: "flex", alignItems: "center", gap: 8, background: C.accent, color: C.ink, border: 0, borderRadius: 999, padding: "11px 16px", fontSize: 13.5, fontWeight: 700, boxShadow: "0 8px 24px rgba(0,0,0,.45)", cursor: searching ? "default" : "pointer" }}>
-          {searching
-            ? <><span style={{ width: 15, height: 15, border: "2px solid rgba(0,0,0,.25)", borderTopColor: C.ink, borderRadius: "50%", display: "inline-block", animation: "kk-spin .8s linear infinite" }} /> Keiko cerca…</>
-            : <>✨ {results?.length ?? 0} consigli pronti</>}
-        </button>
-      )}
-
-      {open && results && (
-        <div onClick={() => { setOpen(false); setResults(null); }} style={OVERLAY}>
-          <motion.div onClick={(e) => e.stopPropagation()} style={SHEET} initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 460, damping: 42 }} drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }} onDragEnd={(_e: unknown, info: PanInfo) => { if (info.offset.y > 120 || info.velocity.y > 700) { setOpen(false); setResults(null); } }}>
-            <div style={GRAB} />
-            <h3 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: "0 0 4px" }}>✨ Consigli di Keiko</h3>
-            <p style={{ fontSize: 12.5, color: C.t3, margin: "0 0 14px" }}>Scegli cosa aggiungere alla lista.</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {results.map((p, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14 }}>
-                  <div style={{ width: 46, height: 68, flex: "none", borderRadius: 8, overflow: "hidden", position: "relative", background: "linear-gradient(150deg,#3a2f52,#1a1526)" }}>
-                    {p.poster ? <img src={p.poster} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : null}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>{p.title}</div>
-                    <div style={{ fontSize: 12.5, color: C.t3, marginTop: 2 }}>{[p.kind === "serie" ? "Serie" : "Film", p.info, p.platform ? `su ${p.platform}` : null].filter(Boolean).join(" · ")}</div>
-                  </div>
-                  <button onClick={() => { addPick(p); const rest = results.filter((_, j) => j !== i); if (rest.length) setResults(rest); else { setResults(null); setOpen(false); } }} style={{ height: 38, padding: "0 14px", border: 0, borderRadius: 10, background: C.accent, color: C.ink, fontWeight: 700, fontSize: 13, flex: "none", cursor: "pointer" }}>Aggiungi</button>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => { setOpen(false); setResults(null); }} style={{ width: "100%", height: 44, marginTop: 16, border: `1px solid ${C.line}`, borderRadius: 12, background: C.surface, color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>Chiudi</button>
-          </motion.div>
+      {/* ── la pillola: Keiko sta cercando, o i consigli sono pronti ──
+          Teal, perché dice uno STATO. Il terracotta resta alla primaria di riga
+          e al FAB. Mentre cerca, il pallino che respira è quello del sistema. */}
+      {pillaVisibile && (
+        <div className="k2" style={K2}>
+          <button
+            className="btn-teal tap"
+            onClick={() => { if (results || capped) setOpen(true); }}
+            aria-disabled={searching || undefined}
+            style={{
+              position: "fixed", right: 16, bottom: "calc(100px + env(safe-area-inset-bottom))",
+              zIndex: 65, display: "flex", alignItems: "center", gap: 8,
+              background: "rgba(22,24,29,.92)", backdropFilter: "blur(10px)",
+              padding: "11px 16px", borderRadius: 999, fontSize: 13,
+              boxShadow: "0 8px 24px rgba(0,0,0,.45)",
+            }}
+          >
+            {searching ? (
+              <>
+                <span className="orb" style={{ width: 14, height: 14 }} />
+                Keiko cerca…
+              </>
+            ) : capped ? (
+              <>{I.info({ s: 14 })}Per oggi mi fermo qui</>
+            ) : (
+              <>{I.orca(14)}{results?.length ?? 0} consigli pronti</>
+            )}
+          </button>
         </div>
       )}
 
+      {/* ── il foglio: o il tetto, o i tre titoli ── */}
+      {open && (results || capped) && (
+        <div className="k2" style={K2}>
+          <Sheet onClose={chiudiPannello}>
+            <div className="plain-head">
+              <h2>{capped ? "Per oggi mi fermo qui" : "Consigli di Keiko"}</h2>
+            </div>
+            <div className="pad">
+              {capped ? (
+                <>
+                  {/* le parole sono quelle del server: qui non si riscrive niente */}
+                  <div className="hint warm" style={{ marginTop: 16 }}>
+                    {I.info({ s: 14 })}
+                    <p>{capped}</p>
+                  </div>
+                  <button className="btn2 wide tap" style={{ marginTop: 16 }} onClick={chiudiPannello}>Va bene</button>
+                </>
+              ) : (
+                <>
+                  <div className="sub">Scegli cosa aggiungere alla lista.</div>
+
+                  {results!.map((p, i) => (
+                    <div className="srf2" key={`${p.title}-${i}`} style={{ marginTop: 12, padding: "2px 0 12px" }}>
+                      <div className="res">
+                        <span className="pw">
+                          <b className="fb2" style={{ fontSize: "13px" }}>{p.title.slice(0, 2)}</b>
+                          {p.poster && <Img src={p.poster} />}
+                        </span>
+                        <span className="in">
+                          <span className="t">{p.title}</span>
+                          <span className="m">
+                            {[p.kind === "serie" ? "Serie" : "Film", p.platform ? `su ${p.platform}` : null].filter(Boolean).join(" · ")}
+                          </span>
+                        </span>
+                      </div>
+
+                      {/* Il perché è `info`: sul giro buono il server ci scrive
+                          davvero PERCHÉ quel titolo c'entra con la richiesta.
+                          Se non c'è, questa card resta senza: non se ne inventa
+                          uno finto. */}
+                      {p.info && (
+                        <div className="why" style={{ padding: "0 12px" }}>
+                          {I.tick({ s: 13 })}
+                          <span style={{ flex: 1 }}>{p.info}</span>
+                          <Feedback perche={p.info} />
+                        </div>
+                      )}
+
+                      <div className="pactions" style={{ padding: "0 12px" }}>
+                        <button
+                          className="cta tap"
+                          onClick={() => {
+                            addPick(p);
+                            const rest = results!.filter((_, j) => j !== i);
+                            if (rest.length) setResults(rest);
+                            else chiudiPannello();
+                          }}
+                        >
+                          Aggiungi alla lista
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button className="btn2 wide tap" style={{ marginTop: 16 }} onClick={chiudiPannello}>Chiudi</button>
+                </>
+              )}
+            </div>
+          </Sheet>
+        </div>
+      )}
+
+      {/* Il toast resta per quello che è davvero un intoppo: rete muta, timeout,
+          «non ho trovato niente». Il tetto giornaliero non passa più di qui. */}
       {msg && (
-        <div style={{ position: "fixed", left: 16, right: 16, bottom: "calc(150px + env(safe-area-inset-bottom))", maxWidth: 408, margin: "0 auto", zIndex: 66, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 14px", boxShadow: "0 10px 30px rgba(0,0,0,.5)", color: C.text, fontSize: 14 }}>{msg}</div>
+        <div className="k2" style={K2}>
+          <div className="toast on" style={{ bottom: "calc(150px + env(safe-area-inset-bottom))", zIndex: 66 }}>{msg}</div>
+        </div>
       )}
     </SuggestCtx.Provider>
   );

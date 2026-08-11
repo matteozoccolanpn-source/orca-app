@@ -17,7 +17,8 @@ export function Feature({
   children,
   onClick,
 }: {
-  img: string;
+  /** vuoto = niente foto: resta il fondo del contenitore, non un'immagine rotta */
+  img?: string | null;
   tone?: Tone;
   k: ReactNode;
   dot?: Dot;
@@ -29,7 +30,7 @@ export function Feature({
   return (
     <div className="feature tap" onClick={onClick}>
       <div className="ph" data-tone={tone}>
-        <Img src={img} />
+        {img && <Img src={img} />}
       </div>
       <div className="fbody">
         <div className="k">

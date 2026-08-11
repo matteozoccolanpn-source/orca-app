@@ -1,30 +1,43 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import type { WatchItem } from "@/lib/supabase";
 import type { WatchProviders, WatchProvider, TitleDetails, SimilarTitle } from "@/lib/tmdb";
 import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
-import SheetShell from "@/app/components/keiko/SheetShell";
 import { useSuggest } from "@/app/components/keiko/SuggestProvider";
 
-/* Sezione "Da guardare" — solo presentazione: la logica è quella di prima
-   (visto via PATCH, elimina differito con Annulla, aggiunta via POST, consiglio
-   AI, fogli scheda e "dove vederlo").
+import { I } from "@/app/components/v2/icons";
+import { Img } from "@/app/components/v2/Img";
+import { Sec } from "@/app/components/v2/Sec";
+import { Chip } from "@/app/components/v2/Chip";
+import { Poster } from "@/app/components/v2/Poster";
+import { Feature } from "@/app/components/v2/Feature";
+import { Empty } from "@/app/components/v2/Empty";
+import { Skeleton } from "@/app/components/v2/Skeleton";
+import { Sheet } from "@/app/components/v2/Sheet";
+import { SheetHero } from "@/app/components/v2/SheetHero";
+import { Step } from "@/app/components/v2/Step";
 
-   Cosa cambia, e perché:
+/* Sezione "Guarda".
 
-   · IL TAP APRE LA SCHEDA. Prima segnava "visto": l'azione più difficile da
-     annullare stava sul gesto più facile da sbagliare.
-   · Il tocco lungo (450ms + vibrazione) apre il menu azioni. Da lì passano
-     "visto", "dove vederlo" ed "elimina".
-   · Via i due bottoncini ✕ e ⓘ dalla locandina: erano 22px, e la ✕ eliminava
-     a 6px dal bordo. Ogni bersaglio ora è almeno 44×44.
-   · UNA griglia sola con filtri, al posto di tre sezioni sovrapposte. Prima lo
-     stesso titolo compariva due o tre volte scorrendo (in "Da vedere", in
-     "Visti di recente" e di nuovo nella sua categoria di genere): il genere
-     adesso è un filtro, non una sezione che ripete le stesse locandine. */
+   ONDATA 2 — cambia SOLO il vestito. Stato, effetti, chiamate di rete e
+   gestori sono quelli di prima, riga per riga: sono fatti di casi limite che
+   il mock non conosce. Quello che cambia è il markup, che ora è quello di
+   docs/mockups/keiko-v2-mock.html, con i componenti di app/components/v2 e
+   tutto dentro <div className="k2">.
+
+   I comportamenti che NON si toccano (e che restano tutti):
+   · IL TAP APRE LA SCHEDA. Il tocco lungo (450ms + vibrazione) apre il menu.
+   · UNA griglia sola con filtri: nessun titolo compare due volte.
+   · Il ponte dal cinema (?vota=), il tira-per-aggiornare, il toast annullabile,
+     la ricerca trasversale con AbortController, le serie con +1 episodio.
+
+   Quello che il mock chiedeva e il codice ha vinto (deciso da Matteo l'11
+   agosto): il consiglio NON si sposta dentro la barra. Vive in
+   SuggestProvider, che sta nel layout; qui cambia solo DOVE si tocca — il
+   tasto terracotta in fondo alla barra, che nel mock è la freccia. La barra
+   continua a fare la ricerca vera, istantanea e gratis. */
 
 type ToastState = { msg: string; action?: string; onAction?: () => void } | null;
 /* Una riga della ricerca trasversale. La calcola il server (/api/watch/search),
@@ -70,6 +83,11 @@ function platformUrl(name: string, title: string): string | null {
   return null;
 }
 
+/* L'etichettina grigia sopra un blocco dentro un foglio. Nel manifesto le
+   label non sono maiuscole e non sono colorate: `.status` del foglio V2 è
+   già esattamente quella riga (12,5px, --meta, peso 500). */
+const LAB = { marginTop: 18, marginBottom: 6 } as const;
+
 export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?: string }) {
   const router = useRouter();
   const suggest = useSuggest();
@@ -99,6 +117,8 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
 
   // menu del tocco lungo
   const [menuItem, setMenuItem] = useState<WatchItem | null>(null);
+  // "Togli dalla lista" è terziaria e chiede conferma: primo tocco arma, secondo elimina.
+  const [armaElimina, setArmaElimina] = useState(false);
 
   // ricerca trasversale: cerca una volta e dice dove si vede
   const [ric, setRic] = useState<Ricerca[]>([]);
@@ -110,6 +130,11 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
   // tira-per-aggiornare
   const [tiro, setTiro] = useState(0);          // quanto è stato tirato, in px
   const [aggiorno, setAggiorno] = useState(false);
+
+  /* Il campo della ricerca. Prima lo si ritrovava con un querySelector sul
+     testo del placeholder: bastava cambiare una parola al placeholder e il
+     ponte dal cinema smetteva di funzionare in silenzio. */
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   function showToast(msg: string, action?: string, onAction?: () => void) {
@@ -238,7 +263,7 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
     } else {
       if (cercato) setSearch(cercato);
       // un attimo dopo il primo render: il campo esiste solo a quel punto
-      setTimeout(() => document.querySelector<HTMLInputElement>('input[placeholder="Cerca o aggiungi un titolo…"]')?.focus(), 60);
+      setTimeout(() => inputRef.current?.focus(), 60);
     }
 
     // via il parametro dall'URL, senza ricaricare la pagina
@@ -318,7 +343,10 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
   }, [search]);
 
   /* La riga della disponibilità. Nessun prezzo scritto a mano: TMDB non manda
-     i prezzi, quindi si dice "a noleggio" e basta, mai una cifra. */
+     i prezzi, quindi si dice "a noleggio" e basta, mai una cifra.
+     `segno` era un'emoji e non si disegna più: nel sistema V2 il caso forte è
+     la spunta teal, gli altri sono metadato grigio. La funzione resta identica
+     perché è lei a decidere QUALE dei quattro casi è. */
   function disponibilita(r: Ricerca): { segno: string; testo: string; forte: boolean } {
     if (r.tue.length) return { segno: "✅", testo: `Ce l'hai su ${r.tue.join(", ")}`, forte: true };
     if (r.flatrate.length) return { segno: "🟡", testo: `C'è su ${r.flatrate.slice(0, 3).join(", ")}`, forte: false };
@@ -400,6 +428,7 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
     pressTimer.current = setTimeout(() => {
       pressFired.current = true;
       try { navigator.vibrate?.(12); } catch { /* niente vibrazione: pazienza */ }
+      setArmaElimina(false);
       setMenuItem(item);
     }, 450);
   }
@@ -431,7 +460,7 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
     if (basta) {
       setAggiorno(true);
       router.refresh();
-      showToast("🐋 Tutto fresco di giornata");
+      showToast("Tutto fresco di giornata");
       setTimeout(() => setAggiorno(false), 1200);
     }
   }
@@ -468,497 +497,615 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
   const count = list.length;
   const filtriAttivi = (tipo !== "tutti" ? 1 : 0) + (genere ? 1 : 0) + (ordine !== "recenti" ? 1 : 0);
 
-  // ── stili condivisi ───────────────────────────────────────────────────────
-  // minmax(0,1fr) e non 1fr: il titolo sotto la locandina è su una riga sola
-  // (nowrap), e con 1fr la sua larghezza minima allargherebbe la colonna
-  // facendo straripare la griglia fuori dallo schermo.
-  const GRID: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginTop: 16 };
-  const POSTER: CSSProperties = { position: "relative", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "linear-gradient(150deg,#3a2f52,#1a1526)", border: "1px solid rgba(255,255,255,.08)" };
-  const SOTTO: CSSProperties = { fontSize: 11.5, color: "var(--k-text-2)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
-  const ETICHETTA: CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 8px" };
+  /* Quanto sei avanti in una serie, se si può sapere davvero. Senza il totale
+     degli episodi non si disegna una barra a caso: sparisce e basta. */
+  function avanzamento(i: WatchItem): number | null {
+    if (!i.totalEpisodes || i.totalEpisodes <= 0 || i.episode == null) return null;
+    return Math.max(0, Math.min(100, Math.round((i.episode / i.totalEpisodes) * 100)));
+  }
 
+  /* La locandina della griglia. Il tocco lungo passa da `press`: il tap normale
+     apre la scheda, e se il tocco lungo è già scattato il click va soffocato. */
   const card = (item: WatchItem) => (
-    <div
+    <Poster
       key={item.id}
+      img={item.poster}
+      t={item.title}
+      badge={kindLabel(item.kind).toLowerCase()}
+      seen={item.seen}
+      m={item.seen ? (item.rating ? `visto · voto ${item.rating}` : "visto") : item.info ?? kindLabel(item.kind)}
+      ariaLabel={item.title}
       onClick={() => { if (pressFired.current) { pressFired.current = false; return; } openDetail(item); }}
-      onPointerDown={(e) => pressStart(e, item)}
-      onPointerMove={pressMove}
-      onPointerUp={pressCancel}
-      onPointerLeave={pressCancel}
-      onPointerCancel={pressCancel}
-      onContextMenu={(e) => e.preventDefault()}   // niente menu di sistema sul tocco lungo
-      role="button"
-      aria-label={item.title}
-      style={{ position: "relative", cursor: "pointer", WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
-    >
-      <div style={POSTER}>
-        {item.poster
-          ? <><span className="ds-skel" aria-hidden /><img src={item.poster} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /></>
-          : <span style={{ position: "absolute", inset: 0, padding: 8, display: "flex", alignItems: "flex-end", fontSize: 12, fontWeight: 600, color: "var(--k-text-2)" }}>{item.title}</span>}
+      press={{
+        onPointerDown: (e) => pressStart(e, item),
+        onPointerMove: pressMove,
+        onPointerUp: pressCancel,
+        onPointerLeave: pressCancel,
+        onPointerCancel: pressCancel,
+        onContextMenu: (e) => e.preventDefault(),   // niente menu di sistema sul tocco lungo
+      }}
+    />
+  );
 
-        {/* visto: velo + spunta grande al centro, non l'emoji in un angolo */}
-        {item.seen && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(6,8,12,.62)", display: "grid", placeItems: "center", color: "var(--k-text)", fontSize: 34, fontWeight: 300 }}>✓</div>
-        )}
-
-        {/* pastiglia solo per le serie: i film sono la maggioranza, non serve dirlo */}
-        {item.kind === "serie" && (
-          <span style={{ position: "absolute", top: 6, left: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: ".3px", color: "var(--k-text)", background: "rgba(6,8,12,.66)", borderRadius: 999, padding: "2px 7px" }}>Serie</span>
-        )}
-
-        {item.rating ? (
-          <div style={{ position: "absolute", bottom: 6, right: 6, fontSize: 10, fontWeight: 700, color: "#fff", background: "rgba(6,8,12,.62)", borderRadius: 999, padding: "2px 6px" }}>🐋 {item.rating}</div>
-        ) : null}
-      </div>
-      <div style={SOTTO}>{item.title}</div>
+  /* Lo scheletro della griglia: la stessa forma delle locandine che arrivano. */
+  const scheletro = (k: number) => (
+    <div key={`sk-${k}`}>
+      <span className="sk" style={{ display: "block", aspectRatio: "2 / 3", borderRadius: "var(--r-card)" }} />
+      <span className="sk sk-line" style={{ display: "block", width: "80%" }} />
+      <span className="sk sk-line" style={{ display: "block", width: "52%", height: "10px" }} />
     </div>
   );
 
-  const scheletro = (k: number) => (
-    <div key={`sk-${k}`}>
-      <div style={{ ...POSTER, background: "var(--k-surface)" }}><span className="ds-skel" aria-hidden /></div>
-      <div style={{ height: 11, marginTop: 7, borderRadius: 4, background: "var(--k-surface)" }} />
+  /* Le righe-azione dei fogli: icona quadrata, titolo, metadato, chevron. */
+  const rowAct = (icon: React.ReactNode, t: string, m: string, onClick: () => void) => (
+    <div className="row-act tap" key={t} onClick={onClick}>
+      <span className="ic2">{icon}</span>
+      <span className="in">
+        <span className="t">{t}</span>
+        <span className="m">{m}</span>
+      </span>
+      <span className="chevhit">{I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}</span>
     </div>
   );
 
   return (
-    <div
-      className="ds"
-      onTouchStart={tiroStart}
-      onTouchMove={tiroMove}
-      onTouchEnd={tiroEnd}
-      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: `0 20px ${PAGE_PB}`, maxWidth: 440, margin: "0 auto" }}
-    >
-      {/* segno del tira-per-aggiornare */}
-      {(tiro > 0 || aggiorno) && (
-        <div style={{ position: "fixed", top: "calc(env(safe-area-inset-top) + 58px)", left: 0, right: 0, display: "grid", placeItems: "center", zIndex: 25, pointerEvents: "none" }}>
-          <span style={{ fontSize: 22, opacity: aggiorno ? 1 : Math.min(tiro / 56, 1), transform: `rotate(${aggiorno ? 0 : tiro * 4}deg)` }}>🐋</span>
+    <>
+      <div
+        className="k2"
+        onTouchStart={tiroStart}
+        onTouchMove={tiroMove}
+        onTouchEnd={tiroEnd}
+      >
+        {/* le quattro luci d'ambiente del sistema */}
+        <div className="lights">
+          <i className="l1" /><i className="l2" /><i className="l3" /><i className="l4" />
         </div>
-      )}
 
-      {/* header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, margin: "0 -20px", padding: "calc(env(safe-area-inset-top) + 12px) 20px 12px", background: "rgba(11,13,18,.82)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
-        <button onClick={() => router.push("/")} aria-label="Indietro" style={{ background: "none", border: 0, color: "var(--k-text)", fontSize: 26, lineHeight: 1, cursor: "pointer", padding: 0, width: 44, height: 44, display: "grid", placeItems: "center", marginLeft: -10 }}>‹</button>
-        <h1 className="ds-display" style={{ flex: 1, fontSize: 22, color: "var(--k-text)", margin: 0 }}>Da guardare</h1>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--k-text-3)" }}>{count} {count === 1 ? "titolo" : "titoli"}</span>
-      </div>
+        {/* segno del tira-per-aggiornare */}
+        {(tiro > 0 || aggiorno) && (
+          <div style={{ position: "fixed", top: "calc(env(safe-area-inset-top) + 58px)", left: 0, right: 0, display: "grid", placeItems: "center", zIndex: 25, pointerEvents: "none", color: "var(--teal)" }}>
+            <span style={{ opacity: aggiorno ? 1 : Math.min(tiro / 56, 1), transform: `rotate(${aggiorno ? 0 : tiro * 4}deg)`, display: "block" }}>
+              {I.orca(26)}
+            </span>
+          </div>
+        )}
 
-      {/* barra ricerca / aggiungi */}
-      <div style={{ display: "flex", gap: 8, margin: "16px 0 0" }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) { doAdd(search.trim()); setSearch(""); } }} placeholder="Cerca o aggiungi un titolo…" style={{ flex: 1, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "12px 14px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0, minHeight: 44 }} />
-        <button onClick={() => suggest.startInput()} className="ds-btn primary" style={{ height: 44, padding: "0 14px", fontSize: 13, flex: "none" }}>✨ Consiglio</button>
-      </div>
-      {/* risultati della ricerca trasversale: una ricerca sola, e per ognuno
-          dove si vede. Prima quelli che l'utente può guardare subito. */}
-      {search.trim().length >= 2 && (
-        <div style={{ marginTop: 10 }}>
-          {ricLoading && ric.length === 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 4px", color: "var(--k-text-2)", fontSize: 13.5 }}>
-              <span className="ds-spin" style={{ width: 16, height: 16, border: "2px solid var(--k-line)", borderTopColor: "var(--k-accent)", borderRadius: "50%", display: "inline-block" }} />
-              Guardo dove si trova…
+        {/* `.screen` porta i margini del sistema; il fondo lo detta la barra
+            VERA dell'app (KeikoNav), non quella del mock: --pad-bottom è
+            tarata su un'altra barra e taglierebbe l'ultima riga. */}
+        <div className="screen" style={{ paddingBottom: PAGE_PB }}>
+          {/* testata */}
+          <div className="head">
+            <button className="back tap" onClick={() => router.push("/")} aria-label="Indietro">
+              {I.back({ s: 17 })}
+            </button>
+            <div className="col">
+              <h1>Guarda</h1>
+              <div className="status">{count} {count === 1 ? "titolo" : "titoli"}</div>
             </div>
-          )}
+          </div>
 
-          {ric.map((r) => {
-            const d = disponibilita(r);
-            const giaInLista = list.some((i) => i.tmdbId === r.tmdbId) || aggiunti.includes(r.tmdbId);
-            return (
-              <div key={`${r.tmdbType}-${r.tmdbId}`} style={{ display: "flex", gap: 12, alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--k-line)" }}>
-                <div style={{ width: 42, flex: "none", aspectRatio: "2 / 3", borderRadius: 7, overflow: "hidden", background: "var(--k-surface)" }}>
-                  {r.poster && <img src={r.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--k-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.title}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--k-text-3)", marginTop: 1 }}>
-                    {[r.year, r.tmdbType === "tv" ? "Serie" : "Film"].filter(Boolean).join(" · ")}
-                  </div>
-                  <div style={{ fontSize: 12, marginTop: 3, color: d.forte ? "var(--k-ok)" : "var(--k-text-2)", fontWeight: d.forte ? 700 : 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {d.segno} {d.testo}
-                  </div>
-                </div>
+          <div className="stag">
+            {/* ── la barra ───────────────────────────────────────────────────
+                Fa la ricerca vera, istantanea e gratis. Il tasto terracotta in
+                fondo è il consiglio di Keiko: apre il foglio di SuggestProvider,
+                che è globale e non cambia meccanica. */}
+            <div>
+              <div className="ask" style={{ cursor: "auto" }}>
+                <span style={{ color: "var(--teal)", flex: "none", display: "flex" }}>{I.search({ s: 17 })}</span>
+                <input
+                  ref={inputRef}
+                  className="ph-txt"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) { doAdd(search.trim()); setSearch(""); } }}
+                  placeholder="Cerca o aggiungi un titolo…"
+                  /* 16px non è un capriccio: sotto i 16 iOS ingrandisce la
+                     pagina da solo appena tocchi il campo, e non torna più
+                     indietro. Il mock scrive 13, ma il mock non ha campi. */
+                  style={{ background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+                />
                 <button
-                  onClick={() => aggiungiDaRicerca(r)}
-                  disabled={giaInLista}
-                  aria-label={giaInLista ? "Già in lista" : `Aggiungi ${r.title}`}
-                  style={{ width: 44, height: 44, flex: "none", borderRadius: 12, cursor: giaInLista ? "default" : "pointer", fontSize: 20, fontWeight: 700, display: "grid", placeItems: "center", background: giaInLista ? "transparent" : "var(--k-accent)", border: giaInLista ? "1px solid var(--k-line)" : 0, color: giaInLista ? "var(--k-text-3)" : "var(--k-accent-ink)" }}
+                  className="go tap"
+                  onClick={() => suggest.startInput()}
+                  aria-label="Chiedi un consiglio a Keiko"
+                  style={{ border: 0, cursor: "pointer" }}
                 >
-                  {giaInLista ? "✓" : "+"}
+                  {I.orca(15)}
                 </button>
               </div>
-            );
-          })}
 
-          {/* Se non ha ancora detto a cosa è abbonato, la riga sopra dice solo
-              "c'è su X". Qui gli si chiede, una volta sola. */}
-          {!haScelto && ric.length > 0 && !invitoChiuso && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, padding: "10px 12px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12 }}>
-              <span style={{ flex: 1, fontSize: 12.5, color: "var(--k-text-2)", lineHeight: 1.45 }}>
-                Dimmi a cosa sei abbonato e ti dico dove ce l&apos;hai già.
-              </span>
-              <button onClick={() => router.push("/?profilo=1")} className="ds-btn" style={{ height: 44, padding: "0 14px", fontSize: 13, flex: "none" }}>Scegli</button>
-              <button onClick={() => setInvitoChiuso(true)} aria-label="Non ora" style={{ width: 44, height: 44, flex: "none", background: "none", border: 0, color: "var(--k-text-3)", fontSize: 16, cursor: "pointer" }}>✕</button>
-            </div>
-          )}
+              {/* risultati della ricerca trasversale: una ricerca sola, e per
+                  ognuno dove si vede. Prima quelli che si possono guardare subito. */}
+              {search.trim().length >= 2 && (
+                <div style={{ marginTop: 8 }}>
+                  {ricLoading && ric.length === 0 && <Skeleton rows={3} />}
 
-          {!ricLoading && ric.length === 0 && (
-            <button onClick={() => { doAdd(search.trim()); setSearch(""); }} className="ds-btn" style={{ width: "100%", height: 44, marginTop: 4, fontSize: 13 }}>＋ Aggiungi «{search.trim()}»</button>
-          )}
-        </div>
-      )}
+                  {ric.length > 0 && (
+                    <div className="srf">
+                      {ric.map((r) => {
+                        const d = disponibilita(r);
+                        const giaInLista = list.some((i) => i.tmdbId === r.tmdbId) || aggiunti.includes(r.tmdbId);
+                        return (
+                          <div key={`${r.tmdbType}-${r.tmdbId}`} className="res">
+                            <span className="pw">
+                              <b className="fb2" style={{ fontSize: "13px" }}>{r.title.slice(0, 2)}</b>
+                              {r.poster && <Img src={r.poster} />}
+                            </span>
+                            <span className="in">
+                              <span className="t">{r.title}</span>
+                              <span className="m">{[r.year, r.tmdbType === "tv" ? "Serie" : "Film"].filter(Boolean).join(" · ")}</span>
+                              {d.forte
+                                ? <span className="w">{I.tick({ s: 13 })}{d.testo}</span>
+                                : <span className="w no">{d.testo}</span>}
+                            </span>
+                            <span
+                              className="add tap"
+                              aria-label={giaInLista ? "Già in lista" : `Aggiungi ${r.title}`}
+                              aria-disabled={giaInLista || undefined}
+                              onClick={(e) => { e.stopPropagation(); if (!giaInLista) aggiungiDaRicerca(r); }}
+                            >
+                              {giaInLista ? I.tick({ s: 16 }) : I.plus({ s: 16 })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-      {/* schede + filtri */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
-        <div style={{ flex: 1, display: "flex", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 13, padding: 3 }}>
-          {([["da-vedere", "Da vedere"], ["visti", "Visti"], ["tutti", "Tutti"]] as [Scheda, string][]).map(([v, l]) => (
-            <button
-              key={v}
-              onClick={() => setScheda(v)}
-              aria-pressed={scheda === v}
-              style={{ flex: 1, height: 44, minHeight: 44, borderRadius: 10, border: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 13.5, fontWeight: scheda === v ? 700 : 500, background: scheda === v ? "var(--k-accent)" : "transparent", color: scheda === v ? "var(--k-accent-ink)" : "var(--k-text-2)" }}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setFiltriOpen(true)}
-          aria-label="Filtra"
-          style={{ width: 44, height: 44, flex: "none", borderRadius: 12, background: filtriAttivi ? "var(--k-accent)" : "var(--k-surface)", border: `1px solid ${filtriAttivi ? "var(--k-accent)" : "var(--k-line)"}`, color: filtriAttivi ? "var(--k-accent-ink)" : "var(--k-text-2)", cursor: "pointer", display: "grid", placeItems: "center" }}
-        >
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M4 6h16M7 12h10M10 18h4" />
-          </svg>
-        </button>
-      </div>
+                  {/* Se non ha ancora detto a cosa è abbonato, la riga sopra dice
+                      solo "c'è su X". Qui glielo si chiede, una volta sola. */}
+                  {!haScelto && ric.length > 0 && !invitoChiuso && (
+                    <div className="hint">
+                      {I.info({ s: 14 })}
+                      <p style={{ flex: 1 }}>Dimmi a cosa sei abbonato e ti dico dove ce l&apos;hai già.</p>
+                      <button className="tert tap" style={{ flex: "none", padding: "0 2px" }} onClick={() => router.push("/?profilo=1")}>Scegli</button>
+                      <span className="chevhit tap" onClick={() => setInvitoChiuso(true)} aria-label="Non ora">{I.close({ s: 14 })}</span>
+                    </div>
+                  )}
 
-      {/* hero — Stasera per te (solo su "Da vedere") */}
-      {hero && (
-        <div onClick={() => openDetail(hero)} style={{ display: "flex", gap: 14, marginTop: 16, padding: 12, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 18, cursor: "pointer" }}>
-          <div style={{ width: 92, flex: "none", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "var(--k-cat-film, #2a2140)" }}>
-            {hero.poster && <img src={hero.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-          </div>
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-accent)" }}>Stasera per te</span>
-            <b style={{ fontSize: 17, fontWeight: 600, color: "var(--k-text)", margin: "4px 0 2px", lineHeight: 1.15 }}>{hero.title}</b>
-            <small style={{ fontSize: 12.5, color: "var(--k-text-3)" }}>{hero.info ?? kindLabel(hero.kind)}</small>
-            <div style={{ display: "flex", gap: 8, marginTop: "auto", paddingTop: 10 }}>
-              <button onClick={(e) => { e.stopPropagation(); toggleSeen(hero); }} className="ds-btn" style={{ height: 44, padding: "0 12px", fontSize: 13 }}>✓ Visto</button>
-              <button onClick={(e) => { e.stopPropagation(); openDove(hero); }} className="ds-btn primary" style={{ height: 44, padding: "0 12px", fontSize: 13 }}>▶ Dove vederlo</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Continua a guardare — solo se ci sono serie iniziate. Sui film questa
-          fascia non esiste proprio. */}
-      {!search.trim() && iniziate.length > 0 && (
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 10px" }}>Continua a guardare</div>
-          <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -20px", padding: "0 20px 4px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
-            {iniziate.map((i) => (
-              <div key={i.id} style={{ flex: "none", width: 104, scrollSnapAlign: "start" }}>
-                <div onClick={() => openDetail(i)} style={{ ...POSTER, cursor: "pointer" }}>
-                  {i.poster && <img src={i.poster} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                  {!ricLoading && ric.length === 0 && (
+                    <button className="btn2 wide tap" style={{ marginTop: 8 }} onClick={() => { doAdd(search.trim()); setSearch(""); }}>
+                      {I.plus({ s: 14 })}Aggiungi «{search.trim()}»
+                    </button>
+                  )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: "var(--k-text)" }}>
-                    S{i.season ?? 1} E{i.episode ?? 1}
-                  </span>
+              )}
+            </div>
+
+            {/* ── schede e filtri, tutti chip ── */}
+            <div>
+              <div className="chips">
+                {([["da-vedere", "da vedere"], ["visti", "visti"], ["tutti", "tutti"]] as [Scheda, string][]).map(([v, l]) => (
+                  <Chip key={v} on={scheda === v} onClick={() => setScheda(v)}>{l}</Chip>
+                ))}
+                <Chip on={tipo === "film"} onClick={() => setTipo(tipo === "film" ? "tutti" : "film")}>
+                  {I.film({ s: 12 })}film
+                </Chip>
+                <Chip on={tipo === "serie"} onClick={() => setTipo(tipo === "serie" ? "tutti" : "serie")}>
+                  {I.tv({ s: 12 })}serie
+                </Chip>
+                <Chip on={filtriAttivi > 0} onClick={() => setFiltriOpen(true)}>
+                  {filtriAttivi > 0 ? `filtri · ${filtriAttivi}` : "filtri"}
+                </Chip>
+              </div>
+            </div>
+
+            {/* ── Continua a guardare ────────────────────────────────────────
+                Va PRIMA di "Stasera per te": quello che hai lasciato a metà
+                viene prima di un consiglio nuovo. */}
+            {!search.trim() && iniziate.length > 0 && (
+              <div>
+                <Sec sm={iniziate.length === 1 ? "una serie aperta" : `${iniziate.length} serie aperte`}>Continua a guardare</Sec>
+                {iniziate.map((i) => {
+                  const pct = avanzamento(i);
+                  return (
+                    <div key={i.id} className="srf wide tap" style={{ marginTop: 8 }} onClick={() => openDetail(i)}>
+                      <div className="pw">
+                        <b className="fb2">{i.title.slice(0, 1)}</b>
+                        {i.poster && <Img src={i.poster} />}
+                      </div>
+                      <div className="in">
+                        <div className="k">
+                          <span className="dot guarda" />
+                          stagione {i.season ?? 1} · episodio {i.episode ?? 1}
+                        </div>
+                        <div className="t">{i.title}</div>
+                        <div className="staterow">
+                          {pct !== null && (
+                            <span className="prog"><i style={{ width: `${pct}%` }} /></span>
+                          )}
+                          <button
+                            className="btn-teal tap"
+                            aria-label={`Visto un episodio di ${i.title}`}
+                            aria-disabled={avanzando.includes(i.id) || undefined}
+                            onClick={(e) => { e.stopPropagation(); avanzaEpisodio(i); }}
+                            style={{ marginLeft: pct === null ? "auto" : undefined }}
+                          >
+                            +1 episodio
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Stasera per te ── */}
+            {hero && (
+              <div>
+                <Sec sm="uno dei tuoi, a caso">Stasera per te</Sec>
+                <Feature
+                  img={hero.poster}
+                  tone="dark"
+                  dot="guarda"
+                  k={[kindLabel(hero.kind).toLowerCase(), hero.genre?.toLowerCase()].filter(Boolean).join(" · ")}
+                  t={hero.title}
+                  m={hero.info ?? undefined}
+                  onClick={() => openDetail(hero)}
+                >
+                  <div className="row">
+                    <button className="cta tap" onClick={(e) => { e.stopPropagation(); openDove(hero); }}>Dove vederlo</button>
+                    <button className="btn2 tap" onClick={(e) => { e.stopPropagation(); toggleSeen(hero); }}>L’ho visto</button>
+                  </div>
+                </Feature>
+              </div>
+            )}
+
+            {/* ── la griglia, una sola ── */}
+            <div>
+              <Sec sm={`${griglia.length} ${griglia.length === 1 ? "titolo" : "titoli"}`}>La tua lista</Sec>
+              {aggiorno ? (
+                <div className="g3">{[0, 1, 2, 3, 4, 5].map(scheletro)}</div>
+              ) : griglia.length > 0 ? (
+                <div className="g3 stag">{griglia.map(card)}</div>
+              ) : list.length === 0 ? (
+                /* lista mai riempita */
+                <Empty
+                  icon={I.tv({ s: 17 })}
+                  t="Qui non c’è ancora niente"
+                  m="cerca un titolo e aggiungilo:<br/>lo ritrovi in questa griglia"
+                  cta="Aggiungi un titolo"
+                  onCta={() => inputRef.current?.focus()}
+                />
+              ) : (
+                /* c'è roba, ma i filtri non pescano niente */
+                <Empty
+                  icon={I.search({ s: 17 })}
+                  t="Nessun titolo con questi filtri"
+                  m="allarghiamo?"
+                  cta="Togli i filtri"
+                  onCta={() => { setScheda("tutti"); setTipo("tutti"); setGenere(null); setOrdine("recenti"); }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── menu del tocco lungo ── */}
+        {menuItem && (
+          <Sheet onClose={() => setMenuItem(null)}>
+            {menuItem.poster ? (
+              <SheetHero
+                img={menuItem.poster}
+                k={[kindLabel(menuItem.kind), menuItem.year].filter(Boolean).join(" · ")}
+                h2={menuItem.title}
+                cold
+              />
+            ) : (
+              <div className="plain-head"><h2>{menuItem.title}</h2></div>
+            )}
+            <div className="pad">
+              <div className="srf" style={{ marginTop: 16 }}>
+                {rowAct(
+                  I.tick({ s: 16 }),
+                  menuItem.seen ? "Non l’ho visto" : "L’ho visto",
+                  menuItem.seen ? "torna fra i da vedere" : "esce dalla lista e ti chiedo il voto",
+                  () => { const it = menuItem; setMenuItem(null); toggleSeen(it); },
+                )}
+                {rowAct(
+                  I.play({ s: 16 }),
+                  "Dove vederlo",
+                  "le piattaforme che ce l’hanno in Italia",
+                  () => { const it = menuItem; setMenuItem(null); openDove(it); },
+                )}
+                {rowAct(
+                  I.doc({ s: 16 }),
+                  "Apri la scheda",
+                  "trama, cast e titoli simili",
+                  () => { const it = menuItem; setMenuItem(null); openDetail(it); },
+                )}
+              </div>
+
+              {/* terziaria, in fondo, e chiede conferma: il primo tocco arma */}
+              <div className="danger" style={{ margin: "28px 0 8px" }}>
+                <button
+                  className={"tap" + (armaElimina ? " arm" : "")}
+                  onClick={() => {
+                    if (!armaElimina) { setArmaElimina(true); return; }
+                    const it = menuItem;
+                    setMenuItem(null);
+                    setArmaElimina(false);
+                    elimina(it, list.indexOf(it));
+                  }}
+                >
+                  {armaElimina ? "Tocca di nuovo per togliere" : "Togli dalla lista"}
+                </button>
+              </div>
+            </div>
+          </Sheet>
+        )}
+
+        {/* ── foglietto filtri ── */}
+        {filtriOpen && (
+          <Sheet onClose={() => setFiltriOpen(false)}>
+            <div className="plain-head"><h2>Cosa guardiamo?</h2></div>
+            <div className="pad">
+              <div className="status" style={LAB}>Tipo</div>
+              <div className="chips" style={{ margin: "0 -16px" }}>
+                {([["tutti", "tutti"], ["film", "film"], ["serie", "serie"]] as [Tipo, string][]).map(([v, l]) => (
+                  <Chip key={v} on={tipo === v} onClick={() => setTipo(v)}>{l}</Chip>
+                ))}
+              </div>
+
+              {generi.length > 0 && (
+                <>
+                  <div className="status" style={LAB}>Genere</div>
+                  <div className="chips" style={{ margin: "0 -16px", flexWrap: "wrap", overflowX: "visible" }}>
+                    <Chip on={genere === null} onClick={() => setGenere(null)}>tutti</Chip>
+                    {generi.map((g) => (
+                      <Chip key={g} on={genere === g} onClick={() => setGenere(g)}>{g}</Chip>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="status" style={LAB}>Ordine</div>
+              <div className="srf">
+                {([["recenti", "Aggiunti di recente"], ["alfabetico", "Alfabetico"], ["voto", "Voto"]] as [Ordine, string][]).map(([v, l]) => (
+                  <div className="row-act tap" key={v} onClick={() => setOrdine(v)}>
+                    <span className="ic2">{ordine === v ? I.tick({ s: 16 }) : I.swap({ s: 16 })}</span>
+                    <span className="in"><span className="t">{l}</span></span>
+                    {ordine === v && <span className="badge">scelto</span>}
+                  </div>
+                ))}
+              </div>
+
+              <button className="cta wide tap" style={{ marginTop: 20 }} onClick={() => setFiltriOpen(false)}>Fatto</button>
+            </div>
+          </Sheet>
+        )}
+
+        {/* ── foglio scheda film/serie ── */}
+        {detItem && (
+          <Sheet onClose={() => setDetItem(null)}>
+            {detItem.poster ? (
+              <SheetHero
+                img={detItem.poster}
+                k={[detData ? kindLabel(detData.kind) : kindLabel(detItem.kind), detData?.year ?? detItem.year].filter(Boolean).join(" · ")}
+                h2={detItem.title}
+                cold
+              />
+            ) : (
+              <div className="plain-head"><h2>{detItem.title}</h2></div>
+            )}
+            <div className="pad">
+              {detData && detData.genres.length > 0 && (
+                <span className="dchips" style={{ marginTop: 12 }}>
+                  {detData.genres.map((g) => <span className="dchip" key={g}>{g}</span>)}
+                </span>
+              )}
+
+              {/* Serie: a che punto sei. Sui film questo blocco non compare. */}
+              {detItem.kind === "serie" && (
+                <div className="srf2" style={{ marginTop: 16, padding: 14 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: "-.01em" }}>
+                    {detItem.episode != null
+                      ? `Sei a S${detItem.season ?? 1}E${detItem.episode}${serieInfo?.totalSeasons ? ` di ${serieInfo.totalSeasons} stagion${serieInfo.totalSeasons === 1 ? "e" : "i"}` : ""}`
+                      : "Non hai ancora cominciato"}
+                  </div>
+                  {serieInfo?.nextAirDate && giornoDi(serieInfo.nextAirDate) && (
+                    <div className="status">Prossimo episodio: {giornoDi(serieInfo.nextAirDate)}</div>
+                  )}
+
+                  {/* correzione a mano: la gente salta episodi e recupera */}
+                  {/* La stagione resta un menu a tendina: con lo stepper, per
+                      andare dalla 1 alla 5 servivano quattro tocchi. Il salto
+                      non si perde. Il vestito è quello del sistema (`.mini`),
+                      con l'altezza di presa a 44 e il testo a 16px, che sotto
+                      i 16 iOS ingrandisce la pagina da solo. */}
+                  <div className="fld">
+                    <span className="fl">Stagione</span>
+                    <select
+                      className="mini tap"
+                      value={detItem.season ?? 1}
+                      onChange={(e) => correggiPunto(detItem, Number(e.target.value), detItem.episode ?? 1)}
+                      style={{ width: "auto", minWidth: 88, minHeight: 44, fontSize: 16 }}
+                    >
+                      {Array.from({ length: Math.max(serieInfo?.totalSeasons ?? 1, detItem.season ?? 1, 1) }, (_, k) => k + 1).map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="fld">
+                    <span className="fl">Episodio</span>
+                    <Step
+                      val={detItem.episode ?? 1}
+                      dec={() => correggiPunto(detItem, detItem.season ?? 1, Math.max(1, (detItem.episode ?? 1) - 1))}
+                      inc={() => correggiPunto(detItem, detItem.season ?? 1, (detItem.episode ?? 1) + 1)}
+                    />
+                  </div>
+
                   <button
-                    onClick={() => avanzaEpisodio(i)}
-                    disabled={avanzando.includes(i.id)}
-                    aria-label={`Visto un episodio di ${i.title}`}
-                    style={{ width: 44, height: 44, flex: "none", marginRight: -6, borderRadius: 12, border: 0, background: "var(--k-accent)", color: "var(--k-accent-ink)", fontSize: 13, fontWeight: 800, cursor: "pointer", opacity: avanzando.includes(i.id) ? 0.5 : 1 }}
+                    className="cta wide tap"
+                    style={{ marginTop: 12 }}
+                    aria-disabled={avanzando.includes(detItem.id) || undefined}
+                    onClick={() => avanzaEpisodio(detItem)}
                   >
-                    +1
+                    +1 episodio
                   </button>
                 </div>
-                <div style={{ ...SOTTO, marginTop: 2 }}>{i.title}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              )}
 
-      {/* la griglia, una sola */}
-      {aggiorno ? (
-        <div style={GRID}>{[0, 1, 2, 3, 4, 5].map(scheletro)}</div>
-      ) : griglia.length > 0 ? (
-        <div style={GRID}>{griglia.map(card)}</div>
-      ) : list.length === 0 ? (
-        /* lista mai riempita */
-        <div style={{ textAlign: "center", padding: "54px 20px 30px" }}>
-          <div style={{ fontSize: 46, marginBottom: 12 }}>🐋</div>
-          <p style={{ fontSize: 15, color: "var(--k-text-2)", lineHeight: 1.5, margin: "0 auto 20px", maxWidth: 260 }}>
-            Qui finiscono i film e le serie che vuoi vedere
-          </p>
-          <button onClick={() => document.querySelector<HTMLInputElement>('input[placeholder="Cerca o aggiungi un titolo…"]')?.focus()} className="ds-btn primary" style={{ height: 48, padding: "0 22px", fontSize: 15, fontWeight: 700 }}>
-            Aggiungi un titolo
-          </button>
-        </div>
-      ) : (
-        /* c'è roba, ma i filtri non pescano niente */
-        <div style={{ textAlign: "center", padding: "44px 20px 30px" }}>
-          <p style={{ fontSize: 14.5, color: "var(--k-text-2)", lineHeight: 1.5, margin: "0 auto 16px", maxWidth: 280 }}>
-            Nessun titolo con questi filtri. Allarghiamo?
-          </p>
-          <button onClick={() => { setScheda("tutti"); setTipo("tutti"); setGenere(null); setOrdine("recenti"); }} className="ds-btn" style={{ height: 44, padding: "0 18px", fontSize: 14 }}>
-            Togli i filtri
-          </button>
-        </div>
-      )}
-
-      {/* menu del tocco lungo */}
-      {menuItem && (
-        <SheetShell onClose={() => setMenuItem(null)} zIndex={58}>
-          <div style={{ padding: "0 20px" }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
-              <div style={{ width: 46, flex: "none", aspectRatio: "2 / 3", borderRadius: 8, overflow: "hidden", background: "var(--k-cat-film, #2a2140)" }}>
-                {menuItem.poster && <img src={menuItem.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-              </div>
-              <b style={{ fontSize: 16, fontWeight: 600, color: "var(--k-text)", lineHeight: 1.2 }}>{menuItem.title}</b>
-            </div>
-            {([
-              [menuItem.seen ? "↩︎ In lista" : "✓ Visto", () => { toggleSeen(menuItem); setMenuItem(null); }],
-              ["▶ Dove vederlo", () => { const it = menuItem; setMenuItem(null); openDove(it); }],
-              ["🗑 Elimina", () => { const it = menuItem; setMenuItem(null); elimina(it, list.indexOf(it)); }],
-            ] as [string, () => void][]).map(([l, fn]) => (
-              <button key={l} onClick={fn} className="ds-btn" style={{ width: "100%", height: 50, marginBottom: 8, fontSize: 15, justifyContent: "flex-start", paddingLeft: 18, textAlign: "left" }}>{l}</button>
-            ))}
-          </div>
-        </SheetShell>
-      )}
-
-      {/* foglietto filtri */}
-      {filtriOpen && (
-        <SheetShell onClose={() => setFiltriOpen(false)} zIndex={58}>
-          <div style={{ padding: "0 20px" }}>
-            <h3 className="ds-display" style={{ fontSize: 19, color: "var(--k-text)", margin: "0 0 18px" }}>Cosa guardiamo? Mood?</h3>
-
-            <div style={ETICHETTA}>Tipo</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-              {([["tutti", "Tutti"], ["film", "Film"], ["serie", "Serie"]] as [Tipo, string][]).map(([v, l]) => (
-                <button key={v} onClick={() => setTipo(v)} aria-pressed={tipo === v} style={{ flex: 1, height: 44, borderRadius: 12, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: tipo === v ? 700 : 500, background: tipo === v ? "var(--k-accent)" : "var(--k-surface)", border: `1px solid ${tipo === v ? "var(--k-accent)" : "var(--k-line)"}`, color: tipo === v ? "var(--k-accent-ink)" : "var(--k-text-2)" }}>{l}</button>
-              ))}
-            </div>
-
-            {generi.length > 0 && (
-              <>
-                <div style={ETICHETTA}>Genere</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-                  <button onClick={() => setGenere(null)} aria-pressed={genere === null} style={{ height: 44, padding: "0 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit", fontSize: 13.5, fontWeight: genere === null ? 700 : 500, background: genere === null ? "var(--k-accent)" : "var(--k-surface)", border: `1px solid ${genere === null ? "var(--k-accent)" : "var(--k-line)"}`, color: genere === null ? "var(--k-accent-ink)" : "var(--k-text-2)" }}>Tutti</button>
-                  {generi.map((g) => (
-                    <button key={g} onClick={() => setGenere(g)} aria-pressed={genere === g} style={{ height: 44, padding: "0 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit", fontSize: 13.5, fontWeight: genere === g ? 700 : 500, background: genere === g ? "var(--k-accent)" : "var(--k-surface)", border: `1px solid ${genere === g ? "var(--k-accent)" : "var(--k-line)"}`, color: genere === g ? "var(--k-accent-ink)" : "var(--k-text-2)" }}>{g}</button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div style={ETICHETTA}>Ordine</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {([["recenti", "Aggiunti di recente"], ["alfabetico", "Alfabetico"], ["voto", "Voto"]] as [Ordine, string][]).map(([v, l]) => (
-                <button key={v} onClick={() => setOrdine(v)} aria-pressed={ordine === v} style={{ height: 46, borderRadius: 12, cursor: "pointer", fontFamily: "inherit", fontSize: 14, textAlign: "left", paddingLeft: 16, fontWeight: ordine === v ? 700 : 500, background: ordine === v ? "var(--k-accent)" : "var(--k-surface)", border: `1px solid ${ordine === v ? "var(--k-accent)" : "var(--k-line)"}`, color: ordine === v ? "var(--k-accent-ink)" : "var(--k-text-2)" }}>{l}</button>
-              ))}
-            </div>
-
-            <button onClick={() => setFiltriOpen(false)} className="ds-btn primary" style={{ width: "100%", height: 48, marginTop: 20, fontSize: 15, fontWeight: 700 }}>Fatto ✓</button>
-          </div>
-        </SheetShell>
-      )}
-
-      {/* foglio scheda film/serie — trama, anno, generi, cast (TMDB) */}
-      {detItem && (
-        <SheetShell onClose={() => setDetItem(null)} zIndex={55} maxHeight="86vh">
-          <div style={{ padding: "0 20px" }}>
-            <div style={{ display: "flex", gap: 14 }}>
-              <div style={{ width: 84, flex: "none", aspectRatio: "2 / 3", borderRadius: 12, overflow: "hidden", background: "var(--k-cat-film, #2a2140)" }}>
-                {detItem.poster && <img src={detItem.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: 18, fontWeight: 600, color: "var(--k-text)", lineHeight: 1.15, display: "block" }}>{detItem.title}</b>
-                <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 6 }}>
-                  {[detData ? (detData.kind === "serie" ? "Serie" : "Film") : kindLabel(detItem.kind), detData?.year].filter(Boolean).join(" · ")}
-                </div>
-                {detData && detData.genres.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                    {detData.genres.map((g) => (
-                      <span key={g} style={{ fontSize: 11, fontWeight: 600, color: "var(--k-text-2)", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "3px 9px" }}>{g}</span>
-                    ))}
+              {/* Il voto viene PRIMA della trama se il titolo è già visto: la
+                 trama non serve più a chi l'ha visto, il voto sì. */}
+              {(() => {
+                const voto = (
+                  <div key="voto">
+                    <div className="status" style={LAB}>Il tuo voto</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      {[1, 2, 3, 4, 5].map((nn) => (
+                        <button
+                          key={nn}
+                          onClick={() => { setDetRating(nn); saveReview(detItem, nn, detNote); }}
+                          aria-label={`${nn} su 5`}
+                          className="tap"
+                          style={{ background: "none", border: 0, cursor: "pointer", width: 44, height: 44, display: "grid", placeItems: "center", color: nn <= detRating ? "var(--teal)" : "var(--meta)", opacity: nn <= detRating ? 1 : 0.4 }}
+                        >
+                          {I.orca(22)}
+                        </button>
+                      ))}
+                      {detRating > 0 && (
+                        <button className="tert tap" onClick={() => { setDetRating(0); saveReview(detItem, 0, detNote); }}>azzera</button>
+                      )}
+                    </div>
+                    <textarea
+                      value={detNote}
+                      onChange={(e) => setDetNote(e.target.value)}
+                      placeholder="Una nota sui tuoi gusti… (facoltativa)"
+                      rows={2}
+                      style={{ width: "100%", marginTop: 10, background: "var(--lv1)", border: "1px solid rgba(255,255,255,.09)", borderRadius: "var(--r-in)", boxShadow: "inset 0 1px 0 var(--hl)", padding: "10px 12px", color: "var(--txt)", fontSize: 16, fontFamily: "inherit", outline: 0, resize: "vertical", boxSizing: "border-box" }}
+                    />
+                    <button className="btn2 tap" style={{ marginTop: 8 }} onClick={() => saveReview(detItem, detRating, detNote)}>Salva nota</button>
                   </div>
-                )}
-              </div>
-            </div>
+                );
 
-            {/* Serie: a che punto sei. Sui film questo blocco non compare. */}
-            {detItem.kind === "serie" && (
-              <div style={{ marginTop: 18, padding: 14, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14 }}>
-                <div style={{ fontSize: 14, color: "var(--k-text)", fontWeight: 600 }}>
-                  {detItem.episode != null
-                    ? `Sei a S${detItem.season ?? 1}E${detItem.episode}${serieInfo?.totalSeasons ? ` di ${serieInfo.totalSeasons} stagion${serieInfo.totalSeasons === 1 ? "e" : "i"}` : ""}`
-                    : "Non hai ancora cominciato"}
-                </div>
-                {serieInfo?.nextAirDate && giornoDi(serieInfo.nextAirDate) && (
-                  <div style={{ fontSize: 12.5, color: "var(--k-text-3)", marginTop: 4 }}>
-                    Prossimo episodio: {giornoDi(serieInfo.nextAirDate)}
+                const corpo = detLoading ? (
+                  <div key="load" style={{ marginTop: 16 }}><Skeleton rows={2} /></div>
+                ) : (
+                  <div key="corpo">
+                    {detData?.overview ? (
+                      <div onClick={() => setDetExpanded((v) => !v)} style={{ marginTop: 16, cursor: "pointer" }}>
+                        <p className="sub" style={{ marginTop: 0, display: "-webkit-box", WebkitLineClamp: detExpanded ? undefined : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{detData.overview}</p>
+                        <button className="tert tap">{detExpanded ? "Comprimi" : "Leggi tutto"}</button>
+                      </div>
+                    ) : (
+                      <p className="sub">Trama non disponibile.</p>
+                    )}
+
+                    {detData && detData.cast.length > 0 && (
+                      <div>
+                        <div className="status" style={LAB}>Cast</div>
+                        <div className="sub" style={{ marginTop: 0 }}>{detData.cast.join(", ")}</div>
+                      </div>
+                    )}
+
+                    {detSimilar.length > 0 && (
+                      <div>
+                        <div className="status" style={LAB}>Simili · tocca per aggiungere</div>
+                        <div className="shelf" style={{ margin: "0 -16px" }}>
+                          {detSimilar.map((s) => (
+                            <div key={s.title} className="rcard tap" onClick={() => doAdd(s.title)}>
+                              <div className="pw">
+                                <b className="fb2">{s.title.slice(0, 1)}</b>
+                                {s.poster && <Img src={s.poster} />}
+                                <span className="bdg" style={{ left: "auto", right: 8, padding: "4px 6px" }}>{I.plus({ s: 12 })}</span>
+                              </div>
+                              <div className="t">{s.title}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                );
 
-                {/* correzione a mano: la gente salta episodi e recupera */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-                  <span style={{ fontSize: 12.5, color: "var(--k-text-3)", flex: "none" }}>Stagione</span>
-                  <select
-                    value={detItem.season ?? 1}
-                    onChange={(e) => correggiPunto(detItem, Number(e.target.value), detItem.episode ?? 1)}
-                    style={{ height: 44, minWidth: 66, background: "var(--k-bg)", border: "1px solid var(--k-line)", borderRadius: 10, color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", padding: "0 8px" }}
-                  >
-                    {Array.from({ length: Math.max(serieInfo?.totalSeasons ?? 1, detItem.season ?? 1, 1) }, (_, k) => k + 1).map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                  <span style={{ fontSize: 12.5, color: "var(--k-text-3)", flex: "none" }}>Episodio</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={detItem.episode ?? 1}
-                    onChange={(e) => correggiPunto(detItem, detItem.season ?? 1, Math.max(1, Number(e.target.value) || 1))}
-                    style={{ height: 44, width: 72, background: "var(--k-bg)", border: "1px solid var(--k-line)", borderRadius: 10, color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", padding: "0 10px", boxSizing: "border-box" }}
-                  />
-                </div>
+                return detItem.seen ? <>{voto}{corpo}</> : <>{corpo}{voto}</>;
+              })()}
 
-                <button onClick={() => avanzaEpisodio(detItem)} disabled={avanzando.includes(detItem.id)} className="ds-btn primary" style={{ width: "100%", height: 46, marginTop: 12, fontSize: 14.5, fontWeight: 700, opacity: avanzando.includes(detItem.id) ? 0.5 : 1 }}>
-                  +1 episodio
+              <div className="pactions" style={{ marginTop: 20 }}>
+                <button className="cta tap" onClick={() => { const it = detItem; setDetItem(null); openDove(it); }}>Dove vederlo</button>
+                <button className="btn2 tap" onClick={() => { toggleSeen(detItem); setDetItem(null); }}>
+                  {detItem.seen ? "Non l’ho visto" : "L’ho visto"}
                 </button>
               </div>
-            )}
-
-            {/* Il voto viene PRIMA della trama se il titolo è già visto: la trama
-               non serve più a chi l'ha visto, il voto sì. */}
-            {(() => {
-              const voto = (
-                <div style={{ marginTop: 20 }} key="voto">
-                  <div style={ETICHETTA}>Il tuo voto</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    {[1, 2, 3, 4, 5].map((nn) => (
-                      <button key={nn} onClick={() => { setDetRating(nn); saveReview(detItem, nn, detNote); }} aria-label={`${nn} su 5`} style={{ background: "none", border: 0, cursor: "pointer", fontSize: 24, lineHeight: 1, width: 44, height: 44, display: "grid", placeItems: "center", filter: nn <= detRating ? "none" : "grayscale(1)", opacity: nn <= detRating ? 1 : 0.3 }}>🐋</button>
-                    ))}
-                    {detRating > 0 && <button onClick={() => { setDetRating(0); saveReview(detItem, 0, detNote); }} style={{ background: "none", border: 0, color: "var(--k-text-3)", fontSize: 12.5, cursor: "pointer", height: 44, padding: "0 8px" }}>azzera</button>}
-                  </div>
-                  <textarea value={detNote} onChange={(e) => setDetNote(e.target.value)} placeholder="Una nota sui tuoi gusti… (facoltativa)" rows={2} style={{ width: "100%", marginTop: 10, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "10px 12px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0, resize: "vertical", boxSizing: "border-box" }} />
-                  <button onClick={() => saveReview(detItem, detRating, detNote)} className="ds-btn" style={{ height: 44, padding: "0 16px", marginTop: 8, fontSize: 13.5 }}>Salva nota</button>
-                </div>
-              );
-
-              const corpo = detLoading ? (
-                <div key="load" style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 4px", color: "var(--k-text-2)", fontSize: 14 }}>
-                  <span className="ds-spin" style={{ width: 18, height: 18, border: "2px solid var(--k-line)", borderTopColor: "var(--k-accent)", borderRadius: "50%", display: "inline-block" }} />
-                  Carico la scheda…
-                </div>
-              ) : (
-                <div key="corpo">
-                  {detData?.overview ? (
-                    <div onClick={() => setDetExpanded((v) => !v)} style={{ marginTop: 16, cursor: "pointer" }}>
-                      <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--k-text-2)", margin: "0 0 4px", display: "-webkit-box", WebkitLineClamp: detExpanded ? undefined : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{detData.overview}</p>
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--k-accent)" }}>{detExpanded ? "Comprimi" : "Leggi tutto"}</span>
-                    </div>
-                  ) : (
-                    <p style={{ marginTop: 16, fontSize: 13.5, color: "var(--k-text-3)" }}>Trama non disponibile.</p>
-                  )}
-
-                  {detData && detData.cast.length > 0 && (
-                    <div style={{ marginTop: 16 }}>
-                      <div style={ETICHETTA}>Cast</div>
-                      <div style={{ fontSize: 13.5, color: "var(--k-text-2)", lineHeight: 1.4 }}>{detData.cast.join(", ")}</div>
-                    </div>
-                  )}
-
-                  {detSimilar.length > 0 && (
-                    <div style={{ marginTop: 18 }}>
-                      <div style={ETICHETTA}>Simili · tocca per aggiungere</div>
-                      <div style={{ display: "flex", gap: 10, overflowX: "auto", margin: "0 -20px", padding: "0 20px 4px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
-                        {detSimilar.map((s) => (
-                          <button key={s.title} onClick={() => doAdd(s.title)} style={{ flex: "none", width: 84, scrollSnapAlign: "start", background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
-                            <div style={{ width: 84, aspectRatio: "2 / 3", borderRadius: 10, overflow: "hidden", background: "linear-gradient(150deg,#3a2f52,#1a1526)", position: "relative" }}>
-                              {s.poster && <img src={s.poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-                              <span style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", fontSize: 14, fontWeight: 800, display: "grid", placeItems: "center" }}>+</span>
-                            </div>
-                            <div style={{ fontSize: 11, color: "var(--k-text-2)", marginTop: 5, lineHeight: 1.2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{s.title}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-
-              return detItem.seen ? <>{voto}{corpo}</> : <>{corpo}{voto}</>;
-            })()}
-
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button onClick={() => { toggleSeen(detItem); setDetItem(null); }} className="ds-btn" style={{ flex: 1, height: 48 }}>{detItem.seen ? "↩︎ In lista" : "✓ Visto"}</button>
-              <button onClick={() => { const it = detItem; setDetItem(null); openDove(it); }} className="ds-btn primary" style={{ flex: 1, height: 48 }}>▶ Dove vederlo</button>
             </div>
-          </div>
-        </SheetShell>
-      )}
+          </Sheet>
+        )}
 
-      {/* foglio "Dove vederlo" — piattaforme italiane reali (TMDB) */}
-      {dovItem && (
-        <SheetShell onClose={() => setDovItem(null)} zIndex={55}>
-          <div style={{ padding: "0 20px" }}>
-            <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--k-text)", margin: "0 0 14px" }}>Dove vedere «{dovItem.title}»</h3>
-            {dovLoading ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 4px", color: "var(--k-text-2)", fontSize: 14 }}>
-                <span className="ds-spin" style={{ width: 18, height: 18, border: "2px solid var(--k-line)", borderTopColor: "var(--k-accent)", borderRadius: "50%", display: "inline-block" }} />
-                Cerco le piattaforme…
-              </div>
-            ) : (() => {
-              const flat = dovData?.flatrate ?? [];
-              const paid = [...(dovData?.rent ?? []), ...(dovData?.buy ?? [])].filter((p, i, a) => a.findIndex((x) => x.name === p.name) === i);
-              if (flat.length === 0 && paid.length === 0) {
+        {/* ── foglio "Dove vederlo" ── */}
+        {dovItem && (
+          <Sheet onClose={() => setDovItem(null)}>
+            <div className="plain-head"><h2>Dove vedere «{dovItem.title}»</h2></div>
+            <div className="pad">
+              {dovLoading ? (
+                <div style={{ marginTop: 16 }}><Skeleton rows={2} /></div>
+              ) : (() => {
+                const flat = dovData?.flatrate ?? [];
+                const paid = [...(dovData?.rent ?? []), ...(dovData?.buy ?? [])].filter((p, i, a) => a.findIndex((x) => x.name === p.name) === i);
+                if (flat.length === 0 && paid.length === 0) {
+                  return (
+                    <>
+                      <div className="sub">Non risulta in streaming in Italia in questo momento.</div>
+                      <button className="cta wide tap" style={{ marginTop: 16 }} onClick={() => { justwatch(dovItem); setDovItem(null); }}>Cerca su JustWatch</button>
+                    </>
+                  );
+                }
+                const groups = [
+                  flat.length ? { label: "In abbonamento", ps: flat } : null,
+                  paid.length ? { label: "Noleggio o acquisto", ps: paid } : null,
+                ].filter(Boolean) as { label: string; ps: WatchProvider[] }[];
                 return (
                   <>
-                    <p style={{ fontSize: 13.5, color: "var(--k-text-3)", margin: "0 0 14px" }}>Non risulta in streaming in Italia in questo momento.</p>
-                    <button onClick={() => { justwatch(dovItem); setDovItem(null); }} className="ds-btn primary" style={{ width: "100%", height: 48 }}>Cerca su JustWatch ▸</button>
+                    {groups.map((g) => (
+                      <div key={g.label}>
+                        <div className="status" style={LAB}>{g.label}</div>
+                        <div className="srf">
+                          {g.ps.map((p) => rowAct(
+                            p.logo
+                              ? <Img src={p.logo} />
+                              : I.play({ s: 16 }),
+                            p.name,
+                            g.label === "In abbonamento" ? "incluso" : "a noleggio o in acquisto",
+                            () => {
+                              const u = platformUrl(p.name, dovItem.title) || dovData?.link || `https://www.justwatch.com/it/cerca?q=${encodeURIComponent(dovItem.title)}`;
+                              window.open(u, "_blank", "noopener");
+                            },
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <button className="btn2 wide tap" style={{ marginTop: 16 }} onClick={() => { const u = dovData?.link; window.open(u || `https://www.justwatch.com/it/cerca?q=${encodeURIComponent(dovItem.title)}`, "_blank", "noopener"); setDovItem(null); }}>Altre opzioni</button>
+                    <div className="status" style={{ textAlign: "center", marginTop: 10 }}>Dati TMDB · disponibilità Italia</div>
                   </>
                 );
-              }
-              const groups = [
-                flat.length ? { label: "In abbonamento", ps: flat } : null,
-                paid.length ? { label: "Noleggio / acquisto", ps: paid } : null,
-              ].filter(Boolean) as { label: string; ps: WatchProvider[] }[];
-              return (
-                <>
-                  {groups.map((g) => (
-                    <div key={g.label} style={{ marginBottom: 14 }}>
-                      <div style={ETICHETTA}>{g.label}</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {g.ps.map((p) => (
-                          <button key={p.name} onClick={() => { const u = platformUrl(p.name, dovItem.title) || dovData?.link || `https://www.justwatch.com/it/cerca?q=${encodeURIComponent(dovItem.title)}`; window.open(u, "_blank", "noopener"); }} style={{ display: "flex", alignItems: "center", gap: 7, minHeight: 44, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "6px 14px 6px 8px", cursor: "pointer", fontFamily: "inherit" }}>
-                            {p.logo ? <img src={p.logo} alt="" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover" }} /> : <span style={{ width: 26, height: 26, borderRadius: 6, background: "var(--k-line)", display: "inline-block" }} />}
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--k-text)" }}>{p.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={() => { const u = dovData?.link; window.open(u || `https://www.justwatch.com/it/cerca?q=${encodeURIComponent(dovItem.title)}`, "_blank", "noopener"); setDovItem(null); }} className="ds-btn primary" style={{ width: "100%", height: 48, marginTop: 4 }}>Altre opzioni ▸</button>
-                  <p style={{ fontSize: 11, color: "var(--k-text-3)", textAlign: "center", margin: "10px 0 0" }}>Dati TMDB · disponibilità Italia</p>
-                </>
-              );
-            })()}
-          </div>
-        </SheetShell>
-      )}
+              })()}
+            </div>
+          </Sheet>
+        )}
 
-      {/* toast */}
-      {toast && (
-        <div style={{ position: "fixed", left: 16, right: 16, bottom: "calc(96px + env(safe-area-inset-bottom))", maxWidth: 408, margin: "0 auto", zIndex: 40, display: "flex", alignItems: "center", gap: 12, background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 14, padding: "8px 8px 8px 14px", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
-          <span style={{ flex: 1, fontSize: 14, color: "var(--k-text)" }}>{toast.msg}</span>
-          {toast.action && <button onClick={() => { toast.onAction?.(); setToast(null); }} style={{ background: "none", border: 0, color: "var(--k-accent)", fontWeight: 700, fontSize: 14, cursor: "pointer", minWidth: 44, height: 44, padding: "0 10px" }}>{toast.action}</button>}
+        {/* ── toast ──────────────────────────────────────────────────────────
+            Il `.toast` del mock è solo testo centrato. Qui deve portare anche
+            l'azione, perché l'eliminazione si annulla da lì: è la sola aggiunta
+            al componente, e senza di lei si perde un comportamento. */}
+        <div className={"toast" + (toast ? " on" : "")}>
+          {toast?.msg}
+          {toast?.action && (
+            <button
+              className="tert tap"
+              style={{ marginLeft: 12, padding: 0 }}
+              onClick={() => { toast.onAction?.(); setToast(null); }}
+            >
+              {toast.action}
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
+      {/* La barra di navigazione resta FUORI da .k2: è condivisa con le altre
+          sezioni e il reset del foglio V2 (`.k2 *`) le toglierebbe i margini. */}
       <KeikoNav active="guarda" />
-    </div>
+    </>
   );
 }
