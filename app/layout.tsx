@@ -31,6 +31,20 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+// Font display della UI V2. È lo STESSO Fraunces, ma variabile e con l'asse
+// ottico acceso (`opsz`): è così che lo carica docs/mockups/keiko-v2-mock.html,
+// ed è l'unico modo perché i titoli abbiano lo stesso disegno del mock — con
+// un'istanza statica le lettere hanno lo stesso ingombro ma un altro spessore.
+// Sta separato apposta: la UI attuale continua a leggere --font-fraunces e non
+// cambia di un pixel. Quando la V2 avrà preso tutta l'app, i due diventano uno.
+const frauncesV2 = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces-v2",
+  axes: ["opsz"],
+  display: "swap",
+  preload: false,
+});
+
 // Anteprima dei link (WhatsApp, Telegram, iMessage): serve un indirizzo
 // ASSOLUTO, altrimenti l'immagine non viene scaricata e resta l'icona generica.
 // In produzione l'indirizzo lo mette Vercel da sé; in locale vale localhost.
@@ -98,7 +112,7 @@ export default function RootLayout({
       lang="it"
       suppressHydrationWarning
       style={{ backgroundColor: "#0C0E13" }}
-      className={`dark ${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`dark ${inter.variable} ${geistMono.variable} ${fraunces.variable} ${frauncesV2.variable} h-full antialiased`}
     >
       <head>
         {/* Tema scuro UNICO: forza .dark prima del primo paint e cancella

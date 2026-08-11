@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* UI V2 — foglio condiviso portato 1:1 dal mock, tutto sotto .k2 */
+@import "./keiko-v2.css";
 
 @custom-variant dark (&:is(.dark *));
 
