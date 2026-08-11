@@ -6,12 +6,28 @@ import { useRouter } from "next/navigation";
    `active` evidenzia il tab corrente. `onAdd` (opzionale) per il "+":
    se non passato, va alla pagina /add. */
 
-/* Altezza della barra (un solo numero in tutta l'app). */
+/* Altezza UTILE della barra: lo spazio in cui vivono icone ed etichette.
+   Non è l'altezza totale — sotto ci va anche la safe-area. */
 export const NAV_H = 84;
-/* Spazio da riservare in fondo alle pagine così l'ultimo elemento non finisce
-   sotto la barra: altezza barra + margine + safe-area dell'home-indicator.
-   Unico valore, usato da KeikoShell, GuardaView e KeikoHomeV4. */
-export const PAGE_PB = "calc(116px + env(safe-area-inset-bottom))";
+
+/* L'altezza totale della barra. La safe-area si SOMMA a NAV_H, non ci sta
+   dentro: era questo il bug delle card tagliate in fondo alla home.
+   Con `height: 84px` fisso e `padding-bottom: 18px + safe-area`, su un iPhone
+   con l'home-indicator (34px) allo spazio utile restavano 84-18-34 = 32px —
+   e le icone sono alte 44, il tasto "+" 56. Non ci stavano: traboccavano
+   SOPRA la barra, sopra il suo sfondo, addosso all'ultima card della pagina.
+   Su desktop (safe-area = 0) lo spazio era 66px e non si vedeva niente, che è
+   il motivo per cui il difetto si notava solo dal telefono. */
+export const NAV_TOTALE = `calc(${NAV_H}px + env(safe-area-inset-bottom))`;
+
+/* Spazio da riservare in fondo alle pagine perché l'ultimo elemento non finisca
+   sotto la barra. Tre pezzi, tutti misurati e non tirati a caso:
+     84px  la barra
+     +24   quanto il tasto "+" sporge sopra la barra (ha margin-top -24)
+     +20   aria di respiro, così l'ultima card non tocca il bordo
+     + la safe-area, che è sotto la barra e va comunque scavalcata.
+   Unico valore per tutta l'app: KeikoShell, KeikoHomeV4, GuardaView, CucinaView. */
+export const PAGE_PB = `calc(${NAV_H + 24 + 20}px + env(safe-area-inset-bottom))`;
 
 /* "viaggio" non ha un'icona sua in barra (il viaggio si apre dalle card della
    Home): è una sotto-pagina della Home, quindi accende "Home" invece di
@@ -29,7 +45,7 @@ export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab
     else router.push("/add");
   };
   return (
-    <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: NAV_H, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px", paddingBottom: "calc(18px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto", zIndex: 30 }}>
+    <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: NAV_TOTALE, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px", paddingBottom: "calc(18px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto", zIndex: 30 }}>
       <NavItem label="Home" active={active === "home" || active === "viaggio"} icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => go("/")} />
       <NavItem label="Dieta" active={active === "dieta"} icon={<><circle cx="12" cy="12" r="9" /><path d="M12 3v18M3 12h18" /></>} onClick={() => go("/salute")} />
       <button onClick={add} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 30, lineHeight: 1, paddingBottom: 2, boxShadow: "0 8px 20px rgba(255,184,77,.28), 0 2px 6px rgba(0,0,0,.4)", marginTop: -24, cursor: "pointer" }}>+</button>

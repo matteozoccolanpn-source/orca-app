@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Recipe, RicettaEstratta, ShoppingItem } from "@/lib/supabase";
 import { quandoDetto, daQuanto, amazonFresh, type PastoDelGiorno, type Rifare } from "@/lib/cucina";
+import { PAGE_PB } from "@/app/components/keiko/KeikoNav";
 import "../ds.css";
 
 /* CUCINA — la sezione, ripensata (docs/mockups/cucina-redesign-mock.html).
@@ -404,7 +405,9 @@ export default function CucinaView({
         minHeight: "100dvh",
         background: "var(--k-bg)",
         color: "var(--k-text)",
-        padding: "calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 120px)",
+        // Lo spazio di fondo è quello condiviso (KeikoNav): Cucina non ha la
+        // barra, ma ha la pastiglia della spesa che vive alla stessa altezza.
+        padding: `calc(env(safe-area-inset-top) + 20px) 18px ${PAGE_PB}`,
         maxWidth: 560,
         margin: "0 auto",
         position: "relative",
