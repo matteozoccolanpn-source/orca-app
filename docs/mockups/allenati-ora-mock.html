@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Keiko — Allenati ora (mock B)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F0F12;
+    --lv1:#1A1B20; --lv2:#212228;
+    --hl:rgba(255,255,255,.08); --line:rgba(255,255,255,.05);
+    --txt:#F1F4FA; --meta:#9BA0A8;
+    --teal:#3DA5C4; --teal-soft:#86CCE0; --on-teal:#08191E;
+    --acc:#C96A45;
+    --r-hero:16px; --r-card:12px; --r-in:9px; --r-chip:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{font-family:Inter,-apple-system,system-ui,sans-serif;color:var(--txt);
+    background:var(--bg);max-width:430px;margin:0 auto;position:relative;overflow-x:hidden}
+  body:before{content:'';position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:1;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E")}
+
+  .lights{position:fixed;inset:0;pointer-events:none;z-index:0;max-width:430px;left:50%;transform:translateX(-50%)}
+  .l-top{position:absolute;top:-160px;left:-20%;right:-20%;height:420px;
+    background:radial-gradient(58% 100% at 50% 0%, rgba(61,165,196,.20), transparent 70%)}
+  .l-low{position:absolute;bottom:-80px;left:-25%;right:-25%;height:380px;
+    background:radial-gradient(56% 58% at 50% 50%, rgba(201,106,69,.14), transparent 72%)}
+
+  .srf{background:var(--lv1);border:1px solid var(--line);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 var(--hl)}
+  .srf2{background:var(--lv2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+
+  /* barra di avanzamento in alto, fissa */
+  .topbar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:60;
+    background:rgba(15,15,18,.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--hl);
+    padding:12px 16px 11px}
+  .topbar .r1{display:flex;align-items:center;gap:12px}
+  .topbar .x{width:30px;height:30px;flex:none;border-radius:var(--r-chip);background:var(--lv1);
+    border:1px solid var(--line);box-shadow:inset 0 1px 0 var(--hl);display:grid;place-items:center;
+    color:var(--txt);cursor:pointer}
+  .topbar .col{flex:1;min-width:0}
+  .topbar .t{font-family:Fraunces,Georgia,serif;font-size:14.5px;font-weight:500;letter-spacing:-.01em}
+  .topbar .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px}
+  .topbar .c{font-size:11.5px;color:var(--teal-soft);font-weight:600;flex:none}
+  .steps{display:flex;gap:4px;margin-top:10px}
+  .steps i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.09);transition:background .3s}
+  .steps i.on{background:var(--teal)}
+  .steps i.cur{background:var(--teal-soft)}
+
+  .page{position:relative;z-index:2;padding:104px 16px calc(112px + env(safe-area-inset-bottom))}
+
+  /* esercizio corrente */
+  .now{border-radius:var(--r-hero);overflow:hidden;position:relative;
+    background:var(--lv2);border:1px solid rgba(255,255,255,.07);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 18px 46px rgba(0,0,0,.45)}
+  .now .bg{position:relative;aspect-ratio:16/10;overflow:hidden;background:#20242c}
+  .now .bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .now .bg:after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 34%,rgba(10,10,13,.96))}
+  .now .cap{position:absolute;left:16px;right:16px;bottom:12px;z-index:2}
+  .now .k{font-size:11.5px;color:var(--teal-soft);font-weight:600;display:flex;align-items:center;gap:6px}
+  .now .k i{width:5px;height:5px;border-radius:3px;background:var(--teal);font-style:normal}
+  .now .t{font-family:Fraunces,Georgia,serif;font-size:26px;font-weight:500;letter-spacing:-.015em;line-height:1.08;margin-top:6px}
+  .now .body{padding:14px 16px 16px}
+  .kv{display:flex;gap:8px;flex-wrap:wrap}
+  .kv span{font-size:12px;font-weight:600;color:var(--txt);background:var(--lv1);
+    border:1px solid rgba(255,255,255,.09);border-radius:var(--r-chip);padding:6px 10px;
+    box-shadow:inset 0 1px 0 var(--hl)}
+  .kv span b{color:var(--meta);font-weight:500}
+  .last{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:10px;display:flex;align-items:center;gap:7px}
+  .last svg{flex:none;color:var(--meta)}
+
+  /* serie */
+  .sets{margin-top:12px;overflow:hidden}
+  .sets-h{display:flex;align-items:baseline;gap:10px;padding:12px 12px 8px}
+  .sets-h .t{flex:1;font-size:13px;font-weight:600;letter-spacing:-.01em}
+  .sets-h .c{font-size:11.5px;color:var(--teal-soft);font-weight:600}
+  .set{display:flex;align-items:center;gap:12px;padding:11px 12px;border-top:1px solid var(--line);cursor:pointer}
+  .ckc{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(61,165,196,.6);
+    flex:none;display:grid;place-items:center;transition:all .18s}
+  .set.done .ckc{background:var(--teal);border-color:var(--teal);box-shadow:0 2px 12px rgba(61,165,196,.45)}
+  .ckc svg path{stroke-dasharray:24;stroke-dashoffset:24}
+  .set.done .ckc svg path{stroke-dashoffset:0;transition:stroke-dashoffset .4s ease .05s}
+  .set .n{flex:1;font-size:13px;font-weight:600}
+  .set.done .n{opacity:.6;font-weight:500;text-decoration:line-through;
+    text-decoration-thickness:1px;text-decoration-color:rgba(241,244,250,.7)}
+  .set .v{font-size:11.5px;color:var(--meta);font-weight:500}
+
+  /* timer recupero */
+  .rest{margin-top:12px;padding:14px;display:flex;align-items:center;gap:14px}
+  .ring{flex:none;position:relative;width:56px;height:56px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .bg2{stroke:rgba(255,255,255,.10)}
+  .ring .fg{stroke:var(--teal);transition:stroke-dashoffset 1s linear}
+  .ring .n{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--teal-soft)}
+  .rest .col{flex:1;min-width:0}
+  .rest .t{font-size:13px;font-weight:600;letter-spacing:-.01em}
+  .rest .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:2px}
+
+  .hint{display:flex;align-items:flex-start;gap:9px;margin-top:12px;padding:11px 12px;
+    border-left:2px solid rgba(61,165,196,.55);border-radius:var(--r-chip);
+    background:rgba(61,165,196,.06)}
+  .hint svg{flex:none;margin-top:1px;color:var(--teal-soft)}
+  .hint p{font-size:12.5px;color:#C9D1DB;font-weight:500;line-height:1.5}
+  .hint b{color:var(--txt);font-weight:600}
+
+  .upnext{margin-top:12px;padding:11px 12px;display:flex;align-items:center;gap:11px}
+  .upnext .lab{font-size:11px;font-weight:600;color:var(--meta);flex:none}
+  .upnext .t{flex:1;font-size:12.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .upnext .m{font-size:11.5px;color:var(--meta);font-weight:500;flex:none}
+
+  /* barra azioni fissa */
+  .actions{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;z-index:55;
+    background:rgba(15,15,18,.94);backdrop-filter:blur(20px);border-top:1px solid var(--hl);
+    padding:12px 16px calc(16px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px}
+  .nav{width:42px;height:42px;flex:none;border-radius:var(--r-card);background:var(--lv1);
+    border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 var(--hl);
+    display:grid;place-items:center;color:var(--txt);cursor:pointer}
+  .nav[disabled]{opacity:.35;cursor:default}
+  .cta{flex:1;font-size:13.5px;font-weight:600;background:var(--acc);color:#FFF3EC;border:none;font-family:inherit;
+    border-radius:var(--r-card);padding:13px 16px;cursor:pointer;box-shadow:0 6px 20px rgba(201,106,69,.35);
+    display:flex;align-items:center;justify-content:center;gap:8px}
+  .skip{font-size:12px;font-weight:600;color:var(--teal-soft);background:none;border:none;font-family:inherit;
+    cursor:pointer;padding:10px 6px;flex:none}
+
+  /* schermata finale */
+  .done-screen{display:none;position:relative;z-index:2;padding:104px 16px calc(112px + env(safe-area-inset-bottom));
+    animation:fade .3s ease}
+  .done-screen.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .fin{padding:24px 16px;text-align:center;border-radius:var(--r-hero)}
+  .fin .big{width:56px;height:56px;border-radius:50%;background:var(--teal);margin:0 auto;
+    display:grid;place-items:center;box-shadow:0 6px 24px rgba(61,165,196,.45)}
+  .fin .t{font-family:Fraunces,Georgia,serif;font-size:24px;font-weight:500;letter-spacing:-.015em;margin-top:14px}
+  .fin .m{font-size:12.5px;color:var(--meta);font-weight:500;margin-top:6px;line-height:1.5}
+  .recap{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+  .rc{padding:12px 10px;text-align:center}
+  .rc b{display:block;font-family:Fraunces,Georgia,serif;font-size:20px;font-weight:500}
+  .rc span{display:block;font-size:11px;color:var(--meta);font-weight:500;margin-top:3px}
+  .donelist{margin-top:8px}
+  .dl{display:flex;align-items:center;gap:11px;padding:10px 12px;border-top:1px solid var(--line)}
+  .dl:first-child{border-top:none}
+  .dl .ic{width:20px;height:20px;flex:none;border-radius:50%;background:var(--teal);display:grid;place-items:center}
+  .dl .ic.skip{background:none;border:1.5px solid rgba(255,255,255,.16)}
+  .dl .t{flex:1;font-size:12.5px;font-weight:600}
+  .dl .m{font-size:11.5px;color:var(--meta);font-weight:500}
+
+  .rcp{cursor:pointer;padding:8px 8px 12px;margin-top:8px}
+  .rcp .ph{position:relative;overflow:hidden;border-radius:var(--r-in);background:#20242c;aspect-ratio:16/9}
+  .rcp .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .rcp .ph:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(10,10,13,.55))}
+  .rcp .t{font-size:14.5px;font-weight:600;letter-spacing:-.01em;margin:10px 4px 0}
+  .rcp .m{font-size:11.5px;color:var(--meta);font-weight:500;margin:3px 4px 0}
+  .why{display:flex;align-items:center;gap:6px;margin:8px 4px 0;padding-top:8px;border-top:1px solid var(--line);
+    font-size:12.5px;font-weight:600;color:var(--teal-soft)}
+  .src{position:absolute;top:8px;left:8px;z-index:2;font-size:10.5px;font-weight:600;color:#E8ECF3;
+    background:rgba(16,16,19,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+    border-radius:999px;padding:3px 8px}
+  .sec{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;color:var(--txt);
+    letter-spacing:-.01em;margin:32px 2px 10px}
+  .btn2{width:100%;font-size:13px;font-weight:600;background:var(--lv1);color:var(--txt);
+    border:1px solid rgba(255,255,255,.09);border-radius:var(--r-card);padding:12px;
+    box-shadow:inset 0 1px 0 var(--hl);cursor:pointer;font-family:inherit;margin-top:24px}
+  svg{display:block}
+</style>
+</head>
+<body>
+  <div class="lights"><div class="l-top"></div><div class="l-low"></div></div>
+
+  <div class="topbar">
+    <div class="r1">
+      <span class="x" onclick="alert('Torna alla scheda')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+      <span class="col">
+        <span class="t" id="barT">Corsa Recovery + Nuoto</span>
+        <span class="m" id="barM">esercizio 1 di 4 · scheda rientro</span>
+      </span>
+      <span class="c" id="barC">≈35'</span>
+    </div>
+    <div class="steps" id="steps"></div>
+  </div>
+
+  <!-- ═══ esecuzione ═══ -->
+  <div class="page" id="run">
+    <div class="now">
+      <div class="bg"><img id="nowImg" src="" alt="">
+        <div class="cap">
+          <div class="k"><i></i><span id="nowK">mattino · corsa</span></div>
+          <div class="t" id="nowT">Corsa 5 km recovery</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="kv" id="nowKv"></div>
+        <div class="last">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg>
+          <span id="nowLast">l'ultima volta: 6:00/km, il 20 luglio</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sets srf2" id="setsBox">
+      <div class="sets-h">
+        <span class="t" id="setsT">Le serie</span>
+        <span class="c" id="setsC">0 di 8</span>
+      </div>
+      <div id="setsList"></div>
+    </div>
+
+    <div class="rest srf" id="restBox" style="display:none">
+      <span class="ring">
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <circle class="bg2" cx="28" cy="28" r="23" stroke-width="4"/>
+          <circle class="fg" id="restRing" cx="28" cy="28" r="23" stroke-width="4" stroke-linecap="round"
+            stroke-dasharray="145" stroke-dashoffset="0"/>
+        </svg>
+        <span class="n" id="restN">30</span>
+      </span>
+      <span class="col">
+        <span class="t">Recupero</span>
+        <span class="m" id="restM">30 secondi, poi la serie dopo</span>
+      </span>
+      <button class="skip" onclick="stopRest()">salta</button>
+    </div>
+
+    <div class="hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+      <p id="hintTxt">Rientro dopo 21 giorni: <b>ritmo conversazione</b>. Se non riesci a parlare, rallenta.</p>
+    </div>
+
+    <div class="upnext srf" id="upnext">
+      <span class="lab">poi</span>
+      <span class="t" id="upT">Nuoto 800 m</span>
+      <span class="m" id="upM">≈25'</span>
+    </div>
+  </div>
+
+  <!-- ═══ fine ═══ -->
+  <div class="done-screen" id="end">
+    <div class="fin srf2">
+      <span class="big"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+      <div class="t">Allenamento finito</div>
+      <div class="m">Corsa Recovery + Nuoto · domenica 10 agosto<br>il rientro è cominciato</div>
+      <div class="recap">
+        <div class="rc srf"><b id="recN">4 su 4</b><span>voci completate</span></div>
+        <div class="rc srf"><b>1h 25′</b><span>durata totale</span></div>
+      </div>
+    </div>
+
+    <div class="sec">Cosa hai fatto</div>
+    <div class="srf donelist" id="donelist"></div>
+
+    <div class="sec">Da mangiare dopo</div>
+    <div class="rcp srf" onclick="alert('Apre il pasto in Cucina')">
+      <div class="ph">
+        <span class="src">post-workout</span>
+        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=70&auto=format&fit=crop" alt="">
+      </div>
+      <div class="t">Insalata di uova sode + fagiolini</div>
+      <div class="m">la cena del tuo piano · 26g proteine</div>
+      <div class="why"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>è già nel Menu di oggi</div>
+    </div>
+
+    <button class="btn2" onclick="restart()">Torna alla scheda</button>
+  </div>
+
+  <div class="actions" id="actions">
+    <button class="nav" id="prev" onclick="prev()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="cta" onclick="next(true)">
+      <span id="ctaTxt">Fatto → prossimo</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <button class="skip" onclick="next(false)">salta</button>
+  </div>
+
+<script>
+  const EX=[
+    {k:'mattino · corsa',t:'Corsa 5 km recovery',dur:"≈35'",
+     img:'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=900&q=70&auto=format&fit=crop',
+     kv:['<b>distanza</b> 5 km','<b>ritmo</b> 6:10/km','<b>zona</b> Z1-Z2'],
+     last:"l'ultima volta: 6:00/km, il 20 luglio",
+     hint:'Rientro dopo 21 giorni: <b>ritmo conversazione</b>. Se non riesci a parlare, rallenta.'},
+    {k:'sera · vasca',t:'Nuoto 800 m',dur:"≈25'",
+     img:'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=900&q=70&auto=format&fit=crop',
+     kv:['<b>serie</b> 8 × 100 m','<b>recupero</b> 30″','<b>stile</b> libero'],
+     last:"l'ultima volta: 1.000 m, il 18 luglio",
+     hint:'Se il braccio tira, chiudi a <b>600 m</b>: oggi conta esserci, non il volume.',
+     sets:8,setLabel:'100 m',rest:30},
+    {k:'mobilità',t:"Stretching 10'",dur:"10'",
+     img:'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=900&q=70&auto=format&fit=crop',
+     kv:['<b>blocchi</b> 5','<b>tenuta</b> 40″'],
+     last:"l'ultima volta: 5 blocchi, il 20 luglio",
+     hint:'Catena posteriore e anche. Respiro lento, <b>mai molleggiare</b>.',
+     sets:5,setLabel:'blocco',rest:15},
+    {k:'sera · core',t:"Core 15'",dur:"15'",
+     img:'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=900&q=70&auto=format&fit=crop',
+     kv:['<b>giri</b> 3','<b>esercizi</b> 4','<b>tenuta</b> 40″'],
+     last:"l'ultima volta: 4 giri, il 20 luglio",
+     hint:'Plank, hollow, side plank, dead bug. <b>Tre giri invece di quattro</b>: è il rientro.',
+     sets:3,setLabel:'giro',rest:45}
+  ];
+  let idx=0, state=EX.map(e=>({done:false,skipped:false,sets:new Array(e.sets||0).fill(false)}));
+  let restT=null;
+
+  function render(){
+    const e=EX[idx], s=state[idx];
+    document.getElementById('barM').textContent='esercizio '+(idx+1)+' di '+EX.length+' · scheda rientro';
+    document.getElementById('barC').textContent=e.dur;
+    document.getElementById('steps').innerHTML=EX.map((_,i)=>
+      `<i class="${i<idx?'on':(i===idx?'cur':'')}"></i>`).join('');
+    document.getElementById('nowImg').src=e.img;
+    document.getElementById('nowK').textContent=e.k;
+    document.getElementById('nowT').textContent=e.t;
+    document.getElementById('nowKv').innerHTML=e.kv.map(x=>`<span>${x}</span>`).join('');
+    document.getElementById('nowLast').textContent=e.last;
+    document.getElementById('hintTxt').innerHTML=e.hint;
+
+    const box=document.getElementById('setsBox');
+    if(e.sets){
+      box.style.display='block';
+      document.getElementById('setsT').textContent=e.sets+' × '+e.setLabel;
+      document.getElementById('setsC').textContent=s.sets.filter(Boolean).length+' di '+e.sets;
+      document.getElementById('setsList').innerHTML=s.sets.map((d,i)=>`
+        <div class="set${d?' done':''}" onclick="tglSet(${i})">
+          <span class="ckc"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+          <span class="n">${e.setLabel.charAt(0).toUpperCase()+e.setLabel.slice(1)} ${i+1}</span>
+          <span class="v">${d?'fatto':'—'}</span>
+        </div>`).join('');
+    }else box.style.display='none';
+
+    const nx=EX[idx+1];
+    const up=document.getElementById('upnext');
+    if(nx){up.style.display='flex';document.getElementById('upT').textContent=nx.t;document.getElementById('upM').textContent=nx.dur;}
+    else up.style.display='none';
+
+    document.getElementById('prev').disabled=idx===0;
+    document.getElementById('ctaTxt').textContent=idx===EX.length-1?'Fatto → chiudi':'Fatto → prossimo';
+  }
+  function tglSet(i){
+    const e=EX[idx], s=state[idx];
+    s.sets[i]=!s.sets[i];
+    render();
+    if(s.sets[i]&&e.rest&&s.sets.filter(Boolean).length<e.sets)startRest(e.rest);
+  }
+  function startRest(sec){
+    stopRest();
+    const box=document.getElementById('restBox');
+    box.style.display='flex';
+    let left=sec;
+    document.getElementById('restM').textContent=sec+' secondi, poi la serie dopo';
+    const upd=()=>{
+      document.getElementById('restN').textContent=left;
+      document.getElementById('restRing').style.strokeDashoffset=145*(1-left/sec);
+      if(left<=0){stopRest();return;}
+      left--;
+    };
+    upd();restT=setInterval(upd,1000);
+  }
+  function stopRest(){clearInterval(restT);document.getElementById('restBox').style.display='none';}
+  function next(done){
+    state[idx].done=done;state[idx].skipped=!done;
+    stopRest();
+    if(idx<EX.length-1){idx++;render();window.scrollTo(0,0);}
+    else finish();
+  }
+  function prev(){if(idx>0){idx--;stopRest();render();window.scrollTo(0,0);}}
+  function finish(){
+    document.getElementById('run').style.display='none';
+    document.getElementById('actions').style.display='none';
+    document.getElementById('end').classList.add('on');
+    document.getElementById('barM').textContent='scheda rientro · completata';
+    document.getElementById('steps').innerHTML=EX.map(()=>'<i class="on"></i>').join('');
+    const nd=state.filter(s=>s.done).length;
+    document.getElementById('recN').textContent=nd+' su '+EX.length;
+    document.getElementById('donelist').innerHTML=EX.map((e,i)=>`
+      <div class="dl">
+        <span class="ic${state[i].done?'':' skip'}">${state[i].done?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3.5"><path d="M4 12l5 5L20 7"/></svg>':''}</span>
+        <span class="t">${e.t}</span>
+        <span class="m">${state[i].done?e.dur:'saltato'}</span>
+      </div>`).join('');
+    window.scrollTo(0,0);
+  }
+  function restart(){
+    idx=0;state=EX.map(e=>({done:false,skipped:false,sets:new Array(e.sets||0).fill(false)}));
+    document.getElementById('end').classList.remove('on');
+    document.getElementById('run').style.display='block';
+    document.getElementById('actions').style.display='flex';
+    render();window.scrollTo(0,0);
+  }
+  render();
+</script>
+</body>
+</html>

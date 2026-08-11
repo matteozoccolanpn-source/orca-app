@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Keiko — Cucina v2.3 (4 schermi collegati)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F0F12;
+    --lv1:#1A1B20; --lv2:#212228;
+    --hl:rgba(255,255,255,.08); --line:rgba(255,255,255,.05);
+    --txt:#F1F4FA; --meta:#9BA0A8;
+    --teal:#3DA5C4; --teal-soft:#86CCE0; --on-teal:#08191E;
+    --acc:#C96A45;
+    --r-hero:16px; --r-card:12px; --r-in:9px; --r-chip:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{font-family:Inter,-apple-system,system-ui,sans-serif;color:var(--txt);
+    background:var(--bg);max-width:430px;margin:0 auto;position:relative;overflow-x:hidden}
+  body:before{content:'';position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:1;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E")}
+
+  .lights{position:absolute;inset:0;pointer-events:none;z-index:0}
+  .l-top{position:absolute;top:-140px;left:-15%;right:-15%;height:340px;
+    background:radial-gradient(58% 100% at 50% 0%, rgba(120,130,150,.20), transparent 70%)}
+  .l-mid{position:absolute;top:120px;left:-25%;right:-25%;height:440px;
+    background:radial-gradient(55% 60% at 50% 50%, rgba(61,165,196,.17), transparent 72%)}
+  .l-low{position:absolute;top:660px;left:-25%;right:-25%;height:420px;
+    background:radial-gradient(56% 58% at 50% 50%, rgba(201,106,69,.15), transparent 72%)}
+
+  .screen{display:none;position:relative;z-index:2;
+    padding:16px 16px calc(88px + env(safe-area-inset-bottom));animation:fade .22s ease}
+  .screen.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* header sticky compatto (Cucina) */
+  .sticky{position:fixed;top:0;left:50%;transform:translate(-50%,-110%);width:100%;max-width:430px;z-index:60;
+    background:rgba(15,15,18,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--hl);
+    padding:10px 16px 9px;transition:transform .25s ease;display:flex;align-items:center;gap:12px}
+  .sticky.on{transform:translate(-50%,0)}
+  .sticky .t{font-family:Fraunces,Georgia,serif;font-size:15px;font-weight:500;flex:none}
+  .sticky .prog{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}
+  .sticky .prog i{display:block;height:100%;background:var(--teal);border-radius:2px;transition:width .35s}
+  .sticky .c{font-size:11.5px;color:var(--teal-soft);font-weight:600;flex:none}
+
+  .srf{background:var(--lv1);border:1px solid var(--line);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 var(--hl)}
+  .srf2{background:var(--lv2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .ph{position:relative;overflow:hidden;background:#20242c;border-radius:var(--r-in)}
+  .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .ph:after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 55%,rgba(10,10,13,.55)),
+               radial-gradient(130% 130% at 50% 45%, transparent 58%, rgba(0,0,0,.26))}
+  .ph .ovl{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(10,10,13,.96));z-index:1}
+
+  .head{display:flex;align-items:flex-start;gap:12px}
+  .head .col{flex:1}
+  .head h1{font-family:Fraunces,Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.01em}
+  .status{font-size:12.5px;color:var(--meta);font-weight:500;margin-top:4px}
+  .back{width:34px;height:34px;flex:none;border-radius:var(--r-card);background:var(--lv1);
+    border:1px solid var(--line);box-shadow:inset 0 1px 0 var(--hl);
+    display:grid;place-items:center;color:var(--txt);cursor:pointer;margin-top:2px}
+
+  .btn2{font-size:12.5px;font-weight:600;background:var(--lv1);color:var(--txt);
+    border:1px solid rgba(255,255,255,.09);border-radius:var(--r-chip);padding:8px 12px;
+    white-space:nowrap;box-shadow:inset 0 1px 0 var(--hl);cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;gap:7px}
+  .btn2 svg{color:var(--teal-soft)}
+  .btn-teal{font-size:12px;font-weight:600;background:none;color:var(--teal-soft);font-family:inherit;
+    border:1px solid rgba(61,165,196,.5);border-radius:var(--r-chip);padding:6px 12px;white-space:nowrap;cursor:pointer}
+  .cta{font-size:12px;font-weight:600;background:var(--acc);color:#FFF3EC;border:none;font-family:inherit;
+    border-radius:var(--r-chip);padding:8px 14px;white-space:nowrap;cursor:pointer;
+    box-shadow:0 4px 16px rgba(201,106,69,.35)}
+  .tert{font-size:12px;font-weight:600;color:var(--teal-soft);cursor:pointer;background:none;border:none;font-family:inherit;padding:8px 4px}
+
+  /* titolo di sezione: voce Fraunces chiara + coda grigia Inter + link teal */
+  .sec{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;color:var(--txt);
+    letter-spacing:-.01em;margin:32px 2px 10px;
+    display:flex;align-items:baseline;gap:8px}
+  .sec .sm{font-family:Inter,-apple-system,system-ui,sans-serif;font-size:12px;font-weight:500;
+    color:var(--meta);flex:1;min-width:0}
+  .sec .more{font-family:Inter,-apple-system,system-ui,sans-serif;font-size:12.5px;
+    color:var(--teal-soft);font-weight:600;cursor:pointer;flex:none;margin-left:auto}
+
+  /* ── barra assistente: componente unico; arancione SOLO sull'invio ── */
+  .ask{background:var(--lv1);border:1px solid rgba(61,165,196,.45);border-radius:var(--r-card);
+    padding:12px;font-size:13px;color:var(--meta);font-weight:500;display:flex;align-items:center;gap:9px;
+    box-shadow:inset 0 1px 0 var(--hl), 0 0 0 3px rgba(61,165,196,.07);cursor:pointer}
+  .ask.hero{padding:15px 14px;font-size:14px;border-color:rgba(61,165,196,.6);
+    box-shadow:inset 0 1px 0 var(--hl), 0 0 0 4px rgba(61,165,196,.10), 0 12px 34px rgba(61,165,196,.14)}
+  .ask .ph-txt{transition:opacity .3s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+  .ask .go{flex:none;width:26px;height:26px;border-radius:var(--r-chip);background:var(--acc);
+    display:grid;place-items:center;color:#FFF3EC;box-shadow:0 3px 12px rgba(201,106,69,.35)}
+  .examples{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .ex{font-size:11.5px;font-weight:500;color:var(--teal-soft);background:rgba(61,165,196,.10);
+    border:1px solid rgba(61,165,196,.28);border-radius:999px;padding:5px 11px;cursor:pointer}
+
+  /* ── Menu di oggi ── */
+  .meals{margin-top:16px;overflow:hidden;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 16px 44px rgba(61,165,196,.10)}
+  .meals-head{display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer}
+  /* livello sezione: chiuso = solo il pasto prossimo */
+  .meals:not(.dayopen) .meal:not(.hero){display:none}
+  .meals:not(.dayopen) .addrow{display:none}
+  .meals.dayopen .chev-day{transform:rotate(180deg)}
+  .ring{flex:none;position:relative;width:44px;height:44px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .bg{stroke:rgba(255,255,255,.08)}
+  .ring .fg{stroke:var(--teal);transition:stroke-dashoffset .5s ease}
+  .ring .n{position:absolute;inset:0;display:grid;place-items:center;font-size:10.5px;font-weight:600;color:var(--teal-soft)}
+  .mh-col{flex:1;min-width:0}
+  .mh-t{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+  .mh-sub{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:2px}
+  .mh-c{flex:none;font-size:11.5px;color:var(--teal-soft);font-weight:600}
+  .chev-day{transition:transform .28s ease-out;color:var(--meta);flex:none}
+
+  .meal{border-top:1px solid var(--line)}
+  .meal-row{display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer}
+  .meal.done .meal-row{cursor:default}
+  .ckc{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(61,165,196,.6);
+    flex:none;display:grid;place-items:center;cursor:pointer;transition:all .18s}
+  .meal.done .ckc{background:var(--teal);border-color:var(--teal);box-shadow:0 2px 12px rgba(61,165,196,.45)}
+  .ckc svg path{stroke-dasharray:24;stroke-dashoffset:24}
+  .meal.done .ckc svg path{stroke-dashoffset:0;transition:stroke-dashoffset .4s ease .05s}
+  .meal .in{flex:1;min-width:0}
+  .meal .k{font-size:11.5px;color:var(--meta);font-weight:500;display:flex;align-items:center;gap:5px}
+  .dot{width:5px;height:5px;border-radius:3px;background:var(--meta);flex:none}
+  .meal .tx{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
+  .meal.done .tx{opacity:.6;font-weight:500;
+    text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:rgba(241,244,250,.7)}
+  .meal.done .k{opacity:.7}
+  .mkcal{font-size:11.5px;color:var(--meta);font-weight:500;flex:none}
+  .chev{transition:transform .28s ease-out;color:var(--meta);flex:none}
+  .meal.openx .chev,.day.open .chev{transform:rotate(180deg)}
+  .meal-x{max-height:0;overflow:hidden;transition:max-height .28s ease-out}
+  .meal.openx .meal-x{max-height:220px}
+  .meal-x .inner{padding:0 12px 12px 46px}
+  .rx{font-size:12.5px;color:var(--meta);font-weight:500;line-height:1.5}
+  .meal-x .row,.hero-body .row{display:flex;align-items:center;gap:8px;margin-top:12px}
+
+  /* pasto prossimo: hero non collassabile */
+  .meal.hero{background:var(--lv2);border-top-color:rgba(61,165,196,.35);
+    box-shadow:inset 0 1px 0 rgba(61,165,196,.25)}
+  .meal.hero .k{color:var(--teal-soft)}
+  .meal.hero .k .dot{background:var(--teal)}
+  .hero-body{display:flex;gap:12px;padding:0 12px 12px 46px}
+  .meal.hero .meal-x{max-height:0}
+  .meal.hero.openx .meal-x{max-height:260px}
+  .hero-body .ph{width:74px;flex:none;border-radius:var(--r-in);align-self:stretch;min-height:74px}
+  .hero-body .col{flex:1;min-width:0}
+
+  .addrow{width:100%;text-align:left;background:none;border:none;font-family:inherit;cursor:pointer;
+    padding:12px;border-top:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--teal-soft);
+    display:flex;align-items:center;gap:9px}
+  .complete{display:none;align-items:center;gap:12px;padding:14px 12px;border-top:1px solid var(--line)}
+  .meals.finished .complete{display:flex}
+  .big-ck{width:28px;height:28px;border-radius:50%;background:var(--teal);flex:none;
+    display:grid;place-items:center;box-shadow:0 2px 12px rgba(61,165,196,.45)}
+  .complete .t{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500}
+  .complete .m{display:block;font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px}
+
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .content{cursor:pointer;padding:8px 8px 12px}
+  .content .ph{aspect-ratio:16/10}
+  .content .t{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin:8px 4px 0}
+  .content .m{font-size:11.5px;font-weight:500;margin:3px 4px 0;display:flex;align-items:center;gap:5px;color:var(--meta)}
+
+  .wide{display:flex;cursor:pointer;padding:8px}
+  .wide .ph{width:100px;flex:none;align-self:stretch}
+  .wide .in{padding:8px 8px 8px 12px;flex:1;display:flex;flex-direction:column;justify-content:center;min-height:80px}
+  .wide .k{font-size:11.5px;font-weight:500;display:flex;align-items:center;gap:5px;color:var(--meta)}
+  .wide .t{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;margin-top:2px;letter-spacing:-.01em}
+  .staterow{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .st{font-size:11.5px;color:var(--meta);font-weight:500;white-space:nowrap}
+  .prog{height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}
+  .prog i{display:block;height:100%;background:var(--teal);border-radius:2px;transition:width .35s ease}
+
+  .rcp{cursor:pointer;padding:8px 8px 12px}
+  .rcp .ph{aspect-ratio:16/9}
+  .rcp .t{font-size:14.5px;font-weight:600;letter-spacing:-.01em;margin:10px 4px 0}
+  .rcp .m{font-size:11.5px;color:var(--meta);font-weight:500;margin:3px 4px 0}
+  .why{display:flex;align-items:center;gap:6px;margin:8px 4px 0;padding-top:8px;border-top:1px solid var(--line);
+    font-size:12.5px;font-weight:600;color:var(--teal-soft);flex-wrap:wrap}
+  .why svg{flex:none}
+  .match{font-size:10.5px;font-weight:600;color:var(--teal-soft);background:rgba(61,165,196,.10);
+    border:1px solid rgba(61,165,196,.28);border-radius:999px;padding:2px 8px;margin-left:auto}
+  .src{position:absolute;top:8px;left:8px;z-index:2;font-size:10.5px;font-weight:600;color:#E8ECF3;
+    background:rgba(16,16,19,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+    border-radius:999px;padding:3px 8px}
+  .creator{position:absolute;top:8px;right:8px;z-index:2;font-size:10.5px;font-weight:500;color:#C9CFD8;
+    background:rgba(16,16,19,.55);backdrop-filter:blur(10px);border-radius:999px;padding:3px 8px}
+  .play{position:absolute;left:8px;bottom:8px;z-index:2}
+  .play i{width:30px;height:30px;border-radius:50%;background:rgba(16,16,19,.55);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.25);display:grid;place-items:center;font-style:normal}
+  .watch{position:absolute;right:8px;bottom:8px;z-index:2;font-size:10.5px;font-weight:600;color:#E8ECF3;
+    background:rgba(16,16,19,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+    border-radius:999px;padding:3px 8px}
+
+  .feature{border-radius:var(--r-hero);overflow:hidden;position:relative;cursor:pointer;
+    background:var(--lv2);border:1px solid rgba(255,255,255,.07);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .feature .ph{border-radius:0;aspect-ratio:16/9}
+  .feature .fin{position:absolute;left:16px;right:16px;bottom:12px;z-index:2}
+  .ctx{display:inline-flex;align-items:center;gap:6px;background:rgba(16,16,19,.6);backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:#E8ECF3}
+  .ctx i{width:6px;height:6px;border-radius:3px;background:var(--meta);font-style:normal}
+  .feature .t{font-family:Fraunces,Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.01em;line-height:1.1;margin-top:8px}
+  .feature .m{font-size:12.5px;color:#CDD5DF;font-weight:500;margin-top:4px}
+
+  .chips{display:flex;gap:8px;overflow-x:auto;margin:12px -16px 0;padding:2px 16px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none;font-size:12px;font-weight:600;color:#C6CBD3;background:var(--lv1);
+    border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:8px 13px;cursor:pointer;
+    box-shadow:inset 0 1px 0 var(--hl);display:inline-flex;align-items:center;gap:6px}
+  .chip svg{color:var(--teal-soft)}
+  .chip.on{background:var(--teal);color:var(--on-teal);border-color:var(--teal)}
+  .chip.on svg{color:var(--on-teal)}
+  .edrow{display:flex;gap:8px;margin-top:12px}
+  .ed{flex:1;text-align:center;padding:11px 8px;cursor:pointer;
+    font-family:Fraunces,Georgia,serif;font-size:13.5px;font-weight:500;letter-spacing:-.01em}
+
+  /* card-giorno con mezza foto */
+  .day{margin-top:8px;overflow:hidden;cursor:pointer;position:relative}
+  .day-bg{position:absolute;top:0;right:0;bottom:0;width:46%;z-index:0}
+  .day-bg img{width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .day-bg:after{content:'';position:absolute;inset:0;
+    background:linear-gradient(90deg,var(--lv1) 0%,rgba(26,27,32,.72) 45%,rgba(26,27,32,.28) 100%)}
+  .day-head{display:flex;align-items:center;gap:12px;padding:12px;position:relative;z-index:1}
+  .day-head .d{width:36px;flex:none;text-align:center}
+  .day-head .d b{display:block;font-size:13px;font-weight:600}
+  .day-head .d span{font-size:10px;color:var(--meta);font-weight:500}
+  .day-head .pv{flex:1;min-width:0}
+  .day-head .pv .t{display:block;font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    text-shadow:0 1px 8px rgba(10,10,13,.8)}
+  .day-head .pv .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:2px;display:flex;align-items:center;gap:5px}
+  .day-list{max-height:0;transition:max-height .3s ease-out;overflow:hidden;position:relative;z-index:1;background:var(--lv1)}
+  .day.open .day-list{max-height:400px}
+  .dmeal{display:flex;gap:12px;padding:8px 12px;border-top:1px solid var(--line)}
+  .dmeal:nth-child(even){background:rgba(255,255,255,.02)}
+  .dmeal .k{width:76px;flex:none;font-size:11.5px;color:var(--meta);font-weight:500;padding-top:1px}
+  .dmeal .tx{flex:1;font-size:12.5px;font-weight:500;color:var(--txt);line-height:1.4}
+  /* domani: hero con foto piena */
+  .day.next .day-bg{width:100%}
+  .day.next .day-bg:after{background:linear-gradient(90deg,rgba(15,15,18,.92) 0%,rgba(15,15,18,.62) 55%,rgba(15,15,18,.30) 100%),
+    linear-gradient(180deg,transparent 40%,rgba(10,10,13,.55))}
+  .day.next{border-radius:var(--r-hero)}
+  .day.next .day-head{padding:18px 14px}
+  .day.next .pv .t{font-family:Fraunces,Georgia,serif;font-size:17px;font-weight:500}
+  .day.next .nxt{flex:none;font-size:11px;font-weight:600;color:var(--teal-soft)}
+
+  .danger{margin:48px 0 8px;text-align:center}
+  .danger button{background:none;border:none;font-family:inherit;font-size:12.5px;font-weight:500;
+    color:var(--meta);cursor:pointer;padding:8px 12px;transition:color .2s}
+  .danger button.arm{color:var(--acc);font-weight:600}
+
+  .empty{padding:20px 16px;text-align:center}
+  .empty .ic{width:36px;height:36px;border-radius:var(--r-in);background:var(--lv2);margin:0 auto;
+    display:grid;place-items:center;color:var(--meta);box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .empty .t{font-size:13px;font-weight:600;margin-top:8px}
+  .empty .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:3px;line-height:1.5}
+  .soon{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--teal-soft);
+    background:rgba(61,165,196,.12);border:1px solid rgba(61,165,196,.3);border-radius:999px;padding:3px 9px;margin-top:8px}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(16px);bottom:calc(100px + env(safe-area-inset-bottom));
+    z-index:80;background:var(--lv2);border:1px solid rgba(61,165,196,.4);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 12px 34px rgba(0,0,0,.5);
+    padding:10px 14px;font-size:12.5px;font-weight:600;color:var(--txt);opacity:0;pointer-events:none;
+    transition:all .25s ease;white-space:nowrap}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .row-act{display:flex;align-items:center;gap:12px;padding:13px 12px;cursor:pointer;border-top:1px solid var(--line)}
+  .row-act:first-child{border-top:none}
+  .row-act .ic2{width:32px;height:32px;flex:none;border-radius:var(--r-in);background:var(--lv2);
+    display:grid;place-items:center;color:var(--teal-soft);box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .row-act .in{flex:1}
+  .row-act .t{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+  .row-act .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px}
+
+  .tab{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;z-index:50;
+    background:rgba(15,15,18,.92);backdrop-filter:blur(20px);border-top:1px solid var(--hl);
+    display:flex;align-items:flex-end;justify-content:space-around;
+    padding:8px 8px calc(14px + env(safe-area-inset-bottom))}
+  .ti{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:500;
+    color:var(--meta);width:56px;cursor:pointer}
+  .ti.on{color:var(--teal-soft)}
+  .fab{width:50px;height:50px;border-radius:50%;background:var(--acc);color:#FFF3EC;
+    display:grid;place-items:center;margin-bottom:2px;cursor:pointer;box-shadow:0 8px 26px rgba(201,106,69,.4)}
+  svg{display:block}
+</style>
+</head>
+<body>
+  <div class="lights"><div class="l-top"></div><div class="l-mid"></div><div class="l-low"></div></div>
+
+  <div class="sticky" id="stickyBar">
+    <span class="t">Cucina</span>
+    <span class="prog"><i id="sbar" style="width:40%"></i></span>
+    <span class="c" id="scount">2 di 5</span>
+  </div>
+
+  <!-- ═══════════ 1 · CUCINA ═══════════ -->
+  <div class="screen on" id="s-cucina">
+    <div class="head">
+      <div class="col">
+        <h1>Cucina</h1>
+        <div class="status">Domenica · 5 pasti · il prossimo è la merenda</div>
+      </div>
+    </div>
+
+    <div class="meals srf2" id="meals">
+      <div class="meals-head" onclick="toggleDay()">
+        <span class="ring">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+            <circle class="bg" cx="22" cy="22" r="18" stroke-width="3.5"/>
+            <circle class="fg" id="ringFg" cx="22" cy="22" r="18" stroke-width="3.5" stroke-linecap="round"
+              stroke-dasharray="113" stroke-dashoffset="43.5"/>
+          </svg>
+          <span class="n" id="ringN">2/5</span>
+        </span>
+        <span class="mh-col">
+          <span class="mh-t">Menu di oggi</span>
+          <span class="mh-sub" style="display:block" id="kcalSub">910 di 1.480 kcal · 120g proteine · dal piano</span>
+        </span>
+        <span class="mh-c" id="mcount">sei a metà</span>
+        <svg class="chev-day" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="complete">
+        <span class="big-ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span><span class="t">Giornata completa</span><span class="m">tutti e 5 i pasti · domani si riparte dalla colazione</span></span>
+      </div>
+      <div id="mlist"></div>
+      <button class="addrow" onclick="toast('Racconta cosa hai mangiato fuori piano')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Aggiungi un pasto fuori piano
+      </button>
+    </div>
+
+    <div class="sec">Cosa si mangia?<span class="more" onclick="go('s-ric')">vedi tutti</span></div>
+    <div>
+      <div class="ask hero" onclick="go('s-ric')">
+        <svg width="19" height="19" viewBox="0 0 32 32" fill="#3DA5C4" style="flex:none"><path d="M27 15c-1.7-4.3-5.7-6.8-10.8-6.8-4.5 0-8.3 2.1-9.9 5.4-.6 1.2-.8 2.5-.6 3.7-1.6.4-2.6 1.2-3 2.4 1.1.2 2.2.1 3.3-.2 1.5 2.9 5 4.8 9.4 4.8 3.2 0 6-1 8-2.6.9.9 2.1 1.4 3.5 1.5-.3-1.3-.9-2.4-1.8-3.2.9-1.1 1.5-2.4 1.9-3.8.2-.4.2-.8 0-1.2z"/></svg>
+        <span class="ph-txt" id="cucPh">Stasera ho pollo e patate…</span>
+        <span class="go"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="g2" style="margin-top:12px">
+        <div class="content srf" onclick="go('s-ric')">
+          <div class="ph"><span class="src">TikTok</span><span class="play"><i><svg width="12" height="12" viewBox="0 0 24 24" fill="#E8ECF3"><path d="M8 5v14l11-7z"/></svg></i></span><img src="https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=600&q=70&auto=format&fit=crop" alt=""></div>
+          <div class="t">Pollo e patate al forno</div>
+          <div class="m"><span class="dot"></span>35 min · ≈480 kcal</div>
+        </div>
+        <div class="content srf" onclick="go('s-ric')">
+          <div class="ph"><span class="src">Ricetta</span><img src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=70&auto=format&fit=crop" alt=""></div>
+          <div class="t">Insalata di pollo veloce</div>
+          <div class="m"><span class="dot"></span>15 min · ≈390 kcal</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">Ristoranti<span class="sm">sabato è già preso</span><span class="more" onclick="go('s-rist')">vedi tutti</span></div>
+    <div class="g2">
+      <div class="content srf" onclick="go('s-rist')">
+        <div class="ph"><img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=70&auto=format&fit=crop" alt=""></div>
+        <div class="t">Trattoria Alba</div>
+        <div class="m"><span class="dot"></span>per sabato · cena con Sara</div>
+      </div>
+      <div class="content srf" onclick="go('s-rist')">
+        <div class="ph"><img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" alt=""></div>
+        <div class="t">Osteria dei Binari</div>
+        <div class="m"><span class="dot"></span>vicino a te · 600 m</div>
+      </div>
+    </div>
+
+    <div class="sec">Prossimi giorni<span class="sm">sei giorni già pronti</span></div>
+    <div id="days"></div>
+    <div class="srf empty" style="margin-top:8px">
+      <div class="t">Il piano finisce sabato</div>
+      <div class="m">domenica carichi la settimana nuova<br>e i giorni si riempiono da soli</div>
+      <span class="soon" onclick="go('s-dieta')" style="cursor:pointer">Carica settimana</span>
+    </div>
+
+    <div class="sec">La tua dieta<span class="more" onclick="go('s-dieta')">gestisci</span></div>
+    <div class="srf">
+      <div class="row-act" style="border-top:none;cursor:default">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M9 13h6M9 17h6"/></svg></span>
+        <span class="in">
+          <span class="t" style="font-family:Fraunces,Georgia,serif;font-size:15px;font-weight:500">Il piano della nutrizionista</span>
+          <span class="m" style="display:block">caricato il 4 ago · lo aggiorni o lo integri quando vuoi</span>
+        </span>
+      </div>
+      <div style="display:flex;gap:8px;padding:0 12px 12px 56px">
+        <button class="cta" onclick="go('s-dieta')">Modifica dieta</button>
+        <button class="btn2" onclick="go('s-dieta')">Carica nuova dieta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 2 · COSA SI MANGIA? ═══════════ -->
+  <div class="screen" id="s-ric">
+    <div class="head">
+      <span class="back" onclick="go('s-cucina')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+      <div class="col">
+        <h1>Cosa si mangia?</h1>
+        <div class="status">dimmi cosa hai: al resto penso io</div>
+      </div>
+    </div>
+
+    <div class="ask hero" style="margin-top:16px">
+      <svg width="19" height="19" viewBox="0 0 32 32" fill="#3DA5C4" style="flex:none"><path d="M27 15c-1.7-4.3-5.7-6.8-10.8-6.8-4.5 0-8.3 2.1-9.9 5.4-.6 1.2-.8 2.5-.6 3.7-1.6.4-2.6 1.2-3 2.4 1.1.2 2.2.1 3.3-.2 1.5 2.9 5 4.8 9.4 4.8 3.2 0 6-1 8-2.6.9.9 2.1 1.4 3.5 1.5-.3-1.3-.9-2.4-1.8-3.2.9-1.1 1.5-2.4 1.9-3.8.2-.4.2-.8 0-1.2z"/></svg>
+      <span class="ph-txt" id="ricPh">Cosa c'è in frigo?</span>
+      <span class="go"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </div>
+    <div class="examples">
+      <span class="ex" onclick="toast('Cerco: pollo e patate, stasera')">Stasera ho pollo e patate</span>
+      <span class="ex" onclick="toast('Cerco: meal prep della domenica')">Meal prep domenica</span>
+      <span class="ex" onclick="toast('Cerco: dolce senza forno')">Dolce senza forno</span>
+    </div>
+
+    <div class="edrow">
+      <div class="ed srf">Cena veloce</div>
+      <div class="ed srf">Svuota-frigo</div>
+      <div class="ed srf">Post-workout</div>
+    </div>
+
+    <div class="chips">
+      <span class="chip on" onclick="this.classList.toggle('on')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M5 10h14M9 6v2M9 14v2"/></svg>Dal frigo</span>
+      <span class="chip" onclick="this.classList.toggle('on')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Veloce</span>
+      <span class="chip" onclick="this.classList.toggle('on')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8h12M4 12h16M6 16h12"/></svg>Fit</span>
+      <span class="chip" onclick="this.classList.toggle('on')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21c-5 0-8-3-8-8 0-4 3-8 8-11 5 3 8 7 8 11 0 5-3 8-8 8z"/></svg>Veg</span>
+      <span class="chip" onclick="this.classList.toggle('on')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14a8 8 0 0116 0M12 14l3-4M2 14h20"/></svg>Sotto 500 kcal</span>
+      <span class="chip" onclick="this.classList.toggle('on')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="12" r="7"/><path d="M17 12h5"/></svg>Una padella</span>
+    </div>
+
+    <div class="sec">Tre per stasera<span class="sm">ognuna col suo perché</span></div>
+    <div class="rcp srf">
+      <div class="ph">
+        <span class="src">TikTok</span><span class="creator">@cucinaconmarta</span>
+        <span class="play"><i><svg width="13" height="13" viewBox="0 0 24 24" fill="#E8ECF3"><path d="M8 5v14l11-7z"/></svg></i></span>
+        <span class="watch">guarda · 45s</span>
+        <img src="https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800&q=70&auto=format&fit=crop" alt="">
+      </div>
+      <div class="t">Pollo e patate al forno</div>
+      <div class="m">35 min · ≈480 kcal</div>
+      <div class="why"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>usi il pollo e le patate che hai</div>
+    </div>
+    <div class="rcp srf" style="margin-top:12px">
+      <div class="ph">
+        <span class="src">Ricetta</span><span class="creator">giallozafferano</span>
+        <img src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=70&auto=format&fit=crop" alt="">
+      </div>
+      <div class="t">Insalata di pollo veloce</div>
+      <div class="m">15 min · ≈390 kcal</div>
+      <div class="why"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>pronta in un quarto d'ora<span class="match">come la cena del tuo piano</span></div>
+    </div>
+    <div class="rcp srf" style="margin-top:12px">
+      <div class="ph">
+        <span class="src">YouTube</span><span class="creator">@maxmariola</span>
+        <span class="play"><i><svg width="13" height="13" viewBox="0 0 24 24" fill="#E8ECF3"><path d="M8 5v14l11-7z"/></svg></i></span>
+        <span class="watch">guarda · 2m</span>
+        <img src="https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=800&q=70&auto=format&fit=crop" alt="">
+      </div>
+      <div class="t">Curry di pollo leggero</div>
+      <div class="m">30 min · ≈450 kcal</div>
+      <div class="why"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>tutto in una padella sola</div>
+    </div>
+
+    <div class="sec">Stavi cucinando<span class="sm">ti aspetta</span></div>
+    <div class="wide srf">
+      <div class="ph"><img src="https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400&q=70&auto=format&fit=crop" alt=""></div>
+      <div class="in">
+        <div class="k"><span class="dot"></span>passo 3 di 6 · lasciata 2 giorni fa</div>
+        <div class="t">Carbonara</div>
+        <div class="staterow"><div class="prog" style="flex:1"><i style="width:50%"></i></div><button class="btn-teal">Riprendi</button></div>
+      </div>
+    </div>
+
+    <div class="sec">Le tue salvate<span class="sm">12 salvate</span><span class="more" id="savedCount">vedi tutti</span></div>
+    <div class="chips" style="margin-top:0">
+      <span class="chip on" onclick="filtSaved(this,'tutte')">Tutte</span>
+      <span class="chip" onclick="filtSaved(this,'video')">Video</span>
+      <span class="chip" onclick="filtSaved(this,'ricette')">Ricette</span>
+    </div>
+    <div class="g2" id="savedGrid" style="margin-top:10px"></div>
+    <div class="srf empty" id="savedEmpty" style="display:none;margin-top:10px">
+      <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></span>
+      <div class="t">Nessuna salvata qui</div>
+      <div class="m">salva dai video o parti da «Tre per stasera»:<br>quello che salvi lo ritrovi in questa griglia</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 3 · RISTORANTI ═══════════ -->
+  <div class="screen" id="s-rist">
+    <div class="head">
+      <span class="back" onclick="go('s-cucina')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+      <div class="col">
+        <h1>Ristoranti</h1>
+        <div class="status">sabato sera è già segnato: ci pensiamo ora?</div>
+      </div>
+    </div>
+
+    <div class="ask hero" style="margin-top:16px">
+      <svg width="19" height="19" viewBox="0 0 32 32" fill="#3DA5C4" style="flex:none"><path d="M27 15c-1.7-4.3-5.7-6.8-10.8-6.8-4.5 0-8.3 2.1-9.9 5.4-.6 1.2-.8 2.5-.6 3.7-1.6.4-2.6 1.2-3 2.4 1.1.2 2.2.1 3.3-.2 1.5 2.9 5 4.8 9.4 4.8 3.2 0 6-1 8-2.6.9.9 2.1 1.4 3.5 1.5-.3-1.3-.9-2.4-1.8-3.2.9-1.1 1.5-2.4 1.9-3.8.2-.4.2-.8 0-1.2z"/></svg>
+      <span class="ph-txt" id="ristPh">Dove mangiamo?</span>
+      <span class="go"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </div>
+
+    <div class="sec">Per i tuoi impegni</div>
+    <div class="feature">
+      <div class="ph">
+        <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&q=70&auto=format&fit=crop" alt="">
+        <div class="ovl"></div>
+      </div>
+      <div class="fin">
+        <span class="ctx"><i></i>sabato 16 · cena con Sara</span>
+        <div class="t">Trattoria Alba</div>
+        <div class="m">milanese · 1,2 km · €€ · aperta sabato sera</div>
+      </div>
+    </div>
+
+    <div class="sec">Vicino a te</div>
+    <div class="g2">
+      <div class="content srf">
+        <div class="ph"><img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" alt=""></div>
+        <div class="t">Osteria dei Binari</div>
+        <div class="m"><span class="dot"></span>italiana · 600 m · €€</div>
+      </div>
+      <div class="content srf">
+        <div class="ph"><img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?w=600&q=70&auto=format&fit=crop" alt=""></div>
+        <div class="t">Ramen Ya</div>
+        <div class="m"><span class="dot"></span>giapponese · 900 m · €</div>
+      </div>
+    </div>
+
+    <div class="sec">Salvati</div>
+    <div class="srf empty">
+      <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></span>
+      <div class="t">Nessun locale salvato</div>
+      <div class="m">quando ne trovi uno che ti piace,<br>salvalo e lo ritrovi qui</div>
+      <span class="soon">Prenota da Keiko · in arrivo</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ 4 · GESTIONE DIETA ═══════════ -->
+  <div class="screen" id="s-dieta">
+    <div class="head">
+      <span class="back" onclick="go('s-cucina')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+      <div class="col">
+        <h1>La tua dieta</h1>
+        <div class="status">caricata il 4 ago · 7 giorni · 5 pasti al giorno</div>
+      </div>
+    </div>
+
+    <div class="srf2" style="margin-top:16px;padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 16px 44px rgba(61,165,196,.10)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="width:38px;height:38px;flex:none;border-radius:var(--r-in);background:var(--lv1);display:grid;place-items:center;color:var(--teal-soft);box-shadow:inset 0 1px 0 var(--hl)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M9 13h6M9 17h6"/></svg>
+        </span>
+        <span style="flex:1">
+          <span style="display:block;font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;letter-spacing:-.01em">Piano_agosto.pdf</span>
+          <span style="display:block;font-size:11.5px;color:var(--meta);font-weight:500;margin-top:2px">dalla nutrizionista · il piano è tuo: Keiko lo trascrive e basta</span>
+        </span>
+        <button class="btn-teal">Apri</button>
+      </div>
+    </div>
+
+    <div class="sec">Gestione</div>
+    <div class="srf">
+      <div class="row-act" onclick="toast('Carica il nuovo piano: foto o PDF')">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg></span>
+        <span class="in"><span class="t">Carica una nuova dieta</span><span class="m">foto o PDF · sostituisce il piano attuale</span></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="row-act" onclick="toast('Scegli il giorno da correggere')">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3a2.8 2.8 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg></span>
+        <span class="in"><span class="t">Integra dettagli</span><span class="m">correggi una trascrizione o aggiungi note tue</span></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="row-act" onclick="toast('Ok — dimmi quale pasto scambiare')">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 16l-4-4 4-4M3 12h18M17 8l4 4-4 4"/></svg></span>
+        <span class="in"><span class="t">Scambia un pasto</span><span class="m">tra due giorni della stessa settimana</span></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <div class="danger"><button id="del" onclick="armDelete(this)">Elimina dieta</button></div>
+  </div>
+
+  <div class="toast" id="toastEl"></div>
+
+  <div class="tab">
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
+      Home
+    </div>
+    <div class="ti on">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v7c0 1.5 1 2 2.5 2S12 12 12 10.5V3M9.5 3v18M17 3c-2 1.5-2.5 5-2.5 8 0 0 1 .8 2.5.8V21"/></svg>
+      Cucina
+    </div>
+    <div class="fab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 12h12M4 9v6M20 9v6"/></svg>
+      Allenamento
+    </div>
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>
+      Guarda
+    </div>
+  </div>
+
+<script>
+  function go(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+    window.scrollTo(0,0);
+  }
+  let toastT=null;
+  function toast(msg){
+    const t=document.getElementById('toastEl');
+    t.textContent=msg;t.classList.add('on');
+    clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800);
+  }
+
+  /* ── Menu di oggi: hero = prossimo pasto, sempre aperto; altri collassabili ── */
+  const MEALS=[
+    {k:'Colazione',tx:'200g yogurt greco 0% + 20g frutta secca',kcal:300,done:true,
+     rx:'Yogurt in ciotola, frutta secca sopra. Due minuti in tutto.'},
+    {k:'Pranzo',tx:'Pasta 90g con ragù di tacchino 200g + radicchio + olio EVO',kcal:610,done:true,
+     rx:'Rosola il tacchino, sfuma e lascia tirare. Pasta al dente, salta col radicchio, chiudi con olio EVO.'},
+    {k:'Merenda',tx:'Melone 150g',kcal:55,done:false,img:'https://images.unsplash.com/photo-1571575173700-afb9492e6a50?w=300&q=70&auto=format&fit=crop',
+     rx:'Tagliato fresco dal frigo. Niente da cucinare.'},
+    {k:'Cena',tx:'Insalata di uova sode + fagiolini e piselli + olio EVO',kcal:330,img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&q=70&auto=format&fit=crop',done:false,
+     rx:'Uova 9 minuti dal bollore. Fagiolini e piselli al vapore, condisci tutto insieme con olio EVO.'},
+    {k:'Dopo cena',tx:'150g yogurt greco + 20g noci',kcal:185,img:'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300&q=70&auto=format&fit=crop',done:false,
+     rx:'Yogurt e noci, come la colazione ma in piccolo.'}
+  ];
+  const TOT=MEALS.reduce((a,m)=>a+m.kcal,0);
+  const MOTIV=['si parte','buon inizio','sei a metà','manca poco','ultimo pasto',''];
+  /* di default è aperto il prossimo pasto; resta comunque richiudibile */
+  let openIdx=MEALS.findIndex(m=>!m.done);
+
+  function renderMeals(){
+    const hero=MEALS.findIndex(m=>!m.done);
+    document.getElementById('mlist').innerHTML=MEALS.map((m,i)=>{
+      if(i===hero)return`
+      <div class="meal hero${i===openIdx?' openx':''}" id="meal${i}">
+        <div class="meal-row" onclick="expand(${i})">
+          <span class="ckc" onclick="event.stopPropagation();chk(${i})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg>
+          </span>
+          <span class="in">
+            <span class="k"><span class="dot"></span>${m.k} · adesso</span>
+            <span class="tx">${m.tx}</span>
+          </span>
+          <span class="mkcal">${m.kcal} kcal</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="meal-x"><div class="hero-body">
+          ${m.img?`<span class="ph"><img src="${m.img}" alt=""></span>`:''}
+          <span class="col">
+            <span class="rx">${m.rx}</span>
+            <span class="row">
+              <button class="cta" onclick="event.stopPropagation();go('s-ric')">Cucina con me</button>
+              <button class="tert" onclick="event.stopPropagation();toast('Ok — ti propongo tre alternative dal piano')">Scambia questo pasto</button>
+            </span>
+          </span>
+        </div></div>
+      </div>`;
+      return`
+      <div class="meal${m.done?' done':''}${i===openIdx?' openx':''}" id="meal${i}">
+        <div class="meal-row" onclick="expand(${i})">
+          <span class="ckc" onclick="event.stopPropagation();chk(${i})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg>
+          </span>
+          <span class="in">
+            <span class="k"><span class="dot"></span>${m.k}</span>
+            <span class="tx">${m.tx}</span>
+          </span>
+          <span class="mkcal">${m.kcal} kcal</span>
+          ${m.done?'':`<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>`}
+        </div>
+        <div class="meal-x"><div class="inner">
+          <div class="rx">${m.rx}</div>
+          <div class="row">
+            <button class="cta" onclick="event.stopPropagation();go('s-ric')">Cucina con me</button>
+            <button class="tert" onclick="event.stopPropagation();toast('Ok — ti propongo tre alternative dal piano')">Scambia questo pasto</button>
+          </div>
+        </div></div>
+      </div>`;}).join('');
+    const done=MEALS.filter(m=>m.done).length;
+    const eaten=MEALS.filter(m=>m.done).reduce((a,m)=>a+m.kcal,0);
+    document.getElementById('ringN').textContent=done+'/'+MEALS.length;
+    document.getElementById('ringFg').style.strokeDashoffset=113-(113*eaten/TOT);
+    document.getElementById('kcalSub').textContent=eaten.toLocaleString('it-IT')+' di '+TOT.toLocaleString('it-IT')+' kcal · 120g proteine · dal piano';
+    document.getElementById('mcount').textContent=MOTIV[done]||'';
+    document.getElementById('sbar').style.width=(done/MEALS.length*100)+'%';
+    document.getElementById('scount').textContent=done+' di '+MEALS.length;
+    document.getElementById('meals').classList.toggle('finished',done===MEALS.length);
+  }
+  function chk(i){
+    MEALS[i].done=!MEALS[i].done;
+    openIdx=MEALS.findIndex(m=>!m.done);   /* spuntato: si apre il prossimo pasto */
+    renderMeals();
+  }
+  function toggleDay(){                     /* livello sezione: tutta la giornata */
+    document.getElementById('meals').classList.toggle('dayopen');
+  }
+  function expand(i){
+    if(MEALS[i].done)return;
+    openIdx=(openIdx===i)?-1:i;    /* chevron richiude davvero: accordion esclusivo */
+    renderMeals();
+  }
+  renderMeals();
+
+  /* ── sticky header con progresso allo scroll ── */
+  window.addEventListener('scroll',()=>{
+    const cucinaOn=document.getElementById('s-cucina').classList.contains('on');
+    document.getElementById('stickyBar').classList.toggle('on',cucinaOn&&window.scrollY>140);
+  },{passive:true});
+
+  /* ── prossimi giorni: mezza foto, domani hero ── */
+  const PLAN=[
+    {d:'lun',n:11,main:'Riso con pollo e zucchine',tag:'pesce a cena',next:true,
+     img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=700&q=70&auto=format&fit=crop',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Riso 90g con pollo 200g e zucchine + olio EVO'],
+      ['Merenda','Pesca 150g'],
+      ['Cena','Salmone al forno 200g + patate 200g + spinaci'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'mar',n:12,main:'Pasta al tonno e pomodorini',tag:'veloce',
+     img:'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=500&q=70&auto=format&fit=crop',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Pasta 90g con tonno 150g e pomodorini + olio EVO'],
+      ['Merenda','Melone 150g'],
+      ['Cena','Petto di tacchino 200g ai ferri + insalata mista'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'mer',n:13,main:'Riso con manzo e peperoni',tag:'frittata a cena',
+     img:'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&q=70&auto=format&fit=crop',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Riso 90g con straccetti di manzo 200g e peperoni'],
+      ['Merenda','Pesca 150g'],
+      ['Cena','Frittata di 3 uova + fagiolini + olio EVO'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'gio',n:14,main:'Pasta con ceci e rosmarino',tag:'veg a pranzo',
+     img:'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=500&q=70&auto=format&fit=crop',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Pasta 90g con ceci 150g e rosmarino + olio EVO'],
+      ['Merenda','Melone 150g'],
+      ['Cena','Orata al forno 250g + patate 200g + radicchio'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'ven',n:15,main:'Riso con gamberi e zucchine',tag:'una padella',
+     img:'https://images.unsplash.com/photo-1559737558-2f5a35f4523b?w=500&q=70&auto=format&fit=crop',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Riso 90g con gamberi 200g e zucchine + olio EVO'],
+      ['Merenda','Pesca 150g'],
+      ['Cena','Pollo al curry 200g + insalata di finocchi'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'sab',n:16,main:'Pasta al ragù di tacchino',tag:'cena fuori',
+     img:'https://images.unsplash.com/photo-1621510456681-2330135e5871?w=500&q=70&auto=format&fit=crop',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Pasta 90g con ragù di tacchino 200g + radicchio'],
+      ['Merenda','Melone 150g'],
+      ['Cena','Libera · cena con Sara'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]}
+  ];
+  document.getElementById('days').innerHTML=PLAN.map(p=>`
+    <div class="day ${p.next?'next srf2':'srf'}" onclick="this.classList.toggle('open')">
+      <div class="day-bg"><img src="${p.img}" alt=""></div>
+      <div class="day-head">
+        <span class="d"><b>${p.n}</b><span>${p.d}</span></span>
+        <span class="pv">
+          <span class="t">${p.main}</span>
+          <span class="m"><span class="dot"></span>5 pasti · ${p.tag}</span>
+        </span>
+        ${p.next?'<span class="nxt">domani</span>':''}
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="day-list">
+        ${p.meals.map(m=>`<div class="dmeal"><span class="k">${m[0]}</span><span class="tx">${m[1]}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  /* ── elimina con conferma implicita ── */
+  let armT=null;
+  function armDelete(b){
+    if(b.classList.contains('arm')){ b.textContent='Dieta eliminata'; b.classList.remove('arm'); b.style.pointerEvents='none'; return; }
+    b.classList.add('arm'); b.textContent='Sicuro? Tocca ancora per eliminare';
+    clearTimeout(armT);
+    armT=setTimeout(()=>{b.classList.remove('arm');b.textContent='Elimina dieta';},3000);
+  }
+
+  /* ── salvate ── */
+  const SAVED=[
+    {t:'Carbonara',min:'20 min',kcal:'≈640 kcal',type:'video',src:'TikTok',dur:'60s',
+     img:'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=600&q=70&auto=format&fit=crop'},
+    {t:'Bowl di riso e pollo',min:'25 min',kcal:'≈520 kcal',type:'video',src:'TikTok',dur:'45s',
+     img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=70&auto=format&fit=crop'},
+    {t:'Pancakes proteici',min:'10 min',kcal:'≈310 kcal',type:'video',src:'YouTube',dur:'3m',
+     img:'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&q=70&auto=format&fit=crop'},
+    {t:'Salmone teriyaki',min:'18 min',kcal:'≈450 kcal',type:'video',src:'TikTok',dur:'30s',
+     img:'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&q=70&auto=format&fit=crop'}
+  ];
+  function filtSaved(chip,f){
+    document.querySelectorAll('#s-ric .chips')[1].querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+    chip.classList.add('on');
+    const rows=SAVED.filter(s=>f==='tutte'||(f==='video'?s.type==='video':s.type==='ricetta'));
+    document.getElementById('savedGrid').innerHTML=rows.map(s=>`
+      <div class="content srf">
+        <div class="ph">
+          <span class="src">${s.src}</span>
+          ${s.type==='video'?`<span class="play"><i><svg width="12" height="12" viewBox="0 0 24 24" fill="#E8ECF3"><path d="M8 5v14l11-7z"/></svg></i></span><span class="watch">guarda · ${s.dur}</span>`:''}
+          <img src="${s.img}" alt="">
+        </div>
+        <div class="t">${s.t}</div>
+        <div class="m"><span class="dot"></span>${s.min} · ${s.kcal}</div>
+      </div>`).join('');
+    document.getElementById('savedEmpty').style.display=rows.length?'none':'block';
+    document.getElementById('savedGrid').style.display=rows.length?'grid':'none';
+  }
+  filtSaved(document.querySelectorAll('#s-ric .chips')[1].querySelector('.chip'),'tutte');
+
+  /* ── placeholder rotanti ── */
+  function rotate(id,opts){
+    let i=0;const el=document.getElementById(id);if(!el)return;
+    setInterval(()=>{i=(i+1)%opts.length;el.style.opacity=0;
+      setTimeout(()=>{el.textContent=opts[i];el.style.opacity=1;},300)},3200);
+  }
+  rotate('cucPh',["Stasera ho pollo e patate…","Cosa si mangia domani?","Qualcosa di veloce"]);
+  rotate('ricPh',["Cosa c'è in frigo?","Qualcosa di veloce","Voglia di pesce"]);
+  rotate('ristPh',["Dove mangiamo?","Una pizza in zona","Posto tranquillo per due"]);
+</script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Keiko — Dieta v2 (mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F0F12;
+    --lv1:#1A1B20; --lv2:#212228;
+    --hl:rgba(255,255,255,.08); --line:rgba(255,255,255,.05);
+    --txt:#F1F4FA; --meta:#9BA0A8;
+    --teal:#3DA5C4; --teal-soft:#86CCE0; --on-teal:#08191E;
+    --acc:#C96A45;
+    --c-dieta:#57B96E; --tint-dieta:#8FCB9E;
+    --r-hero:16px; --r-card:12px; --r-in:9px; --r-chip:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{font-family:Inter,-apple-system,system-ui,sans-serif;color:var(--txt);
+    background:var(--bg);max-width:430px;margin:0 auto;position:relative;overflow-x:hidden}
+  body:before{content:'';position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:1;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E")}
+
+  /* luci d'ambiente */
+  .lights{position:absolute;inset:0;pointer-events:none;z-index:0}
+  .l-top{position:absolute;top:-140px;left:-15%;right:-15%;height:340px;
+    background:radial-gradient(58% 100% at 50% 0%, rgba(120,130,150,.20), transparent 70%)}
+  .l-meals{position:absolute;top:130px;left:-25%;right:-25%;height:420px;
+    background:radial-gradient(55% 60% at 50% 50%, rgba(61,165,196,.17), transparent 72%)}
+  .l-ric{position:absolute;top:620px;left:-25%;right:-25%;height:420px;
+    background:radial-gradient(56% 58% at 50% 50%, rgba(201,106,69,.15), transparent 72%)}
+
+  .page{position:relative;z-index:2;padding:18px 16px calc(86px + env(safe-area-inset-bottom))}
+
+  .srf{background:var(--lv1);border:1px solid var(--line);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 var(--hl)}
+  .srf2{background:var(--lv2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+
+  .ph{position:relative;overflow:hidden;background:#20242c}
+  .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .ph .ovl{position:absolute;inset:0;background:linear-gradient(180deg,transparent 36%,rgba(10,10,13,.92));z-index:1}
+
+  /* intestazione */
+  .head h1{font-family:Fraunces,Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.01em}
+  .status{font-size:12.5px;color:var(--meta);font-weight:500;margin-top:4px}
+  .actions{display:flex;gap:8px;margin-top:16px}
+  .btn2{font-size:12.5px;font-weight:600;background:var(--lv1);color:var(--txt);
+    border:1px solid rgba(255,255,255,.09);border-radius:var(--r-chip);padding:8px 12px;
+    white-space:nowrap;box-shadow:inset 0 1px 0 var(--hl);cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px}
+  .btn2 svg{color:var(--teal-soft)}
+
+  .sec{font-size:12.5px;font-weight:500;color:var(--meta);margin:32px 2px 10px;
+    display:flex;justify-content:space-between;align-items:baseline}
+
+  /* pannello pasti di oggi (pannello di comando) */
+  .meals{margin-top:12px;overflow:hidden;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 16px 44px rgba(61,165,196,.10)}
+  .meals-head{display:flex;align-items:center;gap:11px;padding:13px 13px 11px}
+  .mh-t{flex:1;font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+  .mh-c{font-size:11.5px;color:var(--teal-soft);font-weight:600;white-space:nowrap}
+  .prog{height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;margin:0 13px 4px}
+  .prog i{display:block;height:100%;background:var(--teal);border-radius:2px;transition:width .35s ease}
+  .meal{display:flex;align-items:center;gap:11px;padding:11px 13px;border-top:1px solid var(--line);cursor:pointer}
+  .ck{width:21px;height:21px;border-radius:var(--r-chip);border:1.5px solid rgba(61,165,196,.6);
+    flex:none;display:grid;place-items:center;transition:all .18s}
+  .meal.done .ck{background:var(--teal);border-color:var(--teal);box-shadow:0 2px 12px rgba(61,165,196,.45)}
+  .ck svg{opacity:0}
+  .meal.done .ck svg{opacity:1}
+  .meal .in{flex:1;min-width:0}
+  .meal .k{font-size:11.5px;color:var(--meta);font-weight:500;display:flex;align-items:center;gap:5px}
+  .dot{width:5px;height:5px;border-radius:3px;background:var(--c-dieta);flex:none}
+  .meal .tx{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
+  .meal.done .tx{color:var(--meta);text-decoration:line-through;font-weight:500}
+  .complete{display:none;align-items:center;gap:11px;padding:14px 13px;border-top:1px solid var(--line)}
+  .meals.finished .complete{display:flex}
+  .complete .big-ck{width:28px;height:28px;border-radius:var(--r-in);background:var(--teal);flex:none;
+    display:grid;place-items:center;box-shadow:0 2px 12px rgba(61,165,196,.45)}
+  .complete .t{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500}
+  .complete .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px}
+
+  /* ricettario — feature */
+  .feature{border-radius:var(--r-hero);overflow:hidden;position:relative;cursor:pointer;
+    background:var(--lv2);border:1px solid rgba(255,255,255,.07);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .feature .ph{aspect-ratio:16/8}
+  .feature .in{position:absolute;left:15px;right:15px;bottom:12px;z-index:2;
+    display:flex;align-items:flex-end;gap:10px}
+  .feature .col{flex:1}
+  .feature .t{font-family:Fraunces,Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.01em;line-height:1.1}
+  .feature .m{font-size:12.5px;color:#CDD5DF;font-weight:500;margin-top:4px}
+  .cta{font-size:12px;font-weight:600;background:var(--acc);color:#FFF3EC;
+    border-radius:var(--r-chip);padding:6px 12px;white-space:nowrap;
+    box-shadow:0 4px 16px rgba(201,106,69,.35)}
+
+  /* prossimi giorni */
+  .day{margin-top:8px;overflow:hidden;cursor:pointer}
+  .day-head{display:flex;align-items:center;gap:11px;padding:12px 13px}
+  .day-head .d{width:38px;flex:none;text-align:center}
+  .day-head .d b{display:block;font-size:13px;font-weight:600}
+  .day-head .d span{font-size:10px;color:var(--meta);font-weight:500}
+  .day-head .pv{flex:1;min-width:0}
+  .day-head .pv .t{font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .day-head .pv .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px;
+    display:flex;align-items:center;gap:5px}
+  .chev{transition:transform .28s ease-out;color:var(--meta);flex:none}
+  .day.open .chev{transform:rotate(180deg)}
+  .day-list{max-height:0;transition:max-height .3s ease-out;overflow:hidden}
+  .day.open .day-list{max-height:400px}
+  .dmeal{display:flex;gap:11px;padding:9px 13px;border-top:1px solid var(--line)}
+  .dmeal .k{width:76px;flex:none;font-size:11.5px;color:var(--meta);font-weight:500;padding-top:1px}
+  .dmeal .tx{flex:1;font-size:12.5px;font-weight:500;color:var(--txt);line-height:1.4}
+
+  .danger{margin:40px 0 8px;text-align:center}
+  .danger button{background:none;border:none;font-family:inherit;font-size:12.5px;font-weight:500;
+    color:var(--meta);cursor:pointer;padding:8px 12px}
+
+  /* stato di caricamento */
+  .loading{position:fixed;inset:0;z-index:90;background:rgba(15,15,18,.96);
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  .loading.on{display:flex}
+  .loading .orca{animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.5;transform:scale(.97)}50%{opacity:1;transform:scale(1)}}
+  .loading .lt{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;color:#F2EDE4}
+  .loading .lm{font-size:12.5px;color:var(--meta);font-weight:500}
+
+  .tab{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;z-index:50;
+    background:rgba(15,15,18,.92);backdrop-filter:blur(20px);border-top:1px solid var(--hl);
+    display:flex;align-items:flex-end;justify-content:space-around;
+    padding:9px 10px calc(14px + env(safe-area-inset-bottom))}
+  .ti{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:500;
+    color:var(--meta);width:56px;cursor:pointer}
+  .ti.on{color:var(--teal-soft)}
+  .fab{width:50px;height:50px;border-radius:50%;background:var(--acc);color:#FFF3EC;
+    display:grid;place-items:center;margin-bottom:2px;cursor:pointer;box-shadow:0 8px 26px rgba(201,106,69,.4)}
+  svg{display:block}
+</style>
+</head>
+<body>
+  <div class="lights"><div class="l-top"></div><div class="l-meals"></div><div class="l-ric"></div></div>
+  <div class="page">
+
+    <div class="head">
+      <h1>La tua dieta</h1>
+      <div class="status">Oggi · Domenica · 5 pasti · aggiornata 4 ago</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn2" onclick="demoLoad()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+        Carica settimana
+      </button>
+      <button class="btn2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16l-4-4 4-4M3 12h18M17 8l4 4-4 4"/></svg>
+        Scambia un pasto
+      </button>
+    </div>
+
+    <div class="meals srf2" id="meals">
+      <div class="meals-head">
+        <span class="mh-t">Pasti di oggi</span>
+        <span class="mh-c" id="mcount">2 di 5</span>
+      </div>
+      <div class="prog"><i id="mbar" style="width:40%"></i></div>
+      <div class="complete">
+        <span class="big-ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span>
+          <span class="t">Giornata completa</span>
+          <span class="m" style="display:block">tutti e 5 i pasti · domani si riparte dalla colazione</span>
+        </span>
+      </div>
+      <div class="meal done" onclick="tgl(this)">
+        <span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span class="in">
+          <span class="k"><span class="dot"></span>Colazione</span>
+          <span class="tx" style="display:block">200g yogurt greco 0% + 20g frutta secca</span>
+        </span>
+      </div>
+      <div class="meal done" onclick="tgl(this)">
+        <span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span class="in">
+          <span class="k"><span class="dot"></span>Pranzo</span>
+          <span class="tx" style="display:block">Pasta 90g con ragù di tacchino 200g + radicchio + olio EVO</span>
+        </span>
+      </div>
+      <div class="meal" onclick="tgl(this)">
+        <span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span class="in">
+          <span class="k"><span class="dot"></span>Merenda</span>
+          <span class="tx" style="display:block">Melone 150g</span>
+        </span>
+      </div>
+      <div class="meal" onclick="tgl(this)">
+        <span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span class="in">
+          <span class="k"><span class="dot"></span>Cena</span>
+          <span class="tx" style="display:block">Insalata di uova sode + fagiolini e piselli + olio EVO</span>
+        </span>
+      </div>
+      <div class="meal" onclick="tgl(this)">
+        <span class="ck"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span class="in">
+          <span class="k"><span class="dot"></span>Dopo cena</span>
+          <span class="tx" style="display:block">150g yogurt greco + 20g noci</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="sec">Ricettario</div>
+    <div class="feature">
+      <div class="ph">
+        <img src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=900&q=70&auto=format&fit=crop" alt="">
+        <div class="ovl"></div>
+      </div>
+      <div class="in">
+        <span class="col">
+          <div class="t">Cosa cucino?</div>
+          <div class="m">Cerca e salva le ricette · 12 salvate</div>
+        </span>
+        <span class="cta">Apri</span>
+      </div>
+    </div>
+
+    <div class="sec">Prossimi giorni</div>
+    <div id="days"></div>
+
+    <div class="danger"><button>Elimina dieta</button></div>
+  </div>
+
+  <div class="loading" id="loading">
+    <svg class="orca" width="46" height="46" viewBox="0 0 32 32" fill="#3DA5C4">
+      <circle cx="20.6" cy="4.4" r="1.1" fill="#C96A45"/>
+      <circle cx="23" cy="6" r=".75" fill="#C96A45"/>
+      <path d="M27 15c-1.7-4.3-5.7-6.8-10.8-6.8-4.5 0-8.3 2.1-9.9 5.4-.6 1.2-.8 2.5-.6 3.7-1.6.4-2.6 1.2-3 2.4 1.1.2 2.2.1 3.3-.2 1.5 2.9 5 4.8 9.4 4.8 3.2 0 6-1 8-2.6.9.9 2.1 1.4 3.5 1.5-.3-1.3-.9-2.4-1.8-3.2.9-1.1 1.5-2.4 1.9-3.8.2-.4.2-.8 0-1.2z"/>
+      <circle cx="21.8" cy="14" r="1.4" fill="#0F0F12"/>
+    </svg>
+    <div class="lt">Leggo la settimana</div>
+    <div class="lm">il piano resta tuo, Keiko lo trascrive e basta</div>
+  </div>
+
+  <div class="tab">
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
+      Home
+    </div>
+    <div class="ti on">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v7c0 1.5 1 2 2.5 2S12 12 12 10.5V3M9.5 3v18M17 3c-2 1.5-2.5 5-2.5 8 0 0 1 .8 2.5.8V21"/></svg>
+      Dieta
+    </div>
+    <div class="fab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 12h12M4 9v6M20 9v6"/></svg>
+      Allenamento
+    </div>
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>
+      Guarda
+    </div>
+  </div>
+
+<script>
+  function tgl(m){
+    m.classList.toggle('done');
+    const all=[...document.querySelectorAll('.meal')];
+    const done=all.filter(x=>x.classList.contains('done')).length;
+    document.getElementById('mcount').textContent=done+' di '+all.length;
+    document.getElementById('mbar').style.width=(done/all.length*100)+'%';
+    document.getElementById('meals').classList.toggle('finished',done===all.length);
+  }
+
+  const PLAN=[
+    {d:'lun',n:11,main:'Riso con pollo e zucchine',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Riso 90g con pollo 200g e zucchine + olio EVO'],
+      ['Merenda','Pesca 150g'],
+      ['Cena','Salmone al forno 200g + patate 200g + spinaci'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'mar',n:12,main:'Pasta al tonno e pomodorini',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Pasta 90g con tonno 150g e pomodorini + olio EVO'],
+      ['Merenda','Melone 150g'],
+      ['Cena','Petto di tacchino 200g ai ferri + insalata mista'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'mer',n:13,main:'Riso con manzo e peperoni',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Riso 90g con straccetti di manzo 200g e peperoni'],
+      ['Merenda','Pesca 150g'],
+      ['Cena','Frittata di 3 uova + fagiolini + olio EVO'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'gio',n:14,main:'Pasta con ceci e rosmarino',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Pasta 90g con ceci 150g e rosmarino + olio EVO'],
+      ['Merenda','Melone 150g'],
+      ['Cena','Orata al forno 250g + patate 200g + radicchio'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'ven',n:15,main:'Riso con gamberi e zucchine',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Riso 90g con gamberi 200g e zucchine + olio EVO'],
+      ['Merenda','Pesca 150g'],
+      ['Cena','Pollo al curry 200g + insalata di finocchi'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]},
+    {d:'sab',n:16,main:'Pasta al ragù di tacchino',meals:[
+      ['Colazione','200g yogurt greco 0% + 20g frutta secca'],
+      ['Pranzo','Pasta 90g con ragù di tacchino 200g + radicchio'],
+      ['Merenda','Melone 150g'],
+      ['Cena','Libera · cena da Sara'],
+      ['Dopo cena','150g yogurt greco + 20g noci']]}
+  ];
+  document.getElementById('days').innerHTML=PLAN.map((p,i)=>`
+    <div class="day srf" onclick="this.classList.toggle('open')">
+      <div class="day-head">
+        <span class="d"><b>${p.n}</b><span>${p.d}</span></span>
+        <span class="pv">
+          <span class="t" style="display:block">${p.main}</span>
+          <span class="m"><span class="dot"></span>5 pasti · tocca per il giorno intero</span>
+        </span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="day-list">
+        ${p.meals.map(m=>`<div class="dmeal"><span class="k">${m[0]}</span><span class="tx">${m[1]}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  function demoLoad(){
+    const l=document.getElementById('loading');
+    l.classList.add('on');
+    setTimeout(()=>l.classList.remove('on'),1800);
+  }
+</script>
+</body>
+</html>

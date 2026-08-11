@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keiko — Home ibrida: struttura Keiko × Plancia/iOS</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#101015;font-family:-apple-system,'SF Pro Text',Inter,system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;padding:24px 14px 50px;gap:16px;min-height:100vh;color:#eee}
+  .sub{font-size:12px;color:#778;max-width:430px;text-align:center;line-height:1.55}
+  .phone{width:392px;max-width:100%;height:815px;border-radius:46px;overflow:hidden;position:relative;
+    box-shadow:0 40px 100px rgba(0,0,0,.75), inset 0 0 0 1px rgba(255,255,255,.08)}
+  .home{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;
+    background:#F2F3F7;color:#141519;padding:56px 16px 104px}
+  .home::-webkit-scrollbar{display:none}
+  .fx{animation:fin .5s cubic-bezier(.22,.61,.36,1) both}
+  @keyframes fin{from{opacity:0;transform:translateY(12px)}}
+  .fx:nth-of-type(2){animation-delay:.05s}.fx:nth-of-type(3){animation-delay:.1s}
+  .fx:nth-of-type(4){animation-delay:.15s}.fx:nth-of-type(5){animation-delay:.2s}
+  .fx:nth-of-type(6){animation-delay:.25s}
+
+  /* header — struttura Keiko: saluto + avatar */
+  .hd{display:flex;align-items:center;justify-content:space-between;padding:0 6px}
+  .eyeb{font-size:12px;font-weight:600;color:#8E93A0;letter-spacing:.1px}
+  .hd h1{font-size:28px;font-weight:800;letter-spacing:-.035em;margin-top:2px}
+  .ava{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#FFB84D,#FF8A3D);
+    display:grid;place-items:center;font-weight:800;color:#fff;font-size:15px;
+    box-shadow:0 4px 12px rgba(255,138,61,.35)}
+
+  /* striscia settimana — struttura Keiko, pelle iOS */
+  .week{display:flex;gap:6px;margin-top:16px}
+  .day{flex:1;background:#fff;border-radius:14px;text-align:center;padding:9px 0 7px;
+    font-size:10.5px;font-weight:700;color:#9AA0AC;box-shadow:0 1px 2px rgba(20,25,40,.05)}
+  .day b{display:block;font-size:15px;color:#141519;font-weight:700;margin-top:2px}
+  .day.on{background:#141519;color:#8890A0}
+  .day.on b{color:#fff}
+  .day .d{width:4px;height:4px;border-radius:2px;background:#FF8A3D;margin:3px auto 0}
+
+  .lbl{font-size:13px;font-weight:800;letter-spacing:-.01em;margin:22px 8px 10px;
+    display:flex;justify-content:space-between;align-items:baseline}
+  .lbl span{font-size:12px;font-weight:600;color:#FF8A3D}
+
+  /* hero — struttura Keiko (card grande col prossimo), pelle widget */
+  .hero{background:#fff;border-radius:22px;overflow:hidden;
+    box-shadow:0 2px 6px rgba(20,25,40,.06), 0 12px 32px rgba(20,25,40,.07);cursor:pointer}
+  .hero .ph{height:158px;position:relative;background:linear-gradient(160deg,#4A79B8,#2E4E80 55%,#1D3050)}
+  .hero .ph .emo{position:absolute;inset:0;display:grid;place-items:center;font-size:52px;opacity:.9}
+  .hero .ph .sc{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(10,16,28,.75))}
+  .hero .ph .ovt{position:absolute;left:16px;bottom:12px;color:#fff}
+  .hero .ph .k{font-size:10px;font-weight:800;letter-spacing:1.2px;opacity:.85}
+  .hero .ph .t{font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+  .hero .body{padding:12px 14px 13px}
+  .hero .meta{font-size:12.5px;color:#7A8290;font-weight:500}
+  .hero .chips{display:flex;gap:7px;margin-top:10px}
+  .chip{background:#F2F3F7;border-radius:11px;padding:7px 11px;font-size:11.5px;font-weight:700;color:#3A4150;
+    display:flex;align-items:center;gap:5px}
+  .chip.hot{background:#FFF1E4;color:#C05A15}
+
+  /* oggi per te — bento di tessere widget (il pezzo di Plancia) */
+  .bento{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{background:#fff;border-radius:20px;padding:13px 14px;cursor:pointer;
+    box-shadow:0 1px 3px rgba(20,25,40,.06)}
+  .tk{font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#9AA0AC;
+    display:flex;align-items:center;gap:5px}
+  .tk i{width:7px;height:7px;border-radius:2.5px;font-style:normal}
+  .tt{font-size:15px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
+  .tm{font-size:11.5px;color:#7A8290;margin-top:2px;font-weight:500}
+  .prog{height:5px;border-radius:3px;background:#F2F3F7;margin-top:10px;overflow:hidden}
+  .prog i{display:block;height:100%;border-radius:3px}
+
+  /* battito — struttura Keiko (card foto), pelle coerente */
+  .beat{background:#fff;border-radius:20px;overflow:hidden;cursor:pointer;display:flex;align-items:center;
+    box-shadow:0 1px 3px rgba(20,25,40,.06)}
+  .beat .bp{width:86px;height:86px;flex:none;position:relative;
+    background:linear-gradient(150deg,#8A5AB8,#4E2E80 60%,#2A1850)}
+  .beat .bp .emo{position:absolute;inset:0;display:grid;place-items:center;font-size:30px}
+  .beat .bx{padding:12px 14px;flex:1}
+  .beat .arr{padding-right:14px;color:#C4C9D4;font-size:17px}
+
+  /* dock — da Plancia */
+  .dock{position:absolute;left:14px;right:14px;bottom:14px;background:rgba(20,21,25,.94);
+    backdrop-filter:blur(18px);border-radius:24px;display:flex;align-items:center;
+    justify-content:space-around;padding:10px;box-shadow:0 16px 44px rgba(20,25,40,.35)}
+  .dk{width:48px;height:42px;border-radius:14px;display:grid;place-items:center;color:#8890A0;cursor:pointer;
+    position:relative}
+  .dk.on{background:#2A2D35;color:#fff}
+  .dk.plus{background:linear-gradient(135deg,#FFB84D,#FF8A3D);color:#fff;font-size:22px;font-weight:400;
+    box-shadow:0 6px 18px rgba(255,138,61,.4)}
+  .dk small{position:absolute;bottom:-1px;font-size:0}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="home">
+      <div class="hd fx">
+        <div>
+          <div class="eyeb">venerdì 8 agosto</div>
+          <h1>Ciao, Matteo</h1>
+        </div>
+        <div class="ava">M</div>
+      </div>
+
+      <div class="week fx">
+        <div class="day">V<b>8</b><div class="d"></div></div>
+        <div class="day on">S<b>9</b></div>
+        <div class="day">D<b>10</b></div>
+        <div class="day">L<b>11</b><div class="d"></div></div>
+        <div class="day">M<b>12</b></div>
+        <div class="day">M<b>13</b></div>
+        <div class="day">G<b>14</b></div>
+      </div>
+
+      <div class="fx">
+        <div class="lbl">Il prossimo <span>vedi tutti</span></div>
+        <div class="hero">
+          <div class="ph">
+            <span class="emo">✈️</span><div class="sc"></div>
+            <div class="ovt"><div class="k">VOLO · OGGI 15:40</div><div class="t">Londra ti aspetta</div></div>
+          </div>
+          <div class="body">
+            <div class="meta">ITA Airways · Linate, gate B12</div>
+            <div class="chips">
+              <span class="chip hot">⏰ esci alle 13:30</span>
+              <span class="chip">🎫 carta d'imbarco</span>
+              <span class="chip">19° a LHR</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fx">
+        <div class="lbl">Oggi per te</div>
+        <div class="bento">
+          <div class="tile">
+            <div class="tk"><i style="background:#FF8A3D"></i>SPORT · 18:00</div>
+            <div class="tt">Corsa Z2 · 40'</div>
+            <div class="tm">spostata a domani ✈️</div>
+            <div class="prog"><i style="width:0%;background:#FF8A3D"></i></div>
+          </div>
+          <div class="tile">
+            <div class="tk"><i style="background:#3E9E52"></i>PRANZO · PIANO</div>
+            <div class="tt">Riso e pollo</div>
+            <div class="tm">▶ cucina con me</div>
+            <div class="prog"><i style="width:64%;background:#3E9E52"></i></div>
+          </div>
+          <div class="tile">
+            <div class="tk"><i style="background:#B03E5E"></i>SPESA</div>
+            <div class="tt">6 cose</div>
+            <div class="tm">3 piano · 3 ricette</div>
+          </div>
+          <div class="tile">
+            <div class="tk"><i style="background:#3E6FB0"></i>GUARDA</div>
+            <div class="tt">Dune, parte due</div>
+            <div class="tm">per il volo · 2h35</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fx">
+        <div class="lbl">Un mese fa</div>
+        <div class="beat">
+          <div class="bp"><span class="emo">🎤</span></div>
+          <div class="bx">
+            <div class="tk" style="color:#8A5AB8"><i style="background:#8A5AB8"></i>♫ RIVIVI</div>
+            <div class="tt">Ultimo a San Siro</div>
+            <div class="tm">riascoltalo su Spotify</div>
+          </div>
+          <div class="arr">›</div>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="dk on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>
+        <div class="dk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8.5"/><path d="M12 4v16M4 12h16"/></svg></div>
+        <div class="dk plus">＋</div>
+        <div class="dk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 12h12M4 9v6M20 9v6"/></svg></div>
+        <div class="dk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="sub">Struttura di Keiko (saluto → settimana → prossimo → oggi per te → battito) con la pelle
+  Plancia/iOS: fondo grigio chiaro, tessere-widget bianche, chip d'azione sul volo, barre di avanzamento,
+  dock scuro flottante. Font di sistema = SF Pro, quello vero dell'iPhone.</p>
+</body>
+</html>

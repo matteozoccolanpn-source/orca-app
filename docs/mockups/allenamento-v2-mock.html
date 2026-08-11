@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Keiko — Allenamento v2.1 (mock A)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F0F12;
+    --lv1:#1A1B20; --lv2:#212228;
+    --hl:rgba(255,255,255,.08); --line:rgba(255,255,255,.05);
+    --txt:#F1F4FA; --meta:#9BA0A8;
+    --teal:#3DA5C4; --teal-soft:#86CCE0; --on-teal:#08191E;
+    --acc:#C96A45;
+    --r-hero:16px; --r-card:12px; --r-in:9px; --r-chip:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{font-family:Inter,-apple-system,system-ui,sans-serif;color:var(--txt);
+    background:var(--bg);max-width:430px;margin:0 auto;position:relative;overflow-x:hidden}
+  body:before{content:'';position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:1;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E")}
+
+  .lights{position:absolute;inset:0;pointer-events:none;z-index:0}
+  .l-top{position:absolute;top:-140px;left:-15%;right:-15%;height:340px;
+    background:radial-gradient(58% 100% at 50% 0%, rgba(120,130,150,.20), transparent 70%)}
+  .l-mid{position:absolute;top:150px;left:-25%;right:-25%;height:440px;
+    background:radial-gradient(55% 60% at 50% 50%, rgba(201,106,69,.15), transparent 72%)}
+  .l-low{position:absolute;top:720px;left:-25%;right:-25%;height:440px;
+    background:radial-gradient(56% 58% at 50% 50%, rgba(61,165,196,.17), transparent 72%)}
+
+  .screen{display:none;position:relative;z-index:2;
+    padding:16px 16px calc(88px + env(safe-area-inset-bottom));animation:fade .22s ease}
+  .screen.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .sticky{position:fixed;top:0;left:50%;transform:translate(-50%,-110%);width:100%;max-width:430px;z-index:60;
+    background:rgba(15,15,18,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--hl);
+    padding:10px 16px 9px;transition:transform .25s ease;display:flex;align-items:center;gap:12px}
+  .sticky.on{transform:translate(-50%,0)}
+  .sticky .t{font-family:Fraunces,Georgia,serif;font-size:15px;font-weight:500;flex:none}
+  .sticky .prog{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}
+  .sticky .prog i{display:block;height:100%;background:var(--teal);border-radius:2px;transition:width .35s}
+  .sticky .c{font-size:11.5px;color:var(--teal-soft);font-weight:600;flex:none}
+
+  .srf{background:var(--lv1);border:1px solid var(--line);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 var(--hl)}
+  .srf2{background:var(--lv2);border:1px solid rgba(255,255,255,.07);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .ph{position:relative;overflow:hidden;background:#20242c;border-radius:var(--r-in)}
+  .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .ph:after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 55%,rgba(10,10,13,.55)),
+               radial-gradient(130% 130% at 50% 45%, transparent 58%, rgba(0,0,0,.26))}
+
+  .head{display:flex;align-items:flex-start;gap:12px}
+  .head .col{flex:1}
+  .head h1{font-family:Fraunces,Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.01em}
+  .status{font-size:12.5px;color:var(--meta);font-weight:500;margin-top:4px}
+  .back{width:34px;height:34px;flex:none;border-radius:var(--r-card);background:var(--lv1);
+    border:1px solid var(--line);box-shadow:inset 0 1px 0 var(--hl);
+    display:grid;place-items:center;color:var(--txt);cursor:pointer;margin-top:2px}
+
+  .btn2{font-size:12px;font-weight:600;background:var(--lv1);color:var(--txt);
+    border:1px solid rgba(255,255,255,.09);border-radius:var(--r-chip);padding:7px 11px;
+    white-space:nowrap;box-shadow:inset 0 1px 0 var(--hl);cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;gap:7px}
+  .btn2 svg{color:var(--teal-soft)}
+  .btn-ghost{font-size:11.5px;font-weight:600;background:rgba(16,16,19,.5);backdrop-filter:blur(8px);
+    color:var(--teal-soft);font-family:inherit;border:1px solid rgba(61,165,196,.45);
+    border-radius:var(--r-chip);padding:6px 11px;white-space:nowrap;cursor:pointer}
+  .cta{font-size:12.5px;font-weight:600;background:var(--acc);color:#FFF3EC;border:none;font-family:inherit;
+    border-radius:var(--r-chip);padding:9px 16px;white-space:nowrap;cursor:pointer;
+    box-shadow:0 4px 16px rgba(201,106,69,.35)}
+  .tert{font-size:12px;font-weight:600;color:var(--teal-soft);cursor:pointer;background:none;border:none;font-family:inherit;padding:8px 4px}
+
+  .sec{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;color:var(--txt);
+    letter-spacing:-.01em;margin:32px 2px 10px;display:flex;align-items:baseline;gap:8px}
+  .sec .sm{font-family:Inter,-apple-system,system-ui,sans-serif;font-size:12px;font-weight:500;
+    color:var(--meta);flex:1;min-width:0}
+  .sec .more{font-family:Inter,-apple-system,system-ui,sans-serif;font-size:12.5px;
+    color:var(--teal-soft);font-weight:600;cursor:pointer;flex:none;margin-left:auto}
+
+  /* ── HERO unificato: pochi pesi tipografici ── */
+  .hero{position:relative;border-radius:var(--r-hero);overflow:hidden;margin-top:16px;
+    background:var(--lv2);border:1px solid rgba(255,255,255,.07);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .hero .bg{position:absolute;inset:0}
+  .hero .bg img{width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .hero .bg:after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(15,15,18,.40) 0%,rgba(15,15,18,.78) 52%,rgba(10,10,13,.97) 100%)}
+  .hero .body{position:relative;z-index:2;padding:104px 16px 16px}
+  .hero .k{font-size:11.5px;color:var(--teal-soft);font-weight:600;display:flex;align-items:center;gap:6px}
+  .hero .k .dot{background:var(--teal)}
+  .hero .t{font-family:Fraunces,Georgia,serif;font-size:24px;font-weight:500;letter-spacing:-.015em;line-height:1.1;margin-top:7px}
+  .hero .m{font-size:12.5px;color:#C9D1DB;font-weight:500;margin-top:6px}
+  .hero .bar{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .hero .bar .prog{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}
+  .hero .bar .prog i{display:block;height:100%;background:var(--teal);border-radius:3px;transition:width .35s ease}
+  .hero .bar .c{font-size:12px;font-weight:600;color:var(--teal-soft);white-space:nowrap}
+  .hero .row{display:flex;align-items:center;gap:10px;margin-top:14px}
+
+  /* ── suggerimento leggero (ex coach) ── */
+  .hint{display:flex;align-items:flex-start;gap:9px;margin-top:10px;padding:11px 12px;
+    border-left:2px solid rgba(61,165,196,.55);border-radius:var(--r-chip);
+    background:rgba(61,165,196,.06)}
+  .hint svg{flex:none;margin-top:1px;color:var(--teal-soft)}
+  .hint p{font-size:12.5px;color:#C9D1DB;font-weight:500;line-height:1.5}
+  .hint b{color:var(--txt);font-weight:600}
+
+  /* ── lista esercizi (pattern riga-pasto Cucina) ── */
+  .list{margin-top:12px;overflow:hidden}
+  .item{border-top:1px solid var(--line)}
+  .item:first-child{border-top:none}
+  .item-row{display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer}
+  .item.done .item-row{cursor:default}
+  .item.next{background:var(--lv2);border-top-color:rgba(61,165,196,.35);
+    box-shadow:inset 0 1px 0 rgba(61,165,196,.25)}
+  .item.next .k{color:var(--teal-soft)}
+  .item.next .k .dot{background:var(--teal)}
+  .ckc{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(61,165,196,.6);
+    flex:none;display:grid;place-items:center;cursor:pointer;transition:all .18s}
+  .item.done .ckc{background:var(--teal);border-color:var(--teal);box-shadow:0 2px 12px rgba(61,165,196,.45)}
+  .ckc svg path{stroke-dasharray:24;stroke-dashoffset:24}
+  .item.done .ckc svg path{stroke-dashoffset:0;transition:stroke-dashoffset .4s ease .05s}
+  .item .in{flex:1;min-width:0}
+  .item .k{font-size:11.5px;color:var(--meta);font-weight:500;display:flex;align-items:center;gap:5px}
+  .dot{width:5px;height:5px;border-radius:3px;background:var(--meta);flex:none}
+  .item .tx{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
+  .item.done .tx{opacity:.6;font-weight:500;
+    text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:rgba(241,244,250,.7)}
+  .item.done .k{opacity:.7}
+  .idata{font-size:11.5px;color:var(--meta);font-weight:500;flex:none}
+  .chev{transition:transform .28s ease-out;color:var(--meta);flex:none}
+  .item.openx .chev{transform:rotate(180deg)}
+  .item-x{max-height:0;overflow:hidden;transition:max-height .3s ease-out}
+  .item.openx .item-x{max-height:280px}
+  .item-x .inner{padding:0 12px 12px 46px;display:flex;gap:12px}
+  .item-x .thumb{width:74px;flex:none;align-self:stretch;min-height:74px;border-radius:var(--r-in);
+    position:relative;overflow:hidden;background:#20242c}
+  .item-x .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .item-x .col{flex:1;min-width:0}
+  .kv{display:flex;gap:8px;flex-wrap:wrap}
+  .kv span{font-size:11.5px;font-weight:600;color:var(--txt);background:var(--lv1);
+    border:1px solid rgba(255,255,255,.09);border-radius:var(--r-chip);padding:5px 9px;
+    box-shadow:inset 0 1px 0 var(--hl)}
+  .kv span b{color:var(--meta);font-weight:500}
+  .rx{font-size:12.5px;color:var(--meta);font-weight:500;line-height:1.5;margin-top:8px}
+  .item-x .row{display:flex;align-items:center;gap:8px;margin-top:11px}
+  .addrow{width:100%;text-align:left;background:none;border:none;font-family:inherit;cursor:pointer;
+    padding:12px;border-top:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--teal-soft);
+    display:flex;align-items:center;gap:9px}
+  .complete{display:none;align-items:center;gap:12px;padding:14px 12px;border-top:1px solid var(--line)}
+  .list.finished .complete{display:flex}
+  .big-ck{width:28px;height:28px;border-radius:50%;background:var(--teal);flex:none;
+    display:grid;place-items:center;box-shadow:0 2px 12px rgba(61,165,196,.45)}
+  .complete .t{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500}
+  .complete .m{display:block;font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px}
+
+  /* ── ponte col cibo ── */
+  .bridge{padding:13px 12px}
+  .bridge .lead{font-size:12.5px;color:#C9D1DB;font-weight:500;line-height:1.5}
+  .bridge .lead b{color:var(--txt);font-weight:600}
+  .mealrow{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid var(--line);margin-top:10px;cursor:pointer}
+  .mealrow:first-of-type{margin-top:11px}
+  .mealrow .tag{font-size:10.5px;font-weight:600;color:var(--teal-soft);background:rgba(61,165,196,.12);
+    border:1px solid rgba(61,165,196,.3);border-radius:999px;padding:3px 9px;flex:none;width:56px;text-align:center}
+  .mealrow .in{flex:1;min-width:0}
+  .mealrow .t{display:block;font-size:13px;font-weight:600;letter-spacing:-.01em}
+  .mealrow .m{display:block;font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px}
+
+  .rcp{cursor:pointer;padding:8px 8px 12px}
+  .rcp .ph{aspect-ratio:16/9}
+  .rcp .t{font-size:14.5px;font-weight:600;letter-spacing:-.01em;margin:10px 4px 0}
+  .rcp .m{font-size:11.5px;color:var(--meta);font-weight:500;margin:3px 4px 0}
+  .why{display:flex;align-items:center;gap:6px;margin:8px 4px 0;padding-top:8px;border-top:1px solid var(--line);
+    font-size:12.5px;font-weight:600;color:var(--teal-soft)}
+  .why svg{flex:none}
+  .src{position:absolute;top:8px;left:8px;z-index:2;font-size:10.5px;font-weight:600;color:#E8ECF3;
+    background:rgba(16,16,19,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+    border-radius:999px;padding:3px 8px}
+  .creator{position:absolute;top:8px;right:8px;z-index:2;font-size:10.5px;font-weight:500;color:#C9CFD8;
+    background:rgba(16,16,19,.55);backdrop-filter:blur(10px);border-radius:999px;padding:3px 8px}
+  .play{position:absolute;left:8px;bottom:8px;z-index:2}
+  .play i{width:30px;height:30px;border-radius:50%;background:rgba(16,16,19,.55);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.25);display:grid;place-items:center;font-style:normal}
+  .watch{position:absolute;right:8px;bottom:8px;z-index:2;font-size:10.5px;font-weight:600;color:#E8ECF3;
+    background:rgba(16,16,19,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+    border-radius:999px;padding:3px 8px}
+
+  /* ── card-giorno: identica a Cucina ── */
+  .day{margin-top:8px;overflow:hidden;cursor:pointer;position:relative}
+  .day-bg{position:absolute;top:0;right:0;bottom:0;width:46%;z-index:0}
+  .day-bg img{width:100%;height:100%;object-fit:cover;filter:saturate(1.14) contrast(1.03)}
+  .day-bg:after{content:'';position:absolute;inset:0;
+    background:linear-gradient(90deg,var(--lv1) 0%,rgba(26,27,32,.72) 45%,rgba(26,27,32,.28) 100%)}
+  .day-head{display:flex;align-items:center;gap:12px;padding:12px;position:relative;z-index:1}
+  .day-head .d{width:36px;flex:none;text-align:center}
+  .day-head .d b{display:block;font-size:13px;font-weight:600}
+  .day-head .d span{font-size:10px;color:var(--meta);font-weight:500}
+  .day-head .pv{flex:1;min-width:0}
+  .day-head .pv .t{display:block;font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    text-shadow:0 1px 8px rgba(10,10,13,.8)}
+  .day-head .pv .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:2px;display:flex;align-items:center;gap:5px}
+  .day-head .nxt{flex:none;font-size:11px;font-weight:600;color:var(--teal-soft)}
+  .day-list{max-height:0;transition:max-height .3s ease-out;overflow:hidden;position:relative;z-index:1;background:var(--lv1)}
+  .day.open .day-list{max-height:400px}
+  .day.open .chev{transform:rotate(180deg)}
+  .dline{display:flex;gap:12px;padding:8px 12px;border-top:1px solid var(--line)}
+  .dline:nth-child(even){background:rgba(255,255,255,.02)}
+  .dline .k{width:76px;flex:none;font-size:11.5px;color:var(--meta);font-weight:500;padding-top:1px}
+  .dline .tx{flex:1;font-size:12.5px;font-weight:500;color:var(--txt);line-height:1.4}
+  .day.today .day-bg{width:100%}
+  .day.today .day-bg:after{background:linear-gradient(90deg,rgba(15,15,18,.92) 0%,rgba(15,15,18,.62) 55%,rgba(15,15,18,.30) 100%),
+    linear-gradient(180deg,transparent 40%,rgba(10,10,13,.55))}
+  .day.today{border-radius:var(--r-hero)}
+  .day.today .day-head{padding:18px 14px}
+  .day.today .pv .t{font-family:Fraunces,Georgia,serif;font-size:17px;font-weight:500}
+  .day.rest .day-bg{display:none}
+
+  /* ── recap ── */
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .stat{padding:12px 10px;text-align:center}
+  .stat b{display:block;font-family:Fraunces,Georgia,serif;font-size:20px;font-weight:500;letter-spacing:-.01em}
+  .stat span{display:block;font-size:11px;color:var(--meta);font-weight:500;margin-top:3px;line-height:1.35}
+  .prg{display:flex;gap:12px;padding:12px;cursor:pointer;align-items:center}
+  .prg .ph{width:64px;height:64px;flex:none}
+  .prg .in{flex:1;min-width:0}
+  .prg .k{font-size:11.5px;color:var(--meta);font-weight:500;display:flex;align-items:center;gap:5px}
+  .prg .t{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;letter-spacing:-.01em;margin-top:2px}
+  .prg .bar{height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:9px}
+  .prg .bar i{display:block;height:100%;background:var(--teal);border-radius:2px}
+  .prg .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:6px}
+
+  .empty{padding:20px 16px;text-align:center}
+  .empty .ic{width:36px;height:36px;border-radius:var(--r-in);background:var(--lv2);margin:0 auto;
+    display:grid;place-items:center;color:var(--meta);box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .empty .t{font-size:13px;font-weight:600;margin-top:8px}
+  .empty .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:3px;line-height:1.5}
+  .soon{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--teal-soft);
+    background:rgba(61,165,196,.12);border:1px solid rgba(61,165,196,.3);border-radius:999px;padding:3px 9px;margin-top:8px}
+
+  .row-act{display:flex;align-items:center;gap:12px;padding:13px 12px;cursor:pointer;border-top:1px solid var(--line)}
+  .row-act:first-child{border-top:none}
+  .row-act .ic2{width:32px;height:32px;flex:none;border-radius:var(--r-in);background:var(--lv2);
+    display:grid;place-items:center;color:var(--teal-soft);box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+  .row-act .in{flex:1}
+  .row-act .t{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+  .row-act .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:1px}
+  .danger{margin:48px 0 8px;text-align:center}
+  .danger button{background:none;border:none;font-family:inherit;font-size:12.5px;font-weight:500;
+    color:var(--meta);cursor:pointer;padding:8px 12px;transition:color .2s}
+  .danger button.arm{color:var(--acc);font-weight:600}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(16px);bottom:calc(100px + env(safe-area-inset-bottom));
+    z-index:80;background:var(--lv2);border:1px solid rgba(61,165,196,.4);border-radius:var(--r-card);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 12px 34px rgba(0,0,0,.5);
+    padding:10px 14px;font-size:12.5px;font-weight:600;color:var(--txt);opacity:0;pointer-events:none;
+    transition:all .25s ease;white-space:nowrap}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .tab{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;z-index:50;
+    background:rgba(15,15,18,.92);backdrop-filter:blur(20px);border-top:1px solid var(--hl);
+    display:flex;align-items:flex-end;justify-content:space-around;
+    padding:8px 8px calc(14px + env(safe-area-inset-bottom))}
+  .ti{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:500;
+    color:var(--meta);width:56px;cursor:pointer}
+  .ti.on{color:var(--teal-soft)}
+  .fab{width:50px;height:50px;border-radius:50%;background:var(--acc);color:#FFF3EC;
+    display:grid;place-items:center;margin-bottom:2px;cursor:pointer;box-shadow:0 8px 26px rgba(201,106,69,.4)}
+  svg{display:block}
+</style>
+</head>
+<body>
+  <div class="lights"><div class="l-top"></div><div class="l-mid"></div><div class="l-low"></div></div>
+
+  <div class="sticky" id="stickyBar">
+    <span class="t">Allenamento</span>
+    <span class="prog"><i id="sbar" style="width:0%"></i></span>
+    <span class="c" id="scount">0 di 4</span>
+  </div>
+
+  <!-- ═══════════ ALLENAMENTO ═══════════ -->
+  <div class="screen on" id="s-all">
+    <div class="head">
+      <div class="col">
+        <h1>Allenamento</h1>
+        <div class="status">Domenica · scheda rientro</div>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div class="bg"><img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900&q=70&auto=format&fit=crop" alt=""></div>
+      <div class="body">
+        <div class="k"><span class="dot"></span>oggi · scheda del giorno</div>
+        <div class="t">Corsa Recovery + Nuoto</div>
+        <div class="m">corsa 5 km · nuoto 800 m · stretching · core</div>
+        <div class="bar">
+          <span class="prog"><i id="heroBar" style="width:0%"></i></span>
+          <span class="c" id="heroC">0 di 4</span>
+        </div>
+        <div class="row">
+          <button class="cta" onclick="toast('Apre «Allenati ora» — mock B')">Allenati ora</button>
+          <button class="btn-ghost" onclick="doneAll()">Fatto oggi</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+      <p>Ultimo allenamento <b>21 giorni fa</b>: oggi tieni i carichi sotto quelli dell'ultima volta.</p>
+    </div>
+
+    <div class="list srf" id="list"></div>
+
+    <div class="sec">Intorno all'allenamento<span class="sm">dal tuo piano</span><span class="more" onclick="toast('Apre la Cucina')">vedi tutti</span></div>
+    <div class="srf bridge">
+      <div class="lead">Stasera hai <b>Nuoto</b>. Nel tuo piano, per oggi:</div>
+      <div class="mealrow" onclick="toast('Apre il pasto in Cucina')">
+        <span class="tag">prima</span>
+        <span class="in">
+          <span class="t">Melone 150g</span>
+          <span class="m">la merenda del piano · leggera prima della vasca</span>
+        </span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9BA0A8" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+      <div class="mealrow" onclick="toast('Apre il pasto in Cucina')">
+        <span class="tag">dopo</span>
+        <span class="in">
+          <span class="t">Insalata di uova sode + fagiolini</span>
+          <span class="m">la cena del piano · 26g proteine</span>
+        </span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9BA0A8" stroke-width="2" style="flex:none"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+
+    <div class="sec">Da mangiare dopo<span class="sm">se stasera salti il piano</span></div>
+    <div class="rcp srf" onclick="toast('Apre la ricetta nel Ricettario')">
+      <div class="ph">
+        <span class="src">post-workout</span><span class="creator">@cucinaconmarta</span>
+        <span class="play"><i><svg width="13" height="13" viewBox="0 0 24 24" fill="#E8ECF3"><path d="M8 5v14l11-7z"/></svg></i></span>
+        <span class="watch">guarda · 40s</span>
+        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=70&auto=format&fit=crop" alt="">
+      </div>
+      <div class="t">Bowl di riso e pollo</div>
+      <div class="m">25 min · 42g proteine</div>
+      <div class="why"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>recuperi dopo la corsa</div>
+    </div>
+
+    <div class="sec">La settimana<span class="sm">0 di 7 fatti · si parte oggi</span></div>
+    <div id="days"></div>
+
+    <div class="sec">A che punto sei</div>
+    <div class="stats">
+      <div class="stat srf"><b>0</b><span>allenamenti<br>questa settimana</span></div>
+      <div class="stat srf"><b>4</b><span>questo mese<br>su 12 previsti</span></div>
+      <div class="stat srf"><b>21</b><span>giorni<br>dall'ultimo</span></div>
+    </div>
+    <div class="srf" style="margin-top:8px">
+      <div class="row-act" style="cursor:default">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5M12 7v5l3 3"/></svg></span>
+        <span class="in">
+          <span class="t">Ultimo allenamento · 20 luglio</span>
+          <span class="m" style="display:block">Lower A · squat 4 × 6, stacco 3 × 8</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="sec">Programmi<span class="sm">quelli che segui dalla Home</span></div>
+    <div class="srf prg" onclick="toast('Apre il programma Maratona di Milano')">
+      <div class="ph"><img src="https://images.unsplash.com/photo-1502904550040-7534597429ae?w=300&q=70&auto=format&fit=crop" alt=""></div>
+      <div class="in">
+        <div class="k"><span class="dot"></span>settimana 3 di 16</div>
+        <div class="t">Maratona di Milano</div>
+        <div class="bar"><i style="width:19%"></i></div>
+        <div class="m">prossimo obiettivo: lungo da 18 km, domenica 17</div>
+      </div>
+    </div>
+    <div class="srf empty" style="margin-top:8px">
+      <div class="t">Nessun altro programma attivo</div>
+      <div class="m">i programmi si aggiungono dalla Home<br>e da qui vedi come procedono</div>
+      <span class="soon">Programmi suggeriti · in arrivo</span>
+    </div>
+
+    <div class="sec">La tua scheda<span class="more" onclick="go('s-gest')">gestisci</span></div>
+    <div class="srf">
+      <div class="row-act" style="cursor:default">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 12h12M4 9v6M20 9v6"/></svg></span>
+        <span class="in">
+          <span class="t" style="font-family:Fraunces,Georgia,serif;font-size:15px;font-weight:500">Scheda rientro · agosto</span>
+          <span class="m" style="display:block">7 giorni · corsa, nuoto e core · aggiornata il 4 ago</span>
+        </span>
+      </div>
+      <div style="display:flex;gap:8px;padding:0 12px 12px 56px">
+        <button class="cta" onclick="go('s-gest')">Aggiorna scheda</button>
+        <button class="btn2" onclick="go('s-gest')">Modifica giorno</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ GESTIONE SCHEDA ═══════════ -->
+  <div class="screen" id="s-gest">
+    <div class="head">
+      <span class="back" onclick="go('s-all')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+      <div class="col">
+        <h1>La tua scheda</h1>
+        <div class="status">Scheda rientro · agosto · 7 giorni</div>
+      </div>
+    </div>
+
+    <div class="srf2" style="margin-top:16px;padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 16px 44px rgba(61,165,196,.10)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="width:38px;height:38px;flex:none;border-radius:var(--r-in);background:var(--lv1);display:grid;place-items:center;color:var(--teal-soft);box-shadow:inset 0 1px 0 var(--hl)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M9 13h6M9 17h6"/></svg>
+        </span>
+        <span style="flex:1">
+          <span style="display:block;font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;letter-spacing:-.01em">Scheda_rientro.pdf</span>
+          <span style="display:block;font-size:11.5px;color:var(--meta);font-weight:500;margin-top:2px">dal preparatore · Keiko la trascrive e la ricorda, non la scrive</span>
+        </span>
+        <button class="btn-ghost">Apri</button>
+      </div>
+    </div>
+
+    <div class="sec">Gestione</div>
+    <div class="srf">
+      <div class="row-act" onclick="toast('Carica la nuova scheda: foto o PDF')">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg></span>
+        <span class="in"><span class="t">Carica una nuova scheda</span><span class="m">foto o PDF · sostituisce quella attuale</span></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="row-act" onclick="toast('Scegli il giorno da modificare')">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3a2.8 2.8 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg></span>
+        <span class="in"><span class="t">Modifica giorno</span><span class="m">cambia esercizi, serie o carichi di una giornata</span></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="row-act" onclick="toast('Ok — dimmi quali giorni scambiare')">
+        <span class="ic2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 16l-4-4 4-4M3 12h18M17 8l4 4-4 4"/></svg></span>
+        <span class="in"><span class="t">Sposta un allenamento</span><span class="m">tra due giorni della stessa settimana</span></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <div class="danger"><button onclick="armDelete(this)">Elimina scheda</button></div>
+  </div>
+
+  <div class="toast" id="toastEl"></div>
+
+  <div class="tab">
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
+      Home
+    </div>
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v7c0 1.5 1 2 2.5 2S12 12 12 10.5V3M9.5 3v18M17 3c-2 1.5-2.5 5-2.5 8 0 0 1 .8 2.5.8V21"/></svg>
+      Cucina
+    </div>
+    <div class="fab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="ti on">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 12h12M4 9v6M20 9v6"/></svg>
+      Allenamento
+    </div>
+    <div class="ti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>
+      Guarda
+    </div>
+  </div>
+
+<script>
+  function go(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+    window.scrollTo(0,0);
+  }
+  let toastT=null;
+  function toast(msg){
+    const t=document.getElementById('toastEl');
+    t.textContent=msg;t.classList.add('on');
+    clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800);
+  }
+
+  const ITEMS=[
+    {k:'Mattino · corsa',tx:'Corsa 5 km recovery',data:'≈35\'',done:false,
+     img:'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=300&q=70&auto=format&fit=crop',
+     kv:['<b>ritmo</b> 6:10/km','<b>durata</b> 30-35\'','<b>ultima volta</b> 6:00/km'],
+     rx:'Ritmo conversazione: se non riesci a parlare, stai andando troppo forte.'},
+    {k:'Sera · vasca',tx:'Nuoto 800 m',data:'≈25\'',done:false,
+     img:'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=300&q=70&auto=format&fit=crop',
+     kv:['<b>serie</b> 8 × 100 m','<b>recupero</b> 30"','<b>ultima volta</b> 1.000 m'],
+     rx:'Otto vasche da cento, stile libero. Se il braccio tira, chiudi a 600 m.'},
+    {k:'Mobilità',tx:'Stretching 10\'',data:'10\'',done:false,
+     img:'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&q=70&auto=format&fit=crop',
+     kv:['<b>blocchi</b> 5 esercizi','<b>tenuta</b> 40"'],
+     rx:'Catena posteriore e anche, dopo la corsa. Respiro lento, mai molleggiare.'},
+    {k:'Sera · core',tx:'Core 15\'',data:'15\'',done:false,
+     img:'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=300&q=70&auto=format&fit=crop',
+     kv:['<b>giri</b> 3','<b>esercizi</b> 4','<b>ultima volta</b> 4 giri'],
+     rx:'Plank, hollow, side plank, dead bug. Tre giri invece di quattro: è il rientro.'}
+  ];
+  let openIdx=0;
+
+  function render(){
+    const next=ITEMS.findIndex(i=>!i.done);
+    document.getElementById('list').innerHTML=ITEMS.map((it,i)=>`
+      <div class="item${it.done?' done':''}${i===next?' next':''}${i===openIdx?' openx':''}">
+        <div class="item-row" onclick="expand(${i})">
+          <span class="ckc" onclick="event.stopPropagation();chk(${i})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg>
+          </span>
+          <span class="in">
+            <span class="k"><span class="dot"></span>${it.k}${i===next?' · adesso':''}</span>
+            <span class="tx">${it.tx}</span>
+          </span>
+          <span class="idata">${it.data}</span>
+          ${it.done?'':`<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>`}
+        </div>
+        <div class="item-x"><div class="inner">
+          ${i===next?`<span class="thumb"><img src="${it.img}" alt=""></span>`:''}
+          <span class="col">
+            <span class="kv">${it.kv.map(x=>`<span>${x}</span>`).join('')}</span>
+            <span class="rx" style="display:block">${it.rx}</span>
+            <span class="row">
+              <button class="cta" style="font-size:12px;padding:8px 14px" onclick="event.stopPropagation();toast('Apre «Allenati ora» da ${it.tx}')">Allenati ora</button>
+              <button class="tert" onclick="event.stopPropagation();toast('Ok — lo sposto a domani')">Sposta a domani</button>
+            </span>
+          </span>
+        </div></div>
+      </div>`).join('')+`
+      <div class="complete">
+        <span class="big-ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#08191E" stroke-width="3"><path d="M4 12l5 5L20 7"/></svg></span>
+        <span><span class="t">Scheda completa</span><span class="m">quattro su quattro · il rientro è cominciato bene</span></span>
+      </div>
+      <button class="addrow" onclick="toast('Aggiungi un esercizio fuori scheda')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Aggiungi un esercizio fuori scheda
+      </button>`;
+    const done=ITEMS.filter(i=>i.done).length;
+    const pct=done/ITEMS.length*100;
+    document.getElementById('heroBar').style.width=pct+'%';
+    document.getElementById('heroC').textContent=done+' di '+ITEMS.length;
+    document.getElementById('sbar').style.width=pct+'%';
+    document.getElementById('scount').textContent=done+' di '+ITEMS.length;
+    document.getElementById('list').classList.toggle('finished',done===ITEMS.length);
+  }
+  function chk(i){ITEMS[i].done=!ITEMS[i].done;openIdx=ITEMS.findIndex(x=>!x.done);render();}
+  function expand(i){if(ITEMS[i].done)return;openIdx=(openIdx===i)?-1:i;render();}
+  function doneAll(){ITEMS.forEach(i=>i.done=true);openIdx=-1;render();toast('Segnato · tutta la scheda di oggi');}
+  render();
+
+  window.addEventListener('scroll',()=>{
+    const on=document.getElementById('s-all').classList.contains('on');
+    document.getElementById('stickyBar').classList.toggle('on',on&&window.scrollY>200);
+  },{passive:true});
+
+  const WEEK=[
+    {d:'dom',n:10,t:'Corsa Recovery + Nuoto',tag:'oggi · rientro',today:true,
+     img:'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=700&q=70&auto=format&fit=crop',
+     rows:[['Mattino','Corsa 5 km recovery'],['Sera','Nuoto 800 m'],['Mobilità','Stretching 10\''],['Sera','Core 15\'']]},
+    {d:'lun',n:11,t:'Corsa Z2 + Nuoto',tag:'45\' in Z2',
+     img:'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=500&q=70&auto=format&fit=crop',
+     rows:[['Mattino','Corsa 8 km in Z2'],['Sera','Nuoto 1.000 m'],['Mobilità','Stretching 10\'']]},
+    {d:'mar',n:12,t:'Upper A',tag:'forza · sala',
+     img:'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=500&q=70&auto=format&fit=crop',
+     rows:[['Spinta','Panca 4 × 8'],['Tirata','Rematore 4 × 10'],['Spalle','Alzate 3 × 12'],['Core','15\'']]},
+    {d:'mer',n:13,t:'Riposo attivo',tag:'camminata',rest:true,
+     rows:[['Mobilità','Camminata 40\''],['Sera','Stretching 15\'']]},
+    {d:'gio',n:14,t:'Corsa Z2 + Core',tag:'10 km',
+     img:'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=500&q=70&auto=format&fit=crop',
+     rows:[['Mattino','Corsa 10 km in Z2'],['Sera','Core 15\'']]},
+    {d:'ven',n:15,t:'Lower A',tag:'gambe',
+     img:'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=500&q=70&auto=format&fit=crop',
+     rows:[['Fondamentale','Squat 4 × 6'],['Catena post.','Stacco rumeno 3 × 8'],['Monopodalico','Affondi 3 × 10'],['Core','15\'']]},
+    {d:'sab',n:16,t:'Nuoto lungo',tag:'1.500 m',
+     img:'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=500&q=70&auto=format&fit=crop',
+     rows:[['Vasca','Nuoto 1.500 m'],['Mobilità','Stretching 10\'']]}
+  ];
+  document.getElementById('days').innerHTML=WEEK.map(w=>`
+    <div class="day ${w.today?'today srf2':(w.rest?'rest srf':'srf')}" onclick="this.classList.toggle('open')">
+      ${w.img?`<div class="day-bg"><img src="${w.img}" alt=""></div>`:''}
+      <div class="day-head">
+        <span class="d"><b>${w.n}</b><span>${w.d}</span></span>
+        <span class="pv">
+          <span class="t">${w.t}</span>
+          <span class="m"><span class="dot"></span>${w.rows.length} voci · ${w.tag}</span>
+        </span>
+        ${w.today?'<span class="nxt">oggi</span>':''}
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="day-list">
+        ${w.rows.map(r=>`<div class="dline"><span class="k">${r[0]}</span><span class="tx">${r[1]}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  let armT=null;
+  function armDelete(b){
+    if(b.classList.contains('arm')){b.textContent='Scheda eliminata';b.classList.remove('arm');b.style.pointerEvents='none';return;}
+    b.classList.add('arm');b.textContent='Sicuro? Tocca ancora per eliminare';
+    clearTimeout(armT);armT=setTimeout(()=>{b.classList.remove('arm');b.textContent='Elimina scheda';},3000);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keiko — Home: tre concetti, tre app diverse</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#101015;font-family:-apple-system,Inter,system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;padding:22px 14px 50px;gap:16px;min-height:100vh;color:#eee}
+  .picker{display:flex;gap:8px}
+  .picker button{border:0;font:700 13px -apple-system,sans-serif;padding:10px 18px;border-radius:999px;
+    cursor:pointer;background:#22232b;color:#9aa}
+  .picker button.on{background:#fff;color:#111}
+  .sub{font-size:12px;color:#778;max-width:430px;text-align:center;line-height:1.55}
+  .phone{width:392px;max-width:100%;height:815px;border-radius:46px;overflow:hidden;position:relative;
+    box-shadow:0 40px 100px rgba(0,0,0,.75), inset 0 0 0 1px rgba(255,255,255,.08)}
+  .home{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none}
+  .home::-webkit-scrollbar{display:none}
+  .hidden{display:none!important}
+  .fx{animation:fin .5s cubic-bezier(.22,.61,.36,1) both}
+  @keyframes fin{from{opacity:0;transform:translateY(12px)}}
+  .fx:nth-of-type(2){animation-delay:.06s}.fx:nth-of-type(3){animation-delay:.12s}
+  .fx:nth-of-type(4){animation-delay:.18s}.fx:nth-of-type(5){animation-delay:.24s}
+  .img-flight{background:linear-gradient(160deg,#4A79B8,#2E4E80 55%,#1D3050)}
+  .img-run{background:linear-gradient(160deg,#C77E4A,#8A4E2C 60%,#4E2A16)}
+  .img-concert{background:linear-gradient(160deg,#8A5AB8,#4E2E80 55%,#2A1850)}
+  .img-food{background:linear-gradient(160deg,#5AA85E,#2E6E38 60%,#173D1E)}
+  .emo{position:absolute;inset:0;display:grid;place-items:center;opacity:.9}
+
+  /* ═══════════ 1 · QUOTIDIANO — la rivista ═══════════ */
+  .q{background:#F7F3EC;color:#221E18;padding:58px 24px 96px}
+  .q .kicker{font-size:11px;font-weight:700;letter-spacing:2.5px;color:#B3A897}
+  .q h1{font-family:Georgia,serif;font-size:46px;font-weight:500;letter-spacing:-.03em;line-height:1;margin-top:8px}
+  .q .lede{font-family:Georgia,serif;font-size:16.5px;font-style:italic;color:#6E6558;margin-top:12px;line-height:1.45}
+  .q .rule{height:1px;background:#DDD5C8;margin:26px 0 0}
+  .q .sect{font-family:Georgia,serif;font-size:23px;font-weight:500;letter-spacing:-.02em;margin:30px 0 14px;
+    display:flex;align-items:baseline;gap:10px}
+  .q .sect small{font-size:11px;font-family:-apple-system,sans-serif;font-weight:700;letter-spacing:1.5px;color:#B3A897}
+  .q .cover{margin:0 -24px}
+  .q .cover .ph{height:210px;position:relative}
+  .q .cover .cap{padding:14px 24px 6px}
+  .q .cover .ct{font-family:Georgia,serif;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.15}
+  .q .cover .cm{font-size:13px;color:#8D8474;margin-top:6px;letter-spacing:.2px}
+  .q .item{display:flex;align-items:baseline;gap:14px;padding:15px 0;border-bottom:1px solid #E6DFD3}
+  .q .item .h{font-size:12px;font-weight:700;color:#B3A897;width:44px;flex:none;letter-spacing:.5px}
+  .q .item .it{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .q .item .im{font-size:12.5px;color:#8D8474;margin-top:2px}
+  .q .item .go{margin-left:auto;color:#C77E4A;font-size:16px}
+  .q .navq{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,transparent,#F7F3EC 35%);
+    padding:22px 24px 22px;display:flex;align-items:center;justify-content:space-between}
+  .q .navq span{font-size:12.5px;font-weight:700;letter-spacing:.6px;color:#B3A897;cursor:pointer}
+  .q .navq span.on{color:#221E18;border-bottom:2px solid #C77E4A;padding-bottom:3px}
+  .q .navq .qplus{width:44px;height:44px;border-radius:50%;background:#221E18;color:#F7F3EC;
+    display:grid;place-items:center;font-size:22px;font-weight:300}
+
+  /* ═══════════ 2 · PLANCIA — lo strumento ═══════════ */
+  .pl{background:#EDEFF3;color:#15171B;padding:54px 14px 92px;font-size:13px}
+  .pl .top{display:flex;align-items:center;gap:10px;padding:0 4px}
+  .pl .datep{background:#fff;border-radius:12px;padding:8px 13px;font-size:12.5px;font-weight:700;
+    box-shadow:0 1px 3px rgba(20,25,40,.08)}
+  .pl .srch{flex:1;background:#fff;border-radius:12px;padding:9px 13px;font-size:12.5px;color:#9AA0AC;
+    box-shadow:0 1px 3px rgba(20,25,40,.08)}
+  .pl .av{width:36px;height:36px;border-radius:12px;background:#15171B;color:#fff;display:grid;
+    place-items:center;font-weight:800;font-size:13px}
+  .pl .strip{display:flex;gap:5px;margin:12px 4px 0}
+  .pl .sq{flex:1;background:#fff;border-radius:10px;text-align:center;padding:7px 0 6px;font-size:10px;
+    font-weight:700;color:#9AA0AC;box-shadow:0 1px 2px rgba(20,25,40,.06)}
+  .pl .sq b{display:block;font-size:14px;color:#15171B;margin-top:1px}
+  .pl .sq.on{background:#15171B}.pl .sq.on b{color:#fff}.pl .sq.on{color:#8890A0}
+  .pl .sq .d{width:4px;height:4px;border-radius:2px;background:#E8833A;margin:2px auto 0}
+  .pl .bento{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 4px 0}
+  .pl .tile{background:#fff;border-radius:16px;padding:13px 14px;box-shadow:0 1px 3px rgba(20,25,40,.07);
+    position:relative;overflow:hidden;cursor:pointer}
+  .pl .tile.wide{grid-column:1/3}
+  .pl .tk{font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#9AA0AC;
+    display:flex;align-items:center;gap:5px}
+  .pl .tk i{width:7px;height:7px;border-radius:2px;font-style:normal}
+  .pl .tt{font-size:15.5px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
+  .pl .tm{font-size:11.5px;color:#7A8290;margin-top:2px;font-weight:500}
+  .pl .tbig{font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:4px}
+  .pl .prog{height:5px;border-radius:3px;background:#EDEFF3;margin-top:10px;overflow:hidden}
+  .pl .prog i{display:block;height:100%;width:64%;background:#E8833A;border-radius:3px}
+  .pl .chipline{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .pl .chip{background:#F3F4F7;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:700;color:#4A5160}
+  .pl .dock{position:absolute;left:12px;right:12px;bottom:12px;background:#15171B;border-radius:20px;
+    display:flex;align-items:center;justify-content:space-around;padding:10px}
+  .pl .dk{width:44px;height:40px;border-radius:12px;display:grid;place-items:center;color:#8890A0;cursor:pointer}
+  .pl .dk.on{background:#2A2D35;color:#fff}
+  .pl .dk.plus{background:#E8833A;color:#fff;font-size:21px;font-weight:400}
+
+  /* ═══════════ 3 · FLUSSO — il fiume ═══════════ */
+  .f{background:radial-gradient(120% 60% at 50% -5%, #2A2038 0%, #17131F 45%, #100D17 100%);
+    color:#F0EAF6;padding:56px 18px 120px}
+  .f .voice{display:flex;gap:11px;align-items:flex-start}
+  .f .orb{width:38px;height:38px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 32% 30%, #FFD08A, #E8833A 65%, #B85A1F);
+    box-shadow:0 0 24px rgba(232,131,58,.45);animation:breathe 3.5s ease-in-out infinite}
+  @keyframes breathe{50%{transform:scale(1.07);box-shadow:0 0 34px rgba(232,131,58,.6)}}
+  .f .bubble{background:rgba(255,255,255,.07);border-radius:4px 20px 20px 20px;padding:13px 16px;
+    font-size:14.5px;line-height:1.55;backdrop-filter:blur(8px)}
+  .f .bubble b{color:#FFC98A;font-weight:650}
+  .f .tl{margin-top:30px;position:relative;padding-left:56px}
+  .f .tl:before{content:'';position:absolute;left:22px;top:6px;bottom:6px;width:2px;
+    background:linear-gradient(180deg,rgba(232,131,58,.6),rgba(255,255,255,.08) 40%,rgba(255,255,255,.08))}
+  .f .node{position:relative;margin-bottom:22px}
+  .f .node .hh{position:absolute;left:-56px;top:2px;width:44px;text-align:center;font-size:11px;
+    font-weight:700;color:#8A7F9C;letter-spacing:.3px}
+  .f .node .pip{position:absolute;left:-38px;top:4px;width:10px;height:10px;border-radius:50%;
+    background:#3A3348;border:2px solid #17131F}
+  .f .node.now .pip{background:#E8833A;box-shadow:0 0 14px rgba(232,131,58,.8)}
+  .f .node.now .hh{color:#FFC98A}
+  .f .fcard{border-radius:18px;overflow:hidden;position:relative;cursor:pointer}
+  .f .fcard .ph{height:150px;position:relative}
+  .f .fcard .sc{position:absolute;inset:0;background:linear-gradient(180deg,transparent 20%,rgba(13,10,18,.92))}
+  .f .fov{position:absolute;left:14px;right:14px;bottom:11px}
+  .f .fk{font-size:9.5px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#FFC98A}
+  .f .ft{font-size:16.5px;font-weight:750;letter-spacing:-.015em;margin-top:3px}
+  .f .fm{font-size:12px;color:#B9AFC9;margin-top:2px}
+  .f .flat{background:rgba(255,255,255,.055);border-radius:16px;padding:12px 15px}
+  .f .flat .ft{font-size:14.5px;margin-top:3px}
+  .f .done .flat{opacity:.45}
+  .f .done .ft{text-decoration:line-through}
+  .f .ask{position:absolute;left:14px;right:14px;bottom:16px;display:flex;gap:9px;align-items:center}
+  .f .askbar{flex:1;background:rgba(255,255,255,.09);backdrop-filter:blur(18px);border-radius:999px;
+    padding:14px 19px;font-size:14px;color:#B9AFC9;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
+  .f .fplus{width:50px;height:50px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 32% 30%, #FFD08A, #E8833A 70%);color:#2A1505;
+    display:grid;place-items:center;font-size:24px;box-shadow:0 8px 26px rgba(232,131,58,.4)}
+  .f .mini-nav{display:flex;justify-content:center;gap:22px;margin-top:26px}
+  .f .mn{font-size:11px;font-weight:700;color:#8A7F9C;letter-spacing:.5px;cursor:pointer}
+  .f .mn.on{color:#FFC98A}
+</style>
+</head>
+<body>
+  <div class="picker">
+    <button id="b0" class="on" onclick="pick(0)">1 · Quotidiano</button>
+    <button id="b1" onclick="pick(1)">2 · Plancia</button>
+    <button id="b2" onclick="pick(2)">3 · Flusso</button>
+  </div>
+  <p class="sub" id="cap"></p>
+
+  <div class="phone">
+
+    <!-- ═══ 1 · QUOTIDIANO — l'app-rivista: tipografia gigante, zero griglie, il giorno raccontato ═══ -->
+    <div class="home q" id="h0">
+      <div class="fx">
+        <div class="kicker">VENERDÌ</div>
+        <h1>8 agosto</h1>
+        <div class="lede">Oggi si vola a Londra, Matteo. Prima però: una corsa e un pranzo come si deve.</div>
+        <div class="rule"></div>
+      </div>
+
+      <div class="fx">
+        <div class="sect">Adesso <small>15:40</small></div>
+        <div class="cover">
+          <div class="ph img-flight"><span class="emo" style="font-size:58px">✈️</span></div>
+          <div class="cap">
+            <div class="ct">Il volo per Londra</div>
+            <div class="cm">ITA Airways · Linate, gate B12 · esci entro le 13:30</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fx">
+        <div class="sect">Poi</div>
+        <div class="item"><span class="h">18:00</span><div><div class="it">Corsa Z2, 40 minuti</div><div class="im">zona 2 · scarico</div></div><span class="go">→</span></div>
+        <div class="item"><span class="h">13:00</span><div><div class="it">Riso, pollo e zucchine</div><div class="im">il pranzo del piano</div></div><span class="go">→</span></div>
+        <div class="item"><span class="h">♫</span><div><div class="it">Rivivi Ultimo</div><div class="im">è passato un mese · Spotify</div></div><span class="go">→</span></div>
+      </div>
+      <div class="navq">
+        <span class="on">Oggi</span><span>Cucina</span>
+        <div class="qplus">＋</div>
+        <span>Sport</span><span>Guarda</span>
+      </div>
+    </div>
+
+    <!-- ═══ 2 · PLANCIA — lo strumento: bento denso, tutto visibile, zero scroll-poesia ═══ -->
+    <div class="home pl hidden" id="h1">
+      <div class="top fx">
+        <div class="datep">VEN <b style="font-size:14px">8</b></div>
+        <div class="srch">Chiedi a Keiko…</div>
+        <div class="av">M</div>
+      </div>
+      <div class="strip fx">
+        <div class="sq">V<b>8</b><div class="d"></div></div>
+        <div class="sq on">S<b>9</b></div>
+        <div class="sq">D<b>10</b></div>
+        <div class="sq">L<b>11</b><div class="d"></div></div>
+        <div class="sq">M<b>12</b></div>
+        <div class="sq">M<b>13</b></div>
+        <div class="sq">G<b>14</b></div>
+      </div>
+
+      <div class="bento fx">
+        <div class="tile wide">
+          <div class="tk"><i style="background:#3E6FB0"></i>PROSSIMO · VOLO</div>
+          <div class="tbig">15:40 → LHR</div>
+          <div class="tm">ITA Airways · Linate B12 · esci alle 13:30</div>
+          <div class="chipline"><span class="chip">🎫 carta d'imbarco</span><span class="chip">🚕 30 min</span><span class="chip">meteo LHR 19°</span></div>
+        </div>
+        <div class="tile">
+          <div class="tk"><i style="background:#E8833A"></i>SPORT</div>
+          <div class="tt">Corsa Z2</div>
+          <div class="tm">18:00 · 40'</div>
+          <div class="prog"><i style="width:0%"></i></div>
+        </div>
+        <div class="tile">
+          <div class="tk"><i style="background:#3E7A46"></i>PRANZO</div>
+          <div class="tt">Riso e pollo</div>
+          <div class="tm">dal piano · 13:00</div>
+          <div class="prog"><i style="width:64%;background:#3E7A46"></i></div>
+        </div>
+        <div class="tile">
+          <div class="tk"><i style="background:#6B46A8"></i>UN MESE FA</div>
+          <div class="tt">Rivivi Ultimo</div>
+          <div class="tm">Spotify →</div>
+        </div>
+        <div class="tile">
+          <div class="tk"><i style="background:#B03E5E"></i>SPESA</div>
+          <div class="tt">6 cose</div>
+          <div class="tm">3 dal piano · 3 ricette</div>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="dk on"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>
+        <div class="dk"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8.5"/><path d="M12 4v16M4 12h16"/></svg></div>
+        <div class="dk plus">＋</div>
+        <div class="dk"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 12h12M4 9v6M20 9v6"/></svg></div>
+        <div class="dk"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/></svg></div>
+      </div>
+    </div>
+
+    <!-- ═══ 3 · FLUSSO — il fiume: Keiko parla, la giornata scorre su una timeline ═══ -->
+    <div class="home f hidden" id="h2">
+      <div class="voice fx">
+        <div class="orb"></div>
+        <div class="bubble">Giornata piena, Matteo: il volo è alle <b>15:40</b> — con la corsa di stasera non ce la fai, te l'ho <b>spostata a domani</b>. Esci entro le 13:30.</div>
+      </div>
+
+      <div class="tl">
+        <div class="node done fx"><span class="hh">8:00</span><span class="pip"></span>
+          <div class="flat"><div class="fk" style="color:#8A7F9C">COLAZIONE</div><div class="ft">Yogurt e frutta secca</div></div>
+        </div>
+        <div class="node now fx"><span class="hh">13:00</span><span class="pip"></span>
+          <div class="fcard"><div class="ph img-food" style="height:118px"><span class="emo" style="font-size:38px">🍚</span><div class="sc"></div>
+            <div class="fov"><div class="fk">PRANZO · DAL PIANO</div><div class="ft">Riso, pollo e zucchine</div><div class="fm">▶ cucina con me · 20 min</div></div>
+          </div></div>
+        </div>
+        <div class="node fx"><span class="hh">15:40</span><span class="pip"></span>
+          <div class="fcard"><div class="ph img-flight"><span class="emo" style="font-size:46px">✈️</span><div class="sc"></div>
+            <div class="fov"><div class="fk">VOLO · ITA AIRWAYS</div><div class="ft">Londra ti aspetta</div><div class="fm">Linate B12 · esci alle 13:30 · 🎫 pronta</div></div>
+          </div></div>
+        </div>
+        <div class="node fx"><span class="hh">sera</span><span class="pip"></span>
+          <div class="flat"><div class="fk">♫ UN MESE FA</div><div class="ft">Rivivi Ultimo</div><div class="fm" style="font-size:11.5px;color:#8A7F9C;margin-top:2px">riascoltalo mentre voli →</div></div>
+        </div>
+      </div>
+
+      <div class="mini-nav fx"><span class="mn on">FLUSSO</span><span class="mn">CUCINA</span><span class="mn">SPORT</span><span class="mn">GUARDA</span></div>
+
+      <div class="ask">
+        <div class="askbar">Dimmi tutto…</div>
+        <div class="fplus">＋</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="sub">Tre app diverse davvero: cambiano layout, densità, navigazione, tipografia — non i colori sulla stessa gabbia.</p>
+
+<script>
+  const CAPS=[
+    "1 · QUOTIDIANO — l'app-rivista. Tipografia gigante che È l'interfaccia, il giorno raccontato («Adesso / Poi»), liste da giornale, nav di solo testo. Zero griglie, molto respiro.",
+    "2 · PLANCIA — lo strumento. Bento di tessere dense, tutto visibile senza scroll, progressi e chip d'azione, dock scuro. Il contrario esatto del Quotidiano.",
+    "3 · FLUSSO — il fiume. Keiko ti PARLA in cima (e agisce: guarda cosa ha fatto con la corsa), la giornata scorre su una timeline con l'adesso che brilla, e la barra «Dimmi tutto» è la nav. La più vicina all'app-a-momenti."
+  ];
+  function pick(n){
+    for(let i=0;i<3;i++){
+      document.getElementById('h'+i).classList.toggle('hidden', i!==n);
+      document.getElementById('b'+i).classList.toggle('on', i===n);
+    }
+    document.getElementById('cap').textContent=CAPS[n];
+    const h=document.getElementById('h'+n);
+    h.querySelectorAll('.fx').forEach(el=>{el.style.animation='none';el.offsetHeight;el.style.animation='';});
+  }
+  pick(0);
+</script>
+</body>
+</html>

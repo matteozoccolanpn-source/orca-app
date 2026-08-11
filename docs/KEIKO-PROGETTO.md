@@ -139,6 +139,22 @@ Repo: `orca-app`. Si lavora con Claude Code.
   dati di prova (prefisso PROVA-, cancellazione solo per id).
 
 **Aperto:**
+- **REDESIGN UI V2 — il manifesto è scritto e va rispettato**: il 9 agosto
+  Matteo ha dettato le decisioni definitive (colori, forme, font, card) in
+  `docs/UI-DECISIONI-V2.md`, con mock di riferimento della Home in
+  `docs/mockups/home-v2-final-mock.html`. Quando Matteo dice «riprendiamo la
+  UI», si riparte DA LÌ — non si ricomincia il giro delle direzioni (già
+  fatto e chiuso). Metodo in 5 fasi concordato: manifesto → mock unico
+  iterato a pezzi (max 3 giri) → tokens+componenti → ondate per sezione.
+  **Sezioni già congelate: Home, Cucina, Allenamento.** L'Allenamento è
+  chiuso il 9 agosto: mock in `docs/mockups/allenamento-v2-final-mock.html`,
+  specifica vincolante in `docs/UI-ALLENAMENTO-LOCKED.md`, prompt in
+  `docs/PROMPT-ALLENAMENTO-FINALE.md`. Quando Matteo chiede di portare
+  l'Allenamento in codice, la fonte di verità è quel LOCKED, non il mock
+  reinterpretato.
+- Spec parcheggiate in attesa del design nuovo: `SPEC-EDITORIALE.md`
+  (onboarding gusti + Scoperte + Settimanale) e `SPEC-EVENTI-COMPOSTI.md`.
+- Cucina Fase 3 (cook mode) da chiudere.
 - **Ripensare la sezione dieta da capo** — deciso da Matteo il 7 agosto (vedi
   nota in SPEC-CUCINA): ora che Cucina esiste, la vista dieta attuale va rifatta.
 - **Mandare il link ai primi due amici.** La parte tecnica è finita. Restano:
