@@ -12,6 +12,13 @@
 > comportamenti così come sono scritti qui. Non si reinterpreta, non si
 > «migliora», non si rinomina. Se qualcosa non è specificato → **si chiede a
 > Matteo**, non si inventa.
+>
+> **AGGIORNATA L'11 AGOSTO 2026, dopo l'ondata 3.** Due decisioni di Matteo
+> sono entrate nel corpo qui sotto: «A che punto sei» sale al **punto 3** e la
+> pagina ha una **testata propria**. Tutto il resto del mock resta com'era, ma
+> il codice non lo copre tutto: quello che è davvero implementato sta nel
+> **§9 · Cos'è vivo in codice**, in fondo. Se le due parti si contraddicono,
+> è il §9 a dire come si comporta l'app oggi.
 
 ---
 
@@ -49,8 +56,13 @@
 
 ## 1 · PAGINA PRINCIPALE (ordine bloccato)
 
-1. **Hero — unica identità della pagina.** Nessun titolo di pagina sopra,
-   nessuna riga di stato. Dentro: label teal `oggi · domenica`; titolo Fraunces
+0. **Testata — «Allenamento» in Fraunces 22 e UNA riga sola di stato**
+   (per esempio «2 di 3 questa settimana»), con il tasto indietro a sinistra.
+   Non c'era nel mock perché lì la testata la metteva il guscio: in codice
+   `KeikoShell` non avvolge più questa pagina — si portava dietro la testata
+   vecchia e il badge con l'emoji — quindi la pagina possiede il suo schermo,
+   come la Guarda. Zero emoji, zero badge: la streak vive in «A che punto sei».
+1. **Hero — l'identità della giornata.** Dentro: label teal `oggi · domenica`; titolo Fraunces
    24px «Corsa Recovery + Nuoto» su gradiente scuro; sottotitolo troncato
    «corsa 5 km · nuoto 800 m · +2»; badge teal ad alto contrasto «0 di 4» in
    alto a destra; barra di progresso sottile; «Allenati ora» primaria +
@@ -65,18 +77,24 @@
    in teal testuale («Allenati ora», «sposta a domani»), mai terracotta.
    In fondo «+ Aggiungi esercizio fuori scheda». A quattro su quattro compare
    «Scheda completa» in dissolvenza.
-4. **Un solo blocco cibo** «Intorno all'allenamento · dal tuo piano»:
-   lead coerente con l'hero, voci `prima` e `dopo` linkate alla Cucina con
-   chevron, callout teal con l'indicazione del piano, e la card ricetta grande
-   come **fallback interno** sotto «se stasera salti il piano».
+4. **A che punto sei** — teaser di andamento, **mai numeroni**: frase breve,
+   riga di contesto grigia, tre chip-tendenza (`corsa 6:00/km ↓`,
+   `nuoto 1.000 m ↑`, `squat 52 kg ↑`), riga «Ultimo allenamento · data ·
+   dettaglio» con chevron. Tap sull'intero blocco → sotto-vista.
+   **Sta qui, subito dopo la lista esercizi e PRIMA della settimana**: sapere
+   a che punto sei viene prima dell'elenco dei giorni. Prima della revisione
+   dell'11 agosto 2026 era all'ottavo posto della pagina, dopo la settimana e
+   il cibo; è una correzione esplicita di Matteo, non un dettaglio.
+   (Nell'elenco a sette voci di `docs/PROMPT-CODE-03-ALLENAMENTO.md`, che non
+   conta il callout, è il **punto 3**: è lo stesso posto.)
 5. **La settimana** — card-giorno a mezza foto della Cucina, altezza uniforme,
    riposo attivo con foto come gli altri. Giorno «oggi» in hero con overlay.
    Espansione in sola lettura + «Sposta questo allenamento» (sugli altri:
    «Scambia con un altro giorno»).
-6. **A che punto sei** — teaser di andamento, **mai numeroni**: frase breve,
-   riga di contesto grigia, tre chip-tendenza (`corsa 6:00/km ↓`,
-   `nuoto 1.000 m ↑`, `squat 52 kg ↑`), riga «Ultimo allenamento · data ·
-   dettaglio» con chevron. Tap sull'intero blocco → sotto-vista.
+6. **Un solo blocco cibo** «Intorno all'allenamento · dal tuo piano»:
+   lead coerente con l'hero, voci `prima` e `dopo` linkate alla Cucina con
+   chevron, callout teal con l'indicazione del piano, e la card ricetta grande
+   come **fallback interno** sotto «se stasera salti il piano».
 7. **Programmi · quelli che segui dalla Home** — card «Maratona di Milano ·
    settimana 3 di 16 · lungo da 18 km, domenica 17» con barra teal; stato vuoto
    progettato; chip «Programmi suggeriti · in arrivo» **disabilitato**.
@@ -166,3 +184,82 @@ e sotto-viste → v2.3 fonte unica degli esercizi, zero dati nutrizionali,
 
 Il ciclo mock è **chiuso**. Le osservazioni successive si raccolgono per la
 fase di implementazione, non riaprono il mock.
+
+---
+
+## 9 · Cos'è vivo in codice (ondata 3 · 11 agosto 2026)
+
+Questo paragrafo esiste perché la spec deve dire il vero. Sopra c'è il disegno
+approvato; qui c'è cosa fa l'app oggi, e dove le due cose non coincidono.
+
+**File**: `app/allenamento/AllenamentoView.tsx` (ramo a pagina intera) e
+`app/allenamento/SessioneLive.tsx`. `app/allenamento/page.tsx` calcola tutto
+sul server e non si tocca.
+
+### Portato, e funziona
+
+| Punto | Stato in codice |
+|---|---|
+| Testata «Allenamento» + una riga di stato | fatto (§1.0) |
+| Hero con label, titolo Fraunces, sottotitolo, badge «n di m», barra, due bottoni | fatto |
+| Callout coach da `lib/coach`, con le parole del server | fatto |
+| Lista esercizi accordion, spunta teal disegnata, fatto barrato, prossimo aperto | fatto |
+| A che punto sei, subito dopo gli esercizi | fatto, ma senza chip-tendenza (vedi sotto) |
+| La settimana con `DayCard`, oggi in evidenza, sola lettura | fatto |
+| La tua scheda + foglio di gestione | fatto |
+| Nessuna scheda caricata → stato vuoto con «Carica la tua scheda» | fatto |
+| Oggi non c'è allenamento → hero «Oggi non c'è allenamento · giornata di recupero» | fatto |
+| Attese di rete → scheletri, mai lo spinner | fatto |
+| Emoji nell'area riscritta | zero |
+
+### Non portato, e perché
+
+- **Il blocco cibo (§1.6)** e **i Programmi (§1.7)**: il dato non esiste nel
+  codice. Non si inventa e non si lascia una sezione vuota: sono saltati.
+- **I chip-tendenza di «A che punto sei» (§1.4)**: servono un dato per
+  disciplina che non esiste. Al loro posto c'è una frase e la riga
+  «n di m allenamenti · k di fila». Una tendenza da due sedute sarebbe inventata.
+- **La sotto-vista «A che punto sei» (§4)**: non esiste, per la stessa ragione.
+  Il blocco in pagina non è cliccabile.
+- **La sotto-vista «Com'è andata?» (§3)**: non esiste. In codice «Fatto oggi»
+  è un interruttore che chiama `/api/workout/log` e basta. Il campo
+  `sensazione` esiste nella tabella `workout_session` ma **nessuna UI lo
+  scrive**: i chip facile/giusto/duro non ci sono.
+- **Card documento con «Apri» (§5)**: il file caricato non viene conservato
+  con un indirizzo suo, quindi non c'è niente da aprire.
+- **«Sposta allenamento» come riga a sé (§5)**: lo spostamento vive dentro
+  «Correggi un giorno», in fondo al foglio («Sposta o scambia con»).
+- **«+ Aggiungi esercizio fuori scheda» (§1.3)**: aggiungere un esercizio si fa
+  in «Correggi un giorno», che è il posto dove la scheda si corregge. Nella
+  lista di oggi non c'è, perché quella lista è la scheda del preparatore.
+- **La vista `embedded`** (l'Allenamento dentro lo swipe della Home) è rimasta
+  di proposito nel vestito vecchio: non era in questa ondata.
+
+### Dove il mock e il codice si contraddicevano — e chi ha vinto
+
+1. **La sotto-vista «Allenati ora» (§2).** Il mock la disegna come *un
+   esercizio alla volta*, con «Fatto → prossimo», la freccia indietro e un
+   **timer di recupero a schermo pieno** (la classe `.giant`, con il numerone
+   in Fraunces 120 e lo stato «Vai»). Il codice fa un'altra cosa: `SessioneLive`
+   è una **fisarmonica di tutti gli esercizi**, dove per ognuno registri serie,
+   ripetizioni e chili, con accanto quanto avevi caricato l'ultima volta — che
+   è il motivo per cui la schermata esiste. **Ha vinto il codice**: portare il
+   passo-passo del mock avrebbe voluto dire buttare via la registrazione delle
+   serie, cioè il dato vero, per un modo di navigare.
+   Conseguenza: **`.giant` non è usata in nessun punto**. Un timer di recupero
+   non esiste nel codice, e inventarlo sarebbe stata una funzione nuova, non un
+   vestito. Se lo vuoi, è una richiesta a parte.
+   Restano portate `.full`, `.topbar` (con barra di progresso), `.fullpad`,
+   `.actions` e lo stepper `Step`.
+2. **«Sticky: vietata» (§0).** Vale per la pagina principale, e lì è
+   rispettata. La sotto-vista a schermo pieno usa `.topbar` **sticky**, perché
+   è la testata del mock per quello schermo: il tasto di chiusura deve restare
+   raggiungibile mentre scorri l'elenco degli esercizi.
+3. **Padding di fondo «116px + safe-area» (§0).** In codice è `PAGE_PB`,
+   cioè `128px + safe-area`: è l'altezza vera della barra di `KeikoNav`, che è
+   più alta della tab bar del mock. Ha vinto il codice, perché il vincolo è
+   «la barra non copre mai l'ultima card».
+4. **«La spunta si disegna» (§1.3).** In codice la spunta dell'esercizio **non
+   si tocca**: un esercizio è fatto quando ci sono serie vere registrate, e le
+   serie si registrano dentro la sessione. La spunta è un indicatore, non un
+   comando: altrimenti avresti due verità sullo stesso fatto.

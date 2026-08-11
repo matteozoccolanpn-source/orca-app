@@ -38,9 +38,27 @@
      NON riaprire.
 2-bis. **Colori-categoria con parsimonia** (pallini, etichette tenui — mai
    fondi pieni): Viaggi `#5B9BDB` · Sport `#3AB8A8` · Dieta `#57B96E` ·
-   Guarda `#A47BE0`. I metadati possono usare il colore-categoria in
-   versione tenue (tinte chiare: sport `#7CC9BD`, dieta `#8FCB9E`, guarda
-   `#BFA3E8`, azione `#F0A377`, viaggi `#AECBEE`).
+   Guarda `#8F7AC0` · Eventi `#C4796B`. I metadati possono usare il
+   colore-categoria in versione tenue (tinte chiare: sport `#7CC9BD`, dieta
+   `#8FCB9E`, azione `#F0A377`, viaggi `#AECBEE`) — **tranne il viola**, vedi
+   2-ter.
+
+2-ter. ⚠️ **Il viola, eccezione chiusa (11 agosto 2026)**. La regola di sempre
+   dice che «il viola non esiste». Quella regola riguarda **l'accento della
+   UI** — ambra prima, terracotta adesso — e resta valida: nessun bottone,
+   nessun testo, nessuna superficie viola.
+   Ma le sezioni sono cinque e vogliono cinque pallini distinguibili, e il
+   viola è l'unico spazio libero fra il blu dei Viaggi e la terracotta degli
+   Eventi. Quindi:
+   - il viola esiste **solo** come `--c-guarda`, e **solo** su `.dot`;
+   - **mai** su testo, bottoni o superfici — nemmeno nella versione tenue, che
+     per la Guarda non esiste (la vecchia `#BFA3E8` è ritirata);
+   - il valore è **`#8F7AC0`**, non il `#A47BE0` del mock: quello stava una
+     tacca di saturazione sopra le altre quattro famiglie e si faceva notare
+     più di quanto un pallino di sezione debba.
+   Il mock non si tocca: la differenza vive come sostituzione dichiarata nel
+   generatore del foglio (`scratchpad/port-v2-css.mjs`), che la riscrive a ogni
+   rigenerazione. La versione corta di questa regola sta in `AGENTS.md`.
    **Nota teal vs Sport**: il teal di sistema `#3DA5C4` va tenuto più
    blu/desaturato del teal-Sport `#3AB8A8`; se in una schermata compaiono
    vicini, lo Sport usa SOLO il pallino di categoria (niente testo tinto).

@@ -2,7 +2,6 @@ import AllenamentoView from "./AllenamentoView";
 import ProfiloSetup from "./ProfiloSetup";
 import GeneraScheda from "./GeneraScheda";
 import { requireLogin } from "@/lib/require-login";
-import KeikoShell from "@/app/components/keiko/KeikoShell";
 import {
   getWorkoutPlan, getTrainedDays, getProfile,
   getSessionByDay, getSessionHistory, getLastPerformance,
@@ -109,16 +108,22 @@ export default async function AllenamentoPage() {
   const todayEx = plan?.week?.[WD[new Date().getDay()]]?.esercizi?.[0]?.nome ?? null;
   const heroImage = (todayEx ? await exerciseImage(todayEx) : null) ?? (await unsplashPhoto("gym workout fitness"));
   return (
-    <KeikoShell
-      title="Allenamento"
-      badge={streak > 0 ? `🔥 ${streak} DI FILA` : undefined}
-      backHref="/"
-      active="sport"
-    >
-      {/* Onboarding "a scomparsa" (S1): compare solo finché il profilo non esiste. */}
-      {!profile && <ProfiloSetup />}
-      {/* L0 (S2): profilo sì ma nessuna scheda → offri la scheda base generata. */}
-      {profile && !hasPlan && <GeneraScheda />}
+    /* ONDATA 3 — l'Allenamento possiede lo schermo, come la Guarda: la testata,
+       il toast e la barra in fondo se li fa la vista, nel sistema V2. Prima
+       arrivavano da KeikoShell, che portava con sé la testata vecchia e il
+       badge con l'emoji. I calcoli qui sopra non cambiano di una riga: restano
+       loro il motivo per cui la pagina non ha attese all'apertura. */
+    <>
+      {/* Onboarding "a scomparsa" (S1): compare solo finché il profilo non esiste.
+          `.ds` porta le variabili --k-* che questi due usano: prima stavano
+          dentro `.viewBody`, che `.ds` non è, e non risolvevano. */}
+      {(!profile || !hasPlan) && (
+        <div className="ds" style={{ maxWidth: 430, margin: "0 auto", padding: "16px 16px 0" }}>
+          {!profile && <ProfiloSetup />}
+          {/* L0 (S2): profilo sì ma nessuna scheda → offri la scheda base generata. */}
+          {profile && !hasPlan && <GeneraScheda />}
+        </div>
+      )}
       <AllenamentoView
         streak={streak}
         week={plan?.week ?? null}
@@ -132,7 +137,8 @@ export default async function AllenamentoPage() {
         ultimaVolta={ultimaVolta}
         storicoSedute={storicoSedute}
         consiglio={consiglio}
+        streakDiFila={streak}
       />
-    </KeikoShell>
+    </>
   );
 }

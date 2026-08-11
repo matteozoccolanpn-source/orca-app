@@ -22,6 +22,12 @@ Vincoli di sempre: non toccare `lib/` e `app/api/` (solo presentazione); build v
 ogni commit; MAI committare senza ok esplicito di Matteo; la home vecchia resta funzionante
 (v2 dietro interruttore); accent = var(--accent), il viola non esiste.
 
+**«Il viola non esiste» riguarda l'ACCENTO della UI** — ambra nella UI attuale,
+terracotta in V2 — non i pallini che codificano la sezione. Le cinque sezioni
+hanno cinque colori di famiglia, e uno di quei cinque è viola: `--c-guarda:
+#8F7AC0`. Vale **solo** su `.dot`, mai su testo, bottoni o superfici. La regola
+per esteso, col perché, sta in `docs/UI-DECISIONI-V2.md`.
+
 **DATI DI PROVA**: ogni riga di prova si crea con prefisso `PROVA-` nel titolo e si cancella
 SOLO per elenco di id salvati alla creazione. MAI una DELETE con pattern (`ilike`/`like`/`%`)
 su tabelle vere. Se una DELETE potrebbe toccare dati non di prova: prima la SELECT delle righe,

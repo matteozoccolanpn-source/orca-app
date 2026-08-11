@@ -12,14 +12,31 @@
  * quindi se blocchi il telefono fra una serie e l'altra ritrovi tutto).
  *
  * Tabelle: workout_session / workout_set. Rotta: /api/workout/session.
+ *
+ * ONDATA 3 — cambia solo il vestito: `.full` + `.topbar` + `.fullpad` +
+ * `.actions` del sistema V2 al posto degli stili in linea, `Step` al posto
+ * dello stepper locale, le icone del set V2 al posto di lucide. Stato,
+ * effetti, chiamate di rete e handler sono quelli di prima, riga per riga.
+ *
+ * Keiko qui TRASCRIVE: registra le serie che gli detti. Non propone carichi,
+ * non corregge la scheda, non commenta l'allenamento.
  * ========================================================================== */
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Minus, Check, Trash2, Loader2, History } from "lucide-react";
 import type { WorkoutSession, WorkoutSetRow } from "@/lib/supabase";
+import { I } from "@/app/components/v2/icons";
+import { Step } from "@/app/components/v2/Step";
+import { Check as CheckV2 } from "@/app/components/v2/Check";
 
 type Esercizio = { nome: string; dettaglio?: string };
+
+/* Il pannello va in portale sul <body>, fuori da qualsiasi `.k2`: senza questo
+   guscio le classi del sistema V2 non lo raggiungerebbero. Fondo trasparente e
+   altezza libera perche' `.k2` e' pensato per essere UNA pagina, e qui invece
+   e' solo il contenitore di uno schermo pieno che sta sopra a un'altra pagina.
+   (Stessa scelta di SuggestProvider.) */
+const K2: React.CSSProperties = { background: "transparent", maxWidth: "none", height: "auto" };
 
 export default function SessioneLive({
   day,
@@ -187,106 +204,189 @@ export default function SessioneLive({
   if (typeof document === "undefined") return null;
 
   const pannello = (
-    <div style={S.overlay} role="dialog" aria-modal="true" aria-label="Allenamento in corso">
-      {/* ---------- testata ---------- */}
-      <div style={S.head}>
-        <div style={{ minWidth: 0 }}>
-          <div style={S.kicker}>Allenamento in corso</div>
-          <div style={S.titolo}>{titolo || "Sessione di oggi"}</div>
-        </div>
-        <button onClick={onClose} aria-label="Chiudi" style={S.iconBtn}>
-          <X style={{ width: 20, height: 20 }} />
-        </button>
-      </div>
-
-      {/* ---------- corpo ---------- */}
-      <div ref={scrollRef} style={S.body}>
-        {esercizi.length > 0 && (
-          <div style={S.guida}>Tocca l&apos;esercizio che stai facendo.</div>
-        )}
-
-        {esercizi.length === 0 && (
-          <p style={S.vuoto}>Oggi la scheda non prevede esercizi. Puoi comunque chiudere e allenarti a modo tuo.</p>
-        )}
-
-        {esercizi.map((ex, i) => {
-          const mie = sets.filter((s) => s.esercizio === ex.nome);
-          const aperto = apertoIdx === i;
-          const prec = ultimaVolta[ex.nome] ?? [];
-          return (
-            <div key={`${ex.nome}-${i}`} style={{ ...S.card, ...(aperto ? S.cardAperta : null) }}>
-              <button
-                onClick={() => apri(i)}
-                style={S.cardHead}
-                aria-expanded={aperto}
-              >
-                <div style={{ minWidth: 0, textAlign: "left" }}>
-                  <div style={S.exNome}>{ex.nome}</div>
-                  {ex.dettaglio && <div style={S.exDett}>{ex.dettaglio}</div>}
-                </div>
-                <span style={{ ...S.badge, ...(mie.length > 0 ? S.badgeOn : null) }}>
-                  {mie.length > 0 ? `${mie.length} ✓` : "—"}
-                </span>
-              </button>
-
-              {aperto && (
-                <div style={{ padding: "0 14px 14px" }}>
-                  {/* l'ultima volta */}
-                  <div style={S.ultima}>
-                    <History style={{ width: 14, height: 14, flex: "none" }} />
-                    {prec.length === 0 && <span>prima volta che lo segni</span>}
-                    {prec.length > 0 && (
-                      <span>
-                        l&apos;ultima volta: {prec.map((s) => s.ripetizioni ?? "–").join(" · ")} rip
-                        {prec.some((s) => s.pesoKg !== null) ? ` · ${maxKg(prec)} kg` : ""}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* serie gia' fatte oggi */}
-                  {mie.length > 0 && (
-                    <div style={S.serieWrap}>
-                      {mie.map((s) => (
-                        <span key={s.id} style={S.serie}>
-                          {s.ripetizioni ?? "–"}
-                          {s.pesoKg !== null ? ` × ${s.pesoKg}kg` : ""}
-                          <button onClick={() => cancella(s.id)} aria-label="Cancella serie" style={S.serieX}>
-                            <Trash2 style={{ width: 13, height: 13 }} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* i due numeri */}
-                  <div style={S.numeri}>
-                    <Stepper etichetta="Ripetizioni" valore={reps} passo={1} min={1} onCambia={setReps} />
-                    <Stepper etichetta="Peso (kg)" valore={kg} passo={2.5} min={0} onCambia={setKg} suffisso="kg" />
-                  </div>
-
-                  <button onClick={registra} disabled={salvo} style={S.registra}>
-                    {salvo ? <Loader2 className="animate-spin" style={{ width: 18, height: 18 }} /> : <Check style={{ width: 18, height: 18 }} />}
-                    {salvo ? "Salvo…" : `Registra serie ${mie.length + 1}`}
-                  </button>
-                </div>
-              )}
+    <div className="k2" style={K2}>
+      <div className="full" role="dialog" aria-modal="true" aria-label="Allenamento in corso" ref={scrollRef}>
+        {/* ---------- testata ---------- */}
+        <div className="topbar">
+          <div className="r1">
+            {/* Nel mock `.x` e' uno <span>: qui resta un <button> perche' era un
+                bottone vero anche prima. `color:inherit` e' solo il colore che
+                lo span avrebbe ereditato, non un valore nuovo. */}
+            <button className="x tap" onClick={onClose} aria-label="Chiudi" style={{ color: "inherit" }}>
+              {I.close({ s: 15 })}
+            </button>
+            <span className="col">
+              <span className="t">{titolo || "Sessione di oggi"}</span>
+              <span className="m">allenamento in corso</span>
+            </span>
+            {/* Il contatore e la barra dicono la stessa cosa del riepilogo in
+                fondo: quanti esercizi hai toccato su quelli previsti. Nessun
+                dato nuovo, solo quello che c'e' gia'. */}
+            {esercizi.length > 0 && (
+              <span className="c">{eserciziToccati}/{esercizi.length}</span>
+            )}
+          </div>
+          {esercizi.length > 0 && (
+            <div className="prog">
+              <i style={{ width: `${(eserciziToccati / esercizi.length) * 100}%` }} />
             </div>
-          );
-        })}
-
-        {errore && <div style={S.errore}>{errore}</div>}
-      </div>
-
-      {/* ---------- fondo ---------- */}
-      <div style={S.foot}>
-        <div style={S.riepilogo}>
-          {totSerie === 0
-            ? "Nessuna serie ancora"
-            : `${totSerie} serie · ${eserciziToccati} esercizi`}
+          )}
         </div>
-        <button onClick={finisci} disabled={chiudo} style={S.finisci}>
-          {chiudo ? "Chiudo…" : totSerie === 0 ? "Esci" : "Finisci allenamento"}
-        </button>
+
+        {/* ---------- corpo ---------- */}
+        <div className="fullpad">
+          {esercizi.length > 0 && (
+            <div className="rx" style={{ marginTop: 0, marginBottom: 10 }}>
+              Tocca l&apos;esercizio che stai facendo.
+            </div>
+          )}
+
+          {esercizi.length === 0 && (
+            <p className="rx" style={{ marginTop: 0 }}>
+              Oggi la scheda non prevede esercizi. Puoi comunque chiudere e allenarti a modo tuo.
+            </p>
+          )}
+
+          {esercizi.length > 0 && (
+            <div className="srf list">
+              {esercizi.map((ex, i) => {
+                const mie = sets.filter((s) => s.esercizio === ex.nome);
+                const aperto = apertoIdx === i;
+                const prec = ultimaVolta[ex.nome] ?? [];
+                return (
+                  <div
+                    key={`${ex.nome}-${i}`}
+                    className={"item" + (mie.length > 0 ? " done" : "") + (aperto ? " openx" : "")}
+                  >
+                    <div
+                      className="item-row tap"
+                      onClick={() => apri(i)}
+                      role="button"
+                      aria-expanded={aperto}
+                    >
+                      {/* La spunta non si tocca: un esercizio e' fatto quando ci
+                          sono serie vere registrate. */}
+                      <CheckV2 on={mie.length > 0} />
+                      <span className="in">
+                        <span className="k">
+                          {mie.length > 0
+                            ? `${mie.length} serie ${mie.length === 1 ? "segnata" : "segnate"}`
+                            : ex.dettaglio || "nessuna serie oggi"}
+                        </span>
+                        <span className="tx">{ex.nome}</span>
+                      </span>
+                      <span className="chevhit">
+                        {I.chev({ c: "chev", st: aperto ? { transform: "rotate(180deg)" } : undefined })}
+                      </span>
+                    </div>
+
+                    {/* `.item-x` chiude a max-height 0 e apre al valore della
+                        classe (400px). Qui dentro ci stanno due stepper e la
+                        lista delle serie, che puo' andare a capo: l'apertura
+                        prende un tetto piu' alto perche' il numero non e' una
+                        misura di disegno, e' solo "abbastanza". */}
+                    <div className="item-x" style={aperto ? { maxHeight: 640 } : undefined}>
+                      <div className="inner">
+                        <div className="col">
+                          {/* l'ultima volta */}
+                          <span className="rx" style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                            <span style={{ color: "var(--teal-soft)", display: "flex", flex: "none" }}>
+                              {I.hist({ s: 13 })}
+                            </span>
+                            {prec.length === 0 ? (
+                              <span>prima volta che lo segni</span>
+                            ) : (
+                              <span>
+                                l&apos;ultima volta: {prec.map((s) => s.ripetizioni ?? "–").join(" · ")} rip
+                                {prec.some((s) => s.pesoKg !== null) ? ` · ${maxKg(prec)} kg` : ""}
+                              </span>
+                            )}
+                          </span>
+
+                          {/* serie gia' fatte oggi */}
+                          {mie.length > 0 && (
+                            <span className="dchips" style={{ marginTop: 10 }}>
+                              {mie.map((s) => (
+                                <span className="dchip" key={s.id}>
+                                  {s.ripetizioni ?? "–"}
+                                  {s.pesoKg !== null ? <> × <b>{s.pesoKg} kg</b></> : null}
+                                  <button
+                                    className="tap"
+                                    onClick={() => cancella(s.id)}
+                                    aria-label="Cancella serie"
+                                    style={{
+                                      width: 28, height: 28, marginRight: -8, flex: "none",
+                                      display: "grid", placeItems: "center",
+                                      background: "none", border: 0, color: "var(--meta)", cursor: "pointer",
+                                    }}
+                                  >
+                                    {I.close({ s: 12 })}
+                                  </button>
+                                </span>
+                              ))}
+                            </span>
+                          )}
+
+                          {/* i due numeri */}
+                          <div className="fld">
+                            <span className="fl">Ripetizioni</span>
+                            <Step
+                              val={reps}
+                              dec={() => setReps(arrotonda(Math.max(1, reps - 1)))}
+                              inc={() => setReps(arrotonda(reps + 1))}
+                            />
+                          </div>
+                          <div className="fld">
+                            <span className="fl">Peso</span>
+                            <Step
+                              val={kg}
+                              unit="kg"
+                              dec={() => setKg(arrotonda(Math.max(0, kg - 2.5)))}
+                              inc={() => setKg(arrotonda(kg + 2.5))}
+                            />
+                          </div>
+
+                          <button
+                            className="cta wide tap"
+                            onClick={registra}
+                            disabled={salvo}
+                            style={{ marginTop: 12 }}
+                          >
+                            {salvo ? null : I.tick({ s: 15 })}
+                            {salvo ? "Salvo…" : `Registra serie ${mie.length + 1}`}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {errore && (
+            <div className="hint warm">
+              {I.info({ s: 14 })}
+              <p>{errore}</p>
+            </div>
+          )}
+        </div>
+
+        {/* ---------- fondo ---------- */}
+        <div className="actions">
+          <span className="skip" style={{ cursor: "default" }}>
+            {totSerie === 0
+              ? "Nessuna serie ancora"
+              : `${totSerie} serie · ${eserciziToccati} ${eserciziToccati === 1 ? "esercizio" : "esercizi"}`}
+          </span>
+          <button
+            className="cta tap"
+            onClick={finisci}
+            disabled={chiudo}
+          >
+            {chiudo ? "Chiudo…" : totSerie === 0 ? "Esci" : "Finisci allenamento"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -306,140 +406,7 @@ function maxKg(rows: WorkoutSetRow[]): number {
   return rows.reduce((m, r) => (r.pesoKg !== null && r.pesoKg > m ? r.pesoKg : m), 0);
 }
 
-/** Due bottoni grossi e un numero grosso: con le mani sudate non si sbaglia. */
-function Stepper({
-  etichetta, valore, passo, min, onCambia, suffisso,
-}: {
-  etichetta: string;
-  valore: number;
-  passo: number;
-  min: number;
-  onCambia: (n: number) => void;
-  suffisso?: string;
-}) {
-  const arrotonda = (n: number) => Math.round(n * 100) / 100;
-  return (
-    <div style={S.stepWrap}>
-      <div style={S.stepLbl}>{etichetta}</div>
-      <div style={S.stepRow}>
-        <button
-          aria-label={`Meno ${etichetta}`}
-          onClick={() => onCambia(arrotonda(Math.max(min, valore - passo)))}
-          style={S.stepBtn}
-        >
-          <Minus style={{ width: 18, height: 18 }} />
-        </button>
-        <div style={S.stepVal}>
-          {valore}
-          {suffisso && valore > 0 ? <small style={S.stepSuf}>{suffisso}</small> : null}
-        </div>
-        <button
-          aria-label={`Piu ${etichetta}`}
-          onClick={() => onCambia(arrotonda(valore + passo))}
-          style={S.stepBtn}
-        >
-          <Plus style={{ width: 18, height: 18 }} />
-        </button>
-      </div>
-    </div>
-  );
+/** 2.5 + 2.5 in virgola mobile fa 5.000000000000001: qui si taglia. */
+function arrotonda(n: number): number {
+  return Math.round(n * 100) / 100;
 }
-
-/* --- stili -----------------------------------------------------------------
- * Inline e non in CSS: il pannello va in portale sul <body>, fuori dallo scope
- * .keiko, quindi non puo' contare sulle classi della shell. Usa i token globali
- * cosi' resta identico al resto (niente viola, ambra e basta).
- * -------------------------------------------------------------------------- */
-const S: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: "fixed", inset: 0, zIndex: 200,
-    display: "flex", flexDirection: "column",
-    background: "var(--k-bg, #14100C)",
-    fontFamily: "var(--f, system-ui, -apple-system, sans-serif)",
-    color: "var(--k-text, #F4EFE7)",
-  },
-  head: {
-    flex: "none", display: "flex", alignItems: "center", gap: 12,
-    padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px",
-    borderBottom: "1px solid var(--k-line, rgba(255,255,255,.09))",
-  },
-  kicker: { fontSize: 11.5, letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 800, color: "var(--k-accent, #FFB84D)" },
-  titolo: { fontSize: 19, fontWeight: 800, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  iconBtn: {
-    marginLeft: "auto", flex: "none", width: 44, height: 44, display: "grid", placeItems: "center",
-    borderRadius: 999, border: "1px solid var(--k-line, rgba(255,255,255,.09))",
-    background: "var(--k-surface, rgba(255,255,255,.05))", color: "inherit", cursor: "pointer",
-  },
-  body: { flex: 1, overflowY: "auto", padding: "14px 16px 20px", WebkitOverflowScrolling: "touch" },
-  guida: { fontSize: 13, color: "var(--k-text-3, #9A9086)", fontWeight: 600, margin: "0 2px 12px" },
-  vuoto: { fontSize: 14, color: "var(--k-text-3, #9A9086)", lineHeight: 1.5, margin: "8px 2px" },
-  card: {
-    background: "var(--k-surface, rgba(255,255,255,.05))",
-    border: "1px solid var(--k-line, rgba(255,255,255,.09))",
-    borderRadius: 16, marginBottom: 10, overflow: "hidden",
-  },
-  cardAperta: { borderColor: "var(--k-accent, #FFB84D)" },
-  cardHead: {
-    display: "flex", alignItems: "center", gap: 12, width: "100%",
-    padding: "14px", minHeight: 60, background: "none", border: 0,
-    color: "inherit", font: "inherit", cursor: "pointer",
-  },
-  exNome: { fontSize: 15.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  exDett: { fontSize: 13, color: "var(--k-text-3, #9A9086)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  badge: {
-    marginLeft: "auto", flex: "none", fontSize: 12.5, fontWeight: 800, borderRadius: 999,
-    padding: "6px 11px", background: "rgba(255,255,255,.06)", color: "var(--k-text-3, #9A9086)",
-  },
-  badgeOn: { background: "var(--k-accent, #FFB84D)", color: "var(--k-accent-ink, #241A0E)" },
-  ultima: {
-    display: "flex", alignItems: "center", gap: 7, minHeight: 20,
-    fontSize: 13, color: "var(--k-text-2, #C9BFB2)", marginBottom: 12,
-  },
-  serieWrap: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 14 },
-  serie: {
-    display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 700,
-    padding: "7px 7px 7px 12px", borderRadius: 999,
-    background: "rgba(255,184,77,.14)", color: "var(--k-accent, #FFB84D)",
-  },
-  serieX: {
-    width: 28, height: 28, display: "grid", placeItems: "center", borderRadius: 999,
-    border: 0, background: "rgba(0,0,0,.25)", color: "inherit", cursor: "pointer",
-  },
-  numeri: { display: "flex", gap: 10, marginBottom: 12 },
-  stepWrap: { flex: 1, minWidth: 0 },
-  stepLbl: { fontSize: 12, fontWeight: 700, color: "var(--k-text-3, #9A9086)", marginBottom: 6 },
-  stepRow: {
-    display: "flex", alignItems: "center", gap: 4,
-    background: "rgba(0,0,0,.22)", border: "1px solid var(--k-line, rgba(255,255,255,.09))",
-    borderRadius: 14, padding: 4,
-  },
-  stepBtn: {
-    flex: "none", width: 44, height: 44, display: "grid", placeItems: "center",
-    borderRadius: 11, border: 0, background: "rgba(255,255,255,.07)",
-    color: "inherit", cursor: "pointer",
-  },
-  stepVal: { flex: 1, textAlign: "center", fontSize: 22, fontWeight: 800, fontVariantNumeric: "tabular-nums" },
-  stepSuf: { fontSize: 12, fontWeight: 700, marginLeft: 2, color: "var(--k-text-3, #9A9086)" },
-  registra: {
-    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-    width: "100%", minHeight: 52, borderRadius: 14, border: 0,
-    background: "var(--k-accent, #FFB84D)", color: "var(--k-accent-ink, #241A0E)",
-    fontSize: 16, fontWeight: 800, fontFamily: "inherit", cursor: "pointer",
-  },
-  errore: {
-    marginTop: 12, padding: "10px 12px", borderRadius: 12, fontSize: 13.5,
-    background: "rgba(220,80,60,.14)", color: "#FFB3A6",
-  },
-  foot: {
-    flex: "none", display: "flex", alignItems: "center", gap: 12,
-    padding: "12px 16px calc(env(safe-area-inset-bottom, 0px) + 14px)",
-    borderTop: "1px solid var(--k-line, rgba(255,255,255,.09))",
-    background: "var(--k-surface-2, rgba(255,255,255,.03))",
-  },
-  riepilogo: { fontSize: 13, fontWeight: 700, color: "var(--k-text-2, #C9BFB2)", minWidth: 0 },
-  finisci: {
-    marginLeft: "auto", flex: "none", minHeight: 48, padding: "0 18px", borderRadius: 999,
-    border: "1px solid var(--k-line, rgba(255,255,255,.14))", background: "rgba(255,255,255,.07)",
-    color: "inherit", fontSize: 15, fontWeight: 800, fontFamily: "inherit", cursor: "pointer",
-  },
-};

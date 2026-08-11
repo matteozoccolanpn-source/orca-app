@@ -34,7 +34,8 @@ export function DayCard({
   /** la riga piccola sotto */
   meta: ReactNode;
   dot?: Dot;
-  img: string;
+  /** vuoto = niente foto: resta il fondo della card */
+  img?: string | null;
   rows: DayRow[];
   today?: boolean;
   open?: boolean;
@@ -49,7 +50,7 @@ export function DayCard({
       }
     >
       <div className="day-bg">
-        <Img src={img} />
+        {img && <Img src={img} />}
       </div>
       <div className="day-head" onClick={onToggle}>
         <span className="d">

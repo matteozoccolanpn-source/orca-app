@@ -19,11 +19,20 @@ import {
 import type { WorkoutWeek, WorkoutExercise, WorkoutSession, WorkoutSetRow } from "@/lib/supabase";
 import type { Consiglio } from "@/lib/coach";
 import SessioneLive from "./SessioneLive";
+import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
+import { I } from "@/app/components/v2/icons";
+import { Img } from "@/app/components/v2/Img";
+import { Sec } from "@/app/components/v2/Sec";
+import { Chip as ChipV2 } from "@/app/components/v2/Chip";
+import { Check as CheckV2 } from "@/app/components/v2/Check";
+import { DayCard } from "@/app/components/v2/DayCard";
+import { Empty } from "@/app/components/v2/Empty";
+import { Skeleton } from "@/app/components/v2/Skeleton";
+import { Sheet } from "@/app/components/v2/Sheet";
 import { DAY_ORDER, DAY_FULL } from "@/app/components/DietMeal";
 
 const DAY_LABEL: Record<string, string> = { lun: "Lunedì", mar: "Martedì", mer: "Mercoledì", gio: "Giovedì", ven: "Venerdì", sab: "Sabato", dom: "Domenica" };
 import { WorkoutDayCard, currentWeekDates } from "@/app/components/WorkoutDay";
-import { useKeikoToast } from "@/app/components/keiko/KeikoShell";
 
 type State = "idle" | "parsing" | "success" | "error";
 
@@ -46,6 +55,7 @@ export default function AllenamentoView({
   storicoSedute = [],
   consiglio = null,
   embedded = false,
+  streakDiFila = 0,
 }: {
   week: WorkoutWeek | null;
   updatedAt: string | null;
@@ -66,9 +76,20 @@ export default function AllenamentoView({
   /* S6: la riga in cui l'allenamento incontra il calendario. null = niente da dire. */
   consiglio?: Consiglio | null;
   embedded?: boolean;
+  /* Prima viveva nel badge di KeikoShell, con l'emoji. Ora e' un dato come gli
+     altri e sta in A-che-punto-sei, dove la spec lo vuole. */
+  streakDiFila?: number;
 }) {
   const router = useRouter();
-  const toast = useKeikoToast();
+  /* Il toast era di KeikoShell, che non avvolge piu' questa pagina: adesso e'
+     quello del sistema V2 e vive dentro .k2. Le chiamate restano identiche. */
+  const [msg, setMsg] = useState<string>('');
+  const msgRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const toast = (t: string) => {
+    setMsg(t);
+    if (msgRef.current) clearTimeout(msgRef.current);
+    msgRef.current = setTimeout(() => setMsg(''), 2600);
+  };
   const [images, setImages] = useState<File[]>([]);
   const [pdf, setPdf] = useState<File | null>(null);
   const [state, setState] = useState<State>("idle");
@@ -99,6 +120,12 @@ export default function AllenamentoView({
   const [selDay, setSelDay] = useState<string>("");
   const [draft, setDraft] = useState<WorkoutExercise[]>([]);
   const [savingWeek, setSavingWeek] = useState(false);
+  /* Solo presentazione: quale esercizio e quale giorno sono aperti, il foglio
+     della gestione, e l'armamento dell'eliminazione (conferma a due tocchi). */
+  const [apertoEx, setApertoEx] = useState<number | null>(null);
+  const [apertoGiorno, setApertoGiorno] = useState<string | null>(null);
+  const [gestione, setGestione] = useState(false);
+  const [armaElimina, setArmaElimina] = useState(false);
   const weekDates = currentWeekDates();
 
   // Oggi (dati reali)
@@ -196,7 +223,7 @@ export default function AllenamentoView({
   function fattoOggi() {
     const willBe = !trained.has(todayIso);
     toggleTrained(todayIso);
-    toast(willBe ? "Allenamento fatto ✓💪" : "Segnato come da fare");
+    toast(willBe ? "Allenamento fatto" : "Segnato come da fare");
   }
 
   // La seduta live e' finita → chiudo il pannello, segno il giorno come
@@ -205,7 +232,7 @@ export default function AllenamentoView({
   function sessioneFinita() {
     setLive(false);
     if (!trained.has(todayIso)) toggleTrained(todayIso);
-    toast("Allenamento salvato 💪");
+    toast("Allenamento salvato");
     router.refresh();
   }
 
@@ -251,7 +278,7 @@ export default function AllenamentoView({
     const newWeek: WorkoutWeek = { ...(week ?? {}), [activeDay]: { titolo: activeDayData?.titolo, esercizi: cleaned } };
     await saveWeek(newWeek);
     setEditMode(false);
-    toast("Scheda aggiornata ✓");
+    toast("Scheda aggiornata");
   }
   // Sposta/scambia la sessione di oggi con un altro giorno.
   async function moveSessionTo(target: string) {
@@ -263,11 +290,10 @@ export default function AllenamentoView({
     newWeek[activeDay] = dst;
     await saveWeek(newWeek);
     setEditMode(false);
-    toast(`Spostato a ${DAY_LABEL[target] ?? target} ✓`);
+    toast(`Spostato a ${DAY_LABEL[target] ?? target}`);
   }
 
   async function handleDelete() {
-    if (!window.confirm("Eliminare la scheda salvata? L'azione non si può annullare.")) return;
     setDeleting(true);
     try {
       const res = await fetch("/api/workout/delete", { method: "POST", credentials: "include" });
@@ -286,7 +312,11 @@ export default function AllenamentoView({
   }
 
   /* ============================================================= *
-   * VISTA v2.3 (standalone, dentro KeikoShell → scope .keiko)
+   * VISTA V2 (ondata 3) — l'Allenamento possiede lo schermo.
+   * Cambia SOLO il vestito: stato, effetti, rete e gestori sono quelli
+   * di prima. Ordine delle sezioni come da prompt dell'11 agosto:
+   * testata · hero · esercizi · a che punto sei · la settimana · la scheda.
+   * (Il cibo e i programmi non ci sono: il dato non esiste — vedi report.)
    * ============================================================= */
   if (!embedded) {
     const todayName = DAY_FULL[todayKey] ?? "Oggi";
@@ -294,268 +324,509 @@ export default function AllenamentoView({
     const preview = todayExercises.slice(0, 3).map((e) => e.nome).join(" · ");
     const extra = todayExercises.length > 3 ? ` · +${todayExercises.length - 3}` : "";
 
+    /* Il prossimo esercizio da fare: nel mock è quello aperto di default. */
+    const prossimoIdx = todayExercises.findIndex((ex) => (serieOggi.get(ex.nome)?.length ?? 0) === 0);
+
+    /* La riga di stato sotto il titolo: una sola, e dice la cosa che conta. */
+    const statoTestata = !hasPlan
+      ? "nessuna scheda caricata"
+      : weekPlanned > 0
+        ? `${weekDone} di ${weekPlanned} questa settimana`
+        : todayIsTraining
+          ? `${doneCount} di ${total} oggi`
+          : "oggi riposo";
+
+    const ultima = storicoSedute[0] ?? null;
+
     return (
       <>
-        {hasPlan ? (
-          <>
-            {/* ---------- Hero: oggi ---------- */}
-            <div className="vHero">
-              <div className="art" style={{ position: "absolute", inset: 0, ...(heroImage ? { backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: GYM_ART }) }} />
-              <div className="shade" />
-              <div className="vhRow">
-                {todayIsTraining && (
-                  <div className="bigRing" style={{ ["--p" as string]: ringP } as React.CSSProperties}>
-                    <i>{doneCount}/{total}</i>
-                  </div>
-                )}
-                <div style={{ minWidth: 0 }}>
-                  <span className="vk">Oggi · {todayName}</span>
-                  <h4 style={ELLIPSIS}>{todayIsTraining ? titolo || "Allenamento di oggi" : "Oggi riposo"}</h4>
-                  <div className="vs2" style={ELLIPSIS}>
-                    {todayIsTraining ? preview + extra : "Giornata di recupero"}
-                  </div>
-                </div>
-              </div>
-              <div className="vActs">
-                {todayIsTraining && (
-                  /* L'azione principale della giornata: qui dentro si segnano le
-                     serie vere, non una spunta. Sta prima di "Fatto oggi" perche'
-                     e' quello che vuoi toccare quando entri in palestra. */
-                  <button
-                    className="chipA"
-                    onClick={() => { setLiveIdx(null); setLive(true); }}
-                    style={{ background: "var(--accent)", color: "#20170A", minHeight: 44 }}
-                  >
-                    {sedutaAperta ? "▶︎ Riprendi allenamento" : "🏋️ Allenati ora"}
-                  </button>
-                )}
-                {todayIsTraining && (
-                  <button
-                    className="chipA"
-                    onClick={fattoOggi}
-                    style={trainedToday ? { background: "var(--accent)", color: "#20170A" } : undefined}
-                  >
-                    ✓ Fatto oggi
-                  </button>
-                )}
+        <div className="k2">
+          <div className="lights">
+            <i className="l1" /><i className="l2" /><i className="l3" /><i className="l4" />
+          </div>
+
+          <div className="screen" style={{ paddingBottom: PAGE_PB }}>
+            {/* ── testata ── */}
+            <div className="head">
+              <button className="back tap" onClick={() => router.push("/")} aria-label="Indietro">
+                {I.back({ s: 17 })}
+              </button>
+              <div className="col">
+                <h1>Allenamento</h1>
+                <div className="status">{statoTestata}</div>
               </div>
             </div>
 
-            {live && (
-              <SessioneLive
-                day={todayIso}
-                titolo={todayDay?.titolo?.trim() || null}
-                esercizi={todayExercises}
-                open={sessioneOggi}
-                ultimaVolta={ultimaVolta}
-                iniziale={liveIdx}
-                onClose={chiudiLive}
-                onFinita={sessioneFinita}
-              />
-            )}
-
-            {/* ---------- Il consiglio di Keiko (S6) ----------
-                 Non e' una frase motivazionale: e' l'unica cosa che una app di
-                 palestra non puo' dirti, perche' non sa che domani voli alle 6:40.
-                 Se non c'e' niente di utile da dire, questo riquadro non compare. */}
-            {consiglio && (
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "flex-start",
-                  padding: "13px 15px",
-                  borderRadius: 16,
-                  background: consiglio.tono === "calma" ? "var(--paper)" : "var(--amber-soft)",
-                  border: `1px solid ${consiglio.tono === "calma" ? "var(--card-line)" : "rgba(255,184,77,.32)"}`,
-                }}
-              >
-                <span style={{ fontSize: 20, lineHeight: 1.15, flex: "none" }}>{consiglio.icona}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "var(--fs-md)", fontWeight: 800, color: "var(--text)" }}>
-                    {consiglio.titolo}
-                  </div>
-                  <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600, marginTop: 3, lineHeight: 1.45 }}>
-                    {consiglio.testo}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {weekPlanned > 0 && (
-              /* Card settimana con anello progressi + streak (review 24/07 #2/#5):
-                 il .bigRing esisteva già in CSS ma qui c'era solo testo piatto. */
-              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: 16 }}>
-                <div className="bigRing" style={{ ["--p" as string]: weekPlanned > 0 ? Math.round((weekDone / weekPlanned) * 100) : 0 } as React.CSSProperties}>
-                  <i>{weekDone}/{weekPlanned}</i>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "var(--fs-md)", fontWeight: 800, color: "var(--text)" }}>{weekDone}/{weekPlanned} allenamenti</div>
-                  <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-2)", fontWeight: 600, marginTop: 2 }}>questa settimana</div>
-                </div>
-                {streak > 0 && (
-                  <span style={{ flex: "none", fontSize: 12.5, fontWeight: 800, borderRadius: 999, padding: "7px 11px", background: "var(--amber-soft)", color: "var(--amber)" }}>🔥 {streak}</span>
-                )}
-              </div>
-            )}
-
-            {/* ---------- Esercizi di oggi ---------- */}
-            {todayIsTraining && (
-              <>
-                <div className="agLbl">Esercizi · tocca per segnare le serie</div>
-                {todayExercises.map((ex, i) => {
-                  const mie = serieOggi.get(ex.nome) ?? [];
-                  const d = mie.length > 0;
-                  const prec = ultimaVolta[ex.nome] ?? [];
-                  const rOggi = riassunto(mie);
-                  // Sotto il nome: se oggi hai gia' segnato qualcosa vince quello,
-                  // altrimenti il promemoria dell'ultima volta, altrimenti la scheda.
-                  const sotto = d
-                    ? `${mie.length} ${mie.length === 1 ? "serie" : "serie"}${rOggi ? ` · ${rOggi}` : ""}`
-                    : prec.length > 0
-                      ? `ultima volta: ${riassunto(prec)}`
-                      : ex.dettaglio;
-                  return (
-                    <div
-                      key={i}
-                      className={`pRow${d ? " done" : ""}`}
-                      role="button"
-                      onClick={() => apriEsercizio(i)}
-                    >
-                      <Dumbbell className="pi" style={{ width: 20, height: 20, color: "var(--accent)" }} />
-                      <div className="pt">
-                        <b>{ex.nome}</b>
-                        {sotto && <small>{sotto}</small>}
+            <div className="stag">
+              {hasPlan ? (
+                <>
+                  {/* ── hero ── */}
+                  <div>
+                    <div className="hero">
+                      <div className="bg">
+                        {heroImage && <Img src={heroImage} />}
                       </div>
-                      {d && <Check style={{ width: 17, height: 17, flex: "none", color: "var(--accent)" }} />}
+                      <div className="body">
+                        <div className="toprow">
+                          <span className="k">
+                            <span className="dot sport" />
+                            oggi · {todayName.toLowerCase()}
+                          </span>
+                          {todayIsTraining && <span className="badge">{doneCount} di {total}</span>}
+                        </div>
+                        <div className="t">
+                          {todayIsTraining ? titolo || "Allenamento di oggi" : "Oggi non c’è allenamento"}
+                        </div>
+                        <div className="m">
+                          {todayIsTraining ? preview + extra : "giornata di recupero"}
+                        </div>
+                        {todayIsTraining && (
+                          <div className="prog"><i style={{ width: `${ringP}%` }} /></div>
+                        )}
+                        {todayIsTraining && (
+                          <div className="row">
+                            <button
+                              className="cta tap"
+                              onClick={() => { setLiveIdx(null); setLive(true); }}
+                            >
+                              {sedutaAperta ? "Riprendi l’allenamento" : "Allenati ora"}
+                            </button>
+                            <button
+                              className={"btn2 tap" + (trainedToday ? " on" : "")}
+                              onClick={fattoOggi}
+                              aria-pressed={trainedToday}
+                            >
+                              {trainedToday ? <>{I.tick({ s: 13 })}Fatto</> : "Fatto oggi"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-              </>
-            )}
 
-            {/* ---------- La settimana ---------- */}
-            <div className="agLbl">La settimana</div>
-            <div className="dayCar">
-              {weekDates.map((d) => {
-                const day = week?.[d.key];
-                const rest = !(day?.esercizi?.length);
-                const t = trained.has(d.iso);
-                const dv2 = rest
-                  ? "Riposo 🌙"
-                  : t
-                    ? `${day!.titolo?.trim() || "Allenamento"} · fatto ✓`
-                    : day!.titolo?.trim() || `${day!.esercizi.length} esercizi`;
-                return (
-                  <div
-                    key={d.iso}
-                    className="dcard"
-                    onClick={() => { setSelDay(d.key); setEditMode(false); }}
-                    style={{ cursor: "pointer", ...(d.key === activeDay ? { borderColor: "var(--accent)", boxShadow: "0 0 0 1.5px var(--accent)" } : {}) }}
-                  >
-                    <div className="dk2">{d.dn}</div>
-                    <div className="dv2">{dv2}</div>
+                    {/* Il consiglio di Keiko: le parole arrivano dal server e non
+                        si riformulano. Se non c'è niente di utile da dire, il
+                        riquadro non compare. */}
+                    {consiglio && (
+                      <div className={"hint" + (consiglio.tono === "calma" ? "" : " warm")}>
+                        {I.info({ s: 14 })}
+                        <p>
+                          <b>{consiglio.titolo}</b>
+                          {consiglio.testo ? <> — {consiglio.testo}</> : null}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
 
-            {/* ---------- Modifica / sposta il giorno selezionato (B) ---------- */}
-            {hasPlan && (
-              <>
-                <button className="btn line" style={{ width: "100%", marginTop: 12 }} onClick={() => (editMode ? setEditMode(false) : startEdit())}>
-                  {editMode ? "Chiudi modifica" : `✏️ Modifica ${DAY_LABEL[activeDay] ?? activeDay}${activeDay === todayKey ? " (oggi)" : ""}`}
+                  {/* ── gli esercizi di oggi ── */}
+                  {todayIsTraining && (
+                    <div>
+                      <Sec sm="tocca per segnare le serie">Gli esercizi di oggi</Sec>
+                      <div className="srf list">
+                        {todayExercises.map((ex, i) => {
+                          const mie = serieOggi.get(ex.nome) ?? [];
+                          const fatto = mie.length > 0;
+                          const prec = ultimaVolta[ex.nome] ?? [];
+                          const rOggi = riassunto(mie);
+                          const aperto = apertoEx === i || (apertoEx === null && i === prossimoIdx);
+                          const meta = fatto
+                            ? `${mie.length} serie${rOggi ? ` · ${rOggi}` : ""}`
+                            : ex.dettaglio || "dalla tua scheda";
+                          return (
+                            <div
+                              key={i}
+                              className={
+                                "item" + (fatto ? " done" : "") + (aperto ? " openx" : "") +
+                                (!fatto && i === prossimoIdx ? " next" : "")
+                              }
+                            >
+                              <div className="item-row tap" onClick={() => apriEsercizio(i)}>
+                                {/* La spunta NON si tocca: un esercizio è fatto
+                                    quando ci sono serie vere registrate, e le
+                                    serie si registrano dentro la sessione. */}
+                                <CheckV2 on={fatto} />
+                                <span className="in">
+                                  <span className="k">{meta}</span>
+                                  <span className="tx">{ex.nome}</span>
+                                </span>
+                                <span
+                                  className="chevhit tap"
+                                  onClick={(e) => { e.stopPropagation(); setApertoEx(aperto ? -1 : i); }}
+                                  aria-label={aperto ? "Chiudi" : "Apri"}
+                                >
+                                  {I.chev({ c: "chev" })}
+                                </span>
+                              </div>
+                              <div className="item-x">
+                                <div className="inner">
+                                  <div className="col">
+                                    {prec.length > 0 ? (
+                                      <span className="rx">l’ultima volta: {riassunto(prec)}</span>
+                                    ) : (
+                                      <span className="rx">nessuna traccia di questo esercizio</span>
+                                    )}
+                                    {ex.dettaglio && <span className="rx">dalla scheda: {ex.dettaglio}</span>}
+                                    <div className="row">
+                                      <button className="tert tap" onClick={() => apriEsercizio(i)}>
+                                        {fatto ? "Aggiungi una serie" : "Allenati ora"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {doneCount === total && total > 0 && (
+                          <div className="complete">
+                            <span className="big-ck">{I.drawck(null, 15)}</span>
+                            <span>
+                              <span className="t">Scheda completa</span>
+                              <span className="m">tutto quello di oggi è segnato</span>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── A che punto sei ──
+                      Niente numeroni e nessun chip di tendenza: il dato per
+                      disciplina non esiste nel codice, e una tendenza da due
+                      sedute sarebbe inventata. */}
+                  {(weekPlanned > 0 || ultima) && (
+                    <div>
+                      <Sec sm="senza numeroni">A che punto sei</Sec>
+                      <div className="srf" style={{ padding: "14px 12px" }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: "-.01em" }}>
+                          {weekPlanned > 0
+                            ? weekDone >= weekPlanned
+                              ? "La settimana è piena."
+                              : weekDone === 0
+                                ? "La settimana è ancora tutta davanti."
+                                : "Sei a metà settimana."
+                            : "Non c’è ancora una settimana da raccontare."}
+                        </div>
+                        <div className="status">
+                          {weekPlanned > 0 ? `${weekDone} di ${weekPlanned} allenamenti` : "—"}
+                          {streakDiFila > 0 ? ` · ${streakDiFila} di fila` : ""}
+                        </div>
+                      </div>
+
+                      {/* Ultimo allenamento: è quello che hai davvero sollevato,
+                          non una spunta sul calendario. */}
+                      {storicoSedute.length > 0 && (
+                        <div className="srf" style={{ marginTop: 8 }}>
+                          {storicoSedute.map((sd) => {
+                            const nEx = new Set(sd.sets.map((x) => x.esercizio)).size;
+                            return (
+                              <div className="row-act" key={sd.id} style={{ cursor: "default" }}>
+                                <span className="ic2">{I.hist({ s: 16 })}</span>
+                                <span className="in">
+                                  <span className="t">{(sd.titolo?.trim() || "Allenamento") + " · " + dataCorta(sd.day)}</span>
+                                  <span className="m">
+                                    {sd.sets.length === 0
+                                      ? "nessuna serie segnata"
+                                      : `${sd.sets.length} serie · ${nEx} eserciz${nEx === 1 ? "io" : "i"}`}
+                                    {sd.endedAt ? "" : " · in corso"}
+                                  </span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── la settimana ── */}
+                  <div>
+                    <Sec sm="in sola lettura">La settimana</Sec>
+                    {weekDates.map((d) => {
+                      const day = week?.[d.key];
+                      const esercizi = day?.esercizi ?? [];
+                      const rest = esercizi.length === 0;
+                      const t = trained.has(d.iso);
+                      return (
+                        <DayCard
+                          key={d.iso}
+                          /* nel mock la riga di sinistra e' NUMERO sopra e tre
+                             lettere sotto: prima erano la stessa cosa due volte */
+                          n={Number(d.iso.slice(8, 10))}
+                          d={d.key}
+                          img={d.isToday ? heroImage : null}
+                          today={d.isToday}
+                          dot="sport"
+                          main={rest ? "Riposo" : day!.titolo?.trim() || `${esercizi.length} esercizi`}
+                          meta={rest ? "giornata di recupero" : `${esercizi.length} eserciz${esercizi.length === 1 ? "io" : "i"}${t ? " · fatto" : ""}`}
+                          nxt={t ? "fatto" : undefined}
+                          open={apertoGiorno === d.key}
+                          onToggle={() => setApertoGiorno(apertoGiorno === d.key ? null : d.key)}
+                          rows={rest ? [["", "Niente in programma"]] : esercizi.map((e) => [e.dettaglio || "", e.nome] as [string, string])}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* ── la tua scheda ── */}
+                  <div>
+                    <Sec sm={updatedAt ? `del ${formatUpdated(updatedAt)}` : undefined}>La tua scheda</Sec>
+                    <div className="hint">
+                      {I.info({ s: 14 })}
+                      <p>La scheda è del tuo preparatore. <b>Keiko la trascrive e se la ricorda, non la scrive.</b></p>
+                    </div>
+                    <div className="srf" style={{ marginTop: 8 }}>
+                      <div className="row-act tap" onClick={() => setGestione(true)}>
+                        <span className="ic2">{I.doc({ s: 16 })}</span>
+                        <span className="in">
+                          <span className="t">Gestisci la scheda</span>
+                          <span className="m">caricala di nuovo, o correggi un giorno</span>
+                        </span>
+                        <span className="chevhit">{I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* ── nessuna scheda caricata ── */
+                <div>
+                  <Empty
+                    icon={I.dumb({ s: 17 })}
+                    t="Ancora nessuna scheda"
+                    m="carica la foto o il PDF che ti ha dato il preparatore:<br/>te la leggo e me la ricordo io"
+                    cta="Carica la tua scheda"
+                    onCta={() => setShowUpload(true)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── la sessione: schermo pieno, si chiude senza perdere niente ── */}
+          {live && (
+            <SessioneLive
+              day={todayIso}
+              titolo={todayDay?.titolo?.trim() || null}
+              esercizi={todayExercises}
+              open={sessioneOggi}
+              ultimaVolta={ultimaVolta}
+              iniziale={liveIdx}
+              onClose={chiudiLive}
+              onFinita={sessioneFinita}
+            />
+          )}
+
+          {/* ── gestione scheda ── */}
+          {gestione && (
+            <Sheet onClose={() => { setGestione(false); setArmaElimina(false); }}>
+              <div className="plain-head"><h2>La tua scheda</h2></div>
+              <div className="pad">
+                <div className="sub">
+                  {updatedAt ? `L’ultima che mi hai dato è del ${formatUpdated(updatedAt)}.` : "Non ne ho ancora una."}
+                </div>
+                <div className="srf" style={{ marginTop: 16 }}>
+                  <div className="row-act tap" onClick={() => { setGestione(false); setShowUpload(true); }}>
+                    <span className="ic2">{I.up({ s: 16 })}</span>
+                    <span className="in">
+                      <span className="t">Carica una nuova scheda</span>
+                      <span className="m">foto o PDF: la leggo io</span>
+                    </span>
+                    <span className="chevhit">{I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}</span>
+                  </div>
+                  <div className="row-act tap" onClick={() => { setGestione(false); startEdit(); }}>
+                    <span className="ic2">{I.pen({ s: 16 })}</span>
+                    <span className="in">
+                      <span className="t">Correggi un giorno</span>
+                      <span className="m">togli, aggiungi o sposta gli esercizi</span>
+                    </span>
+                    <span className="chevhit">{I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}</span>
+                  </div>
+                </div>
+
+                <div className="danger" style={{ margin: "28px 0 8px" }}>
+                  <button
+                    className={"tap" + (armaElimina ? " arm" : "")}
+                    aria-disabled={deleting || undefined}
+                    onClick={() => {
+                      if (!armaElimina) { setArmaElimina(true); return; }
+                      setGestione(false);
+                      setArmaElimina(false);
+                      handleDelete();
+                    }}
+                  >
+                    {deleting ? "Elimino…" : armaElimina ? "Tocca di nuovo per eliminare" : "Elimina la scheda"}
+                  </button>
+                </div>
+              </div>
+            </Sheet>
+          )}
+
+          {/* ── caricamento della scheda ── */}
+          {showUpload && (
+            <Sheet onClose={() => { if (state !== "parsing") { setShowUpload(false); setState("idle"); } }}>
+              <div className="plain-head"><h2>{hasPlan ? "Aggiorna la scheda" : "Carica la scheda"}</h2></div>
+              <div className="pad">{renderUploadV2()}</div>
+            </Sheet>
+          )}
+
+          {/* ── correggi un giorno ── */}
+          {editMode && (
+            <Sheet onClose={() => setEditMode(false)}>
+              <div className="plain-head"><h2>Correggi {DAY_LABEL[activeDay] ?? activeDay}</h2></div>
+              <div className="pad">
+                <div className="sub">Gli esercizi sono quelli della tua scheda: qui si correggono, non si inventano.</div>
+
+                <div className="status" style={{ marginTop: 18, marginBottom: 6 }}>Il giorno</div>
+                <div className="chips" style={{ margin: "0 -16px" }}>
+                  {DAY_ORDER.map((k) => (
+                    <ChipV2 key={k} on={activeDay === k} onClick={() => { setSelDay(k); setDraft((week?.[k]?.esercizi ?? []).map((e) => ({ ...e }))); }}>
+                      {DAY_LABEL[k]?.slice(0, 3).toLowerCase() ?? k}
+                    </ChipV2>
+                  ))}
+                </div>
+
+                <div className="status" style={{ marginTop: 18, marginBottom: 6 }}>Gli esercizi</div>
+                <div className="srf">
+                  {draft.map((ex, i) => (
+                    <div className="row-act" key={i} style={{ cursor: "default" }}>
+                      <span className="ic2">{I.dumb({ s: 16 })}</span>
+                      <span className="in">
+                        <input
+                          value={ex.nome}
+                          onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))}
+                          placeholder="Esercizio"
+                          style={{ width: "100%", background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", fontWeight: 600, padding: 0 }}
+                        />
+                      </span>
+                      <span className="chevhit tap" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} aria-label="Togli">
+                        {I.close({ s: 15 })}
+                      </span>
+                    </div>
+                  ))}
+                  <button className="addrow tap" onClick={() => setDraft((d) => [...d, { nome: "", dettaglio: "" }])}>
+                    {I.plus({ s: 14 })}Aggiungi un esercizio
+                  </button>
+                </div>
+                {draft.length === 0 && (
+                  <div className="status" style={{ marginTop: 8 }}>Giorno di riposo — aggiungi un esercizio per creare una sessione.</div>
+                )}
+
+                <div className="status" style={{ marginTop: 18, marginBottom: 6 }}>Sposta o scambia con</div>
+                <div className="chips" style={{ margin: "0 -16px" }}>
+                  {DAY_ORDER.filter((k) => k !== activeDay).map((k) => (
+                    <ChipV2 key={k} onClick={() => moveSessionTo(k)}>{DAY_LABEL[k]?.slice(0, 3).toLowerCase() ?? k}</ChipV2>
+                  ))}
+                </div>
+
+                <button
+                  className="cta wide tap"
+                  style={{ marginTop: 20 }}
+                  aria-disabled={savingWeek || undefined}
+                  onClick={commitExercises}
+                >
+                  {savingWeek ? "Salvo…" : "Salva le correzioni"}
                 </button>
-                {editMode && (
-                  <div style={{ marginTop: 10, background: "var(--card)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: 12 }}>
-                    <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 10px" }}>Giorno: <b style={{ color: "var(--text)" }}>{DAY_LABEL[activeDay] ?? activeDay}</b>. Tocca un altro giorno nel carosello qui sopra per cambiarlo.</div>
-                    <div className="agLbl" style={{ padding: "0 2px 8px" }}>Sposta / scambia con</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                      {DAY_ORDER.filter((k) => k !== activeDay).map((k) => (
-                        <button key={k} className="k-daychip" disabled={savingWeek} onClick={() => moveSessionTo(k)}>{DAY_LABEL[k] ?? k}</button>
-                      ))}
-                    </div>
-                    <div className="agLbl" style={{ padding: "0 2px 8px" }}>Esercizi</div>
-                    {draft.map((ex, i) => (
-                      <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                        <input value={ex.nome} onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))} placeholder="Esercizio" style={{ flex: 1, background: "var(--paper)", border: "1px solid var(--card-line)", borderRadius: "var(--r-md)", padding: "8px 10px", color: "var(--ink)", fontFamily: "var(--f)", fontSize: "var(--fs-sm)" }} />
-                        <button type="button" aria-label="Togli" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} style={{ border: 0, background: "none", color: "var(--text-3)", fontSize: 18, cursor: "pointer", minWidth: 44, minHeight: 44, display: "grid", placeItems: "center" }}>✕</button>
-                      </div>
-                    ))}
-                    {draft.length === 0 && <p style={{ fontSize: "var(--fs-xs)", color: "var(--text-3)", margin: "0 2px 8px" }}>Giorno di riposo — aggiungi esercizi per creare una sessione.</p>}
-                    <button className="btn line" style={{ width: "100%", marginBottom: 8 }} onClick={() => setDraft((d) => [...d, { nome: "", dettaglio: "" }])}>+ Aggiungi esercizio</button>
-                    <button className="btn acc" style={{ width: "100%" }} disabled={savingWeek} onClick={commitExercises}>{savingWeek ? "Salvo…" : "Salva modifiche"}</button>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ---------- Ultime sedute (S5) ----------
-                 Non e' una lista di spunte: e' quello che hai davvero sollevato.
-                 Arriva da workout_session/workout_set, quindi la vedi uguale su
-                 qualsiasi telefono. */}
-            {storicoSedute.length > 0 && (
-              <>
-                <div className="agLbl">Ultime sedute</div>
-                {storicoSedute.map((sd) => {
-                  const nEx = new Set(sd.sets.map((x) => x.esercizio)).size;
-                  const volume = sd.sets.reduce((t, x) => t + (x.pesoKg ?? 0) * (x.ripetizioni ?? 0), 0);
-                  return (
-                    <div key={sd.id} className="pRow" style={{ cursor: "default" }}>
-                      <Dumbbell className="pi" style={{ width: 20, height: 20, color: "var(--accent)" }} />
-                      <div className="pt">
-                        <b>{(sd.titolo?.trim() || "Allenamento") + " · " + dataCorta(sd.day)}</b>
-                        <small>
-                          {sd.sets.length === 0
-                            ? "nessuna serie segnata"
-                            : `${sd.sets.length} serie · ${nEx} eserciz${nEx === 1 ? "io" : "i"}${volume > 0 ? ` · ${Math.round(volume).toLocaleString("it-IT")} kg sollevati` : ""}`}
-                          {sd.endedAt ? "" : " · in corso"}
-                        </small>
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-
-            {/* ---------- Gestione scheda (funzioni reali preservate) ---------- */}
-            <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-              <button className="btn line" style={{ flex: 1 }} onClick={() => setShowUpload((s) => !s)}>
-                <Pencil style={{ width: 14, height: 14 }} /> Aggiorna scheda
-              </button>
-              <button
-                className="btn line"
-                style={{ flex: 1, color: "#E25549", borderColor: "rgba(226,85,73,.42)" }}
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                <Trash2 style={{ width: 14, height: 14 }} /> {deleting ? "Elimino…" : "Elimina scheda"}
-              </button>
-            </div>
-            {updatedAt && (
-              <div style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: "var(--text-3)", textAlign: "right" }}>
-                scheda del {formatUpdated(updatedAt)}
               </div>
+            </Sheet>
+          )}
+
+          <div className={"toast" + (msg ? " on" : "")}>{msg}</div>
+        </div>
+
+        {/* La barra resta fuori da .k2: il reset del foglio V2 le toglierebbe i margini. */}
+        <KeikoNav active="sport" />
+      </>
+    );
+  }
+
+  /* Il caricamento della scheda, nel sistema V2. Vive dentro un Sheet.
+     (Il `renderUploadKeiko` qui sotto resta: lo usa la vista embedded, che è
+     la home vecchia e non cambia.) */
+  function renderUploadV2() {
+    if (state === "parsing") {
+      return (
+        <>
+          <div className="think">
+            <span className="orb" />
+            <span className="tx">sto leggendo la tua scheda…</span>
+          </div>
+          <Skeleton rows={3} />
+        </>
+      );
+    }
+    if (state === "success") {
+      return (
+        <>
+          <div className="complete" style={{ borderTop: "none" }}>
+            <span className="big-ck">{I.drawck(null, 15)}</span>
+            <span>
+              <span className="t">Scheda aggiornata</span>
+              {note && <span className="m">{note}</span>}
+            </span>
+          </div>
+        </>
+      );
+    }
+    if (state === "error") {
+      return (
+        <>
+          <div className="hint warm" style={{ marginTop: 16 }}>
+            {I.info({ s: 14 })}
+            <p>{errorMsg}</p>
+          </div>
+          <button className="btn2 wide tap" style={{ marginTop: 16 }} onClick={() => setState("idle")}>Riprova</button>
+        </>
+      );
+    }
+    return (
+      <>
+        <div className="sub">
+          Fotografa la scheda che ti ha dato il preparatore, o passami il PDF. La leggo e la metto in ordine: gli esercizi restano i suoi.
+        </div>
+        <div className="srf" style={{ marginTop: 16 }}>
+          <div className="row-act tap" onClick={() => imgRef.current?.click()}>
+            <span className="ic2">{I.copy({ s: 16 })}</span>
+            <span className="in">
+              <span className="t">Foto</span>
+              <span className="m">{images.length > 0 ? `${images.length} selezionate` : "una o più foto della scheda"}</span>
+            </span>
+            {images.length > 0 && <span className="badge">{images.length}</span>}
+          </div>
+          <div className="row-act tap" onClick={() => pdfRef.current?.click()}>
+            <span className="ic2">{I.doc({ s: 16 })}</span>
+            <span className="in">
+              <span className="t">PDF</span>
+              <span className="m">{pdf ? pdf.name : "il file del preparatore"}</span>
+            </span>
+            {pdf && <span className="badge">1</span>}
+          </div>
+        </div>
+
+        <input ref={imgRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => setImages(e.target.files ? Array.from(e.target.files) : [])} />
+        <input ref={pdfRef} type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => setPdf(e.target.files?.[0] ?? null)} />
+
+        {hasSomething && (
+          <span className="dchips" style={{ marginTop: 12 }}>
+            {images.length > 0 && (
+              <span className="dchip tap" onClick={() => { setImages([]); if (imgRef.current) imgRef.current.value = ""; }}>
+                <b>foto</b>{images.length} {I.close({ s: 12 })}
+              </span>
             )}
-            {showUpload && renderUploadKeiko()}
-          </>
-        ) : (
-          /* ---------- Nessuna scheda ---------- */
-          <>
-            <div className="vHero">
-              <div className="art" style={{ position: "absolute", inset: 0, ...(heroImage ? { backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: GYM_ART }) }} />
-              <div className="shade" />
-              <span className="vk">Allenamento</span>
-              <h4 style={{ marginTop: 4 }}>Ancora nessuna scheda</h4>
-              <div className="vs2">Carica la foto o il PDF: te la leggo io</div>
-              <div className="vActs">
-                <button className="chipA" onClick={() => setShowUpload(true)}>📷 Carica la scheda</button>
-              </div>
-            </div>
-            {showUpload && renderUploadKeiko()}
-          </>
+            {pdf && (
+              <span className="dchip tap" onClick={() => { setPdf(null); if (pdfRef.current) pdfRef.current.value = ""; }}>
+                <b>pdf</b>{pdf.name.slice(0, 18)} {I.close({ s: 12 })}
+              </span>
+            )}
+          </span>
         )}
+
+        <button
+          className="cta wide tap"
+          style={{ marginTop: 20 }}
+          aria-disabled={!hasSomething || undefined}
+          onClick={handleUpload}
+        >
+          Leggi la scheda
+        </button>
       </>
     );
   }
