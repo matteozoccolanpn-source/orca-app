@@ -44,8 +44,12 @@ export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab
     if (onAdd) onAdd();
     else router.push("/add");
   };
+  /* La sfumatura arrivava a coprire solo al 45%: nella meta' alta il testo
+     sotto (i titoli delle locandine della Guarda) traspariva a meta' e non si
+     leggeva ne' spariva. Adesso chiude prima e c'e' una sfocatura sotto.
+     Posizione e altezza della barra non cambiano: e' solo il fondo. */
   return (
-    <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: NAV_TOTALE, background: "linear-gradient(180deg,rgba(10,11,14,0),rgba(10,11,14,.97) 45%)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px", paddingBottom: "calc(18px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto", zIndex: 30 }}>
+    <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: NAV_TOTALE, background: "linear-gradient(180deg,rgba(10,11,14,0) 0%,rgba(10,11,14,.72) 18%,rgba(10,11,14,.94) 34%,rgba(10,11,14,.99) 48%)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px", paddingBottom: "calc(18px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto", zIndex: 30 }}>
       <NavItem label="Home" active={active === "home" || active === "viaggio"} icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => go("/")} />
       <NavItem label="Dieta" active={active === "dieta"} icon={<><circle cx="12" cy="12" r="9" /><path d="M12 3v18M3 12h18" /></>} onClick={() => go("/salute")} />
       <button onClick={add} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 30, lineHeight: 1, paddingBottom: 2, boxShadow: "0 8px 20px rgba(255,184,77,.28), 0 2px 6px rgba(0,0,0,.4)", marginTop: -24, cursor: "pointer" }}>+</button>

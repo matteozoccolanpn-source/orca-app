@@ -737,6 +737,10 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
               <div>
                 <Sec sm="uno dei tuoi, a caso">Stasera per te</Sec>
                 <Feature
+                  /* compatta: la copertina di TMDB e' orizzontale e ha gia' il
+                     titolo stampato dentro. A tutta card litigavano due
+                     tipografie nella stessa immagine. */
+                  compatta
                   img={hero.poster}
                   tone="dark"
                   dot="guarda"

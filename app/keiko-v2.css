@@ -12,13 +12,21 @@
    1.5 su <html> e si eredita dentro .k2, allungando ogni riga senza
    line-height propria (46px di scarto a fine schermata). 'normal' e' il valore
    che il mock ha davvero, misurato: non e' un valore nuovo.
+   E UNA sostituzione visiva, decisa da Matteo l'11 agosto 2026:
+   --c-guarda passa da #A47BE0 a #8F7AC0, stessa saturazione delle altre
+   quattro famiglie. Vale SOLO come pallino di sezione (.dot): vedi
+   docs/UI-DECISIONI-V2.md.
+   Piu' le correzioni che il mock non poteva vedere, perche' gira in una
+   finestra del desktop e non su un iPhone: la safe-area in cima a .screen e
+   a .topbar, e --pad-bottom a 128px, che e' l'altezza vera di KeikoNav.
+   In coda, il blocco AGGIUNTE FUORI DAL MOCK: snap e sfumatura dei chip.
    ===================================================================== */
 /* ══════════════════════════════════════════════════════════════
    KEIKO UI V2 — FOGLIO CONDIVISO
    Unica copia del sistema. Tutte le sezioni leggono da qui.
    Risolve A1-A12 della revisione del 9 agosto.
    ══════════════════════════════════════════════════════════════ */
-:root{
+:root, .k2{
   --bg:#0D0D10;
   --lv1:#1A1B20; --lv2:#212228; --lv3:#282A31;
   --hl:rgba(255,255,255,.08); --line:rgba(255,255,255,.05);
@@ -28,9 +36,9 @@
   --acc-btn:#AB5A3B;          /* A4 · bottoni con testo, 4,53:1 */
   --on-acc:#FFF3EC;
   /* A3 · colori-categoria, usati OVUNQUE e solo sul pallino */
-  --c-viaggi:#5B9BDB; --c-sport:#3AB8A8; --c-dieta:#57B96E; --c-guarda:#A47BE0; --c-eventi:#C4796B;
+  --c-viaggi:#5B9BDB; --c-sport:#3AB8A8; --c-dieta:#57B96E; --c-guarda:#8F7AC0; --c-eventi:#C4796B;
   --r-hero:16px; --r-card:12px; --r-in:9px; --r-chip:8px;
-  --pad-bottom:calc(116px + env(safe-area-inset-bottom));
+  --pad-bottom:calc(128px + env(safe-area-inset-bottom));
 }
 .k2, .k2 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 .k2{height:100%}
@@ -57,7 +65,7 @@
 .k2 .l4{top:1180px;left:-30%;right:-30%;height:520px;
   background:radial-gradient(56% 58% at 50% 50%, rgba(70,96,140,.16), transparent 74%)}
 
-.k2 .screen{position:relative;z-index:2;padding:16px 16px var(--pad-bottom)}
+.k2 .screen{position:relative;z-index:2;padding:calc(env(safe-area-inset-top) + 16px) 16px var(--pad-bottom)}
 
 /* ══ C1 · entrate scaglionate ══ */
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -472,7 +480,7 @@
 .k2 .full{position:fixed;inset:0;z-index:80;max-width:430px;margin:0 auto;background:var(--bg);
   overflow-y:auto;animation:fadein .22s ease}
 .k2 .topbar{position:sticky;top:0;z-index:40;background:rgba(13,13,16,.94);backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--hl);padding:12px 14px 10px}
+  border-bottom:1px solid var(--hl);padding:calc(env(safe-area-inset-top) + 12px) 14px 10px}
 .k2 .topbar .r1{display:flex;align-items:center;gap:12px}
 .k2 .topbar .x{position:relative;width:36px;height:36px;flex:none;border-radius:var(--r-chip);background:var(--lv1);
   border:1px solid var(--line);box-shadow:inset 0 1px 0 var(--hl);display:grid;place-items:center;cursor:pointer}
@@ -703,3 +711,27 @@
 .k2 .perf .ph-k.cold i{background:var(--teal)}
 /* 26 · i chip non tagliano le parole */
 .k2 .chip{max-width:none}
+
+/* ══ AGGIUNTE FUORI DAL MOCK ══
+   La riga dei chip non si ferma piu' a meta' di uno (scroll-snap), e i due
+   orli sfumano solo dal lato dove c'e' ancora qualcosa da scorrere.
+   Lo snap funziona ovunque; la sfumatura ha bisogno delle animazioni guidate
+   dallo scorrimento, quindi sta in @supports: dove non c'e', la riga resta
+   com'era. Deciso da Matteo l'11 agosto: un chip tagliato di netto non dice
+   "c'e' dell'altro di lato", dice "si e' rotto qualcosa". */
+.k2 .chips{scroll-snap-type:x mandatory;scroll-padding-left:16px;scroll-padding-right:16px}
+.k2 .chips>*{scroll-snap-align:start}
+@supports (animation-timeline: scroll()) {
+  @property --k2-fl{syntax:'<length>';inherits:false;initial-value:0px}
+  @property --k2-fr{syntax:'<length>';inherits:false;initial-value:0px}
+  .k2 .chips{
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--k2-fl),#000 calc(100% - var(--k2-fr)),transparent 100%);
+    mask-image:linear-gradient(90deg,transparent 0,#000 var(--k2-fl),#000 calc(100% - var(--k2-fr)),transparent 100%);
+    animation:k2-chips-orli linear both;
+    animation-timeline:scroll(self inline);
+  }
+  @keyframes k2-chips-orli{
+    from{--k2-fl:0px;--k2-fr:26px}
+    to{--k2-fl:26px;--k2-fr:0px}
+  }
+}
