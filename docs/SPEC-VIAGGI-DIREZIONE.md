@@ -106,3 +106,22 @@ arriva da una tessera quadrata dentro «Oggi per te», grande come Dieta e
 Allenamento. Nella direzione scelta la cosa regge — Viaggi è una schermata che
 si accende quando c'è un viaggio, non una sezione sempre presente — ma va
 deciso esplicitamente prima del mock, non lasciato com'è per inerzia.
+
+---
+
+## 5 · Decisione dell'11 agosto 2026 — la sezione è in pausa
+
+Nel giro di ondate che porta la UI V2 in codice, **i Viaggi si saltano**.
+
+Il motivo è quello del §1: tre azioni su quattro non fanno quello che dicono.
+Rivestire questa sezione con il sistema V2 vorrebbe dire rendere coerenti e
+belli dei bottoni che mentono — e consolidare in un design system una cosa che
+va prima riparata.
+
+Quindi: **nessuna ondata di restyling sui Viaggi finché il §2 non è stato
+portato in codice.** Chi riprende questo lavoro parte dai sette punti del §2,
+non dal mock.
+
+L'ordine delle ondate diventa: Cucina (`/cucina`), poi Dieta (`/salute`),
+poi Home. I Viaggi restano dove sono, con il vestito vecchio, finché Matteo
+non decide di affrontare la sostanza.
