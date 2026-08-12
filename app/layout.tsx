@@ -67,6 +67,12 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  /* Il lampo bianco all'apertura è del browser, non nostro: dipinge il suo
+     fondo prima ancora di leggere il nostro CSS. `theme-color` è l'unica cosa
+     che legge in tempo, quindi è lei a dire di che colore è quel primo pixel.
+     Mancava del tutto. Stesso valore del fondo dell'app e del manifest:
+     `#0D0D10`, che è `--bg` del sistema V2. Tre posti, un colore solo. */
+  themeColor: "#0D0D10",
 };
 
 export const metadata: Metadata = {
@@ -111,7 +117,9 @@ export default function RootLayout({
     <html
       lang="it"
       suppressHydrationWarning
-      style={{ backgroundColor: "#0C0E13" }}
+      /* In linea, non in un foglio: è il primo colore che il browser può
+         applicare, e arriva prima di qualunque CSS scaricato. */
+      style={{ backgroundColor: "#0D0D10" }}
       className={`dark ${inter.variable} ${geistMono.variable} ${fraunces.variable} ${frauncesV2.variable} h-full antialiased`}
     >
       <head>

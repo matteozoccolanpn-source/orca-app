@@ -31,7 +31,10 @@ export const PAGE_PB = `calc(${NAV_H + 24 + 20}px + env(safe-area-inset-bottom))
 
 /* "viaggio" non ha un'icona sua in barra (il viaggio si apre dalle card della
    Home): è una sotto-pagina della Home, quindi accende "Home" invece di
-   lasciare la barra tutta spenta. */
+   lasciare la barra tutta spenta.
+   Da quando la voce e' "Cucina", "dieta" (/salute) e' nella stessa posizione:
+   ci si arriva dalla riga dentro la Cucina, quindi accende "Cucina". Senza
+   questa riga /salute lasciava la barra tutta spenta. */
 type Tab = "home" | "cucina" | "dieta" | "sport" | "guarda" | "viaggio";
 
 export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab; onAdd?: () => void; demo?: boolean }) {
@@ -59,7 +62,7 @@ export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab
           22px con tratto 2 come tutte le altre voci. Chiamare I.pot avrebbe
           portato dentro il suo tratto 1.8, e una sola icona piu' sottile
           delle altre quattro si vede. */}
-      <NavItem label="Cucina" active={active === "cucina"} icon={<path d="M7 3v7c0 1.5 1 2 2.5 2S12 12 12 10.5V3M9.5 3v18M17 3c-2 1.5-2.5 5-2.5 8 0 0 1 .8 2.5.8V21" />} onClick={() => go("/cucina")} />
+      <NavItem label="Cucina" active={active === "cucina" || active === "dieta"} icon={<path d="M7 3v7c0 1.5 1 2 2.5 2S12 12 12 10.5V3M9.5 3v18M17 3c-2 1.5-2.5 5-2.5 8 0 0 1 .8 2.5.8V21" />} onClick={() => go("/cucina")} />
       <button onClick={add} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 30, lineHeight: 1, paddingBottom: 2, boxShadow: "0 8px 20px rgba(255,184,77,.28), 0 2px 6px rgba(0,0,0,.4)", marginTop: -24, cursor: "pointer" }}>+</button>
       <NavItem label="Allenamento" active={active === "sport"} icon={<><path d="M6 12h12M4 9v6M20 9v6M8 8v8M16 8v8" /></>} onClick={() => go("/allenamento")} />
       <NavItem label="Guarda" active={active === "guarda"} icon={<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></>} onClick={() => go("/guarda")} />

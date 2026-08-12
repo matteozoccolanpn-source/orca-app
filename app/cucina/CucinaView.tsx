@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Recipe, RicettaEstratta, ShoppingItem } from "@/lib/supabase";
 import { quandoDetto, daQuanto, amazonFresh, type PastoDelGiorno, type Rifare } from "@/lib/cucina";
-import { PAGE_PB } from "@/app/components/keiko/KeikoNav";
+import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
 import { I } from "@/app/components/v2/icons";
 import { Sec } from "@/app/components/v2/Sec";
 import { Chip } from "@/app/components/v2/Chip";
@@ -543,7 +543,12 @@ export default function CucinaView({
                                 width: 11, height: 11, borderRadius: "50%",
                                 background: p.passato ? "var(--teal)" : "transparent",
                                 border: `2px solid ${p.passato ? "var(--teal)" : p === prossimo ? "var(--acc)" : "rgba(255,255,255,.22)"}`,
-                                boxShadow: p === prossimo ? "0 0 0 4px rgba(201,106,69,.16)" : "none",
+                                /* L'alone del pasto che viene adesso: e' il
+                                   terracotta del sistema con la sua
+                                   trasparenza, non un rgba ricopiato a mano.
+                                   Scritto in cifre era un secondo posto dove
+                                   ricordarsi di cambiarlo. */
+                                boxShadow: p === prossimo ? "0 0 0 4px color-mix(in srgb, var(--acc) 16%, transparent)" : "none",
                               }}
                             />
                             <small style={{ fontSize: 10, fontWeight: 500, color: p === prossimo ? "#E6A886" : "var(--meta)" }}>{p.ora}</small>
@@ -985,6 +990,12 @@ export default function CucinaView({
           </div>
         )}
       </div>
+
+      {/* La barra sta FUORI da `.k2`, come nella Home: dentro erediterebbe la
+          larghezza massima del sistema e il suo fondo. La Cucina e' una voce
+          della barra, e una voce che porta in una pagina senza barra e' un
+          vicolo cieco: da qui si torna a casa. */}
+      <KeikoNav active="cucina" />
     </>
   );
 }

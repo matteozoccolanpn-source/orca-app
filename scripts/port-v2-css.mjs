@@ -159,6 +159,16 @@ sostituisci('.k2 .screen{position:relative;z-index:2;padding:16px 16px var(--pad
 sostituisci('backdrop-filter:blur(20px);\n  border-bottom:1px solid var(--hl);padding:12px 14px 10px}',
             'backdrop-filter:blur(20px);\n  border-bottom:1px solid var(--hl);padding:calc(env(safe-area-inset-top) + 12px) 14px 10px}');
 
+/* 4 · GLI STATI VUOTI SONO VOCE (12 agosto 2026)
+   «Nessun titolo con questi filtri» non e' un dato: e' una frase che qualcuno
+   ha scritto per il momento in cui non c'e' niente da mostrare. Nel sistema la
+   voce e' Fraunces e i fatti sono Inter, e questo titolo stava dalla parte
+   sbagliata. Il peso scende a 500 perche' e' quello che Fraunces ha ovunque
+   nel foglio (h1, .sec, .hero .t, .feature .t): 600 e' un peso da Inter.
+   Il corpo sotto resta Inter e grigio — quello spiega, e spiegare e' un fatto. */
+sostituisci('.k2 .empty .t{font-size:13px;font-weight:600;margin-top:8px}',
+            '.k2 .empty .t{font-family:var(--font-fraunces-v2),Fraunces,Georgia,serif;font-size:13px;font-weight:500;margin-top:8px}');
+
 out = out.trimEnd() + `
 
 /* ══ AGGIUNTE FUORI DAL MOCK ══
@@ -288,6 +298,53 @@ if (homeChunks.length) {
   if (!home.includes(daCambiare)) throw new Error('il mock della Home e\' cambiato, .page non attacca piu\'');
   home = home.replace(daCambiare,
     '.k2 .home .page{position:relative;z-index:2;padding:calc(env(safe-area-inset-top) + 18px) 16px var(--pad-bottom)}');
+
+  /* UN SOLO TERRACOTTA SOTTO IL TESTO (12 agosto 2026).
+     Il sistema ha due terracotta, ed e' voluto: `--acc` (#C96A45) e' quello
+     acceso e vive dove NON c'e' scritto niente sopra — il tasto «+», gli
+     aloni, i pallini del logo; `--acc-btn` (#AB5A3B) e' quello dei bottoni con
+     le parole dentro. La differenza e' misurata, non estetica:
+       testo #FFF3EC su #C96A45 → 3,42:1  (sotto la soglia AA, che e' 4,5)
+       testo #FFF3EC su #AB5A3B → 4,53:1  (passa)
+     La `.cta` della Home era l'unico bottone con del testo rimasto su `--acc`,
+     e ci scriveva pure il bianco a mano. Passa alla coppia giusta: cosi' i
+     bottoni primari di tutta l'app sono lo stesso terracotta.
+     L'alone intorno resta acceso apposta: e' luce, non fondo sotto le lettere. */
+  /* `color:revert` NON torna alla regola condivisa — torna all'EREDITATO.
+     Da qui il «metadato quasi bianco» visto in produzione, che NON e' un
+     errore di portata: il mock si comporta uguale, perche' li' la regola
+     condivisa non esiste e ogni `.m` aveva la sua tinta di famiglia scritta
+     inline. Il bianco e' il fondo su cui quelle tinte stavano.
+     La pulizia qui sotto (vedi `trapelano`) mette `revert` sulle
+     proprietà che la regola condivisa dichiara e quella del mock no: per le
+     misure funziona, perché lì «revert» vuol dire davvero «come se la regola
+     condivisa non ci fosse». Per `color` no: `revert` risale all'origine
+     precedente, e per un colore quella dice `inherit`. Risultato: il metadato
+     prendeva il colore del testo di `.k2`, cioè `--txt` #F1F4FA.
+     Questi tre sono metadati e il loro colore è `--meta`, dichiarato. */
+  for (const sel of ['.k2 .home .content .m{', '.k2 .home .wide .k{', '.k2 .home .rcard .k{']) {
+    const da = sel + 'color:revert;';
+    if (!home.includes(da)) throw new Error('il mock della Home e\' cambiato, il colore del metadato non attacca piu\':\n' + da);
+    home = home.replace(da, sel + 'color:var(--meta);');
+  }
+
+  /* I METADATI SONO TUTTI GRIGI (12 agosto 2026).
+     Il meta della card grande era `#9FB4CC`, un azzurrino che sulla stessa
+     schermata conviveva con altri tre colori di metadato: l'occhio ci leggeva
+     una gerarchia che non c'era. Il colore di famiglia sta nel pallino.
+     Vale la regola 3 di UI-DECISIONI-V2: metadati `#9BA0A8`, cioe' `--meta`.
+     Cambia il mock congelato, ed e' voluto: la decisione e' annotata li'. */
+  const featM = 'color:#9FB4CC;';
+  if (!home.includes('.k2 .home .feature .m{') || !home.includes(featM)) {
+    throw new Error('il mock della Home e\' cambiato, il meta azzurro della card grande non attacca piu\'');
+  }
+  home = home.replace(featM, 'color:var(--meta);');
+
+  const ctaAcc = 'font-weight:600;background:var(--acc);color:#FFF3EC;';
+  if (!home.includes('.k2 .home .cta{') || !home.includes(ctaAcc)) {
+    throw new Error('il mock della Home e\' cambiato, la .cta terracotta non attacca piu\'');
+  }
+  home = home.replace(ctaAcc, 'font-weight:600;background:var(--acc-btn);color:var(--on-acc);');
 
   /* Il `body` del mock non si porta come regola (font, colore, larghezza e
      centratura li da' gia' `.k2`), ma due sue proprieta' servono davvero:

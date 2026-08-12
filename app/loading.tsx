@@ -1,60 +1,49 @@
 "use client";
 
-// Schermata mostrata mentre una pagina carica i dati.
-// REGOLA: lo splash "keiko" compare SOLO alla vera apertura dell'app (avvio a
-// freddo o ricarica). Quando ci si sposta TRA le pagine (Home/Dieta/Sport/Guarda)
-// NON si rivede la scritta: solo uno sfondo scuro, così non lampeggia il bianco.
-//
-// Come distingue "apertura" da "navigazione": una variabile di modulo ricorda se
-// lo splash è già stato mostrato in questa sessione.
-//  - sul server (primo render, apertura) window non esiste -> splash
-//  - sul client, dalla seconda volta in poi resta true -> solo fondo scuro.
-let splashShownThisSession = false;
+import { I } from "@/app/components/v2/icons";
+
+/* Schermata mostrata mentre una pagina carica i dati.
+ *
+ * REGOLA: l'orca compare SOLO alla vera apertura dell'app (avvio a freddo o
+ * ricarica). Spostandosi TRA le pagine non si rivede: solo fondo scuro, così
+ * non lampeggia niente. Come distingue "apertura" da "navigazione": una
+ * variabile di modulo ricorda se è già stata mostrata in questa sessione.
+ *  - sul server (primo render, apertura) `window` non esiste → orca
+ *  - sul client, dalla seconda volta in poi resta true → solo fondo.
+ *
+ * IL VESTITO È `.k2 .boot` del sistema V2. Prima qui c'era lo splash della v1:
+ * la scritta «keiko» con l'ambra, che è l'accento di due redesign fa, e tre
+ * pallini che pulsavano — un finto avanzamento, perché una percentuale non la
+ * conosciamo. Adesso è quello che il foglio ha già: fondo `--bg`, l'orca in
+ * teal che respira. Non uno spinner, non un logo fermo.
+ *
+ * SPARISCE QUANDO ARRIVANO I DATI, NON A TEMPO — ed è il motivo per cui
+ * `animation:none` spegne il `bootout` che la classe porta con sé: quello è un
+ * timer da 0,45s, e se i dati tardano lascia uno schermo vuoto che sembra
+ * un'app rotta. Qui a toglierla è Next, che smonta questo componente nel
+ * momento esatto in cui la pagina vera è pronta.
+ * La dissolvenza è in ENTRATA e non in uscita: da `loading.tsx` non si può
+ * sfumare l'uscita senza tenere il velo vivo oltre i dati, cioè senza
+ * ritardare l'app per un effetto. In entrata invece serve davvero — un
+ * caricamento veloce non fa lampeggiare l'orca per un istante, perché non fa
+ * in tempo a diventare visibile. */
+
+let vistaInQuestaSessione = false;
 
 export default function Loading() {
-  const isColdOpen = typeof window === "undefined" || !splashShownThisSession;
-  if (typeof window !== "undefined") splashShownThisSession = true;
+  const aperturaAFreddo = typeof window === "undefined" || !vistaInQuestaSessione;
+  if (typeof window !== "undefined") vistaInQuestaSessione = true;
 
-  // Navigazione tra pagine: nessuna scritta, solo fondo scuro (niente lampo bianco).
-  if (!isColdOpen) {
-    return <div aria-hidden style={{ position: "fixed", inset: 0, background: "#0C0E13", zIndex: 60 }} />;
+  // Navigazione tra pagine: solo il fondo, nessuna orca.
+  if (!aperturaAFreddo) {
+    return <div aria-hidden style={{ position: "fixed", inset: 0, background: "#0D0D10", zIndex: 200 }} />;
   }
 
-  // Apertura dell'app: splash Keiko.
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "#0C0E13",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 60,
-      }}
-    >
-      <style>{`@keyframes keikoPulse{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}`}</style>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-        <span
-          className="ds-display"
-          style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-0.02em", color: "#ECE9E3" }}
-        >
-          kei<span style={{ color: "#FFB84D" }}>ko</span>
-        </span>
-        <div style={{ display: "flex", gap: 7 }} aria-label="Caricamento">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#FFB84D",
-                animation: "keikoPulse 1.1s ease-in-out infinite",
-                animationDelay: `${i * 0.16}s`,
-              }}
-            />
-          ))}
-        </div>
+    <div className="k2">
+      <style>{`@keyframes bootin{from{opacity:0}to{opacity:1}}`}</style>
+      <div className="boot" style={{ animation: "bootin .22s ease .12s both" }} role="status" aria-label="Sto aprendo Keiko">
+        <span className="orca">{I.orca(52)}</span>
       </div>
     </div>
   );

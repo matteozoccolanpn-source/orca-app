@@ -354,6 +354,30 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
     return { segno: "✗", testo: "Non in streaming in Italia", forte: false };
   }
 
+  /* Toccare la riga di un risultato apre qualcosa. Prima reagiva solo il «+»,
+     e il titolo — che e' la parte grande della riga, quella che il dito
+     prende — non faceva niente.
+     Cosa si apre dipende da una differenza vera, non da un capriccio:
+      · se il titolo e' GIA' tuo, esiste la sua scheda, con voto, nota e a che
+        punto sei della serie. Si apre quella.
+      · se non l'hai ancora preso, una scheda non c'e': non c'e' niente da
+        votare e niente da ricordare. Quello che stai cercando in quel momento
+        e' dove lo trovi, e il foglio «Dove vederlo» legge e basta — gli
+        bastano titolo e tipo, quindi si puo' aprire su un risultato di
+        ricerca senza aggiungerlo alla lista per sbaglio.
+     Il «+» resta separato e si ferma prima di arrivare qui (stopPropagation):
+     aggiungere e guardare sono due cose diverse. */
+  function apriRisultato(r: Ricerca, suo: WatchItem | null) {
+    if (suo) { openDetail(suo); return; }
+    openDove({
+      id: `ricerca:${r.tmdbType}:${r.tmdbId}`,
+      title: r.title, kind: r.tmdbType === "tv" ? "serie" : "film",
+      info: null, link: null, seen: false, rating: null, note: null, seen_at: null,
+      poster: r.poster, genre: null, tmdbId: r.tmdbId, tmdbType: r.tmdbType, year: r.year,
+      season: null, episode: null, totalSeasons: null, totalEpisodes: null, nextAirDate: null,
+    });
+  }
+
   async function aggiungiDaRicerca(r: Ricerca) {
     setAggiunti((a) => [...a, r.tmdbId]);
     try {
@@ -504,6 +528,25 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
     return Math.max(0, Math.min(100, Math.round((i.episode / i.totalEpisodes) * 100)));
   }
 
+  /* LA RIGA SOTTO LA LOCANDINA — un formato solo per tutta la griglia.
+     Prima era `item.info ?? kindLabel(item.kind)`, e `info` è testo libero: su
+     una locandina usciva «Vincitore di 4 Oscar, dal regista di…», su quella
+     accanto «Film». Due righe che non si somigliavano, nella stessa griglia,
+     e la lunga rubava anche l'attenzione al titolo che le sta sopra.
+     Una griglia vuole un CAMPO, non una prosa. Quello che c'è sempre è il
+     tipo; l'anno c'è quando il titolo è stato risolto su TMDB e si aggiunge
+     dopo, senza cambiare forma: «Film» o «Film · 2016», mai altro.
+     Se l'hai già visto la riga dice quello, che è la cosa che conta di più —
+     ed era già uniforme fra tutti i visti.
+     `info` non sparisce dal dato, sparisce da QUI: resta nella scheda, dove
+     una frase lunga ha lo spazio per essere letta. (Il problema più grosso di
+     `info` — testo generato presentato come fatto — è in ROADMAP e non si
+     risolve nascondendolo.) */
+  const metaLocandina = (item: WatchItem): string => {
+    if (item.seen) return item.rating ? `visto · voto ${item.rating}` : "visto";
+    return [kindLabel(item.kind), item.year].filter(Boolean).join(" · ");
+  };
+
   /* La locandina della griglia. Il tocco lungo passa da `press`: il tap normale
      apre la scheda, e se il tocco lungo è già scattato il click va soffocato. */
   const card = (item: WatchItem) => (
@@ -513,7 +556,7 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
       t={item.title}
       badge={kindLabel(item.kind).toLowerCase()}
       seen={item.seen}
-      m={item.seen ? (item.rating ? `visto · voto ${item.rating}` : "visto") : item.info ?? kindLabel(item.kind)}
+      m={metaLocandina(item)}
       ariaLabel={item.title}
       onClick={() => { if (pressFired.current) { pressFired.current = false; return; } openDetail(item); }}
       press={{
@@ -605,11 +648,20 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
                      indietro. Il mock scrive 13, ma il mock non ha campi. */
                   style={{ background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
                 />
+                {/* UNA PRIMARIA PER SCHERMATA. `.go` nasce terracotta nel
+                    foglio, e li' e' giusto: nella Cucina quel tasto E' l'azione
+                    (cerca). Qui no — l'azione della Guarda e' «Dove vederlo»,
+                    e due tasti terracotta sulla stessa schermata si annullano.
+                    Quindi superficie neutra e orca in teal, e l'accento resta
+                    uno solo. La correzione sta qui e non nel foglio proprio
+                    perche' vale per questa schermata, non per la classe.
+                    Deciso da Matteo il 12 agosto, contro una scelta sua di
+                    prima: la regola vale anche contro chi l'ha scritta. */}
                 <button
                   className="go tap"
                   onClick={() => suggest.startInput()}
                   aria-label="Chiedi un consiglio a Keiko"
-                  style={{ border: 0, cursor: "pointer" }}
+                  style={{ border: 0, cursor: "pointer", background: "var(--lv2)", color: "var(--teal)" }}
                 >
                   {I.orca(15)}
                 </button>
@@ -625,9 +677,17 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
                     <div className="srf">
                       {ric.map((r) => {
                         const d = disponibilita(r);
-                        const giaInLista = list.some((i) => i.tmdbId === r.tmdbId) || aggiunti.includes(r.tmdbId);
+                        const suo = list.find((i) => i.tmdbId === r.tmdbId) ?? null;
+                        const giaInLista = !!suo || aggiunti.includes(r.tmdbId);
                         return (
-                          <div key={`${r.tmdbType}-${r.tmdbId}`} className="res">
+                          <div
+                            key={`${r.tmdbType}-${r.tmdbId}`}
+                            className="res tap"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => apriRisultato(r, suo)}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apriRisultato(r, suo); } }}
+                          >
                             <span className="pw">
                               <b className="fb2" style={{ fontSize: "13px" }}>{r.title.slice(0, 2)}</b>
                               {r.poster && <Img src={r.poster} />}
@@ -941,8 +1001,14 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
                     />
                   </div>
 
+                  {/* Chi vince fra «+1 episodio» e «Dove vederlo»: sono nello
+                      stesso foglio, quindi nello stesso contesto, e una delle
+                      due deve essere la primaria. Vince quella che risponde
+                      alla domanda del momento — serie cominciata, «a che punto
+                      sono»; serie non cominciata, «come lo guardo».
+                      L'altra non sparisce: diventa `.btn2`. */}
                   <button
-                    className="cta wide tap"
+                    className={(detItem.episode != null ? "cta" : "btn2") + " wide tap"}
                     style={{ marginTop: 12 }}
                     aria-disabled={avanzando.includes(detItem.id) || undefined}
                     onClick={() => avanzaEpisodio(detItem)}
@@ -965,7 +1031,15 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
                           onClick={() => { setDetRating(nn); saveReview(detItem, nn, detNote); }}
                           aria-label={`${nn} su 5`}
                           className="tap"
-                          style={{ background: "none", border: 0, cursor: "pointer", width: 44, height: 44, display: "grid", placeItems: "center", color: nn <= detRating ? "var(--teal)" : "var(--meta)", opacity: nn <= detRating ? 1 : 0.4 }}
+                          /* Le orche non votate stavano a 0,4 di opacità: sul
+                             fondo del foglio (--lv1) fanno 2,13:1, sotto la
+                             soglia di 3:1 che vale per i comandi. Uno stato
+                             che non si vede non è uno stato, è un indovinello:
+                             non sapevi se le orche vuote fossero premibili.
+                             A 0,7 fanno 3,88:1 — si vedono, e restano
+                             chiaramente più quiete del teal di quelle scelte
+                             (6,04:1), che è il colore a distinguerle. */
+                          style={{ background: "none", border: 0, cursor: "pointer", width: 44, height: 44, display: "grid", placeItems: "center", color: nn <= detRating ? "var(--teal)" : "var(--meta)", opacity: nn <= detRating ? 1 : 0.7 }}
                         >
                           {I.orca(22)}
                         </button>
@@ -1029,7 +1103,21 @@ export default function GuardaView({ items, vota }: { items: WatchItem[]; vota?:
               })()}
 
               <div className="pactions" style={{ marginTop: 20 }}>
-                <button className="cta tap" onClick={() => { const it = detItem; setDetItem(null); openDove(it); }}>Dove vederlo</button>
+                {/* Primaria solo quando la domanda è ancora «come lo guardo»:
+                    sui film sempre, sulle serie finché non le hai cominciate.
+                    Se sei già dentro una serie la primaria è «+1 episodio»,
+                    qui sopra. Vedi UI-DECISIONI-V2, 3-quinquies. */}
+                <button
+                  className={(detItem.kind === "serie" && detItem.episode != null ? "btn2" : "cta") + " tap"}
+                  /* `.pactions .cta` prende `flex:1` e `.btn2` no: senza questa
+                     riga la coppia di tasti, diventati due secondari, si
+                     stringerebbe a sinistra lasciando un vuoto a destra. La
+                     riga tiene la forma di sempre, cambia solo il peso. */
+                  style={{ flex: 1, textAlign: "center" }}
+                  onClick={() => { const it = detItem; setDetItem(null); openDove(it); }}
+                >
+                  Dove vederlo
+                </button>
                 <button className="btn2 tap" onClick={() => { toggleSeen(detItem); setDetItem(null); }}>
                   {detItem.seen ? "Non l’ho visto" : "L’ho visto"}
                 </button>

@@ -194,7 +194,7 @@
 .k2 .empty{padding:24px 16px;text-align:center}
 .k2 .empty .ic{width:36px;height:36px;border-radius:var(--r-in);background:var(--lv2);margin:0 auto;
   display:grid;place-items:center;color:var(--meta);box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
-.k2 .empty .t{font-size:13px;font-weight:600;margin-top:8px}
+.k2 .empty .t{font-family:var(--font-fraunces-v2),Fraunces,Georgia,serif;font-size:13px;font-weight:500;margin-top:8px}
 .k2 .empty .m{font-size:11.5px;color:var(--meta);font-weight:500;margin-top:4px;line-height:1.5}
 .k2 .empty .cta, .k2 .empty .btn2{margin-top:16px}
 .k2 .soon{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--meta);
@@ -815,29 +815,29 @@
     border:1px solid rgba(91,155,219,.4);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:#AECBEE}
 .k2 .home .ctx i{width:6px;height:6px;border-radius:3px;background:var(--c-viaggi);font-style:normal}
 .k2 .home .feature .t{font-family:var(--font-fraunces-v2),Fraunces,Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.01em;line-height:1.1;margin-top:7px}
-.k2 .home .feature .m{line-height:revert;font-size:12.5px;color:#9FB4CC;font-weight:500;margin-top:4px}
+.k2 .home .feature .m{line-height:revert;font-size:12.5px;color:var(--meta);font-weight:500;margin-top:4px}
 .k2 .home .g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .k2 .home .content{min-width:revert;cursor:pointer;padding:7px 7px 10px}
 .k2 .home .content .t{display:revert;line-height:revert;min-height:revert;-webkit-line-clamp:revert;-webkit-box-orient:revert;overflow:revert;font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin:8px 5px 0}
-.k2 .home .content .m{color:revert;white-space:revert;overflow:revert;text-overflow:revert;font-size:11.5px;font-weight:500;margin:3px 5px 0;display:flex;align-items:center;gap:5px}
+.k2 .home .content .m{color:var(--meta);white-space:revert;overflow:revert;text-overflow:revert;font-size:11.5px;font-weight:500;margin:3px 5px 0;display:flex;align-items:center;gap:5px}
 .k2 .home .dot{background:revert;width:5px;height:5px;border-radius:3px;flex:none}
 .k2 .home .wide{display:flex;cursor:pointer;padding:7px}
 .k2 .home .wide .ph{width:100px;flex:none;align-self:stretch}
 .k2 .home .wide .in{min-width:revert;padding:6px 10px 6px 13px;flex:1;display:flex;flex-direction:column;justify-content:center;min-height:80px}
-.k2 .home .wide .k{color:revert;font-size:11.5px;font-weight:500;display:flex;align-items:center;gap:5px}
+.k2 .home .wide .k{color:var(--meta);font-size:11.5px;font-weight:500;display:flex;align-items:center;gap:5px}
 .k2 .home .wide .t{font-family:var(--font-fraunces-v2),Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;margin-top:2px;letter-spacing:-.01em}
 .k2 .home .staterow{display:flex;align-items:center;gap:9px;margin-top:8px}
 .k2 .home .prog{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}
 .k2 .home .prog i{display:block;height:100%;background:var(--teal);border-radius:2px}
 .k2 .home .wide .st{font-size:11.5px;color:var(--meta);font-weight:500;white-space:nowrap}
-.k2 .home .cta{border:revert;cursor:revert;font-size:12px;font-weight:600;background:var(--acc);color:#FFF3EC;
+.k2 .home .cta{border:revert;cursor:revert;font-size:12px;font-weight:600;background:var(--acc-btn);color:var(--on-acc);
     border-radius:var(--r-chip);padding:6px 12px;white-space:nowrap;box-shadow:0 4px 16px rgba(201,106,69,.35)}
 .k2 .home .shelf{display:flex;gap:10px;overflow-x:auto;margin:0 -16px;padding:2px 16px 6px;
     scroll-snap-type:x mandatory;scrollbar-width:none}
 .k2 .home .rcard{flex:none;width:240px;scroll-snap-align:start;display:flex;padding:7px;cursor:pointer}
 .k2 .home .rcard .ph{width:74px;flex:none;align-self:stretch}
 .k2 .home .rcard .in{padding:4px 4px 4px 11px;flex:1;display:flex;flex-direction:column;justify-content:center;min-height:70px}
-.k2 .home .rcard .k{color:revert;margin:revert;font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px}
+.k2 .home .rcard .k{color:var(--meta);margin:revert;font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px}
 .k2 .home .rcard .t{margin:revert;white-space:revert;overflow:revert;text-overflow:revert;font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px;color:var(--txt)}
 .k2 .home .rcard .staterow{margin-top:7px}
 .k2 .home .btn2{cursor:revert;display:revert;align-items:revert;justify-content:revert;gap:revert;font-size:11.5px;font-weight:600;background:var(--lv2);color:var(--txt);

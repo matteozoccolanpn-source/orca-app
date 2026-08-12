@@ -3,13 +3,26 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /* ═════════ foglio dal basso ═════════
-   Si chiude in due modi: toccando fuori (lo scrim) oppure trascinando la
-   maniglia verso il basso. Il trascinamento parte solo se il foglio è già in
-   cima (scrollTop <= 0), altrimenti si scorre il contenuto. Oltre 90px il
-   foglio se ne va da solo. */
+   Si chiude in tre modi: toccando fuori (lo scrim), trascinando la maniglia
+   verso il basso, oppure con `Esc` da tastiera. Il trascinamento parte solo se
+   il foglio è già in cima (scrollTop <= 0), altrimenti si scorre il contenuto.
+   Oltre 90px il foglio se ne va da solo. */
 
 export function Sheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+
+  /* `Esc` chiude. Sul telefono non serve a niente e non dà fastidio; sul
+     desktop è il gesto che tutti provano per primo, e finora non succedeva
+     nulla. L'ascolto sta sul documento perché il foglio non ha il fuoco: si
+     apre senza che nessuno ci abbia cliccato dentro.
+     Se ci fossero due fogli aperti uno sopra l'altro, `Esc` li chiuderebbe
+     entrambi — oggi non succede mai (i fogli si escludono a vicenda), e
+     inventare uno stack per un caso che non esiste sarebbe peggio del bug. */
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [onClose]);
 
   useEffect(() => {
     const el = ref.current;

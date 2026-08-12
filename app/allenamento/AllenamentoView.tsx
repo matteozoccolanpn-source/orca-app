@@ -460,11 +460,22 @@ export default function AllenamentoView({
                               <div className="item-x">
                                 <div className="inner">
                                   <div className="col">
+                                    {/* La fonte di verita' dello stato «ha
+                                        registrazioni» sono le SERIE DI OGGI
+                                        (`mie`), le stesse che scrivono `meta`
+                                        qui sopra. «nessuna traccia» parlava
+                                        solo del passato e finiva accanto a «1
+                                        serie · 1 × 10»: due righe che si
+                                        smentivano nella stessa card.
+                                        Adesso vale solo finche' oggi non hai
+                                        segnato niente; appena c'e' una serie e
+                                        dal passato non arriva nulla, la riga
+                                        sparisce invece di contraddire. */}
                                     {prec.length > 0 ? (
                                       <span className="rx">l’ultima volta: {riassunto(prec)}</span>
-                                    ) : (
+                                    ) : !fatto ? (
                                       <span className="rx">nessuna traccia di questo esercizio</span>
-                                    )}
+                                    ) : null}
                                     {ex.dettaglio && <span className="rx">dalla scheda: {ex.dettaglio}</span>}
                                     <div className="row">
                                       <button className="tert tap" onClick={() => apriEsercizio(i)}>

@@ -174,8 +174,16 @@
 .dark {
   color-scheme: dark;
 
-  /* Coerenza col redesign: nero caldo come la home (niente più glow blu). */
-  --screen-bg:     #0C0E13;
+  /* IL FONDO DELL'APP — un valore solo (12 agosto 2026).
+     `--screen-bg` finisce in `background-image` sul body (vedi @layer base).
+     Un colore in `background-image` è una dichiarazione NON VALIDA: il browser
+     la butta via, e il body restava sul suo `background-color`, che era il
+     navy `#08111d` della UI v1. Sopra i 430px — dove `.k2` finisce — quel navy
+     si vedeva ai lati della colonna. Misurato: `backgroundImage: "none"`,
+     `backgroundColor: rgb(8,17,29)`.
+     Adesso l'immagine è dichiarata `none` sul serio, e il colore è quello
+     giusto: `#0D0D10`, lo stesso `--bg` del sistema V2. */
+  --screen-bg:     none;
   --accent-strong: #FFB84D; /* era viola: ora ambra, coerente col redesign */
   --surface:       #141D2C;
   --on-surface: #F1F4FA; --on-surface-2: #A9B4C6; --on-surface-3: #7B8699;
@@ -184,7 +192,11 @@
   --bar:  rgba(6, 11, 18, .82); --bar-line: rgba(120, 150, 210, .13);
   --inset: #1E2838; --inset-line: rgba(255, 255, 255, .07); --scrim: rgba(4, 9, 16, .6);
 
-  --background:          #08111d;
+  /* Il navy `#08111d` era il fondo della UI v1. Non serve più a nessuna
+     schermata: la shell v1 (`.keiko`) dipinge il suo, e le sole tre cose che
+     leggono `bg-background` sono /login, una pastiglia in /add e la variante
+     «outline» del bottone shadcn — controllate una per una. */
+  --background:          #0D0D10;
   --foreground:          var(--app-text);
   --card:                var(--surface);
   --card-foreground:     var(--on-surface);

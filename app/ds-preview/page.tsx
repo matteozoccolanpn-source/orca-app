@@ -19,7 +19,7 @@ function mkEv(o: {
 const WD = ["ven", "sab", "dom", "lun", "mar", "mer", "gio"];
 const SAMPLE: LiveHome = {
   kickDate: "Venerdì 17 luglio · Milano 24° ☀️",
-  greeting: "Ciao Matteo 👋",
+  greeting: "Ciao Matteo",
   lede: "",
   week: WD.map((w, i) => ({ w, n: 17 + i, key: w + i, today: i === 0, d1: i === 0 || i === 3, d2: false })),
   cal: { y: 2026, m: 6, dots: [] },

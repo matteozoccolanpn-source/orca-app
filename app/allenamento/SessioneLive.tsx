@@ -91,6 +91,9 @@ export default function SessioneLive({
     ultima(open?.sets ?? []);
   const [reps, setReps] = useState<number>(rifIniziale?.ripetizioni ?? 10);
   const [kg, setKg] = useState<number>(rifIniziale?.pesoKg ?? 0);
+  /* Di CHI sono le caselle in questo momento. Parte dall'esercizio gia' aperto,
+     perche' `reps` e `kg` qui sopra sono gia' i suoi. Vedi `apri()`. */
+  const campiDi = useRef<string | null>(nomeIniziale);
 
   /* ── LA DISCIPLINA ──
      Si indovina dal nome che arriva dalla scheda del preparatore, e si può
@@ -141,14 +144,19 @@ export default function SessioneLive({
     if (apertoIdx === i) { setApertoIdx(null); return; }
     setApertoIdx(i);
     const nome = esercizi[i].nome;
-    /* I campi di durata si svuotano SEMPRE, non solo quando c'e' un
-       riferimento da cui ripartire: sono uno stato solo per tutta la
-       schermata, e senza questo il battito della bici finiva nella camminata
-       che apri subito dopo. Visto succedere in prova, con 132 bpm registrati
-       su una camminata in cui non avevo misurato niente.
-       E non si ricopiano dall'ultima volta: due chili sono gli stessi due
-       chili, ma cinque chilometri di ieri non sono quelli di oggi, e trovarli
-       gia' scritti li farebbe registrare per sbaglio. */
+    /* Si riempie da capo SOLO quando l'esercizio cambia davvero.
+       Le caselle sono uno stato solo per tutta la schermata, e senza svuotarle
+       il battito della bici finiva nella camminata che apri subito dopo (visto
+       in prova, 132 bpm su una camminata in cui non avevo misurato niente).
+       Ma svuotare a ogni tocco era troppo: chiudere e riaprire lo STESSO
+       esercizio buttava via quello che avevi appena scritto, senza avviso.
+       Questo `ref` ricorda di chi sono le caselle adesso, cosi' i due casi si
+       distinguono: cambio esercizio -> si azzerano, riapro lo stesso -> restano. */
+    if (campiDi.current === nome) return;
+    campiDi.current = nome;
+    /* La distanza e la durata non si ricopiano dall'ultima volta: due chili
+       sono gli stessi due chili, ma cinque chilometri di ieri non sono quelli
+       di oggi, e trovarli gia' scritti li farebbe registrare per sbaglio. */
     setDistanza(""); setDurata(""); setBpm(""); setDislivello(""); setFatica(0);
     const base = ultima(sets.filter((s) => s.esercizio === nome)) ?? ultima(ultimaVolta[nome] ?? []);
     if (base) {
@@ -353,21 +361,35 @@ export default function SessioneLive({
                     <div className="item-x" style={aperto ? { maxHeight: 640 } : undefined}>
                       <div className="inner">
                         <div className="col">
-                          {/* l'ultima volta */}
-                          <span className="rx" style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                            <span style={{ color: "var(--teal-soft)", display: "flex", flex: "none" }}>
-                              {I.hist({ s: 13 })}
+                          {/* L'ULTIMA VOLTA — e quando non dire niente.
+                              La fonte di verita' dello stato «ha registrazioni»
+                              sono le SERIE DI OGGI, `mie`: la riga in cima dice
+                              «1 serie segnata» leggendo quella, e questa riga
+                              non puo' dire il contrario.
+                              Percio' «prima volta che lo segni» vale solo
+                              finche' oggi non hai segnato niente. Appena c'e'
+                              una serie, se dal passato non arriva nulla questa
+                              riga sparisce del tutto: non c'e' un'ultima volta
+                              da mostrare, e le due frasi non convivono mai.
+                              (Difetto visto dal vivo su «Corsa Z2»: «1 serie ·
+                              1 × 10» e «nessuna traccia di questo esercizio»
+                              nella stessa card.) */}
+                          {(prec.length > 0 || mie.length === 0) && (
+                            <span className="rx" style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                              <span style={{ color: "var(--teal-soft)", display: "flex", flex: "none" }}>
+                                {I.hist({ s: 13 })}
+                              </span>
+                              {prec.length === 0 ? (
+                                <span>prima volta che lo segni</span>
+                              ) : (
+                                /* Confronta come con come: i pesi coi pesi, la
+                                   corsa con la corsa. E non dice chi ha vinto:
+                                   mette il dato di prima accanto a quello di
+                                   adesso, il giudizio lo fa Matteo. */
+                                <span>l&apos;ultima volta: {riassuntoSerie(prec)}</span>
+                              )}
                             </span>
-                            {prec.length === 0 ? (
-                              <span>prima volta che lo segni</span>
-                            ) : (
-                              /* Confronta come con come: i pesi coi pesi, la
-                                 corsa con la corsa. E non dice chi ha vinto:
-                                 mette il dato di prima accanto a quello di
-                                 adesso, il giudizio lo fa Matteo. */
-                              <span>l&apos;ultima volta: {riassuntoSerie(prec)}</span>
-                            )}
-                          </span>
+                          )}
 
                           {/* serie gia' fatte oggi */}
                           {mie.length > 0 && (
@@ -457,9 +479,14 @@ export default function SessioneLive({
                           )}
 
                           {/* La fatica: c'e' su tutte le discipline, e resta
-                              facoltativa. «—» vuol dire che non l'hai detta. */}
+                              facoltativa. «—» vuol dire che non l'hai detta.
+                              Lo dice l'etichetta, perche' un campo mostrato
+                              come «—» sembra una cosa che manca: da fuori si
+                              legge come un obbligo non ancora soddisfatto. */}
                           <div className="fld">
-                            <span className="fl">Fatica</span>
+                            <span className="fl">
+                              Fatica <span style={{ color: "var(--meta)", fontWeight: 400 }}>facoltativa</span>
+                            </span>
                             <Step
                               val={fatica > 0 ? fatica : "—"}
                               dec={() => setFatica(Math.max(0, fatica - 1))}
@@ -505,15 +532,30 @@ export default function SessioneLive({
 
         {/* ---------- fondo ---------- */}
         <div className="actions">
-          <span className="skip" style={{ cursor: "default" }}>
+          {/* `.skip` nel foglio e' un tasto («salta»), e il 600 e' suo di
+              diritto. Qui la stessa classe porta un metadato — «Nessuna serie
+              ancora» — che di quel peso non ha titolo: in grassetto sembrava
+              un avviso invece del conto di quello che hai fatto.
+              Peso medio, come tutti i metadati (UI-DECISIONI-V2, regola 3). */}
+          <span className="skip" style={{ cursor: "default", fontWeight: 500 }}>
             {totSerie === 0
               ? "Nessuna serie ancora"
               : `${totSerie} serie · ${eserciziToccati} ${eserciziToccati === 1 ? "esercizio" : "esercizi"}`}
           </span>
+          {/* UNA PRIMARIA PER SCHERMATA. Questo tasto e' due cose diverse:
+              con delle serie segnate e' «Finisci allenamento», la conclusione
+              di quello che stai facendo, e il terracotta e' suo.
+              Senza nemmeno una serie e' «Esci» — un'uscita, non un'azione — e
+              accanto alla card aperta c'era «Registra serie», anche lui
+              terracotta: due primarie sulla stessa schermata, con quella meno
+              importante piu' in vista. Da qui in poi «Esci» e' secondario.
+              `flex:1` arriva da `.actions .cta` e va rimesso a mano: `.btn2`
+              non ce l'ha. */}
           <button
-            className="cta tap"
+            className={(totSerie === 0 ? "btn2" : "cta") + " tap"}
             onClick={finisci}
             disabled={chiudo}
+            style={totSerie === 0 ? { flex: 1 } : undefined}
           >
             {chiudo ? "Chiudo…" : totSerie === 0 ? "Esci" : "Finisci allenamento"}
           </button>

@@ -12,7 +12,7 @@ import InstallSheet from "./InstallSheet";
 import Onboarding from "./Onboarding";
 import { cosaMostrare, daProporre, daIcona, daTelefono, type CosaMostrare } from "@/lib/install-client";
 import CalendarSheet from "./CalendarSheet";
-import { catFor, glyphFor, type ImageCategory } from "@/lib/smart-image";
+import { catFor, type ImageCategory } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
 import type { Battito } from "@/lib/battiti";
 import { I } from "@/app/components/v2/icons";
@@ -41,15 +41,19 @@ type LiveTodo = LiveHome["days"][string]["todos"][number];
    è vestizione, e un tipo nuovo senza emoji ricade su ✨ senza rompere nulla. */
 const EMOJI_BATTITO: Record<string, string> = { sport: "🏟️", concert: "🎵", cinema: "🎬" };
 
-/* L'etichetta piccola in cima al testo ("DOMANI" / "UN MESE FA"): si ricava da
-   quanto dista l'evento, non dal tipo — così vale anche per i tipi di domani. */
+/* L'etichetta piccola in cima al testo ("domani" / "un mese fa"): si ricava da
+   quanto dista l'evento, non dal tipo — così vale anche per i tipi di domani.
+   In minuscolo: è un metadato, e i metadati non urlano (UI-DECISIONI-V2,
+   regola 3). Il maiuscolo qui faceva anche un'altra cosa, peggiore: metteva
+   «UN MESE FA» allo stesso volume del titolo dell'evento, che è la frase che
+   deve leggersi per prima. */
 function etichettaBattito(chiave: "prima" | "dopo", oreDaEvento: number): string {
-  if (chiave === "prima") return "DOMANI";
+  if (chiave === "prima") return "domani";
   const giorni = Math.round(oreDaEvento / 24);
-  if (giorni <= 1) return "IERI";
-  if (giorni < 25) return `${giorni} GIORNI FA`;
-  if (giorni < 45) return "UN MESE FA";
-  return `${Math.round(giorni / 30)} MESI FA`;
+  if (giorni <= 1) return "ieri";
+  if (giorni < 25) return `${giorni} giorni fa`;
+  if (giorni < 45) return "un mese fa";
+  return `${Math.round(giorni / 30)} mesi fa`;
 }
 
 function dayTitle(key: string): string {
@@ -60,7 +64,16 @@ function dayTitle(key: string): string {
 /* ── le cinque famiglie di colore del sistema ──
    `catFor` dà una quindicina di categorie (serve alle foto); i pallini del
    sistema V2 sono cinque. Qui si riduce, e la riduzione sta in un posto solo.
-   Il testo tenue accanto al pallino usa le tinte chiare di UI-DECISIONI-V2. */
+
+   IL COLORE STA NEL PALLINO, NON NELLE PAROLE (12 agosto 2026). Prima il
+   metadato accanto al pallino prendeva la tinta chiara della sua famiglia:
+   il risultato era che sulla stessa schermata i metadati avevano quattro
+   colori diversi — la card grande azzurra, quella del volo quasi bianca — e
+   l'occhio leggeva una gerarchia che non c'era. Il pallino fa già quel
+   mestiere, e lo fa senza toccare la leggibilità del testo.
+   Adesso tutti i metadati sono `--meta` (#9BA0A8) e il colore di famiglia
+   resta solo sul `.dot`. La versione tenue del viola era già ritirata
+   (UI-DECISIONI-V2, 2-ter) e con lei se ne va anche l'ultimo uso. */
 type Famiglia = "viaggi" | "sport" | "dieta" | "guarda" | "eventi";
 const FAMIGLIA: Partial<Record<ImageCategory, Famiglia>> = {
   volo: "viaggi", treno: "viaggi", viaggio: "viaggi", hotel: "viaggi",
@@ -70,10 +83,6 @@ const famigliaDi = (c: ImageCategory): Famiglia => FAMIGLIA[c] ?? "eventi";
 const COLORE: Record<Famiglia, string> = {
   viaggi: "var(--c-viaggi)", sport: "var(--c-sport)", dieta: "var(--c-dieta)",
   guarda: "var(--c-guarda)", eventi: "var(--c-eventi)",
-};
-const TENUE: Record<Famiglia, string> = {
-  viaggi: "#AECBEE", sport: "#7CC9BD", dieta: "#8FCB9E",
-  guarda: "#BFA3E8", eventi: "var(--meta)",
 };
 
 /* Le tre frasi che ruotano nella barra: sono del mock congelato, verbatim. */
@@ -93,12 +102,13 @@ function Ph({ src, cat, className, style, children }: {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" loading="lazy" decoding="async" />
       ) : cat ? (
-        <>
-          <span style={{ position: "absolute", inset: 0, background: `var(--k-cat-${cat})` }} />
-          <span aria-hidden style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 26, opacity: .5 }}>
-            {glyphFor(cat)}
-          </span>
-        </>
+        /* Il gradiente di categoria e basta. Qui sopra c'era anche il glifo —
+           🏋️ 🎵 🥗 al 50% — e sulla card lo stesso mestiere lo faceva già il
+           pallino colorato accanto al metadato: due sistemi di categoria uno
+           sopra l'altro, e il secondo era un'emoji, cioè decorazione.
+           Via l'emoji, resta il pallino (12 agosto 2026). L'emoji del battito
+           NON si tocca: quella è un dato, dice che tipo di serata era. */
+        <span style={{ position: "absolute", inset: 0, background: `var(--k-cat-${cat})` }} />
       ) : null}
       {children}
     </div>
@@ -435,9 +445,14 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
               <span className="brand">
                 {/* l'orca del marchio: ha le due bollicine e l'occhio, che
                     l'orca del set di icone non ha. È markup, non un'icona nuova. */}
-                <svg width="23" height="23" viewBox="0 0 32 32" fill="#3DA5C4">
-                  <circle cx="20.6" cy="4.4" r="1.1" fill="#C96A45" />
-                  <circle cx="23" cy="6" r=".75" fill="#C96A45" />
+                {/* I colori vengono dalle variabili del sistema, non riscritti
+                    a mano: due bollicine terracotta e un'orca teal scritte in
+                    esadecimale qui dentro sono due posti in piu' da ricordare
+                    il giorno che l'accento cambia. `--acc` e' il terracotta
+                    acceso, quello che sta bene dove non c'e' testo sopra. */}
+                <svg width="23" height="23" viewBox="0 0 32 32" fill="var(--teal)">
+                  <circle cx="20.6" cy="4.4" r="1.1" fill="var(--acc)" />
+                  <circle cx="23" cy="6" r=".75" fill="var(--acc)" />
                   <path d="M27 15c-1.7-4.3-5.7-6.8-10.8-6.8-4.5 0-8.3 2.1-9.9 5.4-.6 1.2-.8 2.5-.6 3.7-1.6.4-2.6 1.2-3 2.4 1.1.2 2.2.1 3.3-.2 1.5 2.9 5 4.8 9.4 4.8 3.2 0 6-1 8-2.6.9.9 2.1 1.4 3.5 1.5-.3-1.3-.9-2.4-1.8-3.2.9-1.1 1.5-2.4 1.9-3.8.2-.4.2-.8 0-1.2z" />
                   <circle cx="21.8" cy="14" r="1.4" fill="#0F0F12" />
                 </svg>
@@ -524,7 +539,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                     <div className="rcard srf" key={r.k} onClick={r.vai}>
                       <Ph src={r.img} cat={r.cat} />
                       <div className="in">
-                        <div className="k" style={{ color: TENUE[r.famiglia] }}>
+                        <div className="k">
                           <span className="dot" style={{ background: COLORE[r.famiglia] }} />{r.kicker}
                         </div>
                         <div className="t">{r.testo}</div>
@@ -572,7 +587,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                       <div className="content srf" key={ev.id} onClick={() => openEvent(ev)}>
                         <Ph src={ev.image} cat={cat} />
                         <div className="t">{ev.title}</div>
-                        <div className="m" style={{ color: TENUE[fam] }}>
+                        <div className="m">
                           <span className="dot" style={{ background: COLORE[fam] }} />{ev.when}
                         </div>
                       </div>
@@ -588,7 +603,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
               <div className="wide srf" onClick={() => go("/allenamento")}>
                 <Ph src={gym.image} cat="sport" />
                 <div className="in">
-                  <div className="k" style={{ color: TENUE.sport }}>
+                  <div className="k">
                     <span className="dot" style={{ background: COLORE.sport }} />
                     Allenamento{gym.first ? ` · ${gym.first}` : ""}
                   </div>
@@ -609,7 +624,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                     <div className="content srf" key={c.k} onClick={c.vai}>
                       <Ph src={c.img} cat={c.cat} />
                       <div className="t">{c.titolo}</div>
-                      <div className="m" style={{ color: TENUE[fam] }}>
+                      <div className="m">
                         <span className="dot" style={{ background: COLORE[fam] }} />{c.meta}
                       </div>
                     </div>
@@ -627,7 +642,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                 <div className="wide srf" style={{ position: "relative" }}>
                   <Ph src={battito.foto} cat={catFor(battito.tipo, battito.frase)} />
                   <div className="in">
-                    <div className="k" style={{ color: TENUE[famigliaDi(catFor(battito.tipo, battito.frase))] }}>
+                    <div className="k">
                       <span className="dot" style={{ background: COLORE[famigliaDi(catFor(battito.tipo, battito.frase))] }} />
                       {EMOJI_BATTITO[battito.tipo] ?? "✨"} {etichettaBattito(battito.chiave, battito.oreDaEvento)}
                     </div>

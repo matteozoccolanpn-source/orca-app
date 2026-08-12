@@ -214,9 +214,11 @@ export function mapLive(data: {
   if (t0) {
     const s = t0.start_date ? new Date(t0.start_date) : null;
     const e = t0.end_date ? new Date(t0.end_date) : null;
-    const range = s ? (e && e.getMonth() !== s.getMonth() ? `${s.getDate()} ${MONTHS[s.getMonth()].slice(0, 3)}–${e.getDate()} ${MONTHS[e.getMonth()].slice(0, 3)}` : e ? `${s.getDate()}–${e.getDate()} ${MONTHS[s.getMonth()].slice(0, 3).toUpperCase()}` : `${s.getDate()} ${MONTHS[s.getMonth()]}`) : "";
+    // I metadati non vanno mai in maiuscolo (UI-DECISIONI-V2, regola 3):
+    // «12–14 OTT» urla in mezzo a una schermata dove nient'altro urla.
+    const range = s ? (e && e.getMonth() !== s.getMonth() ? `${s.getDate()} ${MONTHS[s.getMonth()].slice(0, 3)}–${e.getDate()} ${MONTHS[e.getMonth()].slice(0, 3)}` : e ? `${s.getDate()}–${e.getDate()} ${MONTHS[s.getMonth()].slice(0, 3)}` : `${s.getDate()} ${MONTHS[s.getMonth()]}`) : "";
     const days = s ? countdownDays(t0.start_date!, today) : null;
-    trip = { title: t0.city ? `${t0.city}` : "Viaggio", range: range.toUpperCase(), sub: days != null && days > 0 ? `tra ${days} giorni · itinerario pronto ✓` : "itinerario pronto ✓" };
+    trip = { title: t0.city ? `${t0.city}` : "Viaggio", range, sub: days != null && days > 0 ? `tra ${days} giorni · itinerario pronto ✓` : "itinerario pronto ✓" };
   }
 
   const notSeen = data.watch.filter((x) => !x.seen);
@@ -242,7 +244,8 @@ export function mapLive(data: {
   }
 
   return {
-    kickDate, greeting: "Ciao Matteo 👋", lede,
+    // Niente emoji nel saluto: il vestito lo fa il carattere, non una manina.
+    kickDate, greeting: "Ciao Matteo", lede,
     week, cal: { y: today.getFullYear(), m: today.getMonth(), dots: calDots }, byDay, days,
     heroEvents, upcoming, agenda, gym, diet, trip, watch,
   };

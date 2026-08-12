@@ -36,12 +36,18 @@
    - Storia: ambra `#FFB84D` → `#FF7A2E` → teal `#4A90A4` + terracotta
      `#D9622F` → **FINALE: teal `#3DA5C4` + terracotta `#C96A45`**.
      NON riaprire.
-2-bis. **Colori-categoria con parsimonia** (pallini, etichette tenui — mai
-   fondi pieni): Viaggi `#5B9BDB` · Sport `#3AB8A8` · Dieta `#57B96E` ·
-   Guarda `#8F7AC0` · Eventi `#C4796B`. I metadati possono usare il
-   colore-categoria in versione tenue (tinte chiare: sport `#7CC9BD`, dieta
-   `#8FCB9E`, azione `#F0A377`, viaggi `#AECBEE`) — **tranne il viola**, vedi
-   2-ter.
+2-bis. **Colori-categoria con parsimonia** (pallini — mai fondi pieni):
+   Viaggi `#5B9BDB` · Sport `#3AB8A8` · Dieta `#57B96E` · Guarda `#8F7AC0` ·
+   Eventi `#C4796B`.
+   ⚠️ **Chiusa il 12 agosto 2026**: le versioni tenui sul TESTO sono ritirate.
+   Fino a quel giorno il metadato accanto al pallino prendeva la tinta chiara
+   della sua famiglia (sport `#7CC9BD`, dieta `#8FCB9E`, azione `#F0A377`,
+   viaggi `#AECBEE`, e il viola già ritirato dal 2-ter). Nella Home vera il
+   risultato era che sulla stessa schermata i metadati avevano quattro colori
+   diversi, e l'occhio ci leggeva una gerarchia che non c'era. **Il colore di
+   famiglia sta nel `.dot` e basta**; il testo accanto è `--meta` come tutti
+   gli altri metadati (regola 3). Le tinte restano scritte qui solo perché si
+   sappia cosa è stato tolto e perché.
 
 2-ter. ⚠️ **Il viola, eccezione chiusa (11 agosto 2026)**. La regola di sempre
    dice che «il viola non esiste». Quella regola riguarda **l'accento della
@@ -64,6 +70,61 @@
    vicini, lo Sport usa SOLO il pallino di categoria (niente testo tinto).
 3. Metadati in grigio `#9BA0A8`, Inter medium — mai bold. Testo primario
    `#F1F4FA`.
+
+3-bis. **E mai in maiuscolo** (12 agosto 2026). `etichettaBattito` scriveva
+   «UN MESE FA», «IERI», «DOMANI»: diventano «un mese fa», «ieri», «domani».
+   Il maiuscolo faceva due danni. Il primo è di volume — un metadato in
+   maiuscolo si legge prima del titolo dell'evento, che è la frase che deve
+   arrivare per prima. Il secondo è di voce: Keiko parla piano, e il maiuscolo
+   in italiano è un tono, non una convenzione tipografica neutra.
+   ⚠️ Cambia il **mock congelato** `docs/mockups/home-v2-final-mock.html`,
+   che diceva «Un mese fa · San Siro»: aggiornato lì, con la nota accanto.
+   Stessa regola, stesso giorno: `keikoLive.ts` non manda più in maiuscolo la
+   data del viaggio («12–14 OTT» → «12–14 ott»).
+
+3-ter. **Un metadato che sembra un obbligo** (12 agosto 2026). Un campo
+   mostrato come `—` senza altro segno si legge come una cosa che manca, non
+   come una cosa che puoi non dire: nell'Allenamento «Fatica» sembrava
+   richiesta e non lo è mai stata. Quando un campo è facoltativo **lo dice
+   l'etichetta** («Fatica *facoltativa*», in `--meta`), non il segnaposto.
+
+3-quater. **Gli stati vuoti sono voce, non fatto** (12 agosto 2026). Il titolo
+   di `Empty` passa a **Fraunces 500** (`.k2 .empty .t`): «Nessun titolo con
+   questi filtri» è una frase che qualcuno ha scritto per il momento in cui non
+   c'è niente da mostrare, e nel sistema la voce è Fraunces. Il peso è 500
+   perché è quello che Fraunces ha in tutto il foglio; 600 è un peso da Inter.
+   La riga sotto resta Inter grigia: quella spiega, e spiegare è un fatto.
+
+3-quinquies. **Una primaria per CONTESTO, anche quando dà fastidio**
+   (12 agosto 2026). Il contesto è la schermata **oppure la card**, non lo
+   schermo. Due card diverse sono due contesti diversi: nella Home «Inizia»
+   sull'allenamento e «Apri» sul battito restano tutt'e due terracotta, ed è
+   giusto — nessuno le confronta, perché stanno dentro due riquadri separati
+   con due titoli separati. Quello che non si fa è **due primarie dentro lo
+   stesso riquadro**, o due sulla stessa schermata quando non c'è un riquadro
+   a separarle: lì l'occhio le mette in gara e non sa quale sia l'azione.
+   I casi decisi:
+   - **Guarda** — la pastiglia del consiglio in fondo alla barra di ricerca era
+     terracotta come «Dove vederlo». Passa a superficie neutra `--lv2` con
+     l'orca in teal. La correzione vive in `GuardaView`, **non** nel foglio:
+     la stessa classe `.go` nella Cucina *è* l'azione (cerca) e lì il
+     terracotta è suo di diritto. La regola è della schermata, non della classe.
+   - **Sessione di allenamento** — «Esci» era terracotta accanto a «Registra
+     serie». Un'uscita non è un'azione: va in `.btn2`. Quando invece il tasto
+     dice «Finisci allenamento» resta primario, perché lì conclude davvero.
+   - **Scheda di una serie** — «+1 episodio» e «Dove vederlo» sono nello
+     **stesso** contesto (un foglio solo, niente riquadri a separarli), e lì
+     una deve vincere. Vince quella che riguarda il punto in cui sei: se la
+     serie l'hai già cominciata la primaria è **«+1 episodio»**, perché la
+     domanda è «a che punto sono»; se non l'hai ancora cominciata è **«Dove
+     vederlo»**, perché la domanda è «come lo guardo». L'altra resta e diventa
+     `.btn2`: non sparisce mai, cambia solo peso.
+   - **Il terracotta è uno solo sotto il testo**: `--acc-btn` `#AB5A3B`, che
+     con `#FFF3EC` fa **4,53:1** e passa AA; `--acc` `#C96A45` fa **3,42:1** e
+     resta dov'è giusto — dove sopra non c'è scritto niente (il «+», gli aloni,
+     i pallini del logo). La `.cta` della Home era l'unico bottone con del
+     testo rimasto su `--acc`, e ci scriveva pure il bianco a mano: corretta.
+     Nessun terracotta si scrive più in cifre nel codice.
 4. Contrasto sugli accenti: testo scuro su teal (`#08191E`); su terracotta
    testo chiaro caldo `#FFF3EC`.
 5. **Elevazione a 3 QUOTE**: fondo `#0F0F12` → card `#1A1B20` →

@@ -20,8 +20,12 @@ export default function manifest(): MetadataRoute.Manifest {
     // legge, e da web non c'è modo di bloccargli la rotazione — per quello c'è
     // il pannello di components/RuotaIlTelefono.tsx.
     orientation: "portrait",
-    background_color: "#0C0E13",
-    theme_color: "#0C0E13",
+    // Il fondo dell'app, uguale a `themeColor` in layout.tsx e al colore in
+    // linea su <html>. Aperta dall'icona, `background_color` è quello che il
+    // sistema dipinge PRIMA che parta la pagina: se non combacia si vede uno
+    // scalino di colore all'avvio.
+    background_color: "#0D0D10",
+    theme_color: "#0D0D10",
     // "any maskable": la stessa icona vale sia com'è sia ritagliata dal sistema
     // (Android arrotonda gli angoli). Prima la 512 era ripetuta due volte per
     // dire la stessa cosa.
