@@ -129,3 +129,34 @@ Alla fine, **tre righe**: cosa hai portato, cosa hai lasciato aperto, e dove il
 mock e il codice si contraddicevano — con quale dei due ha vinto e perché.
 
 Non committare finché Matteo non dice di sì.
+
+---
+
+## Aggiunte dell'11 agosto, dopo il primo tentativo
+
+Il primo giro si è fermato prima di cominciare la riscrittura — scelta giusta,
+un file da 1050 righe convertito a metà è lo stato peggiore. Quello che aveva
+già capito vale e non va rifatto; queste tre note tolgono di mezzo i dubbi che
+lo avevano bloccato.
+
+**La forma della pagina è decisa: vince il codice.** La Cucina tiene il suo
+ordine — piano → domanda → ricettario — e del mock prende il **linguaggio
+visivo**, non l'impaginazione. Metà della scheda Cucina del mock è gestione
+della dieta (`/salute`), che il §3 vieta di toccare: quella parte non si porta
+e non si cerca un equivalente.
+
+**Il modo cottura: se non ha i dati, non si inventa.** Nel codice i passi della
+ricetta sono un elenco dentro il foglio, non una sequenza «un passo per volta».
+Se è così, `.giant` non ha niente da mostrare: porta l'elenco nel vestito nuovo
+e segnalamelo. È la stessa risposta che abbiamo dato al timer di recupero
+dell'Allenamento — una funzione nuova non si travestisce da restyling.
+
+**Il blocco `<style>` in linea sparisce, non si traduce.** Quel blocco si
+inventa due livelli (`--inset`, `--accent2`) da `ds.css` con `color-mix`. Nel
+sistema V2 esistono già: sono `--lv2` e `--acc-btn`. Si usano quelli e il
+blocco si cancella.
+
+**Tre blocchi del mock non hanno il dato** — il menu spuntabile, «fuori piano»,
+«I prossimi giorni». `PastoDelGiorno` ha «passato», deciso dall'orologio, non
+una spunta che l'utente possa mettere. Non portarli, e dimmelo: si valuteranno
+come lavoro di prodotto.
