@@ -5,6 +5,19 @@ import { useRouter } from "next/navigation";
 import type { Recipe, RicettaEstratta, ShoppingItem } from "@/lib/supabase";
 import { quandoDetto, daQuanto, amazonFresh, type PastoDelGiorno, type Rifare } from "@/lib/cucina";
 import { PAGE_PB } from "@/app/components/keiko/KeikoNav";
+import { I } from "@/app/components/v2/icons";
+import { Sec } from "@/app/components/v2/Sec";
+import { Chip } from "@/app/components/v2/Chip";
+import { Check as CheckV2 } from "@/app/components/v2/Check";
+import { Content } from "@/app/components/v2/Content";
+import { Poster } from "@/app/components/v2/Poster";
+import { Feature } from "@/app/components/v2/Feature";
+import { DayCard } from "@/app/components/v2/DayCard";
+import { Sheet } from "@/app/components/v2/Sheet";
+import { Skeleton } from "@/app/components/v2/Skeleton";
+import { Empty } from "@/app/components/v2/Empty";
+/* ds.css resta importato finche' i fogli che questa pagina apre non passano
+   anche loro al sistema nuovo: toglierlo adesso li spoglierebbe. */
 import "../ds.css";
 
 /* CUCINA — la sezione, ripensata (docs/mockups/cucina-redesign-mock.html).
@@ -157,6 +170,9 @@ export default function CucinaView({
   const [salvate, setSalvate] = useState<Set<string>>(new Set(ricette.map((r) => r.url)));
   const [tutte, setTutte] = useState(false);
   const [spesaAperta, setSpesaAperta] = useState(false);
+  /* Presentazione e basta: la card del piano si apre e mostra tutta la
+     giornata. Nessun dato, nessuna chiamata. */
+  const [pianoAperto, setPianoAperto] = useState(false);
 
   // ── V2: il foglio ricetta e la spesa ──────────────────────────────────
   const [aperta, setAperta] = useState<Aperta | null>(null);
@@ -399,652 +415,559 @@ export default function CucinaView({
   const scaffale = useMemo(() => (tutte ? lista : lista.slice(0, 8)), [lista, tutte]);
 
   return (
-    <div
-      className="ds k-cuc"
-      style={{
-        minHeight: "100dvh",
-        background: "var(--k-bg)",
-        color: "var(--k-text)",
-        // Lo spazio di fondo è quello condiviso (KeikoNav): Cucina non ha la
-        // barra, ma ha la pastiglia della spesa che vive alla stessa altezza.
-        padding: `calc(env(safe-area-inset-top) + 20px) 18px ${PAGE_PB}`,
-        maxWidth: 560,
-        margin: "0 auto",
-        position: "relative",
-      }}
-    >
-      {/* I due livelli intermedi che il mock chiama --inset e --accent2 non
-          esistono in ds.css. NON sono colori nuovi: si ricavano da quelli che
-          ci sono già — l'inset è surface schiarito verso il fondo, l'accent2
-          è l'accento scurito verso il suo stesso inchiostro. Così la palette
-          resta quella e il gradiente caldo del mock c'è lo stesso. */}
-      <style>{`
-        .k-cuc { --inset: color-mix(in srgb, var(--k-surface) 58%, var(--k-bg));
-                 --accent2: color-mix(in srgb, var(--k-accent) 88%, var(--k-accent-ink)); }
-        .k-cuc .k-shelf::-webkit-scrollbar, .k-cuc .k-chips::-webkit-scrollbar { display: none; }
-        .k-cuc .k-shelf, .k-cuc .k-chips { scrollbar-width: none; }
-        .k-cuc .k-press { transition: transform .16s ease, opacity .16s ease; }
-        .k-cuc .k-press:active { transform: scale(.975); }
-        .k-cuc .k-sheet { transition: transform .45s cubic-bezier(.32,.72,.25,1); }
-        .k-cuc .k-toast { transition: opacity .35s ease, transform .35s cubic-bezier(.22,.61,.36,1); }
-        .k-cuc .k-fade { animation: kcucIn .34s cubic-bezier(.22,.61,.36,1) both; }
-        @keyframes kcucIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        @media (prefers-reduced-motion: reduce) {
-          .k-cuc .k-press, .k-cuc .k-sheet, .k-cuc .k-toast { transition: none; }
-          .k-cuc .k-press:active { transform: none; }
-          .k-cuc .k-fade { animation: none; }
-        }
-      `}</style>
+    <>
+      <div className="k2">
+        <div className="screen" style={{ paddingBottom: PAGE_PB }}>
+          {inRisultati ? (
+            /* ════════ SCHERMO RISULTATI ════════ */
+            <>
+              <div className="head">
+                <button
+                  className="x tap"
+                  onClick={() => { setRisultati(null); setInterpretazione(null); }}
+                  aria-label="Torna a Cucina"
+                  style={{ color: "inherit" }}
+                >
+                  {I.back({ s: 15 })}
+                </button>
+                <div className="col">
+                  <h1>Ricette</h1>
+                  <div className="status">{cerco ? "sto cercando" : `${risultati?.length ?? 0} trovate`}</div>
+                </div>
+              </div>
 
-      {/* ════════ SCHERMO RISULTATI ════════ */}
-      {inRisultati ? (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-            <button
-              onClick={() => { setRisultati(null); setInterpretazione(null); }}
-              aria-label="Torna a Cucina"
-              className="k-press"
-              style={{ width: 44, height: 44, marginLeft: -10, flex: "none", background: "none", border: 0, color: "var(--k-text-2)", fontSize: 26, cursor: "pointer", lineHeight: 1 }}
-            >
-              ‹
-            </button>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--k-text-3)" }}>
-              {cerco ? "Cerco" : `Trovate · ${risultati?.length ?? 0}`}
-            </div>
-          </div>
+              {/* Cosa ha capito Keiko. Quando traduce una situazione lo DICE: chi
+                  cerca deve poter vedere se ha capito male, non indovinarlo dai
+                  risultati. È la cosa che rende la Cucina diversa da una ricerca,
+                  e per questo sta in teal. */}
+              {interpretazione && (
+                <div className="hint">
+                  {I.orca(14)}
+                  <p>
+                    {interpretazione.viaAi ? (
+                      <>Hai chiesto <b>«{interpretazione.originale}»</b> — cerco <b>{interpretazione.cercato}</b></>
+                    ) : (
+                      <>Cerco <b>{interpretazione.cercato}</b></>
+                    )}
+                  </p>
+                </div>
+              )}
 
-          {/* Cosa ha capito Keiko. Quando traduce una situazione lo DICE: chi
-              cerca deve poter vedere se ha capito male, non indovinarlo dai
-              risultati. */}
-          {interpretazione && (
-            <div className="k-fade" style={{ background: "var(--inset)", border: "1px solid var(--k-line)", borderRadius: 14, padding: "11px 14px", fontSize: 13, color: "var(--k-text-2)", lineHeight: 1.45, marginTop: 10 }}>
-              {interpretazione.viaAi ? (
+              {/* durante l'attesa: gli scheletri, non lo spinner */}
+              {cerco && <div style={{ marginTop: 12 }}><Skeleton rows={3} /></div>}
+
+              {!cerco && risultati?.map((r) => {
+                const salvato = salvate.has(r.url);
+                return (
+                  <div key={r.url} style={{ marginTop: 12 }}>
+                    <Feature
+                      k={<>{I.play({ s: 12 })}{nomeFonte(r)}</>}
+                      t={r.titolo}
+                      onClick={() => apri({ id: lista.find((x) => x.url === r.url)?.id ?? null, titolo: r.titolo, url: r.url, miniatura: r.miniatura, autore: r.autore, piattaforma: r.piattaforma, contenuto: r.contenuto ?? null, estratta: lista.find((x) => x.url === r.url)?.extracted ?? null })}
+                      img={r.miniatura}
+                    >
+                      <div className="pactions">
+                        <button
+                          className={salvato ? "btn2 tap" : "cta tap"}
+                          onClick={(e) => { e.stopPropagation(); if (!salvato) salva(r); }}
+                          aria-disabled={salvato || undefined}
+                        >
+                          {salvato ? <>{I.tick({ s: 13 })}Nel ricettario</> : <>{I.plus({ s: 13 })}Salva</>}
+                        </button>
+                      </div>
+                    </Feature>
+                  </div>
+                );
+              })}
+
+              {/* Mostrane altre → dalle già pagate, immediato.
+                  Cerca ancora → una ricerca nuova, e si vede che ci sta lavorando. */}
+              {!cerco && (risultati?.length ?? 0) > 0 && (
+                <button
+                  className="btn2 wide tap"
+                  style={{ marginTop: 14 }}
+                  onClick={() => cerca(altrePronte ? "altre" : "ancora")}
+                  disabled={ancora}
+                >
+                  {ancora ? "Cerco ancora…" : altrePronte ? "Mostrane altre" : "Cerca ancora"}
+                </button>
+              )}
+
+              {!cerco && risultati?.length === 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <Empty
+                    icon={I.pot({ s: 24 })}
+                    t={ricercaAttiva ? "Non ho trovato niente" : "La ricerca arriva presto"}
+                    m={ricercaAttiva ? "prova con altre parole, o dimmi la situazione<br/>invece degli ingredienti" : "il ricettario funziona già"}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            /* ════════ SCHERMO CUCINA ════════ */
+            <>
+              <div className="head">
+                <div className="col">
+                  <h1>Cucina</h1>
+                  <div className="status">
+                    {prossimo ? `${quandoDetto(prossimo)} · ${prossimo.pasto}` : `${lista.length} ricette nel ricettario`}
+                  </div>
+                </div>
+              </div>
+
+              {/* ① IL PIANO — solo per chi ce l'ha.
+                  Si MOSTRA e si ESEGUE: qui non c'è una riga che lo confronti
+                  con le ricette. */}
+              {prossimo && (
                 <>
-                  Hai chiesto <b style={{ color: "var(--k-accent)", fontWeight: 650 }}>«{interpretazione.originale}»</b>
-                  {" → cerco: "}
-                  <b style={{ color: "var(--k-accent)", fontWeight: 650 }}>{interpretazione.cercato}</b>
-                </>
-              ) : (
-                <>Cerco: <b style={{ color: "var(--k-accent)", fontWeight: 650 }}>{interpretazione.cercato}</b></>
-              )}
-            </div>
-          )}
+                  <DayCard
+                    n={new Date().getDate()}
+                    d={quandoDetto(prossimo)}
+                    main={prossimo.testo || prossimo.pasto}
+                    meta={`${prossimo.pasto} · dal tuo piano`}
+                    dot="dieta"
+                    today
+                    open={pianoAperto}
+                    onToggle={() => setPianoAperto((v) => !v)}
+                    rows={giornata.map((p) => [p.ora ?? "—", p.testo || p.pasto])}
+                  />
 
-          {cerco && (
-            <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="k-skel" style={{ height: 190, borderRadius: 22, background: "var(--k-surface)" }} />
-              ))}
-            </div>
-          )}
-
-          {!cerco && risultati?.map((r) => {
-            const salvato = salvate.has(r.url);
-            return (
-              <div key={r.url} className="k-fade" style={{ marginTop: 14, borderRadius: 22, overflow: "hidden", position: "relative", boxShadow: "var(--k-shadow)", border: "1px solid var(--k-line)" }}>
-                <button
-                  onClick={() => apri({ id: lista.find((x) => x.url === r.url)?.id ?? null, titolo: r.titolo, url: r.url, miniatura: r.miniatura, autore: r.autore, piattaforma: r.piattaforma, contenuto: r.contenuto ?? null, estratta: lista.find((x) => x.url === r.url)?.extracted ?? null })}
-                  className="k-press"
-                  style={{ display: "block", width: "100%", height: 190, position: "relative", border: 0, padding: 0, textAlign: "left", color: "inherit", background: "var(--k-cat-cena)", cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  <Miniatura src={r.miniatura} dimensione={56} subito />
-                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 30%,rgba(6,7,11,.9))" }} />
-                  <div style={{ position: "absolute", left: 14, right: 14, bottom: 12 }}>
-                    <div style={{ fontSize: 16.5, fontWeight: 750, lineHeight: 1.22, letterSpacing: "-.01em", textShadow: "var(--k-tshadow)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {r.titolo}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 6, fontSize: 12, color: "var(--k-text-2)", textShadow: "var(--k-tshadow)" }}>
-                      <span style={{ width: 22, height: 22, borderRadius: 7, display: "grid", placeItems: "center", background: "rgba(255,255,255,.12)", flex: "none" }}>
-                        <LogoPiattaforma p={r.piattaforma} size={12} />
-                      </span>
-                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nomeFonte(r)}</span>
-                    </div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => salva(r)}
-                  disabled={salvato}
-                  className="k-press"
-                  style={{
-                    position: "absolute", top: 12, right: 12, minHeight: 44, padding: "0 15px", borderRadius: 999, border: 0,
-                    background: salvato ? "var(--k-ok)" : "rgba(6,7,11,.65)",
-                    backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-                    color: salvato ? "#0A2413" : "#fff", font: "650 12.5px inherit", fontFamily: "inherit", fontWeight: 650, fontSize: 12.5,
-                    cursor: salvato ? "default" : "pointer",
-                  }}
-                >
-                  {salvato ? "✓ Salvata" : "＋ Salva"}
-                </button>
-              </div>
-            );
-          })}
-
-          {/* Mostrane altre → dalle già pagate, immediato.
-              Cerca ancora → una ricerca nuova, e si vede che ci sta lavorando. */}
-          {!cerco && (risultati?.length ?? 0) > 0 && (
-            <button
-              onClick={() => cerca(altrePronte ? "altre" : "ancora")}
-              disabled={ancora}
-              className="k-press"
-              style={{
-                width: "100%", minHeight: 50, marginTop: 16, borderRadius: 16, cursor: ancora ? "default" : "pointer",
-                background: altrePronte ? "var(--inset)" : "transparent",
-                border: `1px solid ${altrePronte ? "var(--k-line)" : "color-mix(in srgb, var(--k-accent) 40%, transparent)"}`,
-                color: altrePronte ? "var(--k-text)" : "var(--k-accent)",
-                fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, opacity: ancora ? 0.6 : 1,
-              }}
-            >
-              {ancora ? "Cerco ancora…" : altrePronte ? "Mostrane altre" : "Cerca ancora"}
-            </button>
-          )}
-
-          {!cerco && risultati?.length === 0 && (
-            <p style={{ fontSize: 13, color: "var(--k-text-3)", margin: "20px 2px", lineHeight: 1.5 }}>
-              {ricercaAttiva ? "Non ho trovato niente, prova con altre parole." : "La ricerca arriva presto. Il ricettario funziona già."}
-            </p>
-          )}
-        </>
-      ) : (
-        /* ════════ SCHERMO CUCINA ════════ */
-        <>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.2px", color: "var(--k-text-3)", textTransform: "uppercase" }}>Cucina</div>
-
-          {/* ① IL PIANO — solo per chi ce l'ha */}
-          {prossimo && (
-            <>
-              <div className="k-press" style={{ marginTop: 16, borderRadius: 22, overflow: "hidden", position: "relative", boxShadow: "var(--k-shadow)", border: "1px solid var(--k-line)" }}>
-                <div style={{ height: 170, position: "relative", background: "var(--k-cat-dieta)" }}>
-                  {/* L'emoji sta in alto a DESTRA, non al centro. Al centro
-                      finiva dietro il nome del pasto e si vedeva la macchia
-                      grigia attraverso le lettere; anche solo nella metà alta
-                      toccava l'occhiello. Qui decora l'angolo vuoto e sparisce
-                      dal percorso di lettura. */}
-                  <div style={{ position: "absolute", top: 14, right: 16, fontSize: 40, opacity: 0.55, lineHeight: 1 }} aria-hidden>🍚</div>
-                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 25%,rgba(6,7,11,.92))" }} />
-                  <div style={{ position: "absolute", left: 16, right: 16, bottom: 13 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "1px", color: "var(--k-accent)", textTransform: "uppercase", textShadow: "var(--k-tshadow)" }}>
-                      {quandoDetto(prossimo)} · {prossimo.pasto} · dal tuo piano
-                    </div>
-                    <div style={{ fontSize: 17.5, fontWeight: 750, letterSpacing: "-.01em", marginTop: 3, textShadow: "var(--k-tshadow)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {prossimo.testo || prossimo.pasto}
-                    </div>
-                    <button
-                      onClick={() => toast("Cucina con me arriva presto")}
-                      className="k-press"
-                      style={{ marginTop: 9, display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.12)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: 0, borderRadius: 999, minHeight: 44, padding: "0 16px", color: "var(--k-text)", fontFamily: "inherit", fontSize: 12.5, fontWeight: 650, cursor: "pointer" }}
-                    >
-                      ▶ Cucina con me
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* la striscia: la giornata a pallini, senza numeri inventati */}
-              {giornata.filter((p) => p.ora).length > 1 && (
-                <div style={{ display: "flex", alignItems: "center", margin: "14px 2px 0" }}>
-                  {giornata.filter((p) => p.ora).map((p, i, arr) => (
-                    <span key={`${p.pasto}-${p.indice}`} style={{ display: "contents" }}>
-                      <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flex: 1, minWidth: 0 }} title={p.pasto}>
-                        <span
-                          style={{
-                            width: 13, height: 13, borderRadius: "50%",
-                            background: p.passato ? "var(--k-ok)" : "transparent",
-                            border: `2px solid ${p.passato ? "var(--k-ok)" : p === prossimo ? "var(--k-accent)" : "rgba(255,255,255,.25)"}`,
-                            boxShadow: p === prossimo ? "0 0 0 4px color-mix(in srgb, var(--k-accent) 16%, transparent)" : "none",
-                          }}
-                        />
-                        <small style={{ fontSize: 10, fontWeight: 600, color: p === prossimo ? "var(--k-accent)" : "var(--k-text-3)" }}>{p.ora}</small>
-                      </span>
-                      {i < arr.length - 1 && <span style={{ flex: 1, height: 1.5, background: "rgba(255,255,255,.12)", marginBottom: 17, minWidth: 10 }} />}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ② LA DOMANDA */}
-          <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.02em", marginTop: prossimo ? 26 : 10 }}>Cosa mangiamo?</div>
-
-          <div style={{ marginTop: 14, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 20, padding: "6px 6px 6px 16px", display: "flex", alignItems: "center", gap: 10, boxShadow: "var(--k-shadow)" }}>
-            <input
-              value={domanda}
-              onChange={(e) => setDomanda(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") cerca("nuova"); }}
-              placeholder="Cosa c'è in frigo? Che voglia hai?"
-              aria-label="Cosa cerchi"
-              style={{ flex: 1, minWidth: 0, background: "none", border: 0, outline: 0, color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", minHeight: 46 }}
-            />
-            <button
-              onClick={() => cerca("nuova")}
-              disabled={!domanda.trim()}
-              aria-label="Cerca"
-              className="k-press"
-              style={{
-                width: 46, height: 46, borderRadius: 16, border: 0, flex: "none", cursor: domanda.trim() ? "pointer" : "default",
-                background: "linear-gradient(135deg, var(--k-accent), var(--accent2))",
-                color: "var(--k-accent-ink)", fontSize: 18, fontWeight: 800, opacity: domanda.trim() ? 1 : 0.45,
-              }}
-            >
-              →
-            </button>
-          </div>
-
-          <div className="k-chips" style={{ display: "flex", gap: 8, marginTop: 12, overflowX: "auto", paddingBottom: 4 }}>
-            {CHIP.map((c) => {
-              const on = scelte.includes(c);
-              return (
-                <button
-                  key={c}
-                  onClick={() => setScelte((s) => (on ? s.filter((x) => x !== c) : [...s, c]))}
-                  aria-pressed={on}
-                  className="k-press"
-                  style={{
-                    flex: "none", minHeight: 44, padding: "0 16px", borderRadius: 999, cursor: "pointer",
-                    fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
-                    background: on ? "color-mix(in srgb, var(--k-accent) 14%, transparent)" : "var(--inset)",
-                    color: on ? "var(--k-accent)" : "var(--k-text-2)",
-                    border: `1px solid ${on ? "color-mix(in srgb, var(--k-accent) 40%, transparent)" : "var(--k-line)"}`,
-                  }}
-                >
-                  {c}
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={{ marginTop: 10, fontSize: 12, color: "var(--k-text-3)", lineHeight: 1.5 }}>
-            💡 Dimmi la situazione, non solo gli ingredienti: <b style={{ color: "var(--k-text-2)", fontWeight: 600 }}>«serata tra amici per la partita»</b> la capisco.
-          </div>
-
-          {!ricercaAttiva && (
-            <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: "14px 2px 0" }}>
-              La ricerca arriva presto. Il ricettario funziona già.
-            </p>
-          )}
-
-          {/* ③ IL RICETTARIO */}
-          {lista.length > 0 && (
-            <>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "26px 0 12px" }}>
-                <h2 style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-.01em", margin: 0 }}>Il tuo ricettario</h2>
-                {lista.length > 8 && (
-                  <button onClick={() => setTutte((t) => !t)} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 12, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", minHeight: 44 }}>
-                    {lista.length} · {tutte ? "mostra meno" : "vedi tutte"}
-                  </button>
-                )}
-              </div>
-
-              <div className="k-shelf" style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -18px", padding: "0 18px 6px", ...(tutte ? { flexWrap: "wrap", overflowX: "visible" } : {}) }}>
-                {scaffale.map((r) => (
-                  <div key={r.id} style={{ flex: "none", width: 150, position: "relative" }}>
-                    <button
-                      onClick={() => apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted })}
-                      className="k-press"
-                      style={{ display: "block", width: "100%", padding: 0, border: 0, background: "none", textAlign: "left", color: "inherit", cursor: "pointer", fontFamily: "inherit" }}
-                    >
-                      <div style={{ height: 110, borderRadius: 16, position: "relative", overflow: "hidden", background: "var(--k-cat-cena)", border: "1px solid var(--k-line)", boxShadow: "var(--k-shadow)" }}>
-                        <Miniatura src={r.thumbnail} dimensione={34} />
-                        <span style={{ position: "absolute", bottom: 8, right: 8, width: 26, height: 26, borderRadius: 8, display: "grid", placeItems: "center", background: "rgba(0,0,0,.65)" }}>
-                          <LogoPiattaforma p={r.platform} />
+                  {/* la giornata a pallini: dove sei, senza numeri inventati */}
+                  {giornata.filter((p) => p.ora).length > 1 && (
+                    <div style={{ display: "flex", alignItems: "center", margin: "12px 2px 0" }}>
+                      {giornata.filter((p) => p.ora).map((p, i, arr) => (
+                        <span key={`${p.pasto}-${p.indice}`} style={{ display: "contents" }}>
+                          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flex: 1, minWidth: 0 }} title={p.pasto}>
+                            <span
+                              style={{
+                                width: 11, height: 11, borderRadius: "50%",
+                                background: p.passato ? "var(--teal)" : "transparent",
+                                border: `2px solid ${p.passato ? "var(--teal)" : p === prossimo ? "var(--acc)" : "rgba(255,255,255,.22)"}`,
+                                boxShadow: p === prossimo ? "0 0 0 4px rgba(201,106,69,.16)" : "none",
+                              }}
+                            />
+                            <small style={{ fontSize: 10, fontWeight: 500, color: p === prossimo ? "#E6A886" : "var(--meta)" }}>{p.ora}</small>
+                          </span>
+                          {i < arr.length - 1 && <span style={{ flex: 1, height: 1.5, background: "rgba(255,255,255,.10)", marginBottom: 16, minWidth: 8 }} />}
                         </span>
-                      </div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 7, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {r.title}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--k-text-3)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {r.author || nomeFonte(r)}
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => elimina(r)}
-                      aria-label={`Togli ${r.title}`}
-                      style={{ position: "absolute", top: 4, right: 4, width: 32, height: 32, display: "grid", placeItems: "center", background: "rgba(6,7,11,.6)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: 0, borderRadius: 10, color: "#fff", fontSize: 13, cursor: "pointer" }}
-                    >
-                      ✕
-                    </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ② LA DOMANDA */}
+              <Sec sm="dimmi la situazione, non solo gli ingredienti">Cosa mangiamo?</Sec>
+
+              {/* La barra del sistema, con dentro un campo vero: la domanda si
+                  scrive e parte con Invio, come prima. 16px, o iOS ingrandisce
+                  la pagina al primo tocco e non torna indietro. */}
+              <div className="ask" style={{ cursor: "auto" }}>
+                <span style={{ color: "var(--teal)", flex: "none", display: "flex" }}>{I.orca(19)}</span>
+                <input
+                  value={domanda}
+                  onChange={(e) => setDomanda(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") cerca("nuova"); }}
+                  placeholder="Cosa c'è in frigo? Che voglia hai?"
+                  aria-label="Cosa cerchi"
+                  style={{ flex: 1, minWidth: 0, background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+                />
+                <button
+                  className="go tap"
+                  onClick={() => cerca("nuova")}
+                  disabled={!domanda.trim()}
+                  aria-label="Cerca"
+                  style={{ opacity: domanda.trim() ? 1 : 0.45 }}
+                >
+                  {I.right({ s: 14 })}
+                </button>
+              </div>
+
+              <span className="chips">
+                {CHIP.map((c) => {
+                  const on = scelte.includes(c);
+                  return (
+                    <Chip key={c} on={on} onClick={() => setScelte((sc) => (on ? sc.filter((x) => x !== c) : [...sc, c]))}>
+                      {c}
+                    </Chip>
+                  );
+                })}
+              </span>
+
+              <div className="hint">
+                {I.info({ s: 14 })}
+                <p>Dimmi la situazione, non solo gli ingredienti: <b>«serata tra amici per la partita»</b> la capisco.</p>
+              </div>
+
+              {!ricercaAttiva && (
+                <span className="rx">La ricerca arriva presto. Il ricettario funziona già.</span>
+              )}
+
+              {/* ③ IL RICETTARIO */}
+              {lista.length > 0 && (
+                <>
+                  <Sec
+                    sm={`${lista.length} salvate`}
+                    more={lista.length > 8 ? (tutte ? "mostra meno" : "vedi tutte") : undefined}
+                    onMore={() => setTutte((t) => !t)}
+                  >
+                    Il tuo ricettario
+                  </Sec>
+
+                  {tutte ? (
+                    /* aperto: la griglia */
+                    <div className="g2">
+                      {scaffale.map((r) => (
+                        <Poster
+                          key={r.id}
+                          img={r.thumbnail}
+                          t={r.title}
+                          m={r.author || nomeFonte(r)}
+                          badge={r.platform === "tiktok" ? "TikTok" : r.platform === "youtube" ? "YouTube" : undefined}
+                          onClick={() => apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted })}
+                          ariaLabel={r.title}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    /* chiuso: lo scaffale che scorre */
+                    <div className="shelf">
+                      {scaffale.map((r) => (
+                        <div key={r.id} style={{ width: 150, flex: "none", position: "relative" }}>
+                          <Content
+                            img={r.thumbnail ?? ""}
+                            t={r.title}
+                            m={r.author || nomeFonte(r)}
+                            dot="dieta"
+                            onClick={() => apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted })}
+                          />
+                          <button
+                            className="tap"
+                            onClick={(e) => { e.stopPropagation(); elimina(r); }}
+                            aria-label={`Togli ${r.title}`}
+                            style={{ position: "absolute", top: 12, right: 12, width: 30, height: 30, display: "grid", placeItems: "center", background: "rgba(6,7,11,.6)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: 0, borderRadius: 9, color: "#fff", cursor: "pointer" }}
+                          >
+                            {I.close({ s: 12 })}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Da rifare — il battito della ricetta. Niente azione, niente
+                  battito: se non c'è una ricetta abbastanza vecchia, non compare. */}
+              {rifare && (
+                <>
+                  <Sec>Da rifare</Sec>
+                  <div
+                    className="hint warm tap"
+                    onClick={() => { const r = lista.find((x) => x.id === rifare.id); if (r) apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted }); }}
+                    role="button"
+                  >
+                    {I.hist({ s: 14 })}
+                    <p>
+                      È {daQuanto(rifare.giorni)} che non apri <b>{rifare.titolo}</b>
+                      {rifare.volte > 0 ? ` — e l'hai fatta ${rifare.volte} volte.` : "."} Stasera?
+                    </p>
                   </div>
-                ))}
-              </div>
+                </>
+              )}
+
+              {/* il vuoto ben fatto: non è una pagina spenta */}
+              {lista.length === 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <Empty
+                    icon={I.orca(26)}
+                    t="Il ricettario è vuoto"
+                    m="Cerco la ricetta, tu cucini."
+                  />
+                </div>
+              )}
             </>
           )}
+        </div>
 
-          {/* Da rifare — il battito della ricetta. Niente azione, niente
-              battito: se non c'è una ricetta abbastanza vecchia, non compare. */}
-          {rifare && (
-            <>
-              <div style={{ margin: "26px 0 12px" }}>
-                <h2 style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-.01em", margin: 0 }}>Da rifare</h2>
-              </div>
-              <button
-                onClick={() => { const r = lista.find((x) => x.id === rifare.id); if (r) apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted }); }}
-                className="k-press"
-                style={{ width: "100%", textAlign: "left", background: "var(--inset)", border: "1px solid var(--k-line)", borderRadius: 14, padding: "12px 14px", fontSize: 13, color: "var(--k-text-2)", lineHeight: 1.45, fontFamily: "inherit", cursor: "pointer" }}
-              >
-                🍳 È {daQuanto(rifare.giorni)} che non apri <b style={{ color: "var(--k-accent)", fontWeight: 650 }}>{rifare.titolo}</b>
-                {rifare.volte > 0 ? ` — e l'hai fatta ${rifare.volte} volte.` : "."} Stasera?
-              </button>
-            </>
-          )}
-
-          {/* il vuoto ben fatto: l'orca e un invito, non una pagina spenta */}
-          {lista.length === 0 && (
-            <div style={{ textAlign: "center", padding: "48px 12px 30px" }}>
-              <div style={{ fontSize: 44 }} aria-hidden>🐋</div>
-              <div style={{ fontSize: 16, fontWeight: 700, marginTop: 10 }}>Il ricettario è vuoto</div>
-              <p style={{ fontSize: 13, color: "var(--k-text-3)", marginTop: 6, lineHeight: 1.5 }}>
-                Cerco la ricetta, tu cucini.
-              </p>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ════════ LA PASTIGLIA SPESA ════════
-          Compare solo sulla home, come nel mock. In Fase 1 apre un foglio che
-          dice la verità: la spesa arriva. Nessun numero finto accanto al
-          carrello — un contatore inventato è una bugia piccola che si nota. */}
-      {!inRisultati && (
-        <button
-          onClick={() => setSpesaAperta(true)}
-          className="k-press"
-          style={{
-            position: "fixed", left: "50%", transform: "translateX(-50%)",
-            bottom: "calc(env(safe-area-inset-bottom) + 22px)", zIndex: 40,
-            background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999,
-            minHeight: 46, padding: "0 20px", display: "flex", alignItems: "center", gap: 9,
-            fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: "var(--k-text)", cursor: "pointer",
-            boxShadow: "0 14px 36px rgba(0,0,0,.55)",
-          }}
-        >
-          🛒 Spesa{daPrendere > 0 && <> · <b style={{ color: "var(--k-accent)" }}>{daPrendere}</b></>}
-        </button>
-      )}
-
-      {/* ════════ IL FOGLIO RICETTA (schermo 3 del mock) ════════ */}
-      {aperta && (
-        <>
-          <div onClick={() => setAperta(null)} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(6,7,11,.72)" }} />
-          <div
-            className="k-sheet k-fade"
-            role="dialog"
-            aria-label={aperta.titolo}
+        {/* ════════ LA PASTIGLIA SPESA ════════
+            Vive sopra il fondo pagina, che è quello condiviso di KeikoNav.
+            Nessun numero finto accanto al carrello: un contatore inventato è
+            una bugia piccola che si nota. */}
+        {!inRisultati && (
+          <button
+            className="btn2 tap"
+            onClick={() => setSpesaAperta(true)}
             style={{
-              position: "fixed", left: 0, right: 0, bottom: 0, top: 0, zIndex: 71, maxWidth: 560, margin: "0 auto",
-              background: "var(--k-bg)", overflowY: "auto", overscrollBehavior: "contain",
+              position: "fixed", left: "50%", transform: "translateX(-50%)",
+              bottom: "calc(env(safe-area-inset-bottom) + 96px)", zIndex: 40,
+              display: "inline-flex", alignItems: "center", gap: 9,
+              boxShadow: "0 14px 36px rgba(0,0,0,.55)",
             }}
           >
-            {/* hero */}
-            <div style={{ height: 260, position: "relative", background: "var(--k-cat-cena)" }}>
-              <Miniatura src={aperta.miniatura} dimensione={72} subito />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(6,7,11,.5),transparent 30%,var(--k-bg))" }} />
-              <button
-                onClick={() => setAperta(null)}
-                aria-label="Chiudi"
-                className="k-press"
-                style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 12px)", left: 14, width: 44, height: 44, borderRadius: 14, border: 0, background: "rgba(6,7,11,.55)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", color: "#fff", fontSize: 20, cursor: "pointer" }}
-              >
-                ‹
-              </button>
-              {/* Il link al video originale è SEMPRE visibile: la ricetta è di
-                  chi l'ha girata, e da qui si va a dargli la visualizzazione. */}
-              <a
-                href={aperta.url}
-                target="_blank"
-                rel="noreferrer"
-                style={{ position: "absolute", left: 18, right: 18, bottom: 14, display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--k-text-2)", textDecoration: "none", textShadow: "var(--k-tshadow)", minHeight: 44 }}
-              >
-                <span style={{ width: 22, height: 22, borderRadius: 7, display: "grid", placeItems: "center", background: "rgba(255,255,255,.12)", flex: "none" }}>
-                  <LogoPiattaforma p={aperta.piattaforma} size={12} />
-                </span>
-                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {aperta.autore ? `${aperta.autore} · ` : ""}guarda il video originale →
-                </span>
-              </a>
+            {I.cart({ s: 15 })}
+            Spesa{daPrendere > 0 && <> · <b style={{ color: "var(--teal-soft)" }}>{daPrendere}</b></>}
+          </button>
+        )}
+
+        {/* ════════ IL FOGLIO RICETTA ════════ */}
+        {aperta && (
+          <Sheet onClose={() => setAperta(null)}>
+            <div className="sheet-hero">
+              <div className="ph" style={{ position: "absolute", inset: 0, borderRadius: 0 }}>
+                <Miniatura src={aperta.miniatura} dimensione={64} subito />
+              </div>
+              <div className="in">
+                <div className="k">{I.play({ s: 12 })}{nomeFonte(aperta)}</div>
+                <h2>{aperta.titolo}</h2>
+              </div>
             </div>
 
-            <div style={{ padding: "0 18px calc(env(safe-area-inset-bottom) + 30px)" }}>
-              <h2 style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.15, margin: "10px 0 0" }}>
-                {aperta.titolo}
-              </h2>
+            <div className="pad">
+              {/* Il link al video originale è SEMPRE visibile: la ricetta è di
+                  chi l'ha girata, e da qui si va a dargli la visualizzazione.
+                  Il video non si incorpora e non si copia. */}
+              <a className="btn2 wide tap" href={aperta.url} target="_blank" rel="noreferrer"
+                 style={{ marginTop: 14, textDecoration: "none", display: "flex" }}>
+                <LogoPiattaforma p={aperta.piattaforma} size={13} />
+                Guarda il video originale
+                {I.up({ s: 13 })}
+              </a>
 
-              {estraggo && (
-                <p style={{ fontSize: 13, color: "var(--k-text-2)", marginTop: 14 }}>Sto leggendo la ricetta…</p>
-              )}
+              {estraggo && <div style={{ marginTop: 14 }}><Skeleton rows={2} /></div>}
 
               {/* meta: solo quello che il creator ha scritto */}
               {!estraggo && (aperta.estratta?.tempo || aperta.estratta?.porzioni) && (
-                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                  {aperta.estratta?.tempo && <span style={{ background: "var(--inset)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "7px 13px", fontSize: 12, fontWeight: 600, color: "var(--k-text-2)" }}>⏱ {aperta.estratta.tempo}</span>}
-                  {aperta.estratta?.porzioni && <span style={{ background: "var(--inset)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "7px 13px", fontSize: 12, fontWeight: 600, color: "var(--k-text-2)" }}>🍽 {aperta.estratta.porzioni}</span>}
-                </div>
+                <span className="dchips" style={{ marginTop: 14 }}>
+                  {aperta.estratta?.tempo && <span className="dchip">{aperta.estratta.tempo}</span>}
+                  {aperta.estratta?.porzioni && <span className="dchip">{aperta.estratta.porzioni}</span>}
+                </span>
               )}
 
               {/* ingredienti spuntabili */}
               {!estraggo && (aperta.estratta?.ingredienti?.length ?? 0) > 0 && (
-                <div style={{ marginTop: 20, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 20, boxShadow: "var(--k-shadow)", padding: 16 }}>
-                  <h3 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 10px" }}>
-                    Ingredienti · tocca quello che hai già
-                  </h3>
-                  {aperta.estratta!.ingredienti!.map((ing, i) => {
-                    const ce = inDispensa.has(i);
-                    return (
-                      <button
-                        key={`${ing.nome}-${i}`}
-                        onClick={() => setInDispensa((d) => { const n = new Set(d); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
-                        aria-pressed={ce}
-                        style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", minHeight: 44, padding: "8px 0", background: "none", border: 0, fontFamily: "inherit", fontSize: 14.5, textAlign: "left", cursor: "pointer", color: ce ? "var(--k-text-3)" : "var(--k-text)", textDecoration: ce ? "line-through" : "none" }}
-                      >
-                        <span style={{ width: 22, height: 22, borderRadius: 8, flex: "none", border: `1.5px solid ${ce ? "var(--k-ok)" : "rgba(255,255,255,.25)"}`, background: ce ? "var(--k-ok)" : "transparent", display: "grid", placeItems: "center", color: "#0A2413", fontSize: 13, fontWeight: 800 }}>
-                          {ce ? "✓" : ""}
-                        </span>
-                        <span style={{ flex: 1, minWidth: 0 }}>{ing.nome}</span>
-                        {ing.quantita && <b style={{ color: "var(--k-text-2)", fontWeight: 600, fontSize: 13 }}>{ing.quantita}</b>}
-                      </button>
-                    );
-                  })}
+                <>
+                  <Sec sm="tocca quello che hai già">Ingredienti</Sec>
+                  <div className="srf list">
+                    {aperta.estratta!.ingredienti!.map((ing, i) => {
+                      const ce = inDispensa.has(i);
+                      return (
+                        <div
+                          className={"item" + (ce ? " done" : "")}
+                          key={`${ing.nome}-${i}`}
+                        >
+                          <div
+                            className="item-row tap"
+                            onClick={() => setInDispensa((d) => { const n = new Set(d); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
+                            role="checkbox"
+                            aria-checked={ce}
+                          >
+                            <CheckV2 on={ce} />
+                            <span className="in"><span className="tx">{ing.nome}</span></span>
+                            {ing.quantita && <span className="idata">{ing.quantita}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <div className="pactions" style={{ marginTop: 12 }}>
                     <button
+                      className="cta tap"
                       onClick={mandaInSpesa}
                       disabled={daComprare.length === 0 || spesaOccupata}
-                      className="k-press"
-                      style={{ flex: 1, minHeight: 46, borderRadius: 14, border: 0, cursor: daComprare.length === 0 ? "default" : "pointer", background: "linear-gradient(135deg, var(--k-accent), var(--accent2))", color: "var(--k-accent-ink)", fontFamily: "inherit", fontSize: 13, fontWeight: 650, opacity: daComprare.length === 0 || spesaOccupata ? 0.5 : 1 }}
+                      style={{ opacity: daComprare.length === 0 || spesaOccupata ? 0.5 : 1 }}
                     >
-                      🛒 In lista spesa ({daComprare.length})
+                      {I.cart({ s: 13 })}
+                      In lista spesa ({daComprare.length})
                     </button>
                     {daComprare.length > 0 && (
                       <a
+                        className="btn2 tap"
                         href={amazonFresh(daComprare.map((i) => i.nome).join(" "))}
                         target="_blank"
                         rel="noreferrer"
-                        className="k-press"
-                        style={{ flex: 1, minHeight: 46, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--inset)", border: "1px solid var(--k-line)", color: "var(--k-text)", fontSize: 13, fontWeight: 650, textDecoration: "none" }}
+                        style={{ textDecoration: "none" }}
                       >
-                        Amazon Fresh ↗
+                        Amazon Fresh{I.up({ s: 12 })}
                       </a>
                     )}
                   </div>
-                </div>
+                </>
               )}
 
-              {/* passi */}
+              {/* I passi. Nel mock questa sarebbe la sotto-vista «modo cottura»,
+                  un passo per volta col numerone in `.giant`. Nel codice i passi
+                  sono un elenco e basta: non esiste un «a che passo sei», e
+                  inventarlo sarebbe una funzione nuova travestita da restyling.
+                  Quindi l'elenco resta un elenco, nel vestito nuovo. */}
               {!estraggo && (aperta.estratta?.passi?.length ?? 0) > 0 && (
-                <div style={{ marginTop: 18, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 20, boxShadow: "var(--k-shadow)", padding: 16 }}>
-                  <h3 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 0 10px" }}>
-                    Come si fa · dalla descrizione del video
-                  </h3>
-                  {aperta.estratta!.passi!.map((passo, i) => (
-                    <div key={i} style={{ display: "flex", gap: 12, padding: "10px 0", fontSize: 14, lineHeight: 1.5, color: "var(--k-text-2)" }}>
-                      <span style={{ width: 26, height: 26, borderRadius: "50%", flex: "none", background: "color-mix(in srgb, var(--k-accent) 14%, transparent)", color: "var(--k-accent)", fontSize: 12.5, fontWeight: 800, display: "grid", placeItems: "center" }}>{i + 1}</span>
-                      <span>{passo}</span>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <Sec sm="dalla descrizione del video">Come si fa</Sec>
+                  <div className="srf list">
+                    {aperta.estratta!.passi!.map((passo, i) => (
+                      <div className="item" key={i}>
+                        <div className="item-row" style={{ alignItems: "flex-start", cursor: "default" }}>
+                          {/* il numero del passo: una sola forma, in linea,
+                              perche' il foglio condiviso e' generato dal mock
+                              e non si scrive a mano. Teal, non terracotta: il
+                              terracotta sta solo sulla primaria e sul FAB. */}
+                          <span style={{
+                            width: 24, height: 24, borderRadius: "50%", flex: "none", marginTop: 1,
+                            background: "rgba(61,165,196,.14)", color: "var(--teal-soft)",
+                            fontSize: 12, fontWeight: 600, display: "grid", placeItems: "center",
+                          }}>{i + 1}</span>
+                          <span className="in"><span className="rx" style={{ marginTop: 0 }}>{passo}</span></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
 
               {/* caption povera: si dice, e non si inventa niente */}
               {!estraggo && aperta.estratta?.insufficiente && (
-                <div style={{ marginTop: 20, background: "var(--inset)", border: "1px solid var(--k-line)", borderRadius: 16, padding: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>La ricetta completa è nel video</div>
-                  <p style={{ fontSize: 13, color: "var(--k-text-2)", marginTop: 6, lineHeight: 1.5 }}>
-                    Chi l&apos;ha girato non ha scritto ingredienti e passaggi sotto al video, e io non me li invento.
-                  </p>
-                  <a
-                    href={aperta.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="k-press"
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 46, marginTop: 12, borderRadius: 14, background: "linear-gradient(135deg, var(--k-accent), var(--accent2))", color: "var(--k-accent-ink)", fontSize: 13.5, fontWeight: 700, textDecoration: "none" }}
-                  >
-                    Apri il video ↗
+                <>
+                  <div className="hint warm" style={{ marginTop: 16 }}>
+                    {I.info({ s: 14 })}
+                    <p>
+                      <b>La ricetta completa è nel video.</b> Chi l&apos;ha girato non ha scritto
+                      ingredienti e passaggi sotto al video, e io non me li invento.
+                    </p>
+                  </div>
+                  <a className="cta wide tap" href={aperta.url} target="_blank" rel="noreferrer"
+                     style={{ marginTop: 12, textDecoration: "none" }}>
+                    Apri il video{I.up({ s: 13 })}
                   </a>
-                </div>
+                </>
               )}
 
               {/* Se non è ancora nel ricettario, si può metterla da qui: la
                   prossima apertura non ripasserà dal modello. */}
               {!aperta.id && !salvate.has(aperta.url) && !estraggo && (
                 <button
+                  className="cta wide tap"
+                  style={{ marginTop: 14 }}
                   onClick={() => salva({ titolo: aperta.titolo, url: aperta.url, miniatura: aperta.miniatura, autore: aperta.autore, piattaforma: (aperta.piattaforma as Risultato["piattaforma"]) ?? "web", dominio: "" })}
-                  className="ds-btn k-press"
-                  style={{ width: "100%", minHeight: 46, marginTop: 14, fontFamily: "inherit", fontWeight: 700 }}
                 >
-                  ＋ Salva nel ricettario
+                  {I.plus({ s: 14 })}Salva nel ricettario
                 </button>
               )}
 
-              <p style={{ fontSize: 10.5, color: "var(--k-text-3)", textAlign: "center", marginTop: 18, lineHeight: 1.5 }}>
+              <p className="rx" style={{ textAlign: "center", marginTop: 18 }}>
                 Ricetta estratta dalla descrizione del creator, non modificata.
                 <br />
                 Keiko non dà consigli nutrizionali.
               </p>
             </div>
-          </div>
-        </>
-      )}
+          </Sheet>
+        )}
 
-      {/* ════════ IL FOGLIO SPESA ════════ */}
-      {spesaAperta && (
-        <>
-          <div onClick={() => setSpesaAperta(false)} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(6,7,11,.6)" }} />
-          <div
-            className="k-sheet"
-            role="dialog"
-            aria-label="La spesa"
-            style={{
-              position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 51, maxWidth: 560, margin: "0 auto",
-              background: "var(--k-surface)", borderRadius: "28px 28px 0 0",
-              padding: "14px 20px calc(env(safe-area-inset-bottom) + 24px)",
-              boxShadow: "0 -20px 60px rgba(0,0,0,.6)", maxHeight: "84vh", overflowY: "auto",
-            }}
-          >
-            <div onClick={() => setSpesaAperta(false)} style={{ width: 38, height: 5, borderRadius: 3, background: "rgba(255,255,255,.2)", margin: "0 auto 14px", cursor: "pointer" }} />
-            <h3 style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-.01em", margin: 0 }}>La spesa</h3>
-            <div style={{ fontSize: 11, color: "var(--k-text-3)", marginTop: 2 }}>
-              Dal piano della settimana e dalle tue ricette
+        {/* ════════ IL FOGLIO SPESA ════════ */}
+        {spesaAperta && (
+          <Sheet onClose={() => setSpesaAperta(false)}>
+            <div className="plain-head">
+              <h2>La spesa</h2>
             </div>
+            <div className="pad">
+              <div className="sub">Dal piano della settimana e dalle tue ricette</div>
 
-            {spesa.length === 0 ? (
-              <p style={{ fontSize: 13, color: "var(--k-text-2)", marginTop: 14, lineHeight: 1.5 }}>
-                Ancora vuota. Aprine una ricetta e manda in lista quello che ti manca, oppure prendi quello che serve per la settimana.
-              </p>
-            ) : (
-              <div style={{ marginTop: 12 }}>
-                {spesa.map((v) => (
-                  <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 11, minHeight: 44 }}>
-                    <button
-                      onClick={() => spunta(v)}
-                      aria-pressed={v.spuntato}
-                      style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, minHeight: 44, padding: "9px 0", background: "none", border: 0, fontFamily: "inherit", fontSize: 14.5, textAlign: "left", cursor: "pointer", color: v.spuntato ? "var(--k-text-3)" : "var(--k-text)", textDecoration: v.spuntato ? "line-through" : "none" }}
-                    >
-                      <span style={{ width: 22, height: 22, borderRadius: 8, flex: "none", border: `1.5px solid ${v.spuntato ? "var(--k-ok)" : "rgba(255,255,255,.25)"}`, background: v.spuntato ? "var(--k-ok)" : "transparent", display: "grid", placeItems: "center", color: "#0A2413", fontSize: 13, fontWeight: 800 }}>
-                        {v.spuntato ? "✓" : ""}
-                      </span>
-                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.nome}</span>
-                      {v.quantita && <b style={{ color: "var(--k-text-2)", fontWeight: 600, fontSize: 13, flex: "none" }}>{v.quantita}</b>}
-                    </button>
-                    <span
-                      style={{
-                        flex: "none", fontSize: 10, fontWeight: 700, borderRadius: 999, padding: "2px 8px",
-                        background: v.fonte === "piano" ? "color-mix(in srgb, var(--k-ok) 13%, transparent)" : "color-mix(in srgb, var(--k-accent) 13%, transparent)",
-                        color: v.fonte === "piano" ? "var(--k-ok)" : "var(--k-accent)",
-                      }}
-                    >
-                      {v.fonte}
-                    </span>
-                    <a
-                      href={amazonFresh(v.nome)}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`Cerca ${v.nome} su Amazon Fresh`}
-                      style={{ flex: "none", width: 34, height: 44, display: "grid", placeItems: "center", color: "var(--k-text-3)", textDecoration: "none", fontSize: 13 }}
-                    >
-                      ↗
-                    </a>
+              {/* Il totale sta in cima: quanto manca si legge prima di scorrere,
+                  non dopo. */}
+              {spesa.length > 0 && (
+                <div className="srf" style={{ marginTop: 12, padding: "14px 12px" }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: "-.01em" }}>
+                    {daPrendere === 0 ? "Preso tutto." : `${daPrendere} ancora da prendere`}
                   </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button
-                onClick={() => azioneSpesa({ azione: "dalPiano" }, "Presa dal piano")}
-                disabled={spesaOccupata}
-                className="ds-btn k-press"
-                style={{ flex: 1, minHeight: 46, fontFamily: "inherit", fontWeight: 700, opacity: spesaOccupata ? 0.6 : 1 }}
-              >
-                Prendi dal piano
-              </button>
-              {spesa.some((v) => v.spuntato) && (
-                <button
-                  onClick={() => azioneSpesa({ azione: "svuotaFatti" }, "Via i fatti")}
-                  disabled={spesaOccupata}
-                  className="ds-btn k-press"
-                  style={{ flex: 1, minHeight: 46, fontFamily: "inherit", fontWeight: 700, opacity: spesaOccupata ? 0.6 : 1 }}
-                >
-                  Via i fatti
-                </button>
+                  <div className="status">{spesa.length} in lista</div>
+                </div>
               )}
-            </div>
-          </div>
-        </>
-      )}
 
-      {/* toast piccolo, sparisce da solo (con Annulla per l'eliminazione) */}
-      {msg && (
-        <div
-          role="status"
-          className="k-toast"
-          style={{
-            position: "fixed", left: 16, right: 16, bottom: "calc(env(safe-area-inset-bottom) + 86px)",
-            maxWidth: 360, margin: "0 auto", zIndex: 60,
-            background: "var(--k-surface)",
-            border: "1px solid var(--k-line)", borderRadius: 14, padding: "12px 15px",
-            display: "flex", alignItems: "center", gap: 10, fontSize: 13,
-            boxShadow: "0 14px 40px rgba(0,0,0,.55)",
-          }}
-        >
-          {msg.startsWith("__ANNULLA__") ? (
-            <>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                Tolta: {msg.replace("__ANNULLA__", "")}
-              </span>
-              <button
-                onClick={() => (window as unknown as { __annullaCucina?: () => void }).__annullaCucina?.()}
-                style={{ background: "none", border: 0, color: "var(--k-accent)", fontWeight: 700, fontSize: 13.5, minHeight: 44, cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Annulla
-              </button>
-            </>
-          ) : (
-            <>
-              <span style={{ color: "var(--k-ok)" }} aria-hidden>✓</span>
+              {spesa.length === 0 ? (
+                <div style={{ marginTop: 12 }}>
+                  <Empty
+                    icon={I.cart({ s: 24 })}
+                    t="Ancora vuota"
+                    m="Apri una ricetta e manda in lista quello che ti manca,<br/>oppure prendi quello che serve per la settimana."
+                  />
+                </div>
+              ) : (
+                /* raggruppate per provenienza: il piano da una parte, le
+                   ricette dall'altra, così si sa da dove viene ogni riga */
+                (["piano", "ricetta"] as const).map((fonte) => {
+                  const righe = spesa.filter((v) => v.fonte === fonte);
+                  if (righe.length === 0) return null;
+                  return (
+                    <div key={fonte}>
+                      <Sec sm={`${righe.filter((v) => !v.spuntato).length} da prendere`}>
+                        {fonte === "piano" ? "Dal piano" : "Dalle ricette"}
+                      </Sec>
+                      <div className="srf list">
+                        {righe.map((v) => (
+                          <div className={"item" + (v.spuntato ? " done" : "")} key={v.id}>
+                            <div className="item-row" style={{ cursor: "default" }}>
+                              <span className="tap" onClick={() => spunta(v)} role="checkbox" aria-checked={v.spuntato} aria-label={v.nome} style={{ display: "flex", flex: "none", cursor: "pointer" }}>
+                                <CheckV2 on={v.spuntato} />
+                              </span>
+                              <span className="in"><span className="tx">{v.nome}</span></span>
+                              {v.quantita && <span className="idata">{v.quantita}</span>}
+                              <a
+                                className="chevhit tap"
+                                href={amazonFresh(v.nome)}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={`Cerca ${v.nome} su Amazon Fresh`}
+                                style={{ color: "var(--meta)" }}
+                              >
+                                {I.up({ s: 13 })}
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              <div className="pactions" style={{ marginTop: 16 }}>
+                <button className="cta tap" onClick={() => azioneSpesa({ azione: "dalPiano" }, "Presa dal piano")} disabled={spesaOccupata} style={{ opacity: spesaOccupata ? 0.6 : 1 }}>
+                  Prendi dal piano
+                </button>
+                {spesa.some((v) => v.spuntato) && (
+                  <button className="btn2 tap" onClick={() => azioneSpesa({ azione: "svuotaFatti" }, "Via i fatti")} disabled={spesaOccupata} style={{ opacity: spesaOccupata ? 0.6 : 1 }}>
+                    Via i fatti
+                  </button>
+                )}
+              </div>
+            </div>
+          </Sheet>
+        )}
+
+        {/* toast piccolo, sparisce da solo (con Annulla per l'eliminazione) */}
+        {msg && (
+          /* `.k2 .toast` del sistema ha `pointer-events:none`, perche' un toast
+             normale si guarda e basta. Questo pero' porta dentro «Annulla», e
+             senza questa riga il tasto non si puo' premere: l'eliminazione
+             diventava irreversibile. Visto in prova, non dedotto. */
+          <div className="toast on" role="status" style={{ zIndex: 60, display: "flex", alignItems: "center", gap: 12, pointerEvents: msg.startsWith("__ANNULLA__") ? "auto" : "none" }}>
+            {msg.startsWith("__ANNULLA__") ? (
+              <>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  Tolta: {msg.replace("__ANNULLA__", "")}
+                </span>
+                <button
+                  onClick={() => (window as unknown as { __annullaCucina?: () => void }).__annullaCucina?.()}
+                  style={{ background: "none", border: 0, color: "var(--teal-soft)", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", minHeight: 44, padding: "0 4px", flex: "none" }}
+                >
+                  Annulla
+                </button>
+              </>
+            ) : (
               <span>{msg}</span>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
