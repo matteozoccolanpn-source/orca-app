@@ -3,14 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EventForm, toDatetime, splitDatetime, type EventFormValue } from "@/app/components/EventForm";
-import { gradientFor, catFor } from "@/lib/smart-image";
 import { mapsUrl, type LiveEvent } from "./keikoLive";
-import SheetShell from "./SheetShell";
+import { Sheet, K2_FOGLIO } from "@/app/components/v2/Sheet";
+import { SheetHero } from "@/app/components/v2/SheetHero";
+import { I } from "@/app/components/v2/icons";
 
-/* Pannello dettaglio evento (design v4).
-   - Azioni client-side (sempre): Aggiungi al calendario (.ics), Condividi, Maps.
+/* LA CARD DELL'EVENTO, sul sistema V2.
+   - Azioni client-side (sempre): Aggiungi al calendario (.ics), Maps, Condividi.
    - Azioni con login (solo se !demo): Modifica (/api/update), Elimina (/api/delete).
-   In anteprima pubblica (demo) le azioni con login sono nascoste: niente tasti morti. */
+   In anteprima pubblica (demo) le azioni con login sono nascoste: niente tasti
+   morti.
+
+   LA PRIMARIA STA IN ALTO ed è una sola: «Aggiungi al calendario». Le altre
+   sono righe-azione, in ordine di quanto le useresti. Prima erano sei bottoni
+   quasi uguali, ognuno con la sua emoji davanti. */
 
 function downloadIcs(ev: LiveEvent) {
   const dt = ev.datetime ? new Date(ev.datetime) : null;
@@ -47,10 +53,10 @@ async function share(ev: LiveEvent): Promise<"condiviso" | "copiato" | null> {
 
 export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev: LiveEvent; onClose: () => void; demo?: boolean; onDelete?: () => void }) {
   const router = useRouter();
-  const gradient = gradientFor(catFor(ev.type, ev.title));
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [erroreSalva, setErroreSalva] = useState<string | null>(null);
 
   const doShare = async () => {
     const esito = await share(ev);
@@ -61,7 +67,7 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
   const [form, setForm] = useState<EventFormValue>({ title: ev.title, type: ev.type, date, time, location: ev.location, reference: "" });
 
   async function save() {
-    setBusy(true);
+    setBusy(true); setErroreSalva(null);
     try {
       const res = await fetch("/api/update", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
@@ -69,8 +75,11 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
       });
       if (!res.ok) throw new Error();
       router.refresh(); onClose();
-    } catch { window.alert("Non sono riuscito a salvare, riprova"); }
-    finally { setBusy(false); }
+    } catch {
+      // `window.alert` è una finestra del browser: non sa niente di noi e
+      // blocca tutto. L'errore si dice dentro il foglio, dove è successo.
+      setErroreSalva("Non sono riuscito a salvare. Riprova.");
+    } finally { setBusy(false); }
   }
 
   // L'eliminazione vera la gestisce la Home (differita 5s con "Annulla"):
@@ -80,71 +89,111 @@ export default function EventSheet({ ev, onClose, demo = false, onDelete }: { ev
     onClose();
   }
 
+  const riga = (icona: React.ReactNode, titolo: string, meta: string, onClick: () => void) => (
+    <div className="row-act tap" onClick={onClick} role="button">
+      <span className="ic2">{icona}</span>
+      <span className="in">
+        <span className="t">{titolo}</span>
+        <span className="m">{meta}</span>
+      </span>
+      {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+    </div>
+  );
+
   return (
-    <>
-      {/* grabber=false: EventSheet tiene la sua barretta SOPRA la foto hero (design
-          firma). Il gesto di swipe-giù parte comunque dal pannello di SheetShell. */}
-      <SheetShell onClose={onClose} zIndex={90} grabber={false}>
+    <div className="k2" style={K2_FOGLIO}>
+      <Sheet onClose={onClose}>
         {mode === "edit" ? (
-          <div style={{ padding: "18px 20px 0" }}>
-            <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)" }} />
-            <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--k-text)", margin: "6px 0 16px" }}>Modifica evento</h2>
-            <EventForm value={form} onChange={setForm} onCancel={() => setMode("view")} onSave={save} saving={busy} saveLabel="Salva" intro="" />
-          </div>
+          <>
+            <div className="plain-head">
+              <h2>Modifica evento</h2>
+              <div className="status">Quello che cambi qui vale da subito</div>
+            </div>
+            <div className="pad">
+              {/* I campi di `EventForm` sono già a 16px: sotto i 16 iOS
+                  ingrandisce la pagina al primo tocco e non torna indietro. */}
+              <EventForm value={form} onChange={setForm} onCancel={() => setMode("view")} onSave={save} saving={busy} saveLabel="Salva" intro="" />
+              {erroreSalva && <p className="status">{erroreSalva}</p>}
+            </div>
+          </>
         ) : (
           <>
-            {/* foto strip (titolo/orario sotto per controllo) */}
-            <div style={{ position: "relative", height: 180, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden", background: gradient }}>
-              {ev.image && <img src={ev.image} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
-              {!ev.image && <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 74, opacity: .16 }} aria-hidden>{ev.emoji}</div>}
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,6,8,.5) 0%, transparent 30%, transparent 70%, rgba(6,6,8,.4) 100%)" }} />
-              <div style={{ position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,.35)" }} />
-              <div className="ds-chip" style={{ position: "absolute", top: 16, left: 16 }}>{ev.emoji} {ev.catLabel}</div>
-              <button onClick={onClose} aria-label="Chiudi" style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: "50%", background: "rgba(10,10,12,.45)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.16)", color: "#fff", fontSize: 15, cursor: "pointer" }}>✕</button>
-            </div>
+            {/* La testata a foto del sistema: metadato, titolo in Fraunces.
+                Senza foto resta il fondo della testata, che è già scuro: il
+                gradiente di categoria e l'emoji gigante dietro non tornano. */}
+            <SheetHero
+              img={ev.image ?? ""}
+              /* Solo `catLabel`: la data ce l'ha già dentro («Concerto · dom
+                 20»), e mettendoci accanto anche `when` la si leggeva due
+                 volte nella stessa riga. Visto nel foglio vero, non dedotto. */
+              k={ev.catLabel}
+              h2={ev.title}
+            />
 
-            <div style={{ padding: "18px 20px 0" }}>
-              <h2 style={{ fontSize: 25, fontWeight: 600, lineHeight: 1.12, letterSpacing: "-.01em", color: "var(--k-text)", margin: 0 }}>{ev.title}</h2>
-              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--k-accent)", marginTop: 8 }}>{ev.when}</div>
-              {ev.location && <div style={{ fontSize: 15, color: "var(--k-text-2)", marginTop: 3 }}>{ev.location}</div>}
-          {ev.weather && <div style={{ fontSize: 13.5, color: "var(--k-text-3)", marginTop: 4 }}>{ev.weather.emoji} {ev.weather.tempC}° · {ev.weather.text} ora sul posto</div>}
-
-              {/* azioni sempre disponibili */}
-              <button onClick={() => downloadIcs(ev)} className="ds-btn primary" style={{ width: "100%", height: 52, borderRadius: 16, fontSize: 16, marginTop: 18 }}>📅 Aggiungi al calendario</button>
-              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                {ev.location && <a href={mapsUrl(ev.mapsQ)} target="_blank" rel="noreferrer" className="ds-btn" style={{ flex: 1, height: 46, textDecoration: "none" }}>📍 Maps</a>}
-                <button onClick={doShare} className="ds-btn" style={{ flex: 1, height: 46 }}>📤 Condividi</button>
-              </div>
-
-              {/* azioni con login: Modifica / Elimina (l'elimina ha l'undo in home) */}
-              {!demo && (
-                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                  <button onClick={() => setMode("edit")} className="ds-btn" style={{ flex: 1, height: 46 }}>✏️ Modifica</button>
-                  <button onClick={del} disabled={busy} className="ds-btn danger" style={{ flex: 1, height: 46 }}>🗑 Elimina</button>
-                </div>
+            <div className="pad">
+              {/* Il quando, per esteso: è il dato che si viene a cercare qui. */}
+              <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-.01em", marginTop: 14 }}>{ev.when}</div>
+              {ev.location && <div className="status">{ev.location}</div>}
+              {ev.weather && (
+                <div className="status">{ev.weather.tempC}° · {ev.weather.text} ora sul posto</div>
               )}
 
-              {/* Info & link (card) */}
-              <div style={{ marginTop: 18, background: "rgba(255,255,255,.04)", border: "1px solid var(--k-line)", borderRadius: 16, padding: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", marginBottom: 10 }}>Trovato da Keiko ✨</div>
-                {ev.enrichment?.summary && <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--k-text-2)", margin: "0 0 10px" }}>{ev.enrichment.summary}</p>}
-                {(ev.enrichment?.links ?? []).map((l, i) => (
-                  <a key={i} href={l.url} target="_blank" rel="noreferrer" className="ds-btn" style={{ width: "100%", marginBottom: 8, justifyContent: "flex-start", textDecoration: "none", height: 44 }}>🔗 {l.label}</a>
-                ))}
-                {!ev.enrichment?.summary && <p style={{ fontSize: 12.5, color: "var(--k-text-3)", margin: 0 }}>Keiko cerca online sito, biglietti e come arrivare — compaiono qui alla creazione dell&apos;evento.</p>}
+              {/* LA PRIMARIA, una sola, in alto. */}
+              <button className="cta wide tap" style={{ marginTop: 14 }} onClick={() => downloadIcs(ev)}>
+                {I.cal({ s: 15 })}Aggiungi al calendario
+              </button>
+
+              {/* Le altre, righe-azione. */}
+              <div className="srf" style={{ marginTop: 12 }}>
+                {ev.location && riga(I.map({ s: 16 }), "Come ci arrivo", ev.location, () => window.open(mapsUrl(ev.mapsQ), "_blank", "noopener"))}
+                {riga(I.copy({ s: 16 }), "Condividi", "Manda a qualcuno dove e quando", doShare)}
+                {!demo && riga(I.pen({ s: 16 }), "Modifica", "Titolo, giorno, ora, luogo", () => setMode("edit"))}
+                {!demo && (
+                  <div className="row-act tap" onClick={del} role="button">
+                    <span className="ic2" style={{ color: "#E57373" }}>{I.close({ s: 16 })}</span>
+                    <span className="in">
+                      <span className="t" style={{ color: "#E57373" }}>Elimina</span>
+                      {/* Si annulla: e' il motivo per cui basta un tocco.
+                          Vedi UI-DECISIONI-V2, 3-sexies. */}
+                      <span className="m">Hai cinque secondi per annullare</span>
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* Quello che Keiko ha trovato online. Se non c'è, lo dice invece
+                  di lasciare un riquadro vuoto. */}
+              <div className="status" style={{ marginTop: 18, marginBottom: 8 }}>Trovato da Keiko</div>
+              {ev.enrichment?.summary ? (
+                <div className="srf" style={{ padding: 14 }}>
+                  <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--txt2)", margin: 0 }}>{ev.enrichment.summary}</p>
+                </div>
+              ) : (
+                <p className="status" style={{ marginTop: 0 }}>
+                  Keiko cerca online sito, biglietti e come arrivare: compaiono qui alla
+                  creazione dell&apos;evento.
+                </p>
+              )}
+              {(ev.enrichment?.links ?? []).length > 0 && (
+                <div className="srf" style={{ marginTop: 8 }}>
+                  {(ev.enrichment?.links ?? []).map((l, i) => (
+                    <div className="row-act tap" key={i} onClick={() => window.open(l.url, "_blank", "noopener")} role="button">
+                      <span className="ic2">{I.up({ s: 16 })}</span>
+                      <span className="in"><span className="t">{l.label}</span></span>
+                      {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
-      </SheetShell>
+      </Sheet>
 
-      {/* conferma che il tocco ha fatto qualcosa (senza foglio di sistema).
-          Fuori da SheetShell: resta ancorato al viewport anche mentre trascini. */}
-      {toast && (
-        <div style={{ position: "fixed", left: 0, right: 0, bottom: "calc(env(safe-area-inset-bottom) + 28px)", zIndex: 130, display: "flex", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
-          <div style={{ background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "10px 18px", fontSize: 14, fontWeight: 600, color: "var(--k-text)", boxShadow: "0 8px 30px rgba(0,0,0,.45)" }}>✓ {toast}</div>
-        </div>
-      )}
-    </>
+      {/* conferma che il tocco ha fatto qualcosa (quando non c'è il foglio di
+          sistema per condividere). `.toast` del sistema, con `pointer-events`
+          suo: si guarda e basta. */}
+      {toast && <div className="toast on" role="status" style={{ zIndex: 130 }}>{toast}</div>}
+    </div>
   );
 }

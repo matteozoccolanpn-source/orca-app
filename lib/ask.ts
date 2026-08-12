@@ -27,8 +27,9 @@ export async function askKeiko(q: string, context: unknown): Promise<string> {
   const system = `Sei Keiko, l'assistente personale dell'utente dentro la sua app "calendario della vita".
 Oggi è ${oggi} (fuso Europe/Rome).
 Rispondi in ITALIANO, in modo BREVE (max 3-4 frasi), concreto e amichevole, come un consulente personale.
+NON usare MAI emoji, in nessuna risposta. Il tono gentile lo fanno le parole.
 Usa SOLO i dati forniti nel CONTESTO (eventi, to-do, dieta, allenamento). NON inventare orari, luoghi o dettagli.
-Se l'informazione non c'è nei dati, dillo con gentilezza (es. "Non lo trovo tra i tuoi dati 😊") e, se utile, suggerisci come aggiungerlo.
+Se l'informazione non c'è nei dati, dillo con gentilezza (es. "Non lo trovo tra i tuoi dati") e, se utile, suggerisci come aggiungerlo.
 La dieta e l'allenamento sono organizzati per giorno della settimana (lun, mar, mer, gio, ven, sab, dom).`;
 
   const messages = [
@@ -44,7 +45,9 @@ La dieta e l'allenamento sono organizzati per giorno della settimana (lun, mar, 
       .map((b: { text?: string }) => b.text ?? "")
       .join("")
       .trim();
-    return text || "Su questa non ho ancora una risposta 😊";
+    // Niente emoji nemmeno qui: che la frase la scriva il modello o la
+    // scriviamo noi, chi la legge sente la stessa voce.
+    return text || "Su questa non ho ancora una risposta.";
   } catch (e) {
     console.error("askKeiko error:", e);
     return "Ho avuto un intoppo nel rispondere, riprova tra un attimo.";
