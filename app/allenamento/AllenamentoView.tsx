@@ -21,6 +21,7 @@ import type { Consiglio } from "@/lib/coach";
 import SessioneLive from "./SessioneLive";
 import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
 import { I } from "@/app/components/v2/icons";
+import { riassuntoSerie } from "@/lib/discipline";
 import { Img } from "@/app/components/v2/Img";
 import { Sec } from "@/app/components/v2/Sec";
 import { Chip as ChipV2 } from "@/app/components/v2/Chip";
@@ -1432,19 +1433,12 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-/* Un riassunto corto di un gruppo di serie: "10·10·8 rip · 40 kg".
-   Le caselle vuote restano vuote: se un esercizio non ha peso (corsa, plank)
-   non inventiamo uno zero. */
+/* Un riassunto corto di un gruppo di serie. Con le discipline il conto non e'
+   piu' uno solo: i pesi si dicono "4 × 10 a 60 kg", la corsa "5,0 km in 27'10"
+   · 5:26/km". La regola sta in lib/discipline, in un posto solo, perche' la
+   usano anche la sessione e lo storico. */
 function riassunto(rows: WorkoutSetRow[]): string {
-  const numeri = (v: (number | null)[]) => v.filter((n): n is number => typeof n === "number" && n > 0);
-  const rip = numeri(rows.map((r) => r.ripetizioni));
-  const kg = numeri(rows.map((r) => r.pesoKg));
-  const sec = numeri(rows.map((r) => r.secondi));
-  const parti: string[] = [];
-  if (rip.length > 0) parti.push(`${rip.join("·")} rip`);
-  if (kg.length > 0) parti.push(`${Math.max(...kg)} kg`);
-  if (parti.length === 0 && sec.length > 0) parti.push(`${Math.max(1, Math.round(Math.max(...sec) / 60))} min`);
-  return parti.join(" · ");
+  return riassuntoSerie(rows);
 }
 
 /* "2026-07-21" -> "mar 21 lug" (senza passare da UTC: la data e' gia' locale). */

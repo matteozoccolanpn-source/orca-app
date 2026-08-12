@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
+import { DISCIPLINE, type Disciplina } from '@/lib/discipline'
 import {
   startSession,
   logSet,
@@ -50,6 +51,10 @@ type Body = {
     pesoKg?: number
     secondi?: number
     fatica?: number
+    disciplina?: string
+    distanzaM?: number
+    bpmMedio?: number
+    dislivelloM?: number
   }
 }
 
@@ -97,6 +102,16 @@ export async function POST(req: NextRequest) {
           pesoKg: num(body.set?.pesoKg, 999),
           secondi: num(body.set?.secondi, 86400),
           fatica: num(body.set?.fatica, 10),
+          // La disciplina si accetta solo se e' una di quelle che conosciamo:
+          // una parola qualsiasi finirebbe in tabella e poi nessuno saprebbe
+          // piu' che campi ha quella riga. Fuori elenco -> `pesi`, che e' come
+          // si comportava prima.
+          disciplina: DISCIPLINE.includes((body.set?.disciplina ?? '') as Disciplina)
+            ? body.set?.disciplina
+            : 'pesi',
+          distanzaM: num(body.set?.distanzaM, 500000),   // 500 km
+          bpmMedio: num(body.set?.bpmMedio, 250),
+          dislivelloM: num(body.set?.dislivelloM, 20000),
         })
         return NextResponse.json({ setId })
       }

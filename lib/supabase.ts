@@ -391,8 +391,16 @@ export interface WorkoutSetRow {
   serie: number | null;
   ripetizioni: number | null;
   pesoKg: number | null;
+  /** LA DURATA. Si riusa: non se ne aggiunge un'altra. */
   secondi: number | null;
   fatica: number | null;
+  /* Oltre i chili: una serie di corsa non ha ripetizioni e una di nuoto non ha
+     peso. Le serie registrate prima di questo lavoro sono tutte `pesi` e hanno
+     i tre campi nuovi vuoti, quindi si continuano a leggere come prima. */
+  disciplina: string | null;
+  distanzaM: number | null;
+  bpmMedio: number | null;
+  dislivelloM: number | null;
   createdAt: string;
 }
 
@@ -414,8 +422,12 @@ export interface WorkoutSetInput {
   serie?: number;
   ripetizioni?: number;
   pesoKg?: number;
-  secondi?: number;
+  secondi?: number;            // la durata
   fatica?: number;             // 1-10
+  disciplina?: string;         // pesi | corsa | nuoto | bici | camminata | remo | altro
+  distanzaM?: number;
+  bpmMedio?: number;
+  dislivelloM?: number;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -428,6 +440,12 @@ function toSet(r: any): WorkoutSetRow {
     pesoKg: r.peso_kg === null || r.peso_kg === undefined ? null : Number(r.peso_kg),
     secondi: r.secondi ?? null,
     fatica: r.fatica ?? null,
+    // Le righe vecchie hanno la colonna a `pesi` (l'ha marcata Matteo); se per
+    // qualunque motivo fosse vuota, chi legge ripiega su `pesi` lo stesso.
+    disciplina: (r.disciplina as string) ?? null,
+    distanzaM: r.distanza_m ?? null,
+    bpmMedio: r.bpm_medio ?? null,
+    dislivelloM: r.dislivello_m ?? null,
     createdAt: (r.created_at as string) ?? "",
   };
 }
@@ -477,6 +495,10 @@ export async function logSet(sessionId: string, set: WorkoutSetInput): Promise<s
       peso_kg: set.pesoKg ?? null,
       secondi: set.secondi ?? null,
       fatica: set.fatica ?? null,
+      disciplina: set.disciplina ?? "pesi",
+      distanza_m: set.distanzaM ?? null,
+      bpm_medio: set.bpmMedio ?? null,
+      dislivello_m: set.dislivelloM ?? null,
     })
     .select("id")
     .single();
@@ -525,7 +547,7 @@ export async function getOpenSession(): Promise<WorkoutSession | null> {
 
   const { data: sets } = await client
     .from("workout_set")
-    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, disciplina, distanza_m, bpm_medio, dislivello_m, created_at")
     .eq("session_id", data.id)
     .order("created_at", { ascending: true });
   return toSession(data, (sets ?? []).map(toSet));
@@ -551,7 +573,7 @@ export async function getSessionByDay(day: string): Promise<WorkoutSession | nul
 
   const { data: sets } = await client
     .from("workout_set")
-    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, disciplina, distanza_m, bpm_medio, dislivello_m, created_at")
     .eq("session_id", data.id)
     .order("created_at", { ascending: true });
   return toSession(data, (sets ?? []).map(toSet));
@@ -577,7 +599,7 @@ export async function getSessionHistory(limit = 10): Promise<WorkoutSession[]> {
   // meglio di N query, una per seduta.
   const { data: sets } = await client
     .from("workout_set")
-    .select("id, session_id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .select("id, session_id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, disciplina, distanza_m, bpm_medio, dislivello_m, created_at")
     .in("session_id", sessions.map((s) => s.id))
     .order("created_at", { ascending: true });
 
@@ -606,7 +628,7 @@ export async function getLastPerformance(esercizio: string): Promise<WorkoutSetR
 
   const { data: sets } = await client
     .from("workout_set")
-    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, created_at")
+    .select("id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, disciplina, distanza_m, bpm_medio, dislivello_m, created_at")
     .eq("session_id", data.session_id)
     .eq("esercizio", esercizio)
     .order("created_at", { ascending: true });
