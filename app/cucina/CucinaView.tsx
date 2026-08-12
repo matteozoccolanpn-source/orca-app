@@ -16,9 +16,10 @@ import { DayCard } from "@/app/components/v2/DayCard";
 import { Sheet } from "@/app/components/v2/Sheet";
 import { Skeleton } from "@/app/components/v2/Skeleton";
 import { Empty } from "@/app/components/v2/Empty";
-/* ds.css resta importato finche' i fogli che questa pagina apre non passano
-   anche loro al sistema nuovo: toglierlo adesso li spoglierebbe. */
-import "../ds.css";
+/* A6 · l'import di ds.css se n'e' andato da qui il 12 agosto 2026: i fogli che
+   questa pagina apre sono passati al sistema nuovo, e in tutto il file non c'e'
+   piu' nessuna classe `ds-*` ne' nessuna variabile `--k-*` (contate: zero).
+   Nella Home invece resta, e c'e' scritto perche'. */
 
 /* CUCINA — la sezione, ripensata (docs/mockups/cucina-redesign-mock.html).
  *

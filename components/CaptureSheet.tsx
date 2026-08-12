@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, ImagePlus, AlertCircle, ShieldCheck } from "lucide-react";
+import { I } from "@/app/components/v2/icons";
 import {
   EventForm,
   toDatetime,
@@ -39,10 +39,26 @@ interface Parsed {
   city: string;
 }
 
-const EMOJI: Record<string, string> = {
-  train: "🚆", flight: "✈️", hotel: "🏨", concert: "🎵",
-  museum: "🏛️", restaurant: "🍽️", sport: "🏟️", cinema: "🎬", other: "📌",
+/* Il tipo dell'evento si dice con l'ICONA del set, non con un'emoji: le
+   emoji sono decorazione, cambiano disegno da telefono a telefono e non
+   prendono il colore del sistema. Chi non è nell'elenco ricade sul
+   calendario, che è vero per tutti. */
+const ICONA_TIPO: Record<string, (p?: { s?: number }) => React.ReactElement> = {
+  train: I.train, flight: I.plane, hotel: I.bed, concert: I.mic,
+  museum: I.map, restaurant: I.pot, sport: I.dumb, cinema: I.film,
 };
+const iconaDi = (tipo: string) => (ICONA_TIPO[(tipo ?? "").toLowerCase()] ?? I.cal)({ s: 18 });
+
+/* Gli esempi del segnaposto: uno alla volta, a turno. Insegnano cosa
+   l'imbuto sa digerire — una riga scritta di fretta, un messaggio incollato
+   così com'è, tante righe insieme — senza trasformarsi in un elenco di
+   opzioni da scegliere. Sono tre e restano tre: aggiungerne dieci
+   rifarebbe il menu, in un altro modo. */
+const ESEMPI = [
+  "volo domani 6:00 Ryanair",
+  "cena giovedì 20:30 da Marco",
+  "incolla le 4 lezioni: te le creo tutte",
+];
 
 // Le frasi dell'attesa (dal mock). Ruotano ogni 2,3s con dissolvenza.
 const FRASI_TESTO = ["Leggo il messaggio…", "Cerco date e orari…", "Sistemo i dettagli…"];
@@ -96,6 +112,14 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
   const [mostrate, setMostrate] = useState(0);
   const [frase, setFrase] = useState(0);
   const [immagine, setImmagine] = useState(false);
+  /* L'esempio nel segnaposto, che gira mentre il foglio è fermo. Si ferma
+     appena scrivi: da lì in poi il campo è tuo e non deve cambiarti sotto. */
+  const [esempio, setEsempio] = useState(0);
+  useEffect(() => {
+    if (!open || fase !== "idle" || text.length > 0) return;
+    const t = setInterval(() => setEsempio((i) => (i + 1) % ESEMPI.length), 3200);
+    return () => clearInterval(t);
+  }, [open, fase, text.length]);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -353,7 +377,7 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
           className="absolute right-3 top-3 grid place-items-center rounded-xl disabled:opacity-40"
           style={{ width: "var(--tap)", height: "var(--tap)", color: "var(--on-surface-2)" }}
         >
-          <X className="size-5" />
+          {I.close({ s: 20 })}
         </button>
 
         {/* IL FILO — al posto dei pallini. Avanza per fasi, senza etichette. */}
@@ -364,17 +388,27 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
         {/* ---------- 1 · scrivi ---------- */}
         {fase === "idle" && (
           <>
+            {/* UN INVITO, NON UN MENU.
+                Prima qui c'era l'elenco delle cose che si possono fare —
+                «Scrivi, incolla o allega uno screenshot» — e nel segnaposto
+                tre esempi separati da punti, tutti insieme. Un elenco di
+                opzioni fa scegliere; un invito fa cominciare.
+                Adesso c'è una domanda sola, e SOTTO il dito un esempio alla
+                volta che cambia da sé: è così che si impara cosa digerisce
+                questo imbuto — vedendoglielo fare, non leggendo un menu.
+                L'imbuto non si tocca: è sempre lo stesso campo, che manda
+                sempre a /api/upload. Cambia solo cosa gli si legge sopra. */}
             <div style={{ fontWeight: "var(--fw-black)", fontSize: "var(--fs-xl)", color: "var(--on-surface)", letterSpacing: "-.02em" }}>
-              Aggiungi a Keiko
+              Cosa ti hanno mandato?
             </div>
             <p style={{ fontSize: "var(--fs-sm)", color: "var(--on-surface-2)", marginTop: "var(--s1)", marginBottom: "var(--s4)", lineHeight: 1.45 }}>
-              Scrivi, incolla o allega uno screenshot. Ci penso io.
+              Buttalo qui com&apos;è. Ci penso io a capirlo.
             </p>
 
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="es. 'volo domani 6am Ryanair' · 'cena giovedì 20:30 da Marco' · oppure incolla 4 lezioni e le creo tutte."
+              placeholder={ESEMPI[esempio]}
               className="w-full resize-none outline-none placeholder:[color:var(--on-surface-3)]"
               style={{
                 background: "var(--inset)",
@@ -404,13 +438,13 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
               className="mt-[var(--s3)] flex w-full items-center justify-center gap-2 transition-transform duration-200 active:scale-[0.98]"
               style={{ fontSize: "var(--fs-sm)", fontWeight: "var(--fw-semi)", minHeight: "var(--tap)", borderRadius: "var(--r-sm)", border: "1px solid var(--inset-line)", background: "var(--inset)", color: "var(--on-surface)" }}
             >
-              <ImagePlus className="size-[18px] flex-none" />
+              <span style={{ flex: "none", display: "flex" }}>{I.plus({ s: 18 })}</span>
               Allega screenshot
             </button>
             <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
 
             <div className="flex items-center justify-center gap-2" style={{ marginTop: "var(--s4)", fontSize: 11.5, fontWeight: "var(--fw-med)", color: "var(--on-surface-3)" }}>
-              <ShieldCheck className="size-3.5" style={{ color: "var(--green)" }} />
+              <span style={{ color: "var(--green)", display: "flex" }}>{I.tick({ s: 14 })}</span>
               I tuoi dati · zero pubblicità · server in EU
             </div>
           </>
@@ -518,8 +552,8 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
                       style={{ minWidth: 0, minHeight: "var(--tap)" }}
                       aria-label={`Correggi ${p.title}`}
                     >
-                      <span style={{ width: 42, height: 42, borderRadius: 14, flex: "none", display: "grid", placeItems: "center", fontSize: 19, background: "color-mix(in srgb, var(--accent-strong) 12%, transparent)" }}>
-                        {EMOJI[(p.type ?? "").toLowerCase()] ?? EMOJI.other}
+                      <span style={{ width: 42, height: 42, borderRadius: 14, flex: "none", display: "grid", placeItems: "center", color: "var(--teal)", background: "color-mix(in srgb, var(--accent-strong) 12%, transparent)" }}>
+                        {iconaDi(p.type)}
                       </span>
                       <span style={{ minWidth: 0 }}>
                         <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "var(--on-surface)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: fuori ? "line-through" : undefined }}>
@@ -541,7 +575,7 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
                       className="grid place-items-center rounded-xl"
                       style={{ width: "var(--tap)", height: "var(--tap)", flex: "none", color: "var(--on-surface-3)" }}
                     >
-                      {fuori ? <span style={{ fontSize: 15 }}>＋</span> : <X className="size-4" />}
+                      {fuori ? I.plus({ s: 16 }) : I.close({ s: 16 })}
                     </button>
                   </div>
                 );
@@ -572,7 +606,7 @@ export default function CaptureSheet({ open, onClose }: { open: boolean; onClose
         {/* ---------- errori e tetto giornaliero: restano QUI, leggibili ---------- */}
         {fase === "errore" && (
           <div className="flex flex-col items-center gap-4 py-10">
-            <AlertCircle className="size-12" style={{ color: "var(--destructive)" }} />
+            <span style={{ color: "var(--destructive)", display: "flex" }}>{I.info({ s: 48 })}</span>
             <p className="text-center" style={{ fontSize: "var(--fs-sm)", color: "var(--on-surface-2)", lineHeight: 1.5 }}>{errorMsg}</p>
             <button
               type="button"

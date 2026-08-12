@@ -16,6 +16,11 @@ import { catFor, type ImageCategory } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
 import type { Battito } from "@/lib/battiti";
 import { I } from "@/app/components/v2/icons";
+/* A6 · qui ds.css RESTA, e non per dimenticanza: `Ph` dipinge il fondo delle
+   card senza foto con `var(--k-cat-<categoria>)`, e quei 17 gradienti sono
+   definiti li' dentro. Toglierlo lascerebbe grigie tutte le card a cui manca
+   l'immagine. Se ne va quando i gradienti di categoria passano al foglio V2 —
+   che e' un lavoro suo, non una riga da cancellare. */
 import "../../ds.css";
 
 /* HOME — ONDATA 5.
