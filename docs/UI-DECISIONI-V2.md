@@ -125,6 +125,22 @@
      i pallini del logo). La `.cta` della Home era l'unico bottone con del
      testo rimasto su `--acc`, e ci scriveva pure il bianco a mano: corretta.
      Nessun terracotta si scrive più in cifre nel codice.
+3-sexies. **L'attrito si dosa sul danno** (12 agosto 2026). Le conferme non
+   sono tutte uguali, e la differenza non è quanto è «grave» una cosa: è se si
+   torna indietro.
+   - **Distruttivo reversibile** (togli un titolo dalla lista, elimina una
+     ricetta, cancella una serie, butta un promemoria) → **due tocchi**: il
+     primo arma e dice cosa succede, il secondo fa. E dev'esserci «Annulla»
+     nel toast. Sbagliare costa un secondo.
+   - **Irreversibile** — oggi è **una sola cosa**, «cancella tutto» dell'account
+     → **si scrive la parola** `CANCELLA`. Due tocchi si danno anche in tasca,
+     e questa è l'unica azione dell'app che non si disfa: qui l'attrito è la
+     cosa che serve, non un fastidio da limare. La parola è richiesta anche dal
+     server (`/api/account/delete` vuole `conferma: "CANCELLA"`), quindi la
+     rete di sicurezza è doppia.
+   In nessuno dei due casi si usa `window.confirm`: è una finestra del browser,
+   non sa niente di noi e non si può vestire. La conferma vive dentro il foglio.
+
 4. Contrasto sugli accenti: testo scuro su teal (`#08191E`); su terracotta
    testo chiaro caldo `#FFF3EC`.
 5. **Elevazione a 3 QUOTE**: fondo `#0F0F12` → card `#1A1B20` →

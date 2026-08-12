@@ -152,12 +152,16 @@ export default function ProfileSheet({
 
   /* K4 — «cancella tutti i miei dati». Registro serio (docs/UI-VOICE.md §2):
      niente emoji, niente battute.
-     La conferma è a DUE TOCCHI, dentro il foglio: il primo arma e scrive cosa
-     sta per succedere, il secondo cancella. Mai `window.confirm`, che è una
-     finestra del browser e non sa niente di noi. Il primo tocco si disarma da
-     solo se cambi idea (basta toccare «Lascia stare»), e la parola CANCELLA
-     resta comunque obbligatoria dalla parte del server. */
+     LA PAROLA SI SCRIVE, e non è pignoleria: due tocchi si danno anche in
+     tasca, e questa è l'unica azione dell'app che non si disfa. L'attrito qui
+     è la cosa che serve. I due tocchi valgono per il distruttivo REVERSIBILE —
+     togliere un titolo dalla lista, eliminare una ricetta — dove sbagliare
+     costa poco e c'è «Annulla». La regola per esteso sta in
+     docs/UI-DECISIONI-V2.md.
+     Mai `window.confirm`: è una finestra del browser e non sa niente di noi.
+     Il vestito è quello del sistema; il gesto è quello di prima. */
   const [delArmato, setDelArmato] = useState(false);
+  const [delWord, setDelWord] = useState("");
   const [delBusy, setDelBusy] = useState(false);
   const [delMsg, setDelMsg] = useState<string | null>(null);
   const [delDone, setDelDone] = useState(false);
@@ -461,15 +465,15 @@ export default function ProfileSheet({
 
             {!delArmato ? (
               <button
-                onClick={() => { setDelArmato(true); setDelMsg(null); }}
+                onClick={() => { setDelArmato(true); setDelWord(""); setDelMsg(null); }}
                 className="tert tap"
                 style={{ width: "100%", minHeight: 44, marginTop: 4, color: "#E57373" }}
               >
                 Cancella tutto
               </button>
             ) : (
-              /* Il secondo tocco. Qui c'è scritto cosa sparisce e che non si
-                 torna indietro: chi arriva al secondo tocco l'ha letto. */
+              /* Qui c'è scritto cosa sparisce e che non si torna indietro, e
+                 poi si scrive la parola. Chi arriva in fondo l'ha letto. */
               <div className="srf2" style={{ marginTop: 8, padding: 14, borderColor: "rgba(229,115,115,.35)" }}>
                 <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-.01em" }}>Cancello tutto?</div>
                 <p className="status">
@@ -477,17 +481,39 @@ export default function ProfileSheet({
                   watchlist, il profilo e le notifiche. Non si torna indietro: dopo non posso
                   ripescarli.
                 </p>
-                <div className="pactions" style={{ marginTop: 14 }}>
+
+                <label className="status" style={{ display: "block", marginTop: 14, marginBottom: 6 }}>
+                  Scrivi CANCELLA per confermare
+                </label>
+                <input
+                  value={delWord}
+                  onChange={(e) => setDelWord(e.target.value)}
+                  placeholder="CANCELLA"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  disabled={delBusy || delDone}
+                  aria-label="Scrivi CANCELLA per confermare"
+                  /* 16px: sotto i 16 iOS ingrandisce la pagina al primo tocco. */
+                  style={{
+                    width: "100%", background: "var(--lv1)", border: "1px solid rgba(255,255,255,.09)",
+                    borderRadius: "var(--r-in)", boxShadow: "inset 0 1px 0 var(--hl)",
+                    padding: "12px 14px", color: "var(--txt)", fontSize: 16, fontFamily: "inherit",
+                    outline: 0, boxSizing: "border-box",
+                  }}
+                />
+
+                <div className="pactions" style={{ marginTop: 12 }}>
                   <button
                     onClick={deleteAll}
-                    disabled={delBusy || delDone}
+                    disabled={delWord.trim() !== "CANCELLA" || delBusy || delDone}
                     className="btn2 tap"
-                    style={{ flex: 1, justifyContent: "center", color: "#E57373", borderColor: "rgba(229,115,115,.35)", opacity: delBusy || delDone ? 0.45 : 1 }}
+                    style={{ flex: 1, justifyContent: "center", color: "#E57373", borderColor: "rgba(229,115,115,.35)", opacity: delWord.trim() !== "CANCELLA" || delBusy || delDone ? 0.45 : 1 }}
                   >
-                    {delBusy ? "Sto cancellando…" : "Sì, cancella tutto"}
+                    {delBusy ? "Sto cancellando…" : "Cancella tutto"}
                   </button>
                   <button
-                    onClick={() => { setDelArmato(false); setDelMsg(null); }}
+                    onClick={() => { setDelArmato(false); setDelWord(""); setDelMsg(null); }}
                     disabled={delBusy || delDone}
                     className="btn2 tap"
                     style={{ flex: 1, justifyContent: "center" }}

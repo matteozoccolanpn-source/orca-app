@@ -1,10 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import SheetShell from "./SheetShell";
+import { Sheet, K2_FOGLIO } from "@/app/components/v2/Sheet";
+import { Feedback } from "@/app/components/v2/Feedback";
+import { I } from "@/app/components/v2/icons";
 
-/* "Chiedi a Keiko" nel design v4: risposta AI (/api/ask) + collegamenti
-   rapidi ai tuoi eventi/to-do (/api/search). Riusa le route esistenti. */
+/* «CHIEDI A KEIKO», sul sistema V2.
+ *
+ * Gli stati sono quelli del pannello del sistema: fermo → sta pensando →
+ * risultato. Due differenze da `AskPanel`, e sono volute:
+ *  - mentre pensa ci sono gli SCHELETRI, non l'orb che gira. Uno scheletro ha
+ *    la forma di quello che sta arrivando e dice «sta per esserci del testo»;
+ *    un cerchio che ruota dice solo «aspetta»;
+ *  - `AskPanel` disegna un'anteprima con il diff — «ecco cosa cambierei» — e
+ *    qui non c'è niente da cambiare: si fa una domanda e arriva una risposta.
+ *    Il diff non si finge. Le classi del pannello (`.panel`, `.ph-head`,
+ *    `.bd`, `.why`) sono le sue, quindi la forma è quella del sistema.
+ *
+ * Sotto la risposta c'è il perché in teal, coi pollici e «spiegami perché»
+ * (`Feedback`): ogni cosa che Keiko dice si può contestare.
+ *
+ * LE CHIAMATE NON CAMBIANO: /api/ask e /api/search, in parallelo. */
 
 type SearchRes = {
   events: { id: string; title: string; datetime: string; location: string | null }[];
@@ -28,30 +44,32 @@ function fmtDay(day: string, time?: string | null) {
 function renderRich(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith("**") && part.endsWith("**")
-      ? <strong key={i} style={{ fontWeight: 700, color: "var(--k-text)" }}>{part.slice(2, -2)}</strong>
+      ? <strong key={i} style={{ fontWeight: 700, color: "var(--txt)" }}>{part.slice(2, -2)}</strong>
       : <span key={i}>{part}</span>
   );
 }
 
+const ESEMPI = ["che allenamento ho oggi?", "cosa mangio a cena?", "quando è il prossimo volo?"];
+
 export default function AskSheet({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState("");
+  const [chiesto, setChiesto] = useState("");   // la domanda a cui sta rispondendo
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [res, setRes] = useState<SearchRes | null>(null);
-  // Guardia swipe: con la tastiera aperta (input a fuoco) o mentre Keiko risponde
-  // (busy), lo swipe-giù NON deve chiudere il foglio (chiuderebbe la tastiera).
-  const [inputFocused, setInputFocused] = useState(false);
 
-  async function run() {
-    const query = q.trim();
+  async function run(testo?: string) {
+    const query = (testo ?? q).trim();
     if (!query) return;
+    setChiesto(query);
     setBusy(true); setAnswer(null); setRes(null);
     try {
       const [ai, s] = await Promise.all([
         fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q: query }) }).then((r) => r.json()).catch(() => ({ answer: "" })),
         fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q: query }) }).then((r) => r.json()).catch(() => ({ events: [], todos: [] })),
       ]);
-      setAnswer(typeof ai?.answer === "string" && ai.answer ? ai.answer : "Su questa non ho ancora una risposta 😊 — me la segno, così miglioriamo.");
+      // Quando non sa, lo dice e basta: niente faccina che addolcisce un buco.
+      setAnswer(typeof ai?.answer === "string" && ai.answer ? ai.answer : "Su questa non ho ancora una risposta. Me la segno.");
       setRes({ events: s?.events ?? [], todos: s?.todos ?? [] });
     } catch {
       setAnswer("Ho avuto un intoppo, riprova.");
@@ -63,50 +81,127 @@ export default function AskSheet({ onClose }: { onClose: () => void }) {
   const hasLinks = res && (res.events.length > 0 || res.todos.length > 0);
 
   return (
-    <SheetShell onClose={onClose} zIndex={95} lockSwipe={busy || inputFocused}>
-      <div style={{ padding: "0 20px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "11px 14px" }}>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--k-text-3)" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          <input autoFocus value={q} onFocus={() => setInputFocused(true)} onBlur={() => setInputFocused(false)} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") run(); }} placeholder="Chiedi a Keiko… «che allenamento ho oggi?»" style={{ flex: 1, background: "none", border: 0, outline: 0, color: "var(--k-text)", fontSize: 16, fontFamily: "inherit" }} />
-          <button onClick={run} aria-label="Chiedi" disabled={busy || !q.trim()} style={{ width: 30, height: 30, borderRadius: "50%", border: 0, background: "var(--k-accent)", color: "var(--k-accent-ink)", fontSize: 16, fontWeight: 800, cursor: "pointer", opacity: busy || !q.trim() ? 0.4 : 1 }}>↑</button>
+    <div className="k2" style={K2_FOGLIO}>
+      <Sheet onClose={onClose}>
+        <div className="plain-head">
+          <h2>Chiedi a Keiko</h2>
         </div>
-        <button onClick={onClose} aria-label="Chiudi" style={{ background: "none", border: 0, color: "var(--k-text-3)", fontSize: 20, cursor: "pointer" }}>✕</button>
-      </div>
 
-      {busy && <p style={{ color: "var(--k-text-3)", fontSize: 12.5, margin: "16px 4px 0" }}>Keiko sta pensando…</p>}
+        <div className="pad">
+          {/* la barra: qui è un campo vero, perché la domanda si scrive */}
+          <div className="ask" style={{ marginTop: 14, cursor: "auto" }}>
+            <span style={{ color: "var(--teal)", flex: "none", display: "flex" }}>{I.orca(19)}</span>
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") run(); }}
+              placeholder="Che allenamento ho oggi?"
+              aria-label="La tua domanda"
+              /* 16px: sotto i 16 iOS ingrandisce la pagina al primo tocco e
+                 non torna più indietro. */
+              style={{ flex: 1, minWidth: 0, background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+            />
+            <button
+              className="go tap"
+              onClick={() => run()}
+              disabled={busy || !q.trim()}
+              aria-label="Chiedi"
+              style={{ border: 0, cursor: "pointer", opacity: busy || !q.trim() ? 0.45 : 1 }}
+            >
+              {I.right({ s: 14 })}
+            </button>
+          </div>
 
-      {!busy && answer && (
-        <div style={{ marginTop: 16, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 16, padding: "14px 16px", fontSize: 14, lineHeight: 1.5, color: "var(--k-text)", whiteSpace: "pre-wrap" }}>{renderRich(answer)}</div>
-      )}
-
-      {!busy && hasLinks && (
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 4px 8px" }}>Collegamenti</div>
-          {res!.events.map((e) => (
-            <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, marginBottom: 8 }}>
-              <span>📅</span><span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{e.title}</span><span style={{ fontSize: 12, color: "var(--k-text-3)" }}>{fmtWhen(e.datetime)}</span>
+          {/* ── sta pensando: scheletri, non un cerchio che gira ── */}
+          {busy && (
+            <div className="srf2 panel glow" style={{ marginTop: 12 }}>
+              <div className="ph-head">
+                <span style={{ color: "var(--teal)", display: "flex" }}>{I.orca(18)}</span>
+                <span className="ph-q">{chiesto}</span>
+                <span className="ph-st">ci sto pensando</span>
+              </div>
+              <div className="bd">
+                <span className="sk sk-line" style={{ display: "block", width: "92%" }} />
+                <span className="sk sk-line" style={{ display: "block", width: "78%" }} />
+                <span className="sk sk-line" style={{ display: "block", width: "54%" }} />
+              </div>
             </div>
-          ))}
-          {res!.todos.map((t) => (
-            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, marginBottom: 8 }}>
-              <span>✅</span><span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t.text}</span><span style={{ fontSize: 12, color: "var(--k-text-3)" }}>{fmtDay(t.day, t.time)}</span>
+          )}
+
+          {/* ── la risposta ── */}
+          {!busy && answer && (
+            <div className="srf2 panel glow" style={{ marginTop: 12 }}>
+              <div className="ph-head">
+                <span style={{ color: "var(--teal)", display: "flex" }}>{I.orca(18)}</span>
+                <span className="ph-q">{chiesto}</span>
+                <span className="chevhit tap" onClick={() => { setAnswer(null); setRes(null); }}>
+                  {I.close({ s: 15 })}
+                </span>
+              </div>
+              <div className="bd">
+                <div style={{ fontSize: 14, lineHeight: 1.55, color: "var(--txt)", whiteSpace: "pre-wrap" }}>
+                  {renderRich(answer)}
+                </div>
+                {/* Il perché, in teal, coi pollici e «spiegami perché». */}
+                <div className="why">
+                  {I.tick({ s: 13 })}
+                  <span style={{ flex: 1 }}>Risposta dai tuoi dati di oggi</span>
+                  <Feedback perche="Guardo i tuoi eventi, i to-do, la dieta e la scheda di allenamento di questi giorni. Se qualcosa non c'è, non lo invento: te lo dico." />
+                </div>
+              </div>
             </div>
-          ))}
+          )}
+
+          {/* ── i collegamenti: righe-azione del sistema ── */}
+          {!busy && hasLinks && (
+            <>
+              <div className="status" style={{ marginTop: 16, marginBottom: 8 }}>Nelle tue cose</div>
+              <div className="srf">
+                {res!.events.map((e) => (
+                  <div className="row-act" key={e.id} style={{ cursor: "default" }}>
+                    <span className="ic2">{I.cal({ s: 16 })}</span>
+                    <span className="in">
+                      <span className="t">{e.title}</span>
+                      <span className="m">{fmtWhen(e.datetime)}{e.location ? ` · ${e.location}` : ""}</span>
+                    </span>
+                  </div>
+                ))}
+                {res!.todos.map((t) => (
+                  <div className="row-act" key={t.id} style={{ cursor: "default" }}>
+                    <span className="ic2">{I.tick({ s: 16 })}</span>
+                    <span className="in">
+                      <span className="t">{t.text}</span>
+                      <span className="m">{fmtDay(t.day, t.time)}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── fermo: tre esempi, che insegnano cosa si può chiedere ── */}
+          {!busy && !answer && (
+            <>
+              <div className="status" style={{ marginTop: 16, marginBottom: 8 }}>Prova a chiedere</div>
+              <div className="srf">
+                {ESEMPI.map((s) => (
+                  <div
+                    className="row-act tap"
+                    key={s}
+                    onClick={() => { setQ(s); run(s); }}
+                    role="button"
+                  >
+                    <span className="ic2">{I.orca(15)}</span>
+                    <span className="in"><span className="t">{s}</span></span>
+                    {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
-      )}
-
-      {!busy && !answer && (
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--k-text-3)", margin: "0 4px 10px" }}>Prova a chiedere</div>
-          {["che allenamento ho oggi?", "cosa mangio a cena?", "quando è il prossimo volo?"].map((s) => (
-            <div key={s} onClick={() => { setQ(s); run(); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 12px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 12, marginBottom: 8, cursor: "pointer" }}>
-              <span>💬</span><span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{s}</span><span style={{ color: "var(--k-text-3)" }}>›</span>
-            </div>
-          ))}
-        </div>
-      )}
-      </div>
-    </SheetShell>
+      </Sheet>
+    </div>
   );
 }
