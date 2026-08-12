@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import CaptureSheet from "@/components/CaptureSheet";
-import KeikoNav, { PAGE_PB } from "./KeikoNav";
+import KeikoNav from "./KeikoNav";
 import EventSheet from "./EventSheet";
 import AskSheet from "./AskSheet";
 import DaySheet from "./DaySheet";
@@ -12,16 +12,28 @@ import InstallSheet from "./InstallSheet";
 import Onboarding from "./Onboarding";
 import { cosaMostrare, daProporre, daIcona, daTelefono, type CosaMostrare } from "@/lib/install-client";
 import CalendarSheet from "./CalendarSheet";
-import SmartMedia from "@/components/SmartMedia";
-import { catFor, glyphFor } from "@/lib/smart-image";
+import { catFor, glyphFor, type ImageCategory } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
 import type { Battito } from "@/lib/battiti";
+import { I } from "@/app/components/v2/icons";
 import "../../ds.css";
 
-/* HOME v4 (Fase 2 — slice 1): nuova Home col design bloccato, dati VERI.
-   Dietro ?v4 così è additiva (la Home attuale resta). Card unica + gradienti
-   categoria (livello 0). Interazioni pesanti (pannello evento, ricerca) nella
-   prossima slice. */
+/* HOME — ONDATA 5.
+
+   Cambia solo il livello visivo: markup e classi del mock CONGELATO
+   (docs/mockups/home-v2-final-mock.html), che Matteo ha gia' rifiutato due
+   volte quando era stato reinterpretato. Qui non si progetta niente.
+
+   Stato, effetti, chiamate di rete e gestori sono quelli di prima, riga per
+   riga: to-do, eliminazione con annulla, meteo, battiti, cattura, i sette
+   fogli, l'invito a installare, il deep-link ?ev= / ?day=.
+
+   Le classi della Home vivono sotto `.k2 .home` perche' il mock usa nomi
+   generici (.sec, .day, .task, .content, .wide, .ck, .ph, .dot, .shelf) che
+   nel foglio condiviso esistono gia' con un'altra definizione, e le altre
+   sezioni sono in produzione. Il guscio le separa senza toccare il condiviso
+   e senza cambiare una classe del mock. L'elenco dei 34 casi sta in cima al
+   blocco LA HOME di app/keiko-v2.css. */
 
 type LiveTodo = LiveHome["days"][string]["todos"][number];
 
@@ -45,6 +57,54 @@ function dayTitle(key: string): string {
   catch { return key; }
 }
 
+/* ── le cinque famiglie di colore del sistema ──
+   `catFor` dà una quindicina di categorie (serve alle foto); i pallini del
+   sistema V2 sono cinque. Qui si riduce, e la riduzione sta in un posto solo.
+   Il testo tenue accanto al pallino usa le tinte chiare di UI-DECISIONI-V2. */
+type Famiglia = "viaggi" | "sport" | "dieta" | "guarda" | "eventi";
+const FAMIGLIA: Partial<Record<ImageCategory, Famiglia>> = {
+  volo: "viaggi", treno: "viaggi", viaggio: "viaggi", hotel: "viaggi",
+  sport: "sport", film: "guarda", dieta: "dieta",
+};
+const famigliaDi = (c: ImageCategory): Famiglia => FAMIGLIA[c] ?? "eventi";
+const COLORE: Record<Famiglia, string> = {
+  viaggi: "var(--c-viaggi)", sport: "var(--c-sport)", dieta: "var(--c-dieta)",
+  guarda: "var(--c-guarda)", eventi: "var(--c-eventi)",
+};
+const TENUE: Record<Famiglia, string> = {
+  viaggi: "#AECBEE", sport: "#7CC9BD", dieta: "#8FCB9E",
+  guarda: "#BFA3E8", eventi: "var(--meta)",
+};
+
+/* Le tre frasi che ruotano nella barra: sono del mock congelato, verbatim. */
+const SEGNAPOSTI = ["Cosa mangio stasera?", "Sposta la corsa a domani", "Che volo ho?"];
+
+/* La foto di una card. Quando manca, resta il fondo di `.ph` come nel mock,
+   più il gradiente di categoria e il glifo: è la sola cosa che `SmartMedia`
+   faceva e che qui non si può perdere — «mostra ciò che esiste, mai un vuoto».
+   `catFor` e `glyphFor` restano quelli. */
+function Ph({ src, cat, className, style, children }: {
+  src?: string | null; cat?: ImageCategory; className?: string;
+  style?: React.CSSProperties; children?: ReactNode;
+}) {
+  return (
+    <div className={"ph" + (className ? " " + className : "")} style={style}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" loading="lazy" decoding="async" />
+      ) : cat ? (
+        <>
+          <span style={{ position: "absolute", inset: 0, background: `var(--k-cat-${cat})` }} />
+          <span aria-hidden style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 26, opacity: .5 }}>
+            {glyphFor(cat)}
+          </span>
+        </>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
 export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt, battito }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null; battito?: Battito | null }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
@@ -60,6 +120,12 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [weather, setWeather] = useState<{ tempC: number; emoji: string; text: string } | null>(null);
+
+  /* Presentazione e basta: il blocco dei to-do del mock è collassabile, e la
+     barra di ricerca cambia segnaposto ogni 3,2 secondi. Nessun dato. */
+  const [todoOpen, setTodoOpen] = useState(false);
+  const [segnaposto, setSegnaposto] = useState(0);
+  const [segnaVisibile, setSegnaVisibile] = useState(true);
 
   // --- Undo elimina (lato interfaccia, differito 5s) ---
   // Quando elimini, l'elemento sparisce subito dalla UI ma sul server NON viene
@@ -187,6 +253,16 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
     } catch { /* no-op */ }
   }, []);
 
+  /* Il segnaposto che ruota nella barra: è del mock congelato, script incluso
+     (tre frasi, 3,2 secondi, mezzo passaggio in dissolvenza). */
+  useEffect(() => {
+    const t = setInterval(() => {
+      setSegnaVisibile(false);
+      setTimeout(() => { setSegnaposto((i) => (i + 1) % SEGNAPOSTI.length); setSegnaVisibile(true); }, 300);
+    }, 3200);
+    return () => clearInterval(t);
+  }, []);
+
   // K14b — che cosa mostrare all'apertura.
   //
   // L'onboarding "già fatto" lo sa il SERVER (`onboardedAt`), non il telefono:
@@ -244,11 +320,13 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
       .catch(() => {});
     return () => { ok = false; };
   }, [city]);
-  const greeting = name.trim() ? `Ciao ${name.trim()} 👋` : live.greeting;
+  const greeting = name.trim() ? `Ciao ${name.trim()}` : live.greeting;
 
-  /* IL BATTITO (docs/SPEC-BATTITI.md): una card piccola sotto il saluto, con la
-     frase, l'azione che porta da qualche parte e la ✕ che lo chiude per sempre.
-     Se non c'è battito la card non esiste: mai uno stato vuoto. */
+  /* IL BATTITO (docs/SPEC-BATTITI.md): la card che ti rimette davanti una cosa
+     che hai vissuto, con l'azione che porta da qualche parte e la ✕ che la
+     chiude per sempre. Nel mock congelato è la «Stasera» in fondo alla pagina:
+     stessa forma (.wide), stesso contenuto. Se non c'è battito la sezione non
+     esiste: mai uno stato vuoto. */
   const mostraBattito = !!battito && !battitoChiuso;
   async function chiudiBattito() {
     if (!battito) return;
@@ -272,6 +350,8 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   const todayKey = live.week.find((d) => d.today)?.key ?? null;
   const todayTodos = todayKey ? (live.days[todayKey]?.todos ?? []).filter(notHidden).map(withOv) : [];
   const openTodos = todayTodos.filter((t) => !t.done).length;
+  const fattiTodos = todayTodos.length - openTodos;
+  const prossimoTodo = todayTodos.find((t) => !t.done) ?? null;
 
   // azioni to-do del pannello giorno: riusa /api/todos + ricarica i dati veri
   const todoFetch = async (method: string, body: object) => {
@@ -294,13 +374,27 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   // riepilogo giornata
   const nEventiOggi = heroEvents.length;
   const gym = live.gym;
+  /* La riga di stato del mock non ha emoji: 💪 e 🌙 erano decorazione, non
+     dato, e qui sparisce la decorazione. L'emoji dei battiti resta perché
+     quella è dato (vedi il blocco «Stasera»). */
   const gymTxt = gym
-    ? gym.trainedToday
-      ? "💪 allenamento fatto"
-      : gym.rest
-        ? "🌙 riposo"
-        : "💪 allenamento da fare"
+    ? gym.trainedToday ? "allenamento fatto" : gym.rest ? "riposo" : "allenamento da fare"
     : null;
+
+  /* «Riprendi» — le cose lasciate a metà. Nel mock ce ne sono tre (un film a
+     1h 12m dalla fine, un allenamento a 2 di 4, una ricetta al passo 3 di 6):
+     nel codice l'unico progresso che esiste davvero è quello dell'allenamento.
+     Un film "a metà" e una ricetta "al passo 3" non sono un dato che abbiamo.
+     Quindi qui ci va solo quello che è vero, e se non c'è niente la sezione
+     non compare: meglio una sezione in meno che tre numeri inventati. */
+  const daRiprendere = gym && !gym.rest && !gym.trainedToday && gym.done > 0 && gym.done < gym.total
+    ? [{
+        k: "gym", famiglia: "sport" as Famiglia, cat: "sport" as ImageCategory,
+        kicker: gym.title, testo: `${gym.done} di ${gym.total} esercizi`,
+        perc: Math.round((gym.done / gym.total) * 100), img: gym.image ?? null,
+        vai: () => go("/allenamento"),
+      }]
+    : [];
 
   // Dati del giorno selezionato, ripuliti degli elementi in attesa di eliminazione.
   const selRaw = selDay ? (live.days[selDay] ?? null) : null;
@@ -319,178 +413,258 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
 
   const go = (href: string) => { if (!demo) router.push(href); };  // in anteprima pubblica i tap sono inerti (niente redirect a login)
 
+  /* «Oggi per te»: la riga larga è l'allenamento (ha il progresso e l'azione),
+     le due card sotto sono quello che c'è fra dieta, guarda e viaggio. */
+  const oggiPerTe: { k: string; cat: ImageCategory; titolo: string; meta: string; img?: string | null; vai: () => void }[] = [];
+  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, vai: () => go("/salute") });
+  if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, vai: () => go("/guarda") });
+  if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, vai: () => go("/viaggio") });
+
+  const iniziale = (name.trim() || accountName || "").trim().charAt(0).toUpperCase() || "M";
+
   return (
-    <div
-      className="ds"
-      style={{ minHeight: "100dvh", background: "var(--k-bg)", padding: `0 20px ${PAGE_PB}`, maxWidth: 440, margin: "0 auto" }}
-    >
-      {/* topbar */}
-      <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, margin: "0 -20px", padding: "calc(env(safe-area-inset-top) + 12px) 20px 12px", background: "rgba(11,13,18,.82)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
-        <span className="ds-display" style={{ fontSize: 22, color: "var(--k-text)" }}>
-          kei<span style={{ color: "var(--k-accent)" }}>ko</span>
-        </span>
-        <div
-          onClick={() => { if (!demo) setAskOpen(true); }}
-          style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 999, padding: "10px 14px", color: "var(--k-text-3)", fontSize: 13.5, fontWeight: 500, cursor: "pointer" }}
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          Chiedi a Keiko…
-        </div>
-        <button onClick={() => setProfileOpen(true)} aria-label="Profilo" style={{ width: 38, height: 38, borderRadius: "50%", flex: "none", background: "linear-gradient(135deg,#3a2f22,#241d15)", border: "1px solid var(--k-line)", display: "grid", placeItems: "center", fontSize: 15, cursor: "pointer" }}>🐋</button>
-      </div>
+    <>
+      <div className="k2">
+        <div className="home">
+          {/* le tre luci d'ambiente */}
+          <div className="lights"><div className="l-top" /><div className="l-task" /><div className="l-hero" /></div>
 
-      {/* saluto */}
-      <button onClick={() => setCalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: 0, padding: 0, margin: "0 0 4px", color: "var(--k-text-3)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-        {live.kickDate}
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
-        {weather && <span style={{ color: "var(--k-text-2)", marginLeft: 2 }}>· {weather.emoji} {weather.tempC}°</span>}
-      </button>
-      <h1 className="ds-display" style={{ fontSize: 24, lineHeight: 1.06, margin: "0 0 8px", color: "var(--k-text)" }}>{greeting}</h1>
-      <div style={{ fontSize: 13, color: "var(--k-text-2)", fontWeight: 500, margin: "0 0 20px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        Oggi
-        <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--k-text-3)" }} />
-        {nEventiOggi} event{nEventiOggi === 1 ? "o" : "i"}
-        {gymTxt && <><span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--k-text-3)" }} /><span style={{ color: gym?.trainedToday ? "var(--k-ok)" : "var(--k-text-2)" }}>{gymTxt}</span></>}
-      </div>
-
-      {/* IL BATTITO — sotto il saluto, sopra la settimana.
-          Stessa lingua delle card evento: .ds-card per angoli, bordo e ombra,
-          .ds-ph per la foto (o il gradiente di categoria quando non c'è),
-          .ds-scrim per lo stacco del testo. Niente card nuova da mantenere. */}
-      {mostraBattito && battito && (
-        <div className="ds-card mini" style={{ aspectRatio: "16 / 11", margin: "0 0 20px" }}>
-          {battito.foto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img className="ds-ph" src={battito.foto} alt="" loading="lazy" decoding="async" />
-          ) : (
-            <div className="ds-ph" style={{ background: `var(--k-cat-${battito.categoria ?? "default"})` }} />
-          )}
-          {!battito.foto && (
-            <div className="ds-glyph" aria-hidden>{EMOJI_BATTITO[battito.tipo] ?? "✨"}</div>
-          )}
-          {/* Lo scrim del design system, rinforzato in basso: il testo deve
-              staccare con QUALUNQUE foto (test in scala di grigi). */}
-          <div className="ds-scrim" />
-          <div
-            aria-hidden
-            style={{
-              position: "absolute", inset: 0, pointerEvents: "none",
-              background: "linear-gradient(180deg, rgba(6,6,8,0) 45%, rgba(6,6,8,.62) 78%, rgba(6,6,8,.88) 100%)",
-            }}
-          />
-
-          <button
-            type="button"
-            onClick={chiudiBattito}
-            aria-label="Chiudi"
-            style={{
-              position: "absolute", top: 8, right: 8, zIndex: 4,
-              width: 44, height: 44, display: "grid", placeItems: "center",
-              background: "none", border: 0, color: "var(--k-text)", cursor: "pointer",
-            }}
-          >
-            <span style={{
-              width: 30, height: 30, borderRadius: "50%", display: "grid", placeItems: "center",
-              background: "rgba(12,12,15,.72)", border: "1px solid rgba(255,255,255,.14)",
-              backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", fontSize: 13,
-            }}>✕</span>
-          </button>
-
-          <div className="ds-cbody" style={{ zIndex: 2 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".9px", color: "var(--k-text-2)", textShadow: "var(--k-tshadow)" }}>
-              {EMOJI_BATTITO[battito.tipo] ?? "✨"} {etichettaBattito(battito.chiave, battito.oreDaEvento)}
+          <div className="page">
+            {/* ── testata ── */}
+            <div className="hdr">
+              <span className="brand">
+                {/* l'orca del marchio: ha le due bollicine e l'occhio, che
+                    l'orca del set di icone non ha. È markup, non un'icona nuova. */}
+                <svg width="23" height="23" viewBox="0 0 32 32" fill="#3DA5C4">
+                  <circle cx="20.6" cy="4.4" r="1.1" fill="#C96A45" />
+                  <circle cx="23" cy="6" r=".75" fill="#C96A45" />
+                  <path d="M27 15c-1.7-4.3-5.7-6.8-10.8-6.8-4.5 0-8.3 2.1-9.9 5.4-.6 1.2-.8 2.5-.6 3.7-1.6.4-2.6 1.2-3 2.4 1.1.2 2.2.1 3.3-.2 1.5 2.9 5 4.8 9.4 4.8 3.2 0 6-1 8-2.6.9.9 2.1 1.4 3.5 1.5-.3-1.3-.9-2.4-1.8-3.2.9-1.1 1.5-2.4 1.9-3.8.2-.4.2-.8 0-1.2z" />
+                  <circle cx="21.8" cy="14" r="1.4" fill="#0F0F12" />
+                </svg>
+                <span className="logo">keiko</span>
+              </span>
+              <div className="search" onClick={() => { if (!demo) setAskOpen(true); }} role="button" aria-label="Chiedi a Keiko">
+                <span className="orca-mini" style={{ color: "var(--teal)" }}>{I.orca(15)}</span>
+                <span className="ph-txt" style={{ opacity: segnaVisibile ? 1 : 0 }}>{SEGNAPOSTI[segnaposto]}</span>
+              </div>
+              <button className="ava" onClick={() => setProfileOpen(true)} aria-label="Profilo">{iniziale}</button>
             </div>
-            <h3 style={{ marginTop: 3 }}>{battito.frase}</h3>
-            <a
-              href={battito.azione.url}
-              target={battito.azione.url.startsWith("/") ? undefined : "_blank"}
-              rel="noreferrer"
-              style={{ display: "inline-block", marginTop: 6, fontSize: 13, fontWeight: 700, color: "var(--k-accent)", textDecoration: "none", textShadow: "var(--k-tshadow)" }}
-            >
-              {battito.azione.etichetta} →
-            </a>
+
+            {/* ── saluto ── */}
+            <div className="greet">
+              <h1>{greeting}</h1>
+              <div className="status">
+                {[
+                  live.kickDate,
+                  `${nEventiOggi} event${nEventiOggi === 1 ? "o" : "i"}`,
+                  gymTxt,
+                  weather ? `${weather.emoji} ${weather.tempC}°` : null,
+                ].filter(Boolean).join(" · ")}
+              </div>
+            </div>
+
+            {/* ── la settimana ── */}
+            <div className="weekrow">
+              <div className="week">
+                {live.week.slice(0, 7).map((d) => (
+                  <div key={d.key} className={"day" + (d.today ? " on" : "")} onClick={() => openDay(d.key)}>
+                    {d.w}<b>{d.n}</b>
+                  </div>
+                ))}
+              </div>
+              <button className="cal" onClick={() => setCalOpen(true)} aria-label="Calendario">{I.cal({ s: 17 })}</button>
+            </div>
+
+            {/* ── da fare oggi ──
+                Il blocco si apre e si chiude: chiuso dice solo la prossima cosa
+                e a che punto sei. La spunta e il conteggio sono quelli di prima. */}
+            {todayTodos.length > 0 && (
+              <div className={"todo srf2" + (todoOpen ? " open" : "") + (openTodos === 0 ? " finished" : "")}>
+                <div className="todo-head" onClick={() => setTodoOpen((v) => !v)}>
+                  <span className="ck" aria-hidden />
+                  <span className="tnext">
+                    {prossimoTodo ? prossimoTodo.text : "Tutto fatto per oggi"}
+                    {prossimoTodo?.time && <small>{prossimoTodo.time}</small>}
+                  </span>
+                  <span className="tcount">{fattiTodos} di {todayTodos.length}</span>
+                  {I.chev({ c: "chev", s: 16 })}
+                </div>
+                <div className="tlist">
+                  {todayTodos.map((t) => (
+                    <div key={t.id} className={"task" + (t.done ? " done" : "")}>
+                      <span
+                        className="ck"
+                        onClick={() => toggleTodo(t.id, !t.done)}
+                        role="checkbox"
+                        aria-checked={t.done}
+                        aria-label={t.text}
+                      >
+                        {I.drawck(null, 12)}
+                      </span>
+                      <span className="tx">{t.text}</span>
+                      {t.time && <span className="st">{t.time}</span>}
+                    </div>
+                  ))}
+                  {/* «Aggiungi» apre il giorno di oggi, che è dove si scrive:
+                      il mock non ha un campo di testo qui. */}
+                  {todayKey && (
+                    <div className="addrow" onClick={() => openDay(todayKey)}>＋ Aggiungi</div>
+                  )}
+                </div>
+                <div className="alldone">Tutto fatto per oggi.</div>
+              </div>
+            )}
+
+            {/* ── Riprendi ── */}
+            {daRiprendere.length > 0 && (
+              <>
+                <div className="sec">Riprendi</div>
+                <div className="shelf">
+                  {daRiprendere.map((r) => (
+                    <div className="rcard srf" key={r.k} onClick={r.vai}>
+                      <Ph src={r.img} cat={r.cat} />
+                      <div className="in">
+                        <div className="k" style={{ color: TENUE[r.famiglia] }}>
+                          <span className="dot" style={{ background: COLORE[r.famiglia] }} />{r.kicker}
+                        </div>
+                        <div className="t">{r.testo}</div>
+                        <div className="staterow">
+                          <div className="prog"><i style={{ width: `${r.perc}%` }} /></div>
+                          <span className="btn2">Riprendi</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ── il prossimo evento, grande ── */}
+            {heroEv && (
+              <div className="hero-wrap">
+                <div className="feature" onClick={() => openEvent(heroEv)}>
+                  <Ph src={heroEv.image} cat={catFor(heroEv.type, heroEv.title)}>
+                    <div className="ovl" />
+                  </Ph>
+                  <div className="in">
+                    <span className="ctx">
+                      <i style={{ background: COLORE[famigliaDi(catFor(heroEv.type, heroEv.title))] }} />
+                      {heroEv.rel}
+                    </span>
+                    <div className="t">{heroEv.heroTitle}</div>
+                    <div className="m">
+                      {[heroEv.catLabel, heroEv.when, heroEv.location].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── In arrivo ── */}
+            {inArrivo.length > 0 && (
+              <>
+                <div className="sec">In arrivo</div>
+                <div className="g2">
+                  {inArrivo.map((ev) => {
+                    const cat = catFor(ev.type, ev.title);
+                    const fam = famigliaDi(cat);
+                    return (
+                      <div className="content srf" key={ev.id} onClick={() => openEvent(ev)}>
+                        <Ph src={ev.image} cat={cat} />
+                        <div className="t">{ev.title}</div>
+                        <div className="m" style={{ color: TENUE[fam] }}>
+                          <span className="dot" style={{ background: COLORE[fam] }} />{ev.when}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* ── Oggi per te ── */}
+            {(gym || oggiPerTe.length > 0) && <div className="sec">Oggi per te</div>}
+            {gym && (
+              <div className="wide srf" onClick={() => go("/allenamento")}>
+                <Ph src={gym.image} cat="sport" />
+                <div className="in">
+                  <div className="k" style={{ color: TENUE.sport }}>
+                    <span className="dot" style={{ background: COLORE.sport }} />
+                    Allenamento{gym.first ? ` · ${gym.first}` : ""}
+                  </div>
+                  <div className="t">{gym.title}</div>
+                  <div className="staterow">
+                    <div className="prog"><i style={{ width: `${gym.total > 0 ? Math.round((gym.done / gym.total) * 100) : 0}%` }} /></div>
+                    <span className="st">{gym.rest ? "riposo" : `${gym.done} di ${gym.total}`}</span>
+                    {!gym.trainedToday && !gym.rest && <span className="cta">Inizia</span>}
+                  </div>
+                </div>
+              </div>
+            )}
+            {oggiPerTe.length > 0 && (
+              <div className="g2" style={{ marginTop: 11 }}>
+                {oggiPerTe.map((c) => {
+                  const fam = famigliaDi(c.cat);
+                  return (
+                    <div className="content srf" key={c.k} onClick={c.vai}>
+                      <Ph src={c.img} cat={c.cat} />
+                      <div className="t">{c.titolo}</div>
+                      <div className="m" style={{ color: TENUE[fam] }}>
+                        <span className="dot" style={{ background: COLORE[fam] }} />{c.meta}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Stasera · il battito ──
+                La ✕ non è nel mock, ma chiudere un battito è un comportamento
+                vero (`/api/beats/close`): senza, la card tornerebbe per sempre. */}
+            {mostraBattito && battito && (
+              <>
+                <div className="sec">Stasera</div>
+                <div className="wide srf" style={{ position: "relative" }}>
+                  <Ph src={battito.foto} cat={catFor(battito.tipo, battito.frase)} />
+                  <div className="in">
+                    <div className="k" style={{ color: TENUE[famigliaDi(catFor(battito.tipo, battito.frase))] }}>
+                      <span className="dot" style={{ background: COLORE[famigliaDi(catFor(battito.tipo, battito.frase))] }} />
+                      {EMOJI_BATTITO[battito.tipo] ?? "✨"} {etichettaBattito(battito.chiave, battito.oreDaEvento)}
+                    </div>
+                    <div className="t">{battito.frase}</div>
+                    <div className="staterow">
+                      <span className="st">{battito.azione.etichetta}</span>
+                      <a
+                        className="cta"
+                        href={battito.azione.url}
+                        target={battito.azione.url.startsWith("/") ? undefined : "_blank"}
+                        rel="noreferrer"
+                        style={{ textDecoration: "none", marginLeft: "auto" }}
+                      >
+                        Apri
+                      </a>
+                    </div>
+                  </div>
+                  <button
+                    onClick={chiudiBattito}
+                    aria-label="Chiudi"
+                    style={{
+                      position: "absolute", top: 0, right: 0, width: 44, height: 44, zIndex: 3,
+                      display: "grid", placeItems: "center", background: "none", border: 0,
+                      color: "var(--meta)", cursor: "pointer",
+                    }}
+                  >
+                    {I.close({ s: 14 })}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      )}
-
-      {/* week strip */}
-      <div style={{ display: "flex", gap: 6, margin: "0 0 24px" }}>
-        {live.week.slice(0, 7).map((d) => (
-          <div key={d.key} onClick={() => openDay(d.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "9px 0", borderRadius: 16, background: d.today ? "var(--k-accent)" : "transparent", cursor: "pointer" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", color: d.today ? "var(--k-accent-ink)" : "var(--k-text-3)" }}>{d.w.toUpperCase()}</span>
-            <b style={{ fontSize: 16, fontWeight: 600, color: d.today ? "var(--k-accent-ink)" : "var(--k-text-2)" }}>{d.n}</b>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: d.d1 ? (d.today ? "var(--k-accent-ink)" : "var(--k-accent)") : "transparent" }} />
-          </div>
-        ))}
       </div>
 
-      {/* HERO */}
-      {heroEv && (
-        <EventCard ev={heroEv} variant="hero" onOpen={() => openEvent(heroEv)} />
-      )}
-
-      {/* In arrivo */}
-      {inArrivo.length > 0 && (
-        <>
-          <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "32px 2px 16px", color: "var(--k-text-3)" }}>In arrivo <span style={{ fontWeight: 600, fontSize: 12.5, color: "var(--k-text-3)" }}>· {inArrivo.length}</span></h2>
-          <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -18px", padding: "0 18px 4px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
-            {inArrivo.map((ev) => (
-              <div key={ev.id} style={{ minWidth: 214, flex: "none", scrollSnapAlign: "start" }}>
-                <EventCard ev={ev} variant="mini" onOpen={() => openEvent(ev)} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Oggi per te */}
-      <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "32px 2px 16px", color: "var(--k-text-3)" }}>Oggi per te</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {gym && (
-          <SmartMedia variant="square" category="sport" chip="💪 Allenamento" glyph="🏋️" style={{ aspectRatio: "4 / 3" }}
-            image={gym.image ?? undefined}
-            title={gym.title} meta={<>{gym.trainedToday ? "Fatto" : gym.rest ? "Riposo 🌙" : `${gym.done}/${gym.total}`}</>}
-            onClick={() => go("/allenamento")} />
-        )}
-        {live.diet && (
-          <SmartMedia variant="square" category="dieta" chip="🥗 Dieta" chipAmber glyph="🥗" style={{ aspectRatio: "4 / 3" }}
-            image={live.diet.image ?? undefined}
-            title={live.diet.nextPasto ?? "Dieta"} meta={live.diet.nextOpt ?? undefined}
-            onClick={() => go("/salute")} />
-        )}
-        {live.trip && (
-          <SmartMedia variant="square" category="viaggio" chip="🧭 Viaggio" glyph="🧭" style={{ aspectRatio: "4 / 3" }}
-            image={live.trip.image ?? undefined}
-            title={live.trip.title} meta={<><span className="k">{live.trip.range}</span></>}
-            onClick={() => go("/viaggio")} />
-        )}
-        {live.watch && (
-          <SmartMedia variant="square" category="film" chip="🍿 Guarda" glyph="🍿" style={{ aspectRatio: "4 / 3" }}
-            image={live.watch.poster ?? undefined}
-            title={live.watch.title ?? "Da guardare"} meta={live.watch.sub ?? `${live.watch.count} titoli`}
-            onClick={() => go("/guarda")} />
-        )}
-      </div>
-
-      {/* Da fare oggi (to-do del giorno) */}
-      {todayTodos.length > 0 && (
-        <>
-          <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", margin: "32px 2px 16px", color: "var(--k-text-3)" }}>
-            Da fare oggi{openTodos > 0 && <span style={{ fontWeight: 600, fontSize: 12.5 }}> · {openTodos}</span>}
-          </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {todayTodos.map((t) => (
-              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--k-surface)", border: "1px solid var(--k-line)", borderRadius: 14 }}>
-                <button onClick={() => toggleTodo(t.id, !t.done)} aria-label="Fatto" disabled={demo} style={{ width: 24, height: 24, flex: "none", borderRadius: "50%", border: t.done ? "0" : "2px solid var(--k-text-3)", background: t.done ? "var(--k-accent)" : "transparent", color: "var(--k-accent-ink)", fontSize: 13, fontWeight: 800, cursor: demo ? "default" : "pointer", display: "grid", placeItems: "center" }}>{t.done ? "✓" : ""}</button>
-                <span style={{ flex: 1, fontSize: 14.5, fontWeight: 500, color: t.done ? "var(--k-text-3)" : "var(--k-text)", textDecoration: t.done ? "line-through" : "none" }}>{t.text}</span>
-                {t.time && <span style={{ fontSize: 13, fontWeight: 700, color: "var(--k-accent)" }}>{t.time}</span>}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* bottom nav — barra condivisa (unica implementazione, vedi KeikoNav) */}
+      {/* bottom nav — barra condivisa (unica implementazione, vedi KeikoNav).
+          Resta FUORI da .k2, come in Guarda e Allenamento. */}
       <KeikoNav active="home" demo={demo} onAdd={() => setCapture(true)} />
 
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
@@ -571,31 +745,13 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
 
       {/* Toast "Annulla" per l'eliminazione (resta visibile ~5s, anche sopra i pannelli) */}
       {undo && (
-        <div style={{ position: "fixed", left: 0, right: 0, bottom: "calc(96px + env(safe-area-inset-bottom))", zIndex: 120, display: "flex", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 14, width: "100%", maxWidth: 440, background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 14, padding: "12px 16px", boxShadow: "0 8px 30px rgba(0,0,0,.45)" }}>
-            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: "var(--k-text)" }}>Eliminato</span>
-            <button onClick={doUndo} style={{ background: "none", border: 0, color: "var(--k-accent)", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Annulla</button>
+        <div className="k2">
+          <div className="toast on" style={{ bottom: "calc(150px + env(safe-area-inset-bottom))", zIndex: 120, display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ flex: 1 }}>Eliminato</span>
+            <button onClick={doUndo} style={{ background: "none", border: 0, color: "var(--teal-soft)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Annulla</button>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function EventCard({ ev, variant, onOpen }: { ev: LiveEvent; variant: "hero" | "mini"; onOpen: () => void }) {
-  const category = catFor(ev.type, ev.title);
-  const chipLabel = `${ev.emoji || glyphFor(category)} ${ev.catLabel}`;
-  return (
-    <SmartMedia
-      variant={variant}
-      category={category}
-      image={ev.image ?? undefined}
-      chip={chipLabel}
-      glyph={ev.emoji || glyphFor(category)}
-      display={variant === "hero"}
-      title={ev.title}
-      meta={<><span className="k">{ev.when}</span>{ev.location ? ` · ${ev.location.split(",")[0]}` : ""}</>}
-      onClick={onOpen}
-    />
+    </>
   );
 }

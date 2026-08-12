@@ -15,6 +15,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
    sovrascrivere il foglio vero. */
 const SRC = process.argv[2] ?? 'docs/mockups/keiko-v2-mock.html';
 const OUT = process.argv[3] ?? 'app/keiko-v2.css';
+/* La Home ha un mock congelato suo: non e' una variante del primo, e' l'altra
+   meta' del foglio. Vedi il blocco LA HOME in fondo. */
+const HOME_SRC = process.argv[4] ?? 'docs/mockups/home-v2-final-mock.html';
 const html = readFileSync(SRC, 'utf8');
 
 const css = html.slice(
@@ -181,6 +184,132 @@ out = out.trimEnd() + `
     to{--k2-fl:26px;--k2-fr:0px}
   }
 }`;
+
+/* ══════════════════════════════════════════════════════════════════════
+   LA HOME (ondata 5)
+
+   La Home ha un mock CONGELATO suo — docs/mockups/home-v2-final-mock.html —
+   e Matteo l'ha rifiutata due volte quando era stata reinterpretata. Qui non
+   si progetta niente: si porta.
+
+   Il guaio e' che quel mock usa nomi generici (.sec, .day, .task, .content,
+   .wide, .ck, .ph, .dot, .shelf, .st, .t, .m) che nel foglio condiviso
+   esistono gia' con un'altra definizione, e le altre sezioni sono in
+   produzione. Quindi le regole della Home vivono tutte sotto `.k2 .home`:
+   per specificita' vincono su quelle condivise senza toccarle, e il markup
+   resta identico al mock, che e' la cosa che conta.
+
+   Le regole che nel condiviso danno gia' lo stesso risultato NON vengono
+   riscritte: il confronto e' automatico qui sotto, cosi' se un giorno le due
+   parti si riavvicinano il doppione sparisce da solo. */
+const HOME = readFileSync(HOME_SRC, 'utf8');
+const homeCss = HOME.slice(HOME.indexOf('<style>') + '<style>'.length, HOME.indexOf('</style>'));
+
+/** le regole gia' emesse nel foglio condiviso, per selettore normalizzato */
+const condivise = new Map();
+for (const t of topLevel(out)) {
+  if (t.type !== 'rule' || t.sel.startsWith('@')) continue;
+  for (const p of t.sel.split(',').map((s) => s.trim())) {
+    condivise.set(p.replace(/^\.k2,?\s*/, '').replace(/^\.k2 /, ''), t.body.replace(/\s+/g, ' ').trim());
+  }
+}
+
+/* La barra in fondo della Home e' KeikoNav, un componente React con i suoi
+   stili: le regole .tab/.ti/.fab del mock resterebbero CSS morto. */
+const FUORI = new Set(['.tab', '.ti', '.ti.on', '.fab', 'svg', 'html', 'body', '*']);
+
+/* `body:before` e' la grana del mock, che nel condiviso e' gia' `.k2:before`
+   con la stessa opacita': la Home non ne vuole una seconda sopra. */
+const FUORI_PSEUDO = ['body:', 'html:'];
+
+/** i nomi di proprietà dichiarati in un corpo di regola, commenti esclusi */
+function proprieta(body) {
+  return body.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split(';')
+    .map((d) => d.split(':')[0]?.trim().toLowerCase())
+    .filter((x) => x && !x.startsWith('--'));
+}
+/** quelle che la condivisa dichiara e il mock no: passerebbero di sotto */
+function trapelano(condivisa, mock) {
+  const suoi = new Set(proprieta(mock));
+  return proprieta(condivisa).filter((p) => !suoi.has(p));
+}
+
+const uguali = [], separate = [], nuove = [], reset = new Set();
+const homeChunks = [];
+for (const t of topLevel(homeCss)) {
+  if (t.type !== 'rule') continue;
+  /* :root non si porta: le variabili sono quelle del sistema, ed e' il motivo
+     per cui il pallino della Guarda qui e' gia' #8F7AC0 e non il vecchio
+     #A47BE0 — il mock scrive var(--c-guarda), e la variabile e' una sola. */
+  if (t.sel === ':root' || t.sel.startsWith('@')) continue;
+
+  const parti = t.sel.split(',').map((s) => s.trim()).filter(Boolean);
+  const tenuti = [];
+  for (const p of parti) {
+    if (FUORI.has(p) || FUORI_PSEUDO.some((x) => p.startsWith(x))) continue;
+    const corpo = t.body.replace(/\s+/g, ' ').trim();
+    const cond = condivise.get(p);
+    if (cond === undefined) { nuove.push(p); tenuti.push(p); continue; }
+    // il confronto ignora le sostituzioni non visive gia' fatte sopra
+    const n = (s) => s.replace(/var\(--font-fraunces-v2\),/g, '').replace(/var\(--font-inter\),/g, '').trim();
+    if (n(cond) === n(corpo)) { uguali.push(p); continue; }   // vince la condivisa: niente doppione
+    separate.push([p, corpo, cond]);
+    tenuti.push(p);
+    for (const prop of trapelano(cond, corpo)) reset.add(prop);
+  }
+  if (tenuti.length) {
+    const sel = `.k2 .home ${tenuti.join(', .k2 .home ')}`;
+    /* Le proprieta' che la regola condivisa ha IN PIU' non sparirebbero da
+       sole: la specificita' decide chi vince proprieta' per proprieta', e su
+       quelle che il mock non nomina non c'e' gara — passano. `revert` le
+       riporta al valore che avrebbero senza nessuna regola d'autore, che e'
+       esattamente «come se la condivisa non ci fosse».
+       Senza questo, per dirne due viste dal vero: .content .t si prendeva il
+       min-height:2.56em del condiviso (+18px per card) e .day il suo
+       margin-top:8px (la settimana scendeva di 8 e cresceva di 8). */
+    const da = [...tenuti].flatMap((p) => trapelano(condivise.get(p) ?? '', t.body.replace(/\s+/g, ' ').trim()));
+    const pulizia = [...new Set(da)].map((x) => `${x}:revert`).join(';');
+    homeChunks.push(`${sel}{${pulizia ? pulizia + ';' : ''}${t.body}}`);
+  }
+}
+
+if (homeChunks.length) {
+  /* Le stesse sostituzioni non visive del foglio condiviso valgono anche qui:
+     senza, la Home caricherebbe Fraunces e Inter di sistema invece delle
+     istanze next/font, e si vedrebbe (tratto diverso, misure uguali). */
+  let home = homeChunks.join('\n')
+    .replace(/font-family:Fraunces,Georgia,serif/g, 'font-family:var(--font-fraunces-v2),Fraunces,Georgia,serif')
+    .replace(/font-family:Inter,-apple-system,system-ui,sans-serif/g, 'font-family:var(--font-inter),Inter,-apple-system,system-ui,sans-serif');
+
+  /* Il fondo pagina segue KeikoNav, come in tutte le altre sezioni: nel mock
+     e' 86px perche' li' la barra e' la .tab, piu' bassa. Vedi PAGE_PB. */
+  const daCambiare = '.k2 .home .page{position:relative;z-index:2;padding:18px 16px calc(86px + env(safe-area-inset-bottom))}';
+  if (!home.includes(daCambiare)) throw new Error('il mock della Home e\' cambiato, .page non attacca piu\'');
+  home = home.replace(daCambiare,
+    '.k2 .home .page{position:relative;z-index:2;padding:calc(env(safe-area-inset-top) + 18px) 16px var(--pad-bottom)}');
+
+  /* Il `body` del mock non si porta come regola (font, colore, larghezza e
+     centratura li da' gia' `.k2`), ma due sue proprieta' servono davvero:
+     - `position:relative`, senza cui le tre luci d'ambiente — che sono
+       `position:absolute` — si aggancerebbero alla pagina invece che alla Home;
+     - il fondo #0F0F12, che nel condiviso e' #0D0D10. Due unita' su 255 non si
+       vedono a occhio, ma qui l'obiettivo dichiarato e' l'identita' col mock,
+       non la somiglianza, e il confronto a pixel le conta. */
+  homeChunks.length = 0;
+  homeChunks.push('.k2 .home{position:relative;overflow-x:hidden;background:#0F0F12}\n' + home);
+
+  out += `
+
+/* ══ LA HOME · dal mock congelato home-v2-final-mock.html ══
+   Tutto sotto .k2 .home: vince per specificita' senza toccare il condiviso.
+   ${uguali.length} regole non sono qui perche' la condivisa fa gia' la stessa cosa:
+   ${uguali.join(' · ')}
+   ${separate.length} sono qui perche' il condiviso dice un'altra cosa e per la Home
+   vince il mock congelato (l'elenco con l'affianco sta nel report d'ondata):
+   ${separate.map(([s]) => s).join(' · ')} */
+${homeChunks.join('\n')}`;
+}
 
 const header = `/* =====================================================================
    KEIKO UI V2 — CSS PORTATO 1:1 da docs/mockups/keiko-v2-mock.html
