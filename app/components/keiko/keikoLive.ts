@@ -229,7 +229,8 @@ export function mapLive(data: {
   const kickDate = `${WD_LONG[today.getDay()]} ${today.getDate()} ${MONTHS[today.getMonth()]}`;
   // voce: "Prossimo: treno per {destinazione}, {giorno} alle {ora}" (dest = titolo breve).
   const h0 = heroSrc[0] ?? null;
-  let lede = "Giornata libera 🌿";
+  // Niente emoji: da oggi `lede` sta nel saluto, in vista, ed è voce di Keiko.
+  let lede = "Giornata libera";
   if (h0) {
     const t = h0.type?.toLowerCase();
     const route = t === "train" || t === "flight" ? routeStations(h0.title, h0.location) : null;

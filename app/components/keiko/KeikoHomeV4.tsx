@@ -101,11 +101,22 @@ function Ph({ src, cat, className, style, children }: {
   src?: string | null; cat?: ImageCategory; className?: string;
   style?: React.CSSProperties; children?: ReactNode;
 }) {
+  /* IL RIPIEGO VALE ANCHE QUANDO LA FOTO C'È MA NON ARRIVA.
+     Prima il gradiente di categoria scattava solo se l'indirizzo mancava del
+     tutto: se c'era e falliva — `/api/place-photo` senza chiave, un dominio
+     che non risponde, la rete che cade — restava l'icona di immagine spezzata
+     del browser. Visto sull'app vera: tre card «In arrivo» con il foglietto
+     strappato dentro. Adesso una foto che non arriva è come una foto che non
+     c'è, che è quello che è. */
+  const [rotta, setRotta] = useState(false);
+  useEffect(() => { setRotta(false); }, [src]);
+  const mostraFoto = !!src && !rotta;
+
   return (
     <div className={"ph" + (className ? " " + className : "")} style={style}>
-      {src ? (
+      {mostraFoto ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" loading="lazy" decoding="async" />
+        <img src={src!} alt="" loading="lazy" decoding="async" onError={() => setRotta(true)} />
       ) : cat ? (
         /* Il gradiente di categoria e basta. Qui sopra c'era anche il glifo —
            🏋️ 🎵 🥗 al 50% — e sulla card lo stesso mestiere lo faceva già il
@@ -473,7 +484,15 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
             {/* ── saluto ── */}
             <div className="greet">
               <h1>{greeting}</h1>
-              <div className="status">
+              {/* IL RIEPILOGO SI TOCCA e apre il giorno: era la riga che
+                  riassume oggi, e sotto il dito non faceva niente. Il
+                  `DaySheet` esiste già — è collegare, non costruire. */}
+              <div
+                className={"status" + (todayKey ? " tap" : "")}
+                onClick={todayKey ? () => openDay(todayKey) : undefined}
+                role={todayKey ? "button" : undefined}
+                style={todayKey ? { cursor: "pointer" } : undefined}
+              >
                 {[
                   live.kickDate,
                   `${nEventiOggi} event${nEventiOggi === 1 ? "o" : "i"}`,
@@ -481,6 +500,10 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                   weather ? `${weather.emoji} ${weather.tempC}°` : null,
                 ].filter(Boolean).join(" · ")}
               </div>
+              {/* E il prossimo impegno, che è la cosa che si viene a cercare
+                  aprendo l'app. Il dato c'è già: `lede` dice «Oggi: X, alle H»
+                  oppure «Prossimo: X, giovedì alle H». Una riga. */}
+              {live.lede && <div className="status" style={{ color: "var(--teal-soft)" }}>{live.lede}</div>}
             </div>
 
             {/* ── la settimana ── */}
@@ -527,8 +550,15 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                   ))}
                   {/* «Aggiungi» apre il giorno di oggi, che è dove si scrive:
                       il mock non ha un campo di testo qui. */}
+                  {/* «Cosa non devi dimenticare» invece di «Aggiungi»: un
+                      promemoria non è una riga da aggiungere a un elenco, è
+                      una cosa che hai paura di scordarti. Stesso testo del
+                      campo dentro il giorno, così la riga e il posto dove
+                      finisci a scrivere dicono la stessa cosa. */}
                   {todayKey && (
-                    <div className="addrow" onClick={() => openDay(todayKey)}>＋ Aggiungi</div>
+                    <div className="addrow" onClick={() => openDay(todayKey)}>
+                      {I.plus({ s: 13 })} Cosa non devi dimenticare
+                    </div>
                   )}
                 </div>
                 <div className="alldone">Tutto fatto per oggi.</div>
