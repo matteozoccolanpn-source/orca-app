@@ -88,16 +88,16 @@ export default function ProfiloForm({
     fontSize: 13.5,
     fontWeight: 600,
     cursor: "pointer",
-    border: `1px solid ${on ? "transparent" : "var(--k-line)"}`,
-    background: on ? "var(--k-accent)" : "var(--k-surface-2)",
-    color: on ? "var(--k-accent-ink)" : "var(--k-text-2)",
+    border: `1px solid ${on ? "transparent" : "var(--line)"}`,
+    background: on ? "var(--teal)" : "var(--lv2)",
+    color: on ? "var(--on-teal)" : "var(--txt2)",
   });
   const label: React.CSSProperties = {
     fontSize: 11.5,
     fontWeight: 700,
     letterSpacing: ".4px",
     textTransform: "uppercase",
-    color: "var(--k-text-3)",
+    color: "var(--meta)",
     margin: "14px 0 8px",
   };
   const row: React.CSSProperties = { display: "flex", flexWrap: "wrap", gap: 8 };
@@ -144,12 +144,12 @@ export default function ProfiloForm({
         value={vincoli}
         onChange={(e) => setVincoli(e.target.value)}
         placeholder="es. ginocchio delicato, niente stacchi…"
-        style={{ width: "100%", boxSizing: "border-box", background: "var(--k-surface-2)", border: "1px solid var(--k-line)", borderRadius: 12, padding: "11px 13px", color: "var(--k-text)", fontSize: 16, fontFamily: "inherit", outline: 0 }}
+        style={{ width: "100%", boxSizing: "border-box", background: "var(--lv2)", border: "1px solid var(--line)", borderRadius: 12, padding: "11px 13px", color: "var(--txt)", fontSize: 16, fontFamily: "inherit", outline: 0 }}
       />
 
       {err && <p style={{ fontSize: 13, color: "#E2705F", margin: "10px 0 0" }}>{err}</p>}
 
-      <button onClick={save} disabled={!ready || saving} className="ds-btn primary" style={{ width: "100%", height: 46, marginTop: 16, opacity: ready ? 1 : 0.45 }}>
+      <button onClick={save} disabled={!ready || saving} className="cta wide tap" style={{ width: "100%", height: 46, marginTop: 16, opacity: ready ? 1 : 0.45 }}>
         {saving ? "Salvo…" : saveLabel}
       </button>
     </div>

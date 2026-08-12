@@ -113,3 +113,68 @@ Emersi durante le ondate, non urgenti, da collocare quando serve:
 - `npx tsc --noEmit` e `npm run build` verdi prima di ogni commit.
 - Niente rifattorizzazioni di file scollegati dal compito.
 - Il backup CSV della dieta non si committa mai: sono dati sanitari.
+
+---
+
+## Aggiornamento dell'11 agosto — il piano concordato
+
+Dopo una giornata di uso vero, Matteo ha prodotto una lista di 60 punti. Le
+risposte punto per punto sono in `docs/RISPOSTE-60-PUNTI.md`; il piano di
+lavoro che ne è uscito è in **`docs/TODO-KEIKO.md`**, undici blocchi in ordine.
+
+**Questa è la decisione, e vale finché Matteo non la cambia: si fanno tutti gli
+undici blocchi, in quell'ordine, prima di qualsiasi altra cosa.** Niente
+funzioni nuove fuori lista, niente sezioni nuove, niente idee che arrivano per
+strada — si annotano e si fanno dopo.
+
+I blocchi sono compattati in sei prompt, perché alcuni toccano gli stessi file:
+
+| prompt | blocchi | cosa |
+|---|---|---|
+| `PROMPT-CODE-08-CHIUSURA-UI.md` | 1 | le 20 correzioni |
+| `PROMPT-CODE-09-HOME-E-FOGLI.md` | 2+3+4 | la Home e tutto ciò che si apre da lei |
+| da scrivere | 5 | caricamenti per sezione e scorrimento laterale |
+| da scrivere | 6 | l'allenamento che si guarda indietro |
+| da scrivere | 7 | la Cucina che annota (con migrazione) |
+| da scrivere | 8+9 | ricettario e spesa |
+| da scrivere | 10+11 | Guarda e il giro finale |
+
+I Viaggi restano in pausa (vedi `docs/SPEC-VIAGGI-DIREZIONE.md`), e la Dieta
+(`/salute`) resta nel vestito vecchio finché i blocchi non sono chiusi.
+
+---
+
+## Debito noto · le sette schermate di bordo ancora nel vestito vecchio
+### scritto il 12 agosto 2026, a fine PARTE A del prompt 09
+
+I sei fogli che si aprono dalla Home sono passati al sistema V2 (parte A), e
+con loro `ProfiloForm` e `InstallSheet`, che si aprono **da dentro** il Profilo
+nuovo — lì lo strappo si vedeva davvero.
+
+Restano sette file che usano ancora le classi `ds-*` di `app/ds.css`:
+
+| file | classi | cos'è |
+|---|---|---|
+| `app/components/keiko/Onboarding.tsx` | `ds-btn` `ds-display` | la presentazione al primo avvio |
+| `app/allenamento/GeneraScheda.tsx` | `ds-btn` `ds-spin` | la generazione della scheda |
+| `components/SmartMedia.tsx` | `ds-card` `ds-cbody` `ds-chip` `ds-display` `ds-glyph` `ds-meta` | le card immagine della UI v1 |
+| `components/RuotaIlTelefono.tsx` | `ds-display` | «Keiko si usa in verticale» |
+| `app/error.tsx` | `ds-btn` | la pagina di errore |
+| `app/not-found.tsx` | `ds-btn` `ds-display` | «questa pagina non esiste» |
+| `app/numeri/page.tsx` | `ds-display` | i numeri (solo Matteo) |
+
+Sono schermate di **bordo**: le vedi al primo avvio, quando qualcosa si rompe,
+o quando giri il telefono. Non si incontrano nel giro normale dell'app, e per
+questo aspettano un'ondata loro invece di allungare la parte A.
+
+**`ds.css` non si può togliere finché non passano.** Oggi è importato in
+`app/layout.tsx` (quindi vale ovunque) e in `KeikoHomeV4.tsx`. Quel secondo
+import ha una ragione in più, che va risolta prima di tutte le altre: `Ph`
+dipinge il fondo delle card senza foto con `var(--k-cat-<categoria>)`, e i 17
+gradienti di categoria stanno solo lì dentro. **Prima di togliere `ds.css` i
+gradienti vanno portati nel foglio V2**, altrimenti ogni card a cui manca
+l'immagine resta grigia.
+
+Ordine consigliato quando toccherà: i gradienti di categoria → `SmartMedia` →
+`Onboarding` → le quattro schermate di servizio (`error`, `not-found`,
+`numeri`, `RuotaIlTelefono`) → `GeneraScheda` → e solo allora l'import.
