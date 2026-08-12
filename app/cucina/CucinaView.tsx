@@ -556,6 +556,23 @@ export default function CucinaView({
                 </>
               )}
 
+              {/* Il ponte verso la Dieta. La barra in fondo porta qui, alla
+                  Cucina; il piano della nutrizionista sta in /salute, e senza
+                  questa riga non ci si arriverebbe piu' da nessuna parte.
+                  Sta nella sezione del piano perche' e' li' che serve: stai
+                  guardando cosa mangi oggi e vuoi vedere la settimana intera.
+                  E resta una LETTURA: di qui non si scrive niente. */}
+              <div className="srf" style={{ marginTop: prossimo ? 12 : 0 }}>
+                <div className="row-act tap" onClick={() => router.push("/salute")} role="button">
+                  <span className="ic2">{I.doc({ s: 16 })}</span>
+                  <span className="in">
+                    <span className="t">La tua dieta</span>
+                    <span className="m">il piano della nutrizionista, settimana intera</span>
+                  </span>
+                  {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                </div>
+              </div>
+
               {/* ② LA DOMANDA */}
               <Sec sm="dimmi la situazione, non solo gli ingredienti">Cosa mangiamo?</Sec>
 
