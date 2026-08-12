@@ -1,6 +1,5 @@
 import { createHash } from "crypto";
 import { auth } from "@/auth";
-import { emailDiSviluppo } from "./dev-login";
 
 // Multi-utente (Blocco C), app-scoped: la "chiave utente" è un uuid DERIVATO in
 // modo stabile dall'email Google (stessa email → sempre lo stesso uuid).
@@ -29,16 +28,10 @@ export function uuidForEmail(email: string): string {
 }
 
 // uuid dell'utente loggato (o null se non loggato). Da usare nelle query dati.
-//
-// La riga della scorciatoia di sviluppo sta anche qui, e non per comodità: il
-// login finto in `require-login.ts` da solo aprirebbe le pagine ma le
-// riempirebbe di NIENTE, perché ogni lettura del database passa da questo
-// uuid. Aprire l'app vera su un insieme vuoto non è provarla.
-// Vale solo quando `auth()` non ha già una sessione, ed è la stessa funzione
-// con le stesse due serrature (variabile locale + NODE_ENV): senza la
-// variabile questo `?? null` non cambia una virgola del comportamento.
+// In sviluppo, con la scorciatoia accesa, l'email arriva dalla sessione finta
+// come da una vera: la differenza sta tutta dentro `auth` (vedi `auth.ts`).
 export async function currentUserId(): Promise<string | null> {
   const session = await auth();
-  const email = session?.user?.email ?? emailDiSviluppo();
+  const email = session?.user?.email;
   return email ? uuidForEmail(email) : null;
 }

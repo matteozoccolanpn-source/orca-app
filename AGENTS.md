@@ -28,13 +28,22 @@ hanno cinque colori di famiglia, e uno di quei cinque è viola: `--c-guarda:
 #8F7AC0`. Vale **solo** su `.dot`, mai su testo, bottoni o superfici. La regola
 per esteso, col perché, sta in `docs/UI-DECISIONI-V2.md`.
 
-**PROVARE SULL'APP VERA**: in locale si entra senza Google mettendo
-`KEIKO_DEV_LOGIN=<la tua email>` in `.env.local`. Esiste perché fino al 12 agosto 2026
-nessuna ondata era mai stata provata sull'app vera — si costruivano banchi finti e i
-difetti uscivano sul telefono di Matteo. **Non deve mai stare in produzione**: è guardata
-anche da `NODE_ENV !== "production"` (`lib/dev-login.ts`), e senza la variabile l'app si
-comporta esattamente come prima. Da qui in avanti «non provato, serve la sessione» non
-è più una scusa valida.
+**PROVARE SULL'APP VERA**: in locale si entra senza Google con `KEIKO_DEV_LOGIN` in
+`.env.local` — vale per le pagine e per le rotte `app/api/*`, quindi si può anche premere.
+Esiste perché fino al 12 agosto 2026 nessuna ondata era mai stata provata sull'app vera:
+si costruivano banchi finti e i difetti uscivano sul telefono di Matteo. **Non deve mai
+stare in produzione**: è guardata anche da `NODE_ENV !== "production"` (`lib/dev-login.ts`),
+e senza la variabile l'app si comporta esattamente come prima. Da qui in avanti «non
+provato, serve la sessione» non è più una scusa valida.
+
+**E l'indirizzo è `prova@keiko.local`, non quello di Matteo.** La chiave utente si ricava
+dall'email: con la sua, ogni tasto premuto durante le prove scrive nel SUO storico — serie
+finte nell'allenamento, spunte sulla sua lista della spesa — e corrompe proprio i dati su
+cui si sta lavorando. Con l'indirizzo di prova hai un utente tutto tuo dove puoi premere
+qualsiasi cosa. **L'indirizzo di Matteo si usa in sola lettura, per guardare, mai per
+premere**: si mette solo quando serve vedere una schermata piena di roba vera, e si rimette
+`prova@keiko.local` prima di toccare qualunque comando. Vale anche qui la regola dei DATI
+DI PROVA qui sotto.
 
 **DATI DI PROVA**: ogni riga di prova si crea con prefisso `PROVA-` nel titolo e si cancella
 SOLO per elenco di id salvati alla creazione. MAI una DELETE con pattern (`ilike`/`like`/`%`)
