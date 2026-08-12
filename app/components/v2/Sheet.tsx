@@ -8,6 +8,20 @@ import { useEffect, useRef, type ReactNode } from "react";
    il foglio è già in cima (scrollTop <= 0), altrimenti si scorre il contenuto.
    Oltre 90px il foglio se ne va da solo. */
 
+/* Un foglio montato FUORI da una pagina V2 (i fogli della Home, per esempio,
+   stanno accanto a `.k2`, non dentro) ha bisogno del suo `.k2` addosso, o le
+   classi del sistema non lo raggiungono. Ma `.k2` porta anche una colonna
+   larga 430px col suo fondo, e quella qui non serve: lo scrim e il foglio sono
+   `position:fixed` e non stanno dentro nessuna colonna.
+   Questo stile spegne solo quelle tre cose. Le variabili e le classi restano,
+   che è il motivo per cui il `.k2` c'è.
+
+     <div className="k2" style={K2_FOGLIO}><Sheet …>…</Sheet></div>
+
+   (È la stessa correzione che SessioneLive tiene per il suo pannello: qui è
+   scritta una volta invece che ricopiata in ogni foglio.) */
+export const K2_FOGLIO = { background: "transparent", maxWidth: "none", height: "auto" } as const;
+
 export function Sheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
 
