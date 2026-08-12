@@ -9,7 +9,12 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
 
-const TABS = ["/", "/salute", "/allenamento", "/guarda"];
+// L'ORDINE È QUELLO DELLA BARRA, e deve restarlo: lo scorrimento laterale e i
+// tasti in fondo devono portare nello stesso posto, o l'app sembra averne due.
+// Dall'11 agosto la seconda voce è la Cucina (la Dieta si apre da dentro), e
+// qui era rimasta /salute: si scorreva verso una pagina che nella barra non
+// c'è più. Visto aprendo l'app vera, non leggendo il codice.
+const TABS = ["/", "/cucina", "/allenamento", "/guarda"];
 let lastPath: string | null = null;
 
 // Ignora lo swipe se parte da un contenitore che scorre in orizzontale (caroselli).

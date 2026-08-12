@@ -28,6 +28,14 @@ hanno cinque colori di famiglia, e uno di quei cinque è viola: `--c-guarda:
 #8F7AC0`. Vale **solo** su `.dot`, mai su testo, bottoni o superfici. La regola
 per esteso, col perché, sta in `docs/UI-DECISIONI-V2.md`.
 
+**PROVARE SULL'APP VERA**: in locale si entra senza Google mettendo
+`KEIKO_DEV_LOGIN=<la tua email>` in `.env.local`. Esiste perché fino al 12 agosto 2026
+nessuna ondata era mai stata provata sull'app vera — si costruivano banchi finti e i
+difetti uscivano sul telefono di Matteo. **Non deve mai stare in produzione**: è guardata
+anche da `NODE_ENV !== "production"` (`lib/dev-login.ts`), e senza la variabile l'app si
+comporta esattamente come prima. Da qui in avanti «non provato, serve la sessione» non
+è più una scusa valida.
+
 **DATI DI PROVA**: ogni riga di prova si crea con prefisso `PROVA-` nel titolo e si cancella
 SOLO per elenco di id salvati alla creazione. MAI una DELETE con pattern (`ilike`/`like`/`%`)
 su tabelle vere. Se una DELETE potrebbe toccare dati non di prova: prima la SELECT delle righe,
