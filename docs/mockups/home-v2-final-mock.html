@@ -109,7 +109,11 @@
   .feature{border-radius:var(--r-hero);overflow:hidden;position:relative;cursor:pointer;
     background:var(--lv2);border:1px solid rgba(255,255,255,.07);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
-  .feature .ph{border-radius:0;aspect-ratio:16/9}
+  /* 13 agosto 2026 · le foto erano tagliate troppo. 16/9 e 16/10 sono
+     proporzioni da fascia: su una foto verticale, o su un soggetto centrato,
+     mangiano la testa e i piedi. La card grande sale a 3/2, le card piccole
+     a 4/3 — piu' vicine a come sono fatte le foto vere. */
+  .feature .ph{border-radius:0;aspect-ratio:3/2}
   .feature .in{position:absolute;left:15px;right:15px;bottom:12px;z-index:2}
   .ctx{display:inline-flex;align-items:center;gap:6px;background:rgba(16,16,19,.6);backdrop-filter:blur(10px);
     border:1px solid rgba(91,155,219,.4);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:#AECBEE}
@@ -129,7 +133,7 @@
   .g2.scorre::-webkit-scrollbar{display:none}
   .g2.scorre>.content{flex:none;width:193px;scroll-snap-align:start}
   .content{cursor:pointer;padding:7px 7px 10px}
-  .content .ph{aspect-ratio:16/10}
+  .content .ph{aspect-ratio:4/3}
   .content .t{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin:8px 5px 0}
   .content .m{font-size:11.5px;font-weight:500;margin:3px 5px 0;display:flex;align-items:center;gap:5px}
   .dot{width:5px;height:5px;border-radius:3px;flex:none}

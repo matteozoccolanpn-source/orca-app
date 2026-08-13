@@ -738,11 +738,11 @@
 
 /* ══ LA HOME · dal mock congelato home-v2-final-mock.html ══
    Tutto sotto .k2 .home: vince per specificita' senza toccare il condiviso.
-   6 regole non sono qui perche' la condivisa fa gia' la stessa cosa:
-   .srf · .srf2 · .task .st.now · .feature .ph · .content .ph · .shelf::-webkit-scrollbar
-   34 sono qui perche' il condiviso dice un'altra cosa e per la Home
+   4 regole non sono qui perche' la condivisa fa gia' la stessa cosa:
+   .srf · .srf2 · .task .st.now · .shelf::-webkit-scrollbar
+   36 sono qui perche' il condiviso dice un'altra cosa e per la Home
    vince il mock congelato (l'elenco con l'affianco sta nel report d'ondata):
-   .lights · .ph · .ph img · .ph:after · .logo · .greet · .status · .day · .chev · .task · .task .tx · .task.done .tx · .task .st · .addrow · .sec · .feature · .feature .t · .feature .m · .g2 · .content · .content .t · .content .m · .dot · .wide · .wide .in · .wide .k · .wide .t · .staterow · .cta · .shelf · .rcard · .rcard .k · .rcard .t · .btn2 */
+   .lights · .ph · .ph img · .ph:after · .logo · .greet · .status · .day · .chev · .task · .task .tx · .task.done .tx · .task .st · .addrow · .sec · .feature · .feature .ph · .feature .t · .feature .m · .g2 · .content · .content .ph · .content .t · .content .m · .dot · .wide · .wide .in · .wide .k · .wide .t · .staterow · .cta · .shelf · .rcard · .rcard .k · .rcard .t · .btn2 */
 .k2 .home{position:relative;overflow-x:hidden;background:#0F0F12}
 .k2 .home .lights{max-width:revert;margin:revert;transition:revert;position:absolute;inset:0;pointer-events:none;z-index:0}
 .k2 .home .l-top{position:absolute;top:-140px;left:-15%;right:-15%;height:340px;
@@ -810,6 +810,7 @@
 .k2 .home .feature{border-radius:var(--r-hero);overflow:hidden;position:relative;cursor:pointer;
     background:var(--lv2);border:1px solid rgba(255,255,255,.07);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.11)}
+.k2 .home .feature .ph{border-radius:0;aspect-ratio:3/2}
 .k2 .home .feature .in{position:absolute;left:15px;right:15px;bottom:12px;z-index:2}
 .k2 .home .ctx{display:inline-flex;align-items:center;gap:6px;background:rgba(16,16,19,.6);backdrop-filter:blur(10px);
     border:1px solid rgba(91,155,219,.4);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:#AECBEE}
@@ -822,6 +823,7 @@
 .k2 .home .g2.scorre::-webkit-scrollbar{display:none}
 .k2 .home .g2.scorre>.content{flex:none;width:193px;scroll-snap-align:start}
 .k2 .home .content{min-width:revert;cursor:pointer;padding:7px 7px 10px}
+.k2 .home .content .ph{aspect-ratio:4/3}
 .k2 .home .content .t{display:revert;line-height:revert;min-height:revert;-webkit-line-clamp:revert;-webkit-box-orient:revert;overflow:revert;font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin:8px 5px 0}
 .k2 .home .content .m{color:var(--meta);white-space:revert;overflow:revert;text-overflow:revert;font-size:11.5px;font-weight:500;margin:3px 5px 0;display:flex;align-items:center;gap:5px}
 .k2 .home .dot{background:revert;width:5px;height:5px;border-radius:3px;flex:none}
