@@ -43,6 +43,7 @@ type Body = {
   setId?: string
   esercizio?: string
   sensazione?: string
+  origine?: string
   note?: string
   set?: {
     esercizio?: string
@@ -86,7 +87,11 @@ export async function POST(req: NextRequest) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
           return NextResponse.json({ error: 'Data non valida' }, { status: 400 })
         }
-        const sessionId = await startSession(day, body.titolo?.trim() || undefined)
+        /* `origine` arriva dal client ma non ci si fida: qualunque cosa che
+           non sia esattamente 'libera' vale 'scheda'. E' lo stesso paletto
+           della disciplina — un valore fuori elenco non entra in tabella. */
+        const origine = body.origine === 'libera' ? 'libera' : 'scheda'
+        const sessionId = await startSession(day, body.titolo?.trim() || undefined, origine)
         return NextResponse.json({ sessionId })
       }
 

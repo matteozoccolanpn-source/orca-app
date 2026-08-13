@@ -252,15 +252,31 @@ export default function SessioneLive({
   }
 
   /* --- chiudi la seduta ------------------------------------------------- */
+  /* ── «COM'È ANDATA» ──
+     Il campo `sensazione` esiste in tabella da sempre e nessuna schermata lo
+     scriveva. Si chiede alla chiusura, che e' l'unico momento in cui uno lo
+     sa davvero, e si puo' SALTARE: una domanda che non si puo' evitare
+     diventa un pedaggio, e il pedaggio si paga smettendo di chiudere le
+     sedute.
+     Tre risposte, non una scala da 1 a 10: dopo un allenamento nessuno
+     calibra un numero.
+     🚫 E Keiko non commenta: registra e tace. La scheda e' del preparatore. */
+  const [chiedo, setChiedo] = useState(false);
+
   async function finisci() {
     if (chiudo) return;
     if (!sessionId) { onClose(); return; }          // nessuna serie: niente da chiudere
+    if (!chiedo) { setChiedo(true); return; }       // prima la domanda, poi la chiusura
+    await chiudiDavvero();
+  }
+
+  async function chiudiDavvero(sensazione?: string) {
     setChiudo(true);
     try {
       await fetch("/api/workout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "end", sessionId }),
+        body: JSON.stringify({ action: "end", sessionId, ...(sensazione ? { sensazione } : {}) }),
       });
       onFinita();
     } catch {
@@ -530,8 +546,34 @@ export default function SessioneLive({
           )}
         </div>
 
+        {/* ── «Com'è andata» ──
+            Compare solo quando stai chiudendo, e si salta: «Chiudi e basta»
+            e' una risposta come le altre. Keiko registra e tace: nessun
+            «bene!», nessun «riposati domani», nessun «stai migliorando». */}
+        {chiedo && (
+          <div className="actions" style={{ display: "block", padding: "14px 16px calc(16px + env(safe-area-inset-bottom))" }}>
+            <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-.01em" }}>Com&apos;è andata?</div>
+            <div className="chips" style={{ marginTop: 10, flexWrap: "wrap", overflow: "visible" }}>
+              {["bene", "faticosa", "storta"].map((r) => (
+                <button
+                  key={r}
+                  className="chip tap"
+                  onClick={() => chiudiDavvero(r)}
+                  disabled={chiudo}
+                  style={{ minHeight: 44 }}
+                >
+                  {r}
+                </button>
+              ))}
+              <button className="tert tap" onClick={() => chiudiDavvero()} disabled={chiudo} style={{ minHeight: 44 }}>
+                {chiudo ? "Chiudo…" : "Chiudi e basta"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ---------- fondo ---------- */}
-        <div className="actions">
+        {!chiedo && <div className="actions">
           {/* `.skip` nel foglio e' un tasto («salta»), e il 600 e' suo di
               diritto. Qui la stessa classe porta un metadato — «Nessuna serie
               ancora» — che di quel peso non ha titolo: in grassetto sembrava
@@ -559,7 +601,7 @@ export default function SessioneLive({
           >
             {chiudo ? "Chiudo…" : totSerie === 0 ? "Esci" : "Finisci allenamento"}
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );

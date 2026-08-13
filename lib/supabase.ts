@@ -412,6 +412,13 @@ export interface WorkoutSession {
   endedAt: string | null;      // null = seduta ancora aperta
   sensazione: string | null;
   note: string | null;
+  /* Da dove nasce la seduta: 'scheda' se segue il piano del preparatore,
+     'libera' se te la sei aperta tu (una corsa, una lezione, un video).
+     La scheda e' un PIANO, le sedute sono FATTI, e i fatti possono esistere
+     senza il piano: era il buco per cui chi corre per conto suo risultava
+     assente proprio i giorni in cui si e' allenato.
+     Le sedute registrate prima del 13 agosto 2026 sono tutte 'scheda'. */
+  origine: string;
   sets: WorkoutSetRow[];
 }
 
@@ -457,6 +464,9 @@ function toSession(r: any, sets: WorkoutSetRow[]): WorkoutSession {
     titolo: (r.titolo as string) ?? null,
     startedAt: (r.started_at as string) ?? "",
     endedAt: (r.ended_at as string) ?? null,
+    /* Le sedute registrate prima che la colonna esistesse tornano `null`:
+       valgono 'scheda', che e' quello che erano. */
+    origine: (r.origine as string) ?? "scheda",
     sensazione: (r.sensazione as string) ?? null,
     note: (r.note as string) ?? null,
     sets,
@@ -467,14 +477,14 @@ function toSession(r: any, sets: WorkoutSetRow[]): WorkoutSession {
 /** Apre una seduta e restituisce il suo id (serve per attaccarci le serie).
  *  Se ce n'e' gia' una aperta oggi la riusa, cosi' chiudere l'app e riaprirla
  *  non crea due sedute per lo stesso allenamento. */
-export async function startSession(day: string, titolo?: string): Promise<string> {
+export async function startSession(day: string, titolo?: string, origine: "scheda" | "libera" = "scheda"): Promise<string> {
   const client = await db();
   const aperta = await getOpenSession();
   if (aperta && aperta.day === day) return aperta.id;
 
   const { data, error } = await client
     .from("workout_session")
-    .insert({ day, titolo: titolo ?? null, user_id: await currentUserId() })
+    .insert({ day, titolo: titolo ?? null, origine, user_id: await currentUserId() })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
@@ -534,7 +544,7 @@ export async function getOpenSession(): Promise<WorkoutSession | null> {
   const client = await db();
   const { data, error } = await client
     .from("workout_session")
-    .select("id, day, titolo, started_at, ended_at, sensazione, note")
+    .select("id, day, titolo, started_at, ended_at, sensazione, note, origine")
     .is("ended_at", null)
     .order("started_at", { ascending: false })
     .limit(1)
@@ -560,7 +570,7 @@ export async function getSessionByDay(day: string): Promise<WorkoutSession | nul
   const client = await db();
   const { data, error } = await client
     .from("workout_session")
-    .select("id, day, titolo, started_at, ended_at, sensazione, note")
+    .select("id, day, titolo, started_at, ended_at, sensazione, note, origine")
     .eq("day", day)
     .order("started_at", { ascending: false })
     .limit(1)
@@ -584,7 +594,7 @@ export async function getSessionHistory(limit = 10): Promise<WorkoutSession[]> {
   const client = await db();
   const { data, error } = await client
     .from("workout_session")
-    .select("id, day, titolo, started_at, ended_at, sensazione, note")
+    .select("id, day, titolo, started_at, ended_at, sensazione, note, origine")
     .order("day", { ascending: false })
     .order("started_at", { ascending: false })
     .limit(limit);
