@@ -560,7 +560,10 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   /* Le piattaforme di «Dove vederlo». Si azzerano a ogni apertura: un elenco
      rimasto dal titolo di prima sarebbe una bugia. */
   const [dove, setDove] = useState<{ stato: "fermo" | "chiedo" | "risposto"; piattaforme: string[] }>({ stato: "fermo", piattaforme: [] });
-  useEffect(() => { setDove({ stato: "fermo", piattaforme: [] }); }, [scheda?.k]);
+  /* Si azzerano anche cambiando TITOLO dentro lo stesso pannello: senza,
+     toccando un simile restavano a schermo le piattaforme del film di prima —
+     un elenco giusto attaccato al titolo sbagliato. */
+  useEffect(() => { setDove({ stato: "fermo", piattaforme: [] }); }, [scheda?.k, scheda?.titoloWatch]);
 
   /* ── CODA · IL PANNELLO È LA SCHEDA DELLA COSA ──
      Era un menu di azioni: titolo, metadato, due righe. Adesso il titolo porta
@@ -1076,7 +1079,21 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                   avanzo={avanzo}
                   onAvanza={(id) => avanza(id)}
                   onDove={() => chiediDove(scheda.titoloWatch!, scheda.kindWatch!)}
-                  onSimile={() => { setScheda(null); go("/guarda"); }}
+                  /* Toccare un simile CAMBIA il titolo che stai guardando,
+                     dentro lo stesso pannello. Prima portava in Guarda, e per
+                     giunta senza il titolo toccato: finivi nella lista a caso.
+                     Il titolo nuovo NON e' tuo — non e' nella lista — quindi
+                     id, season ed episode si azzerano, e la primaria torna
+                     «Dove vederlo» da sola: la regola si risolve dal dato,
+                     senza un caso speciale. Chiudere riporta alla Home
+                     comunque, per quanti titoli tu abbia attraversato: il
+                     pannello e' uno stato, non una pila di pagine. */
+                  onSimile={(titolo) => setScheda({
+                    ...scheda,
+                    titolo, meta: "", img: null,
+                    titoloWatch: titolo,
+                    idWatch: null, season: null, episode: null,
+                  })}
                   Foto={Ph}
                 />
               )}
