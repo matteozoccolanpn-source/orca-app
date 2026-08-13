@@ -16,6 +16,7 @@ import { catFor, type ImageCategory } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
 import type { Battito } from "@/lib/battiti";
 import { I } from "@/app/components/v2/icons";
+import { Empty } from "@/app/components/v2/Empty";
 /* A6 · qui ds.css RESTA, e non per dimenticanza: `Ph` dipinge il fondo delle
    card senza foto con `var(--k-cat-<categoria>)`, e quei 17 gradienti sono
    definiti li' dentro. Toglierlo lascerebbe grigie tutte le card a cui manca
@@ -537,6 +538,23 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
             {/* ── da fare oggi ──
                 Il blocco si apre e si chiude: chiuso dice solo la prossima cosa
                 e a che punto sei. La spunta e il conteggio sono quelli di prima. */}
+            {/* Nessun promemoria: una riga che invita, non un buco. È una
+                riga-azione e non un `Empty` intero perché qui il blocco che
+                manca è alto una riga: uno stato vuoto grande quanto una card
+                peserebbe più della cosa che sostituisce. */}
+            {todayTodos.length === 0 && todayKey && !demo && (
+              <div className="srf" style={{ marginTop: 12 }}>
+                <div className="row-act tap" onClick={() => openDay(todayKey)} role="button">
+                  <span className="ic2">{I.plus({ s: 16 })}</span>
+                  <span className="in">
+                    <span className="t">Cosa non devi dimenticare</span>
+                    <span className="m">Oggi non hai promemoria. Scrivine uno e te lo ricordo io.</span>
+                  </span>
+                  {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                </div>
+              </div>
+            )}
+
             {todayTodos.length > 0 && (
               <div className={"todo srf2" + (todoOpen ? " open" : "") + (openTodos === 0 ? " finished" : "")}>
                 <div className="todo-head" onClick={() => setTodoOpen((v) => !v)}>
@@ -626,7 +644,22 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
               </div>
             )}
 
-            {/* ── In arrivo ── */}
+            {/* ── In arrivo ──
+                La sezione c'è anche quando è vuota, e lo DICE. Prima spariva:
+                dal di fuori «nessun evento in arrivo» e «questa sezione non
+                esiste» si vedono uguali, cioè come un buco. Uno stato vuoto è
+                una frase scritta per il momento in cui non c'è niente. */}
+            {inArrivo.length === 0 && (
+              <>
+                <div className="sec">In arrivo</div>
+                <Empty
+                  icon={I.cal({ s: 20 })}
+                  t="Non hai niente in programma"
+                  m="Quando aggiungi un biglietto, un volo o una cena<br/>te li ritrovi qui, in ordine di quando arrivano."
+                />
+              </>
+            )}
+
             {inArrivo.length > 0 && (
               <>
                 <div className="sec">In arrivo</div>
