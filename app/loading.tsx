@@ -1,6 +1,7 @@
 "use client";
 
 import { I } from "@/app/components/v2/icons";
+import { Attesa, AttesaTesta, AttesaWide, AttesaSec, AttesaGriglia } from "@/app/components/v2/Attesa";
 
 /* Schermata mostrata mentre una pagina carica i dati.
  *
@@ -34,9 +35,27 @@ export default function Loading() {
   const aperturaAFreddo = typeof window === "undefined" || !vistaInQuestaSessione;
   if (typeof window !== "undefined") vistaInQuestaSessione = true;
 
-  // Navigazione tra pagine: solo il fondo, nessuna orca.
+  /* Navigazione verso la Home: lo SCHELETRO della Home, non un velo scuro.
+     Questo file fa due mestieri — e' l'attesa di `/` ed e' il ripiego di ogni
+     rotta che non ha il suo `loading.tsx` — e i due si distinguono qui: la
+     prima apertura dell'app mostra l'orca, tutto il resto mostra la forma di
+     quello che sta arrivando.
+     Il velo scuro di prima non diceva dove stavi andando, ed era esattamente
+     il difetto del punto 1: uguale ovunque. */
   if (!aperturaAFreddo) {
-    return <div aria-hidden style={{ position: "fixed", inset: 0, background: "#0D0D10", zIndex: 200 }} />;
+    return (
+      <Attesa>
+        <AttesaTesta />
+        <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <span key={i} className="sk" style={{ flex: 1, height: 42, borderRadius: 999 }} />
+          ))}
+        </div>
+        <AttesaWide />
+        <AttesaSec />
+        <AttesaGriglia n={4} rapporto="16 / 10" />
+      </Attesa>
+    );
   }
 
   return (
