@@ -527,8 +527,13 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
             <div className="weekrow">
               <div className="week">
                 {live.week.slice(0, 7).map((d) => (
+                  /* B7 · la pillola accesa scrive «oggi», non l'abbreviazione
+                     del giorno. Non era un problema di contrasto — e' gia' la
+                     cosa piu' accesa della striscia — ma di significato: col
+                     «mer» dovevi dedurre che quello acceso fosse oggi. Adesso
+                     c'e' scritto. Le altre sei restano come sono. */
                   <div key={d.key} className={"day" + (d.today ? " on" : "")} onClick={() => openDay(d.key)}>
-                    {d.w}<b>{d.n}</b>
+                    {d.today ? "oggi" : d.w}<b>{d.n}</b>
                   </div>
                 ))}
               </div>
@@ -663,7 +668,10 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
             {inArrivo.length > 0 && (
               <>
                 <div className="sec">In arrivo</div>
-                <div className="g2">
+                {/* B2 · carosello, non griglia: in griglia si vedevano due
+                    eventi e gli altri sparivano sotto. `scorre` porta lo
+                    scroll-snap, che ferma sempre a inizio card. */}
+                <div className="g2 scorre">
                   {inArrivo.map((ev) => {
                     const cat = catFor(ev.type, ev.title);
                     const fam = famigliaDi(cat);
