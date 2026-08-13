@@ -141,6 +141,48 @@
    In nessuno dei due casi si usa `window.confirm`: è una finestra del browser,
    non sa niente di noi e non si può vestire. La conferma vive dentro il foglio.
 
+3-septies. **Dalla Home si fa, non si salta** (13 agosto 2026). Toccare una
+   card della Home **apre un pannello** con le azioni; la pagina intera è una
+   scelta esplicita, in fondo al pannello.
+   Il perché: prima ogni card era un salto in un'altra sezione. Per segnare
+   l'allenamento fatto — un tocco — se ne facevano quattro, e alla fine eri
+   da un'altra parte e avevi perso il posto. La Home è il posto da cui si
+   guarda la giornata: se per fare una cosa devi uscirne, non è più quello.
+   - **Solo le azioni che il codice sa già fare.** Dove il dato non c'è,
+     l'azione non si mette: un tasto che non sa cosa fare è peggio di un tasto
+     che non c'è. Oggi ce ne sono due — «segna fatto» dell'allenamento
+     (`/api/workout/log`) e «dove vederlo» del titolo (`/api/watch/providers`).
+     «Apri la ricetta» manca perché fra il piano della dieta e il ricettario
+     non esiste nessun riferimento: nascerà nel blocco 7 di `docs/TODO-KEIKO.md`.
+   - **La riga per la pagina intera resta sempre**, ultima e staccata. Il
+     pannello non è una prigione.
+
+3-octies. **Le azioni rapide sono il TOCCO LUNGO, non lo swipe**
+   (13 agosto 2026). E il motivo è tecnico, non di gusto: **lo scorrimento
+   laterale è già del cambio pagina** (`app/template.tsx` lo usa per passare da
+   una sezione all'altra). Sulla stessa schermata il telefono dovrebbe
+   indovinare, nei primi dieci pixel, se stai scorrendo la card o cambiando
+   sezione. Qualunque soglia si scelga, una delle due parte per sbaglio — e
+   quella che parte per sbaglio, prima o poi, è «elimina».
+   Lo schema è quello che `Poster` ha già nella Guarda, e si copia invece di
+   reinventarlo: **450ms**, il movimento oltre **10px annulla** (stai
+   scorrendo, non tenendo premuto), il tap normale continua ad aprire quello
+   che apriva prima, e il click che il browser manda dopo un tocco lungo si
+   soffoca — altrimenti si aprono menu e pannello insieme.
+   Nel menu ci vanno solo le azioni **rapide davvero**: «rimanda» non c'è
+   perché spostare un evento vuol dire scegliere un'altra data, cioè aprire
+   una schermata, e un menu rapido che apre una schermata non è più rapido.
+
+3-nonies. **Una sola entrata per tutti i pannelli** (13 agosto 2026):
+   **`.28s cubic-bezier(.22,.9,.3,1)`**, salendo di 26px e sfumando da `.4`.
+   È `@keyframes up` del foglio V2, e ce l'hanno tutti i pannelli nuovi perché
+   passano tutti dallo stesso componente `Sheet` — non serve `framer-motion`
+   per questo, e non si aggiunge una libreria per rifare una riga di CSS.
+   I due pannelli rimasti sul guscio v1 (la guida all'installazione e il foglio
+   della cattura) erano a `.30s` con un'altra curva, e risalivano da tutta
+   l'altezza dello schermo: allineati. Due animazioni **quasi** uguali si
+   notano proprio perché sono quasi uguali — sembra che l'app esiti.
+
 4. Contrasto sugli accenti: testo scuro su teal (`#08191E`); su terracotta
    testo chiaro caldo `#FFF3EC`.
 5. **Elevazione a 3 QUOTE**: fondo `#0F0F12` → card `#1A1B20` →

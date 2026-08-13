@@ -480,6 +480,51 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda", titoloWatch: live.watch.title, kindWatch: live.watch.kind });
   if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
 
+  /* ── C2 · LE AZIONI RAPIDE SONO IL TOCCO LUNGO, NON LO SWIPE ──
+     Lo scorrimento laterale sulla Home è già preso: `app/template.tsx` lo usa
+     per cambiare sezione. Sulla stessa schermata il telefono dovrebbe
+     indovinare nei primi dieci pixel quale dei due gesti vuoi, e qualunque
+     soglia si scelga una delle due parte per sbaglio.
+     Quindi tocco lungo, con lo STESSO schema che `Poster` ha già nella Guarda:
+     450ms, il movimento oltre 10px annulla (stai scorrendo, non tenendo
+     premuto), e il tap normale continua ad aprire quello che apriva prima.
+     `premuto` serve a soffocare il click che il browser manda comunque dopo
+     un tocco lungo: senza, si aprirebbero menu e pannello insieme. */
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressPos = useRef<{ x: number; y: number } | null>(null);
+  const premuto = useRef(false);
+  const [menu, setMenu] = useState<{ titolo: string; azioni: { t: string; m: string; icona: ReactNode; rossa?: boolean; fai: () => void }[] } | null>(null);
+
+  function pressStart(e: React.PointerEvent, apri: () => void) {
+    premuto.current = false;
+    pressPos.current = { x: e.clientX, y: e.clientY };
+    pressTimer.current = setTimeout(() => {
+      premuto.current = true;
+      try { navigator.vibrate?.(12); } catch { /* niente vibrazione: pazienza */ }
+      apri();
+    }, 450);
+  }
+  function pressMove(e: React.PointerEvent) {
+    if (!pressTimer.current || !pressPos.current) return;
+    const d = Math.hypot(e.clientX - pressPos.current.x, e.clientY - pressPos.current.y);
+    if (d > 10) pressCancel();          // sta scorrendo, non tenendo premuto
+  }
+  function pressCancel() {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  }
+  /** Il tap normale, che si arrende se il tocco lungo è già scattato. */
+  function tapNormale(fai: () => void) {
+    return () => { if (premuto.current) { premuto.current = false; return; } fai(); };
+  }
+  const gestiTocco = (apriMenu: () => void) => ({
+    onPointerDown: (e: React.PointerEvent) => pressStart(e, apriMenu),
+    onPointerMove: pressMove,
+    onPointerUp: pressCancel,
+    onPointerLeave: pressCancel,
+    onPointerCancel: pressCancel,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),   // niente menu di sistema
+  });
+
   /* Il pannello aperto: la card che stai guardando, o `null`. */
   const [scheda, setScheda] = useState<Scheda | null>(null);
   const [segnando, setSegnando] = useState(false);
@@ -637,7 +682,17 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                 </div>
                 <div className="tlist">
                   {todayTodos.map((t) => (
-                    <div key={t.id} className={"task" + (t.done ? " done" : "")}>
+                    <div
+                      key={t.id}
+                      className={"task" + (t.done ? " done" : "")}
+                      {...gestiTocco(() => setMenu({
+                        titolo: t.text,
+                        azioni: [
+                          { t: t.done ? "Segna da fare" : "Segna fatto", m: t.done ? "Torna fra le cose da fare" : "Sparisce dall'elenco di oggi", icona: I.tick({ s: 16 }), fai: () => toggleTodo(t.id, !t.done) },
+                          { t: "Elimina", m: "Hai cinque secondi per annullare", rossa: true, icona: I.close({ s: 16 }), fai: () => requestDelete("todo", t.id) },
+                        ],
+                      }))}
+                    >
                       <span
                         className="ck"
                         onClick={() => toggleTodo(t.id, !t.done)}
@@ -740,7 +795,19 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                     const cat = catFor(ev.type, ev.title);
                     const fam = famigliaDi(cat);
                     return (
-                      <div className="content srf" key={ev.id} onClick={() => openEvent(ev)}>
+                      <div
+                        className="content srf"
+                        key={ev.id}
+                        onClick={tapNormale(() => openEvent(ev))}
+                        {...gestiTocco(() => setMenu({
+                          titolo: ev.title,
+                          azioni: [{
+                            t: "Elimina", m: "Hai cinque secondi per annullare", rossa: true,
+                            icona: I.close({ s: 16 }),
+                            fai: () => requestDelete("event", ev.id),
+                          }],
+                        }))}
+                      >
                         <Ph src={ev.image} cat={cat} />
                         <div className="t">{ev.title}</div>
                         <div className="m">
@@ -845,6 +912,39 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
       {selEv && <EventSheet ev={selEv} onClose={closeEvent} demo={demo} onDelete={() => requestDelete("event", selEv.id)} />}
       {askOpen && <AskSheet onClose={() => setAskOpen(false)} />}
+
+      {/* ── C2 · le azioni rapide del tocco lungo ──
+          Solo quello che il codice sa gia' fare. «Rimanda» non c'e': spostare
+          un evento vuol dire scegliere un'altra data, cioe' una schermata, e
+          un menu rapido che apre una schermata non e' piu' rapido. */}
+      {menu && (
+        <div className="k2" style={K2_FOGLIO}>
+          <Sheet onClose={() => setMenu(null)}>
+            <div className="plain-head">
+              <h2>{menu.titolo}</h2>
+              <div className="status">Cosa vuoi farne</div>
+            </div>
+            <div className="pad">
+              <div className="srf" style={{ marginTop: 14 }}>
+                {menu.azioni.map((a) => (
+                  <div
+                    className="row-act tap"
+                    key={a.t}
+                    role="button"
+                    onClick={() => { a.fai(); setMenu(null); }}
+                  >
+                    <span className="ic2" style={a.rossa ? { color: "#E57373" } : undefined}>{a.icona}</span>
+                    <span className="in">
+                      <span className="t" style={a.rossa ? { color: "#E57373" } : undefined}>{a.t}</span>
+                      <span className="m">{a.m}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Sheet>
+        </div>
+      )}
 
       {/* ── C1 · il pannello della card ──
           Sopra la Home, non al posto della Home. Dentro ci sono le azioni che

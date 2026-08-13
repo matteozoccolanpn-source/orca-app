@@ -84,7 +84,7 @@ export default function InstallSheet({ modo, onClose, onFatto, onNonOra, primaDe
         onClose();
         return;
       }
-      if (r.error === "ios-install") setMsg("Da qui non ci riesco: aprimi dall'icona 🐋 nella tua schermata Home.");
+      if (r.error === "ios-install") setMsg("Da qui non ci riesco: aprimi dall'icona nella tua schermata Home.");
       else if (r.error === "denied") setMsg("Hai detto di no al browser. Puoi cambiare idea dalle impostazioni del telefono.");
       else if (r.error === "no-key") setMsg("Qualcosa non torna da parte mia. Riprova più tardi.");
       else setMsg("Qualcosa non torna, riprovo? (" + r.error + ")");
@@ -110,7 +110,7 @@ export default function InstallSheet({ modo, onClose, onFatto, onNonOra, primaDe
     <SheetShell onClose={chiudiRimandando} zIndex={zIndex}>
       <div style={{ padding: "0 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "linear-gradient(135deg,#3a2f22,#241d15)", border: "1px solid var(--line)", display: "grid", placeItems: "center", fontSize: 20 }}>🐋</div>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "linear-gradient(135deg,#3a2f22,#241d15)", border: "1px solid var(--line)", display: "grid", placeItems: "center", color: "var(--teal)" }}>{I.orca(22)}</div>
           <h2 style={{ fontFamily: "var(--font-fraunces-v2), Fraunces, Georgia, serif", fontSize: 21, fontWeight: 500, letterSpacing: "-.01em", color: "var(--txt)", margin: 0, lineHeight: 1.2 }}>{titolo}</h2>
           <button onClick={chiudiRimandando} aria-label="Chiudi" style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: "50%", flex: "none", background: "var(--lv1)", border: "1px solid var(--line)", color: "var(--txt2)", display: "grid", placeItems: "center", cursor: "pointer" }}>{I.close({ s: 14 })}</button>
         </div>
@@ -136,7 +136,7 @@ export default function InstallSheet({ modo, onClose, onFatto, onNonOra, primaDe
               <Passo n={3}>Tocca <b style={{ color: "var(--txt)" }}>Aggiungi</b>, in alto a destra</Passo>
             </div>
             <p style={{ fontSize: 13, color: "var(--meta)", lineHeight: 1.55, margin: "14px 2px 0", paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-              Poi aprimi dall&apos;icona 🐋: da lì ti chiedo il permesso per gli avvisi.
+              Poi aprimi dall&apos;icona nella tua schermata Home: da lì ti chiedo il permesso per gli avvisi.
             </p>
             {/* K14b: aprendo dall'icona iPhone tratta Keiko come un'app a sé, con
                 i suoi cookie. Dirlo prima evita lo spavento del "e perché mi

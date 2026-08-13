@@ -83,9 +83,18 @@
 @keyframes pageLeft { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
 @keyframes pageRight { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
 .page-up { animation: pageUp .26s cubic-bezier(.22,.61,.36,1); }
-/* Fogli/pannelli: entrata scivolando dal basso (coerente ovunque) */
-@keyframes kSheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
-.k-sheet-in { animation: kSheetIn .30s cubic-bezier(.22,.61,.36,1); }
+/* Fogli/pannelli: entrata scivolando dal basso (coerente ovunque).
+   C3 · 13 agosto 2026: durata e curva allineate a quelle del sistema V2
+   (`@keyframes up` in app/keiko-v2.css: .28s cubic-bezier(.22,.9,.3,1)).
+   Erano .30s e una curva diversa, e i due pannelli che restano qui — la
+   guida all'installazione e il foglio della cattura — entravano con un ritmo
+   loro. Due animazioni quasi uguali si notano proprio perche' sono quasi
+   uguali: sembra che l'app esiti.
+   Anche il movimento cambia: il V2 sale di 26px sfumando da .4, non da tutta
+   l'altezza dello schermo. Un foglio che risale per intero da sotto e' il
+   gesto di iOS, non il nostro. */
+@keyframes kSheetIn { from { transform: translateY(26px); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
+.k-sheet-in { animation: kSheetIn .28s cubic-bezier(.22,.9,.3,1); }
 @media (prefers-reduced-motion: reduce) { .k-sheet-in { animation: none; } }
 .page-left { animation: pageLeft .26s cubic-bezier(.22,.61,.36,1); }
 .page-right { animation: pageRight .26s cubic-bezier(.22,.61,.36,1); }
