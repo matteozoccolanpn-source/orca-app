@@ -124,7 +124,23 @@ function Ph({ src, cat, className, style, children }: {
            sopra l'altro, e il secondo era un'emoji, cioè decorazione.
            Via l'emoji, resta il pallino (12 agosto 2026). L'emoji del battito
            NON si tocca: quella è un dato, dice che tipo di serata era. */
-        <span style={{ position: "absolute", inset: 0, background: `var(--k-cat-${cat})` }} />
+        /* IL RIPIEGO DEL RIPIEGO, e sta tutto in una virgola.
+           `var(--k-cat-volo)` scritta da sola, se quella variabile non è
+           raggiungibile, non dipinge niente: il riquadro resta vuoto. E
+           succedeva sempre — misurato: `background-image: none` su ogni card
+           senza foto. I 17 gradienti di categoria sono dichiarati su `.ds`
+           (vedi `app/ds.css`), e la Home V2 quella classe non ce l'ha addosso:
+           da quando la Home è passata al sistema nuovo, nessuno di quei
+           gradienti è mai arrivato.
+           Il secondo valore dentro `var()` è quello che si usa quando il primo
+           non c'è: un grigio del sistema, fatto con le sue quote. Regge
+           qualunque cosa — categoria sconosciuta, variabile fuori portata, e
+           anche la categoria che inventeremo il mese prossimo. Allineare le
+           liste a mano si romperebbe al primo nome nuovo.
+           Quando i gradienti passeranno al foglio V2 (è la prima voce del
+           debito in ROADMAP.md) questa riga tornerà a dipingerli senza
+           bisogno di cambiarla. */
+        <span style={{ position: "absolute", inset: 0, background: `var(--k-cat-${cat}, linear-gradient(150deg, var(--lv3), var(--lv1)))` }} />
       ) : null}
       {children}
     </div>

@@ -392,10 +392,22 @@ export default function AllenamentoView({
                             >
                               {sedutaAperta ? "Riprendi l’allenamento" : "Allenati ora"}
                             </button>
+                            {/* «Fatto» era 41px di altezza contro i 39 di
+                                «Allenati ora», affiancati sulla stessa riga:
+                                il secondario più grande del primario, che è il
+                                verso sbagliato. I due px vengono dal bordo —
+                                `.btn2` ne ha uno, `.cta` no — quindi la
+                                verticale scende a 11 e il conto torna
+                                (11+11+2 = 12+12). L'orizzontale passa a 16,
+                                lo stesso ritmo dell'altro.
+                                La differenza fra i due resta quella giusta: il
+                                peso: superficie e bordo contro terracotta
+                                pieno. Non la dimensione. */}
                             <button
                               className={"btn2 tap" + (trainedToday ? " on" : "")}
                               onClick={fattoOggi}
                               aria-pressed={trainedToday}
+                              style={{ padding: "11px 16px" }}
                             >
                               {trainedToday ? <>{I.tick({ s: 13 })}Fatto</> : "Fatto oggi"}
                             </button>
