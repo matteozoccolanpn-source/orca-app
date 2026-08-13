@@ -15,15 +15,30 @@
 //  3. il tetto giornaliero (429) non è più un toast ma una card dentro il
 //     foglio, con le parole che manda il server — che sono già quelle giuste.
 
-import { createContext, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { I } from "@/app/components/v2/icons";
 import { Img } from "@/app/components/v2/Img";
 import { Sheet } from "@/app/components/v2/Sheet";
 import { Feedback } from "@/app/components/v2/Feedback";
+import { SchedaTitolo } from "@/app/components/v2/SchedaTitolo";
+import { chiediDettagli, chiediSimili, chiediPiattaforme, type DettaglioTitolo, type TitoloSimile } from "@/app/components/v2/watch-rotte";
 
 type Pick = { title: string; kind: "film" | "serie"; platform: string | null; info: string | null; link: string | null; poster?: string | null };
+
+/* Uno stato per una richiesta: fermo finche' non serve, «chiedo» mentre
+   arriva, «risposto» quando c'e' — anche se e' vuota. Tre parole invece di
+   due booleani che possono contraddirsi. */
+type Ric<T> = { stato: "fermo" | "chiedo" | "risposto"; d: T };
+
+/* La foto dei titoli simili. `SchedaTitolo` non se la disegna: gliela passa
+   chi lo monta, ed e' voluto — la Home ha il suo ripiego col gradiente di
+   categoria, qui basta la locandina con la cornice `.ph` del sistema. La
+   differenza fra le due schermate resta una scelta, non una sbavatura. */
+function FotoSimile({ src, style }: { src?: string | null; style?: React.CSSProperties }) {
+  return <span className="ph" style={style}>{src && <Img src={src} />}</span>;
+}
 type Ctx = { startInput: () => void };
 
 const SuggestCtx = createContext<Ctx>({ startInput: () => {} });
@@ -48,6 +63,41 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
   const [text, setText] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Pick[] | null>(null);
+
+  /* ── LA SCHEDA DI UN CONSIGLIO ──
+     Prima queste righe erano testo e basta: reagiva solo il tasto «aggiungi»
+     sotto. Toccare il titolo, che e' la parte grande della riga e quella che
+     il dito prende, non faceva niente.
+     Adesso aprono la stessa scheda della Home e della Guarda — trama, genere,
+     simili, «Dove vederlo» — che e' `SchedaTitolo`. Le chiamate le fa questa
+     schermata, con le regole condivise di `watch-rotte.ts`: gli indirizzi e
+     la lettura della risposta sono gli stessi delle altre due, o avremmo tre
+     pannelli uguali con tre comportamenti. */
+  const [aperto, setAperto] = useState<Pick | null>(null);
+  const [dett, setDett] = useState<Ric<DettaglioTitolo | null>>({ stato: "fermo", d: null });
+  const [simili, setSimili] = useState<Ric<TitoloSimile[]>>({ stato: "fermo", d: [] });
+  const [dove, setDove] = useState<Ric<string[]>>({ stato: "fermo", d: [] });
+
+  useEffect(() => {
+    if (!aperto) { setDett({ stato: "fermo", d: null }); setSimili({ stato: "fermo", d: [] }); setDove({ stato: "fermo", d: [] }); return; }
+    let vivo = true;
+    setDett({ stato: "chiedo", d: null });
+    setSimili({ stato: "chiedo", d: [] });
+    chiediDettagli(aperto.title, aperto.kind)
+      .then((d) => { if (vivo) setDett({ stato: "risposto", d }); })
+      .catch(() => { if (vivo) setDett({ stato: "risposto", d: null }); });
+    chiediSimili(aperto.title, aperto.kind)
+      .then((l) => { if (vivo) setSimili({ stato: "risposto", d: l }); })
+      .catch(() => { if (vivo) setSimili({ stato: "risposto", d: [] }); });
+    return () => { vivo = false; };
+  }, [aperto]);
+
+  async function apriDove() {
+    if (!aperto) return;
+    setDove({ stato: "chiedo", d: [] });
+    try { setDove({ stato: "risposto", d: await chiediPiattaforme(aperto.title, aperto.kind) }); }
+    catch { setDove({ stato: "risposto", d: [] }); }
+  }
   const [open, setOpen] = useState(false);
   /* Il tetto giornaliero: quando c'è, il foglio mostra la card al posto dei
      titoli. Tiene la frase del server così com'è. */
@@ -198,7 +248,8 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
 
                   {results!.map((p, i) => (
                     <div className="srf2" key={`${p.title}-${i}`} style={{ marginTop: 12, padding: "2px 0 12px" }}>
-                      <div className="res">
+                      {/* La riga si apre: tutta, non solo il tasto sotto. */}
+                      <div className="res tap" role="button" onClick={() => setAperto(p)}>
                         <span className="pw">
                           <b className="fb2" style={{ fontSize: "13px" }}>{p.title.slice(0, 2)}</b>
                           {p.poster && <Img src={p.poster} />}
@@ -242,6 +293,36 @@ export default function SuggestProvider({ children }: { children: ReactNode }) {
                   <button className="btn2 wide tap" style={{ marginTop: 16 }} onClick={chiudiPannello}>Chiudi</button>
                 </>
               )}
+            </div>
+          </Sheet>
+        </div>
+      )}
+
+      {/* ── la scheda di un consiglio ──
+          Sopra il pannello dei consigli: si guarda un titolo e si torna
+          all'elenco, senza perdere il posto. */}
+      {aperto && (
+        <div className="k2" style={K2}>
+          <Sheet onClose={() => setAperto(null)}>
+            <div className="plain-head">
+              <h2>{aperto.title}</h2>
+              <div className="status">
+                {[aperto.kind === "serie" ? "Serie" : "Film", aperto.platform ? `su ${aperto.platform}` : null].filter(Boolean).join(" · ")}
+              </div>
+            </div>
+            <div className="pad">
+              <SchedaTitolo
+                dettaglio={{ stato: dett.stato, d: dett.d }}
+                simili={{ stato: simili.stato, lista: simili.d }}
+                piattaforme={{ stato: dove.stato, lista: dove.d }}
+                avanzo={false}
+                onAvanza={() => { /* un consiglio non e' ancora tuo: non c'e' niente da avanzare */ }}
+                onDove={apriDove}
+                /* Toccare un simile lo mette al posto di quello che stai
+                   guardando: resti qui e cambi titolo, invece di uscire. */
+                onSimile={(titolo) => setAperto({ ...aperto, title: titolo, info: null, platform: null, poster: null })}
+                Foto={FotoSimile}
+              />
             </div>
           </Sheet>
         </div>

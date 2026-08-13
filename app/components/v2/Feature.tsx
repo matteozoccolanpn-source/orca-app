@@ -39,7 +39,11 @@ export function Feature({
     return (
       <div className="srf wide tap" onClick={onClick} style={{ display: "block", padding: 8 }}>
         <div style={{ display: "flex" }}>
-          <div className="pw" style={{ width: 92 }}>
+          {/* 13 agosto 2026 · girato il peso. La locandina scende da 92 a 72
+              e il titolo sale: qui la cosa da leggere e' il titolo, non
+              l'immagine — che per giunta e' una copertina orizzontale col
+              titolo gia' stampato dentro, quindi lo ripeteva. */}
+          <div className="pw" style={{ width: 72 }}>
             {img && <Img src={img} />}
           </div>
           <div className="in">
@@ -47,12 +51,14 @@ export function Feature({
               {dot && <span className={"dot " + dot} />}
               {k}
             </div>
-            {/* gli stessi valori di `.feature .t` nel mock */}
+            {/* Fraunces come `.feature .t` del mock, ma piu' grande: vedi sotto. */}
             <div
               className="t"
               style={{
                 fontFamily: "var(--font-fraunces-v2),Fraunces,Georgia,serif",
-                fontSize: 20, fontWeight: 500, letterSpacing: "-.01em",
+                /* 24 non e' un numero nuovo: e' la misura di `.hero .t` nel
+                   foglio, il gradino sopra i 20 di `.feature .t`. */
+                fontSize: 24, fontWeight: 500, letterSpacing: "-.01em",
                 lineHeight: 1.15, marginTop: 6,
               }}
             >
