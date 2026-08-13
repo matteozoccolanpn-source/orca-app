@@ -77,18 +77,35 @@ export type LiveHome = {
   heroEvents: LiveEvent[];
   upcoming: LiveEvent[];
   agenda: { label: string; events: LiveEvent[] }[];
-  gym: { done: number; total: number; trainedToday: boolean; title: string; first: string | null; rest: boolean; week: { letter: string; on: boolean; today: boolean }[]; image?: string | null } | null;
+  /* `esercizi` sono i nomi di oggi, in ordine. C'erano gia' in `data.workout`
+     e venivano ridotti a un conteggio piu' il primo nome: il pannello li
+     mostra tutti, che e' la differenza fra «2 di 5» e la scheda del giorno. */
+  gym: { done: number; total: number; trainedToday: boolean; title: string; first: string | null; rest: boolean; esercizi: string[]; week: { letter: string; on: boolean; today: boolean }[]; image?: string | null } | null;
   /* `opzioni` sono TUTTE le alternative che la nutrizionista ha scritto per
      quel pasto: la Home ne mostra una, il pannello le mostra tutte — che e'
      esattamente la differenza fra un metadato e una scheda. Il dato c'era
      gia' e veniva troncato qui. */
-  diet: { nextPasto: string | null; nextOpt: string | null; opzioni: string[]; done: string[]; image?: string | null } | null;
+  /* `prossimi` sono i pasti che vengono DOPO quello in corso, nell'ordine
+     della giornata. La Home mostra quello di adesso; il pannello mostra anche
+     cosa viene dopo, che e' la domanda subito successiva. Impaginazione: il
+     dato era gia' tutto qui e si fermava al pasto corrente. */
+  diet: { nextPasto: string | null; nextOpt: string | null; opzioni: string[];
+    prossimi: { pasto: string; opzione: string | null }[]; done: string[]; image?: string | null } | null;
   trip: { title: string; range: string; sub: string; image?: string | null } | null;
   /* `kind` viaggia con il titolo perche' /api/watch/providers lo vuole
      insieme al nome: senza, «Dove vederlo» dalla Home non si puo' chiamare
      (e indovinare «film» sarebbe sbagliato una volta su tre). E' un campo che
      WatchItem ha gia': qui si smette solo di buttarlo via. */
-  watch: { count: number; title: string | null; kind: string | null; sub: string; poster?: string | null } | null;
+  /* `id` viaggia con gli altri due perche' /api/watch/progress identifica la
+     serie da quello: senza, «+1 episodio» non si puo' nemmeno chiamare. E'
+     della stessa famiglia — un campo che WatchItem ha gia'. */
+  watch: { count: number; id: string | null; title: string | null; kind: string | null; sub: string; poster?: string | null;
+    /* A che punto sei della serie. Servono a «+1 episodio», che e' l'azione
+       frequente su una serie che stai guardando. Sono `null` quando la serie
+       non l'hai cominciata (o quando e' un film): cosi' «iniziata o no» si
+       risolve DAL DATO invece che da un'ipotesi, e la primaria del pannello
+       cambia da sola. Due campi che WatchItem ha gia'. */
+    season: number | null; episode: number | null } | null;
 };
 
 function toEvent(e: Ticket, today: Date): LiveEvent {
@@ -195,6 +212,7 @@ export function mapLive(data: {
     done: trainedToday ? esercizi.length : 0, total: esercizi.length || 6, trainedToday,
     title: esercizi.length ? (w?.titolo || "Allenamento") : "Riposo",
     first: esercizi[0]?.nome ?? null, rest: !esercizi.length, week: gymWeek,
+    esercizi: esercizi.map((e) => e.nome).filter(Boolean),
   } : null;
 
   // Pasto "del momento": ruota nell'arco della giornata (colazione al mattino,
@@ -213,6 +231,7 @@ export function mapLive(data: {
       nextPasto: meals[idx]?.pasto ?? null,
       nextOpt: meals[idx]?.opzioni?.[0] ?? null,
       opzioni: meals[idx]?.opzioni ?? [],
+      prossimi: meals.slice(idx + 1).map((m) => ({ pasto: m.pasto, opzione: m.opzioni?.[0] ?? null })),
       done: meals.filter((_, i) => i !== idx).map((m) => m.pasto),
     };
   }
@@ -232,7 +251,7 @@ export function mapLive(data: {
 
   const notSeen = data.watch.filter((x) => !x.seen);
   const nextWatch = notSeen[0] ?? null;
-  const watch = notSeen.length ? { count: notSeen.length, title: nextWatch?.title ?? null, kind: nextWatch?.kind ?? null, sub: `${notSeen.length} in lista` } : null;
+  const watch = notSeen.length ? { count: notSeen.length, id: nextWatch?.id ?? null, title: nextWatch?.title ?? null, kind: nextWatch?.kind ?? null, season: nextWatch?.season ?? null, episode: nextWatch?.episode ?? null, sub: `${notSeen.length} in lista` } : null;
 
   // --- kicker ---
   const kickDate = `${WD_LONG[today.getDay()]} ${today.getDate()} ${MONTHS[today.getMonth()]}`;

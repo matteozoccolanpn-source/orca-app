@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -114,8 +114,20 @@ export default function AllenamentoView({
   // se ci sono serie vere registrate oggi, punto.
   // `live` = pannello "sto facendo l'allenamento adesso"; `liveIdx` = da quale
   // esercizio parte aperto.
+  /* `?vai=sessione` apre la sessione da sola all'arrivo.
+     Serve a «Allenati ora» del pannello della Home: navigare va bene — e' una
+     scelta esplicita — ma si deve atterrare DENTRO la sessione, non davanti
+     alla sezione, altrimenti e' il salto che stavamo togliendo con un tocco
+     in piu'. Il parametro si toglie subito dall'indirizzo: se resta, un
+     ricaricamento o un «indietro» riaprirebbero la sessione per sempre. */
   const [live, setLive] = useState(false);
   const [liveIdx, setLiveIdx] = useState<number | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("vai") !== "sessione") return;
+    setLive(true);
+    window.history.replaceState(null, "", "/allenamento");
+  }, []);
   // Modifica scheda (B): sposta sessione, togli/sostituisci/aggiungi esercizi.
   const [editMode, setEditMode] = useState(false);
   const [selDay, setSelDay] = useState<string>("");

@@ -15,6 +15,8 @@ import CalendarSheet from "./CalendarSheet";
 import { catFor, type ImageCategory } from "@/lib/smart-image";
 import type { LiveHome, LiveEvent } from "./keikoLive";
 import type { Battito } from "@/lib/battiti";
+import type { WorkoutSetRow } from "@/lib/supabase";
+import { riassuntoSerie } from "@/lib/discipline";
 import { I } from "@/app/components/v2/icons";
 import { Empty } from "@/app/components/v2/Empty";
 import { Sheet, K2_FOGLIO } from "@/app/components/v2/Sheet";
@@ -150,7 +152,11 @@ function Ph({ src, cat, className, style, children }: {
   );
 }
 
-export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt, battito }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null; battito?: Battito | null }) {
+export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt, battito, chiediUltimaVolta }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null; battito?: Battito | null;
+  /* «L'ultima volta» degli esercizi, chiesta QUANDO SERVE. E' una server
+     action: si legge all'apertura del pannello dell'allenamento, non a ogni
+     apertura della Home — vedi il commento in app/page.tsx, col numero. */
+  chiediUltimaVolta?: (nomi: string[]) => Promise<Record<string, WorkoutSetRow[]>> }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
   // Il battito chiuso sparisce subito, senza aspettare il giro del server.
@@ -474,12 +480,16 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
     /* Il titolo e il tipo servono a «Dove vederlo»: la rotta li vuole
        tutti e due. Ci sono solo sulla card della Guarda. */
     titoloWatch?: string | null; kindWatch?: string | null;
-    /* Le alternative del pasto, come le ha scritte la nutrizionista. */
+    /* A che punto sei della serie: se ci sono, l'hai cominciata. */
+    idWatch?: string | null; season?: number | null; episode?: number | null;
+    /* Le alternative del pasto, come le ha scritte la nutrizionista, e cosa
+       viene dopo nella giornata. */
     opzioni?: string[];
+    prossimi?: { pasto: string; opzione: string | null }[];
   };
   const oggiPerTe: Scheda[] = [];
-  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta", opzioni: live.diet.opzioni });
-  if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda", titoloWatch: live.watch.title, kindWatch: live.watch.kind });
+  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta", opzioni: live.diet.opzioni, prossimi: live.diet.prossimi });
+  if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda", titoloWatch: live.watch.title, kindWatch: live.watch.kind, idWatch: live.watch.id, season: live.watch.season, episode: live.watch.episode });
   if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
 
   /* ── C2 · LE AZIONI RAPIDE SONO IL TOCCO LUNGO, NON LO SWIPE ──
@@ -529,6 +539,21 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
 
   /* Il pannello aperto: la card che stai guardando, o `null`. */
   const [scheda, setScheda] = useState<Scheda | null>(null);
+  /* «L'ultima volta», chiesta all'apertura del pannello dell'allenamento.
+     Gli esercizi ci sono subito — quelli viaggiano col payload della Home —
+     e questa arriva un istante dopo, con gli scheletri al posto suo. */
+  const [ultime, setUltime] = useState<{ stato: "fermo" | "chiedo" | "risposto"; d: Record<string, WorkoutSetRow[]> }>({ stato: "fermo", d: {} });
+  useEffect(() => {
+    const nomi = scheda?.k === "gym" ? (gym?.esercizi ?? []) : [];
+    if (!chiediUltimaVolta || nomi.length === 0) { setUltime({ stato: "fermo", d: {} }); return; }
+    let vivo = true;
+    setUltime({ stato: "chiedo", d: {} });
+    chiediUltimaVolta(nomi)
+      .then((d) => { if (vivo) setUltime({ stato: "risposto", d }); })
+      .catch(() => { if (vivo) setUltime({ stato: "risposto", d: {} }); });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheda?.k]);
   const [segnando, setSegnando] = useState(false);
   /* Le piattaforme di «Dove vederlo». Si azzerano a ogni apertura: un elenco
      rimasto dal titolo di prima sarebbe una bugia. */
@@ -562,6 +587,29 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
       .catch(() => { if (vivo) setSimili({ stato: "risposto", lista: [] }); });
     return () => { vivo = false; };
   }, [scheda?.titoloWatch, scheda?.kindWatch]);
+
+  /* «+1 EPISODIO». Stessa rotta della Guarda, e stesso conto ottimista: si
+     avanza di uno subito, e il server — che la lunghezza della stagione ce
+     l'ha — corregge nella risposta. Se la serie e' finita, la Guarda apre il
+     voto: da qui no, perche' il voto e' una schermata e questo e' un pannello.
+     Ci si limita a chiudere e ricaricare, e la serie sparisce dai «da vedere». */
+  const [avanzo, setAvanzo] = useState(false);
+  async function avanzaEpisodio(id: string) {
+    if (avanzo) return;
+    setAvanzo(true);
+    try {
+      const r = await fetch("/api/watch/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id, avanza: true }),
+      });
+      if (!r.ok) throw new Error();
+      setScheda(null);
+      router.refresh();
+    } catch { /* resta aperto e ripremibile: un clic non sparisce in silenzio */ }
+    finally { setAvanzo(false); }
+  }
 
   async function chiediDove(titolo: string, kind: string) {
     setDove({ stato: "chiedo", piattaforme: [] });
@@ -856,7 +904,10 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
               <div className="wide srf" onClick={() => setScheda({
                 k: "gym", cat: "sport", titolo: gym.title,
                 meta: gym.rest ? "oggi è riposo" : `${gym.done} di ${gym.total} esercizi`,
-                img: gym.image, dove: "/allenamento", doveTesto: "Apri l'allenamento",
+                img: gym.image,
+                /* Riposo: non c'e' niente da avviare, si va alla sezione. */
+                dove: gym.rest ? "/allenamento" : "/allenamento?vai=sessione",
+                doveTesto: gym.rest ? "Apri l'allenamento" : "Allenati ora",
               })}>
                 <Ph src={gym.image} cat="sport" />
                 <div className="in">
@@ -1041,11 +1092,32 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                 </div>
               )}
 
-              {scheda.k === "watch" && scheda.titoloWatch && scheda.kindWatch && (
+              {scheda.k === "watch" && scheda.titoloWatch && scheda.kindWatch && (() => {
+                /* CHI E' LA PRIMARIA, e lo decide il DATO.
+                   Se `season` ed `episode` ci sono, la serie l'hai cominciata
+                   e la domanda del momento e' «a che punto sono»: primaria
+                   «+1 episodio». Se non ci sono — serie mai aperta, o un film
+                   — la domanda e' «come lo guardo»: primaria «Dove vederlo».
+                   Nessuna ipotesi: e' la regola 3-quinquies risolta dal dato. */
+                const iniziata = scheda.idWatch && scheda.season != null && scheda.episode != null;
+                return (
                 <>
+                  {iniziata && (
+                    <button
+                      className="cta wide tap"
+                      style={{ marginTop: 14 }}
+                      onClick={() => avanzaEpisodio(scheda.idWatch!)}
+                      disabled={avanzo}
+                    >
+                      {avanzo ? "Segno…" : <>{I.tick({ s: 15 })}+1 episodio</>}
+                    </button>
+                  )}
+                  <div className="status" style={{ marginTop: iniziata ? 10 : 0 }}>
+                    {iniziata ? `Sei a S${scheda.season}E${scheda.episode}` : ""}
+                  </div>
                   <button
-                    className="cta wide tap"
-                    style={{ marginTop: 14 }}
+                    className={(iniziata ? "btn2" : "cta") + " wide tap"}
+                    style={{ marginTop: iniziata ? 4 : 14 }}
                     onClick={() => chiediDove(scheda.titoloWatch!, scheda.kindWatch!)}
                     disabled={dove.stato === "chiedo"}
                   >
@@ -1066,6 +1138,35 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                     )
                   )}
                 </>
+                ); })()}
+
+              {/* GLI ESERCIZI DI OGGI, con «l'ultima volta» per ognuno.
+                  Il pannello dell'allenamento diceva «2 di 5»: un conteggio
+                  non e' una scheda. Adesso c'e' scritto cosa devi fare e con
+                  che cosa ti confronti. Il dato arriva gia' pronto dal server,
+                  quindi il telefono non chiede niente all'apertura.
+                  Dove «l'ultima volta» non c'e', la riga resta senza: non si
+                  scrive «mai fatto», che e' rumore su cinque righe. */}
+              {scheda.k === "gym" && (gym?.esercizi?.length ?? 0) > 0 && (
+                <>
+                  <div className="status" style={{ marginTop: 16, marginBottom: 8 }}>Gli esercizi di oggi</div>
+                  <div className="srf">
+                    {gym!.esercizi.map((nome) => {
+                      const prec = ultime.d[nome] ?? [];
+                      return (
+                        <div className="row-act" key={nome} style={{ cursor: "default" }}>
+                          <span className="ic2">{I.dumb({ s: 16 })}</span>
+                          <span className="in">
+                            <span className="t">{nome}</span>
+                            {ultime.stato === "chiedo"
+                              ? <span className="sk sk-line" style={{ display: "block", width: "58%", height: 9, marginTop: 5 }} />
+                              : prec.length > 0 && <span className="m">l&apos;ultima volta: {riassuntoSerie(prec)}</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
 
               {/* IL PASTO. Le opzioni sono le parole della nutrizionista e si
@@ -1085,6 +1186,26 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                       <div className="row-act" key={o} style={{ cursor: "default" }}>
                         <span className="ic2">{I.pot({ s: 16 })}</span>
                         <span className="in"><span className="t">{o}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* E COSA VIENE DOPO. Il pannello del cibo mostrava solo il pasto
+                  in corso: ma «e stasera?» e' la domanda subito successiva, e
+                  la risposta era gia' nel piano — si fermava qui. */}
+              {scheda.k === "diet" && (scheda.prossimi?.length ?? 0) > 0 && (
+                <>
+                  <div className="status" style={{ marginTop: 16, marginBottom: 8 }}>Poi, oggi</div>
+                  <div className="srf">
+                    {scheda.prossimi!.map((p) => (
+                      <div className="row-act" key={p.pasto} style={{ cursor: "default" }}>
+                        <span className="ic2">{I.cal({ s: 16 })}</span>
+                        <span className="in">
+                          <span className="t">{p.pasto}</span>
+                          {p.opzione && <span className="m">{p.opzione}</span>}
+                        </span>
                       </div>
                     ))}
                   </div>

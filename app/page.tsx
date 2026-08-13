@@ -1,8 +1,9 @@
 import SwipeShell from "./components/SwipeShell";
 import KeikoPreview from "./components/keiko/KeikoPreview";
+import type { WorkoutSetRow } from "@/lib/supabase";
 import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
-import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt, getTicketsForBeats, saveBeatState } from "@/lib/supabase";
+import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt, getTicketsForBeats, saveBeatState, getLastPerformance } from "@/lib/supabase";
 import { battitoDiOggi, GIORNI_INDIETRO, GIORNI_AVANTI, type Battito } from "@/lib/battiti";
 import { immaginePerBattito } from "@/lib/event-image";
 import { posterFor } from "@/lib/tmdb";
@@ -44,6 +45,25 @@ export default async function Home({
     getWatchlist(),
     getOnboardedAt(),
   ]);
+
+  /* «L'ultima volta» degli esercizi di oggi NON si legge qui.
+     Misurato: cinque letture in fila costavano ~330ms sulla mediana di ogni
+     apertura della Home — e sono un dato che si vede solo aprendo il pannello
+     dell'allenamento. Pagare all'apertura della pagina piu' usata dell'app un
+     dato che quasi sempre nessuno guarda e' pagare nel posto sbagliato.
+     Quindi e' una server action, che il pannello chiama quando si apre: niente
+     rotta nuova in app/api, e `getLastPerformance` resta la stessa funzione
+     che usa gia' la pagina Allenamento. */
+  async function leggiUltimaVolta(nomi: string[]): Promise<Record<string, WorkoutSetRow[]>> {
+    "use server";
+    await requireLogin();
+    const fuori: Record<string, WorkoutSetRow[]> = {};
+    const unici = [...new Set(nomi.filter(Boolean))].slice(0, 20);
+    (await Promise.all(unici.map((n) => getLastPerformance(n)))).forEach((righe, i) => {
+      if (righe.length > 0) fuori[unici[i]] = righe;
+    });
+    return fuori;
+  }
 
   // Server action passata all'appbar della Home per il logout discreto.
   async function logout() {
@@ -143,5 +163,5 @@ export default async function Home({
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.
-  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} onboardedAt={onboardedAt} battito={battito} />;
+  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} onboardedAt={onboardedAt} battito={battito} chiediUltimaVolta={leggiUltimaVolta} />;
 }

@@ -33,10 +33,10 @@ const SAMPLE: LiveHome = {
     mkEv({ id: "3", type: "restaurant", emoji: "🍽", catLabel: "Cena", title: "Cena estiva dipartimento", when: "stasera · 21:00", location: "Balera dell'Ortica" }),
   ],
   agenda: [],
-  gym: { done: 0, total: 0, trainedToday: false, title: "Riposo", first: null, rest: true, week: [] },
-  diet: { nextPasto: "Colazione", nextOpt: "Yogurt greco 0% 200g + mandorle 30g", opzioni: ["Yogurt greco 0% 200g + mandorle 30g"], done: [] },
+  gym: { done: 0, total: 0, trainedToday: false, title: "Riposo", first: null, rest: true, esercizi: [], week: [] },
+  diet: { nextPasto: "Colazione", nextOpt: "Yogurt greco 0% 200g + mandorle 30g", opzioni: ["Yogurt greco 0% 200g + mandorle 30g"], prossimi: [], done: [] },
   trip: { title: "Weekend a Roma", range: "12–14 lug", sub: "" },
-  watch: { count: 4, kind: "film", title: "Dune · Parte due", sub: "Sky · 21:15" },
+  watch: { count: 4, id: null, kind: "film", season: null, episode: null, title: "Dune · Parte due", sub: "Sky · 21:15" },
 };
 
 export default function DsPreview() {
