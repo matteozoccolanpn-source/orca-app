@@ -19,6 +19,7 @@ import {
 import type { WorkoutWeek, WorkoutExercise, WorkoutSession, WorkoutSetRow } from "@/lib/supabase";
 import type { Consiglio } from "@/lib/coach";
 import SessioneLive from "./SessioneLive";
+import Storico from "./Storico";
 import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
 import { I } from "@/app/components/v2/icons";
 import { riassuntoSerie } from "@/lib/discipline";
@@ -57,6 +58,8 @@ export default function AllenamentoView({
   consiglio = null,
   embedded = false,
   streakDiFila = 0,
+  primaPagina = { sedute: [], altre: false },
+  chiediPagina,
 }: {
   week: WorkoutWeek | null;
   updatedAt: string | null;
@@ -80,6 +83,10 @@ export default function AllenamentoView({
   /* Prima viveva nel badge di KeikoShell, con l'emoji. Ora e' un dato come gli
      altri e sta in A-che-punto-sei, dove la spec lo vuole. */
   streakDiFila?: number;
+  /* Lo storico paginato: la prima pagina arriva col resto, le altre a
+     richiesta. Vedi app/allenamento/page.tsx. */
+  primaPagina?: { sedute: WorkoutSession[]; altre: boolean };
+  chiediPagina?: (prima: string) => Promise<{ sedute: WorkoutSession[]; altre: boolean }>;
 }) {
   const router = useRouter();
   /* Il toast era di KeikoShell, che non avvolge piu' questa pagina: adesso e'
@@ -127,6 +134,7 @@ export default function AllenamentoView({
      «A che punto sei» lo contava assente proprio i giorni in cui si era
      allenato. `nomeLibera` e' come la chiami tu — «Corsa al parco», «Lezione
      di nuoto» — al posto del titolo della scheda. */
+  const [storicoAperto, setStoricoAperto] = useState(false);
   const [libera, setLibera] = useState(false);
   const [chiediNome, setChiediNome] = useState(false);
   const [nomeLibera, setNomeLibera] = useState("");
@@ -405,6 +413,20 @@ export default function AllenamentoView({
                   </span>
                   {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
                 </div>
+                {/* «A che punto sei» sta qui e non dentro il ramo «c'e' la
+                    scheda»: da quando esistono le sedute libere ci si allena
+                    anche senza piano, e allora c'e' uno storico da guardare
+                    anche senza piano. Era lo stesso difetto della riga qui
+                    sopra, e l'ho rifatto: la porta la vedeva solo chi aveva
+                    gia' quello che la porta serve a superare. */}
+                <div className="row-act tap" role="button" onClick={() => setStoricoAperto(true)}>
+                  <span className="ic2">{I.hist({ s: 16 })}</span>
+                  <span className="in">
+                    <span className="t">A che punto sei</span>
+                    <span className="m">Le settimane indietro, e cosa hai fatto in ognuna</span>
+                  </span>
+                  {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                </div>
               </div>
 
               {hasPlan ? (
@@ -677,6 +699,17 @@ export default function AllenamentoView({
           {/* Come si chiama questa seduta. Il nome si puo' saltare: se lo
               salti si chiama «Allenamento libero», che e' vero e non e' un
               segnaposto. */}
+          {storicoAperto && (
+            <Storico
+              week={week}
+              trainedDays={[...trained]}
+              streakDiFila={streakDiFila}
+              pagina={primaPagina}
+              chiediPagina={chiediPagina ?? (async () => ({ sedute: [], altre: false }))}
+              onClose={() => setStoricoAperto(false)}
+            />
+          )}
+
           {chiediNome && (
             <Sheet onClose={() => setChiediNome(false)}>
               <div className="plain-head">

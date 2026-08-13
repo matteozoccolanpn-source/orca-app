@@ -622,6 +622,59 @@ export async function getSessionHistory(limit = 10): Promise<WorkoutSession[]> {
   return sessions.map((s) => toSession(s, perSessione.get(s.id as string) ?? []));
 }
 
+/* ═════════ LO STORICO, A PAGINE ═════════
+ * `getSessionHistory` ha un tetto e basta: alla pagina Allenamento otto sedute
+ * bastano, e caricarne quaranta con dentro tutte le serie appesantirebbe la
+ * pagina per un dato che si guarda di rado.
+ * La schermata dello storico invece scorre indietro nel tempo, e allora si
+ * carica i SUOI dati: otto alla volta, altri otto quando arrivi in fondo. Chi
+ * non apre quella schermata non paga niente.
+ *
+ * `prima` e' la data da cui continuare: si chiedono le sedute precedenti a
+ * quella, non «la pagina numero 3». Un indice salterebbe o ripeterebbe una
+ * seduta se nel frattempo ne nascesse una nuova — e una ne nasce ogni volta
+ * che ti alleni. */
+export async function getSessionPage(
+  prima?: string | null,
+  limit = 8,
+): Promise<{ sedute: WorkoutSession[]; altre: boolean }> {
+  const client = await db();
+  let q = client
+    .from("workout_session")
+    .select("id, day, titolo, started_at, ended_at, sensazione, note, origine")
+    .order("day", { ascending: false })
+    .order("started_at", { ascending: false })
+    // uno in piu' del necessario: se torna, vuol dire che ce ne sono altre.
+    // Cosi' «altre» e' un fatto e non una stima sul numero di righe.
+    .limit(limit + 1);
+  if (prima) q = q.lt("day", prima);
+
+  const { data, error } = await q;
+  if (error) {
+    console.error("Supabase: failed to fetch session page:", error.message);
+    return { sedute: [], altre: false };
+  }
+  const righe = data ?? [];
+  const altre = righe.length > limit;
+  const sessions = altre ? righe.slice(0, limit) : righe;
+  if (sessions.length === 0) return { sedute: [], altre: false };
+
+  // Una sola query per tutte le serie della pagina, come nello storico corto.
+  const { data: sets } = await client
+    .from("workout_set")
+    .select("id, session_id, esercizio, serie, ripetizioni, peso_kg, secondi, fatica, disciplina, distanza_m, bpm_medio, dislivello_m, created_at")
+    .in("session_id", sessions.map((s) => s.id))
+    .order("created_at", { ascending: true });
+
+  const perSessione = new Map<string, WorkoutSetRow[]>();
+  for (const r of sets ?? []) {
+    const lista = perSessione.get(r.session_id as string) ?? [];
+    lista.push(toSet(r));
+    perSessione.set(r.session_id as string, lista);
+  }
+  return { sedute: sessions.map((s) => toSession(s, perSessione.get(s.id as string) ?? [])), altre };
+}
+
 /** L'ultima volta che hai fatto QUESTO esercizio: le serie di quella volta.
  *  E' la funzione che permette a Keiko di dirti "l'altra volta 3x8 con 40 kg"
  *  mentre stai per iniziare, invece di lasciarti tirare a indovinare. */

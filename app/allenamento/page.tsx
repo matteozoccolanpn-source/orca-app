@@ -4,7 +4,7 @@ import GeneraScheda from "./GeneraScheda";
 import { requireLogin } from "@/lib/require-login";
 import {
   getWorkoutPlan, getTrainedDays, getProfile,
-  getSessionByDay, getSessionHistory, getLastPerformance,
+  getSessionByDay, getSessionHistory, getSessionPage, getLastPerformance,
   getUpcomingTickets,
   type WorkoutWeek, type WorkoutSetRow,
 } from "@/lib/supabase";
@@ -107,6 +107,18 @@ export default async function AllenamentoPage() {
   // foto dell'esercizio di oggi (o palestra generica) dietro l'hero; null → gradiente
   const todayEx = plan?.week?.[WD[new Date().getDay()]]?.esercizi?.[0]?.nome ?? null;
   const heroImage = (todayEx ? await exerciseImage(todayEx) : null) ?? (await unsplashPhoto("gym workout fitness"));
+  /* LO STORICO, A PAGINE. La prima arriva col resto — cosi' la schermata si
+     apre gia' piena — e le successive con una server action, otto alla volta.
+     Niente rotta nuova in app/api: la pagina ne ha gia' una per il logout,
+     ed e' lo stesso mestiere. */
+  const primaPagina = await getSessionPage(null, 8);
+
+  async function leggiPagina(prima: string) {
+    "use server";
+    await requireLogin();
+    return getSessionPage(prima, 8);
+  }
+
   return (
     /* ONDATA 3 — l'Allenamento possiede lo schermo, come la Guarda: la testata,
        il toast e la barra in fondo se li fa la vista, nel sistema V2. Prima
@@ -125,6 +137,8 @@ export default async function AllenamentoPage() {
         </div>
       )}
       <AllenamentoView
+        primaPagina={primaPagina}
+        chiediPagina={leggiPagina}
         streak={streak}
         week={plan?.week ?? null}
         updatedAt={plan?.updatedAt ?? null}
