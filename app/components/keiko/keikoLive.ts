@@ -80,7 +80,11 @@ export type LiveHome = {
   gym: { done: number; total: number; trainedToday: boolean; title: string; first: string | null; rest: boolean; week: { letter: string; on: boolean; today: boolean }[]; image?: string | null } | null;
   diet: { nextPasto: string | null; nextOpt: string | null; done: string[]; image?: string | null } | null;
   trip: { title: string; range: string; sub: string; image?: string | null } | null;
-  watch: { count: number; title: string | null; sub: string; poster?: string | null } | null;
+  /* `kind` viaggia con il titolo perche' /api/watch/providers lo vuole
+     insieme al nome: senza, «Dove vederlo» dalla Home non si puo' chiamare
+     (e indovinare «film» sarebbe sbagliato una volta su tre). E' un campo che
+     WatchItem ha gia': qui si smette solo di buttarlo via. */
+  watch: { count: number; title: string | null; kind: string | null; sub: string; poster?: string | null } | null;
 };
 
 function toEvent(e: Ticket, today: Date): LiveEvent {
@@ -223,7 +227,7 @@ export function mapLive(data: {
 
   const notSeen = data.watch.filter((x) => !x.seen);
   const nextWatch = notSeen[0] ?? null;
-  const watch = notSeen.length ? { count: notSeen.length, title: nextWatch?.title ?? null, sub: `${notSeen.length} in lista` } : null;
+  const watch = notSeen.length ? { count: notSeen.length, title: nextWatch?.title ?? null, kind: nextWatch?.kind ?? null, sub: `${notSeen.length} in lista` } : null;
 
   // --- kicker ---
   const kickDate = `${WD_LONG[today.getDay()]} ${today.getDate()} ${MONTHS[today.getMonth()]}`;

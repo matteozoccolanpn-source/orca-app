@@ -471,15 +471,37 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   type Scheda = {
     k: string; cat: ImageCategory; titolo: string; meta: string; img?: string | null;
     dove: string; doveTesto: string;
+    /* Il titolo e il tipo servono a «Dove vederlo»: la rotta li vuole
+       tutti e due. Ci sono solo sulla card della Guarda. */
+    titoloWatch?: string | null; kindWatch?: string | null;
   };
   const oggiPerTe: Scheda[] = [];
   if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta" });
-  if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda" });
+  if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda", titoloWatch: live.watch.title, kindWatch: live.watch.kind });
   if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
 
   /* Il pannello aperto: la card che stai guardando, o `null`. */
   const [scheda, setScheda] = useState<Scheda | null>(null);
   const [segnando, setSegnando] = useState(false);
+  /* Le piattaforme di «Dove vederlo». Si azzerano a ogni apertura: un elenco
+     rimasto dal titolo di prima sarebbe una bugia. */
+  const [dove, setDove] = useState<{ stato: "fermo" | "chiedo" | "risposto"; piattaforme: string[] }>({ stato: "fermo", piattaforme: [] });
+  useEffect(() => { setDove({ stato: "fermo", piattaforme: [] }); }, [scheda?.k]);
+
+  async function chiediDove(titolo: string, kind: string) {
+    setDove({ stato: "chiedo", piattaforme: [] });
+    try {
+      const r = await fetch(`/api/watch/providers?title=${encodeURIComponent(titolo)}&kind=${encodeURIComponent(kind)}`, { credentials: "include" });
+      const d = await r.json();
+      const p = d?.providers ?? {};
+      // In abbonamento prima: e' l'unica risposta che non costa altri soldi.
+      const nomi = [...(p.flatrate ?? []), ...(p.rent ?? []), ...(p.buy ?? [])]
+        .map((x: { name?: string }) => x?.name).filter(Boolean) as string[];
+      setDove({ stato: "risposto", piattaforme: [...new Set(nomi)].slice(0, 6) });
+    } catch {
+      setDove({ stato: "risposto", piattaforme: [] });
+    }
+  }
 
   /* «Segna fatto» dell'allenamento: la stessa chiamata che fa la pagina
      Allenamento (`/api/workout/log` con il giorno di oggi). Ottimistica come
@@ -856,6 +878,38 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
               )}
               {scheda.k === "gym" && gym?.trainedToday && (
                 <p className="status" style={{ marginTop: 14 }}>Oggi l&apos;hai gia&apos; fatto.</p>
+              )}
+
+              {/* «Dove vederlo»: adesso si puo', perche' il payload della Home
+                  porta anche il `kind` che la rotta vuole insieme al titolo.
+                  Le piattaforme arrivano da /api/watch/providers, la stessa
+                  della Guarda: qui si chiede e si mostra, non si duplica
+                  nessuna logica. */}
+              {scheda.k === "watch" && scheda.titoloWatch && scheda.kindWatch && (
+                <>
+                  <button
+                    className="cta wide tap"
+                    style={{ marginTop: 14 }}
+                    onClick={() => chiediDove(scheda.titoloWatch!, scheda.kindWatch!)}
+                    disabled={dove.stato === "chiedo"}
+                  >
+                    {dove.stato === "chiedo" ? "Cerco…" : <>{I.play({ s: 15 })}Dove vederlo</>}
+                  </button>
+                  {dove.stato === "risposto" && (
+                    dove.piattaforme.length > 0 ? (
+                      <div className="srf" style={{ marginTop: 10 }}>
+                        {dove.piattaforme.map((n) => (
+                          <div className="row-act" key={n} style={{ cursor: "default" }}>
+                            <span className="ic2">{I.tv({ s: 16 })}</span>
+                            <span className="in"><span className="t">{n}</span></span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="status">Non risulta in streaming in Italia in questo momento.</p>
+                    )
+                  )}
+                </>
               )}
 
               {/* La pagina intera: in fondo, e si sceglie. */}
