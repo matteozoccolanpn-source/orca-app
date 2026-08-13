@@ -37,8 +37,12 @@ Tu avevi verificato l'opposto, con i payload intercettati: `Corsa Z2` →
 1. controlla che `b4bd82e` sia davvero nel ramo distribuito;
 2. rilancia le tue prove sul codice attuale — l'indovinello, la precedenza
    (mano → serie di oggi → ultima volta → nome), il riassunto per disciplina;
-3. se **funziona**, la revisione ha guardato una versione vecchia: dimmelo, e
-   salta i punti 12, 15 e 16 di questo documento;
+3. se **funziona**, la revisione ha guardato una versione vecchia: dimmelo e
+   passa al punto 1. **Non c'e' niente da saltare**: le quattro accuse
+   fantasma stanno solo qui nel punto 0 e nessuna voce numerata dipende da
+   loro. (Una versione precedente di questo documento diceva di saltare i
+   punti 12, 15 e 16: era un errore di conteggio, quei tre sono validi e
+   vanno fatti.)
 4. se **non funziona**, qualcosa è tornato indietro: trova cosa, dimmelo, e
    quello diventa la prima cosa da riparare.
 
