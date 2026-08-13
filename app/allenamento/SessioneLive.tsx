@@ -51,6 +51,7 @@ export default function SessioneLive({
   open,
   ultimaVolta,
   iniziale = null,
+  libera = false,
   onClose,
   onFinita,
 }: {
@@ -64,6 +65,16 @@ export default function SessioneLive({
      ogni volta che aprivi una card. */
   ultimaVolta: Record<string, WorkoutSetRow[]>;
   iniziale?: number | null;          // esercizio da aprire subito (hai toccato quello)
+  /* LA SEDUTA LIBERA — l'allenamento senza scheda.
+     Era il buco strutturale: tutta la sezione presumeva che una scheda del
+     preparatore esistesse, e chi corre per conto suo, fa una lezione o segue
+     un video non aveva dove metterlo — e «A che punto sei» lo contava assente
+     proprio i giorni in cui si era allenato.
+     La riformulazione: la scheda e' un PIANO, le sedute sono FATTI, e i fatti
+     possono esistere senza il piano. In tabella era gia' vero: `workout_session`
+     non ha nessun riferimento alla scheda. Qui si apre la porta.
+     Gli esercizi si aggiungono mentre li fai, invece di arrivare da una lista. */
+  libera?: boolean;
   onClose: () => void;
   onFinita: () => void;              // il genitore segna il giorno come allenato
 }) {
@@ -100,6 +111,13 @@ export default function SessioneLive({
      cambiare a mano perché il nome sbaglierà. La scelta a mano vince sempre:
      `sceltaMano` è per esercizio e, quando c'è, ha la precedenza.
      Non si salva da nessuna parte: vale per la seduta che stai facendo. */
+  /* Gli esercizi che aggiungi mentre ti alleni. In una seduta libera sono
+     tutti; in una seduta con la scheda non ce ne sono, perche' li' la lista
+     e' del preparatore e non si tocca da qui. */
+  const [aggiunti, setAggiunti] = useState<Esercizio[]>([]);
+  const [nuovo, setNuovo] = useState("");
+  const tutti = libera ? aggiunti : esercizi;
+
   const [sceltaMano, setSceltaMano] = useState<Record<string, Disciplina>>({});
   /* L'ordine con cui si decide, dal piu' attendibile al meno:
      1. quello che hai scelto a mano adesso — vince sempre;
@@ -135,7 +153,7 @@ export default function SessioneLive({
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  const esercizioAperto = apertoIdx !== null ? esercizi[apertoIdx] : null;
+  const esercizioAperto = apertoIdx !== null ? tutti[apertoIdx] : null;
 
   /* --- apri/chiudi un esercizio e precompila le caselle ------------------
    * Il riferimento buono e' l'ultima serie di oggi; se oggi non hai ancora
@@ -143,7 +161,7 @@ export default function SessioneLive({
   function apri(i: number) {
     if (apertoIdx === i) { setApertoIdx(null); return; }
     setApertoIdx(i);
-    const nome = esercizi[i].nome;
+    const nome = tutti[i].nome;
     /* Si riempie da capo SOLO quando l'esercizio cambia davvero.
        Le caselle sono uno stato solo per tutta la schermata, e senza svuotarle
        il battito della bici finiva nella camminata che apri subito dopo (visto
@@ -165,6 +183,19 @@ export default function SessioneLive({
     }
   }
 
+  /* Aggiunge un esercizio alla seduta libera e lo apre subito: hai appena
+     scritto cosa hai fatto, la cosa dopo e' segnarne le serie. */
+  function aggiungiEsercizio() {
+    const nome = nuovo.trim();
+    if (!nome) return;
+    if (tutti.some((x) => x.nome.toLowerCase() === nome.toLowerCase())) { setNuovo(""); return; }
+    setAggiunti((a) => [...a, { nome }]);
+    setNuovo("");
+    setApertoIdx(tutti.length);
+    campiDi.current = nome;
+    setDistanza(""); setDurata(""); setBpm(""); setDislivello(""); setFatica(0);
+  }
+
   /* --- registra una serie ---------------------------------------------- */
   async function registra() {
     if (!esercizioAperto || salvo) return;
@@ -176,7 +207,7 @@ export default function SessioneLive({
         const r = await fetch("/api/workout/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "start", day, titolo: titolo ?? undefined }),
+          body: JSON.stringify({ action: "start", day, titolo: titolo ?? undefined, origine: libera ? "libera" : "scheda" }),
         });
         const j = await r.json();
         if (!r.ok || !j.sessionId) throw new Error(j.error || "Non riesco ad aprire la seduta");
@@ -311,34 +342,34 @@ export default function SessioneLive({
             {/* Il contatore e la barra dicono la stessa cosa del riepilogo in
                 fondo: quanti esercizi hai toccato su quelli previsti. Nessun
                 dato nuovo, solo quello che c'e' gia'. */}
-            {esercizi.length > 0 && (
-              <span className="c">{eserciziToccati}/{esercizi.length}</span>
+            {tutti.length > 0 && (
+              <span className="c">{eserciziToccati}/{tutti.length}</span>
             )}
           </div>
-          {esercizi.length > 0 && (
+          {tutti.length > 0 && (
             <div className="prog">
-              <i style={{ width: `${(eserciziToccati / esercizi.length) * 100}%` }} />
+              <i style={{ width: `${(eserciziToccati / Math.max(1, tutti.length)) * 100}%` }} />
             </div>
           )}
         </div>
 
         {/* ---------- corpo ---------- */}
         <div className="fullpad">
-          {esercizi.length > 0 && (
+          {tutti.length > 0 && (
             <div className="rx" style={{ marginTop: 0, marginBottom: 10 }}>
               Tocca l&apos;esercizio che stai facendo.
             </div>
           )}
 
-          {esercizi.length === 0 && (
+          {tutti.length === 0 && !libera && (
             <p className="rx" style={{ marginTop: 0 }}>
               Oggi la scheda non prevede esercizi. Puoi comunque chiudere e allenarti a modo tuo.
             </p>
           )}
 
-          {esercizi.length > 0 && (
+          {tutti.length > 0 && (
             <div className="srf list">
-              {esercizi.map((ex, i) => {
+              {tutti.map((ex, i) => {
                 const mie = sets.filter((s) => s.esercizio === ex.nome);
                 const aperto = apertoIdx === i;
                 const prec = ultimaVolta[ex.nome] ?? [];
@@ -536,6 +567,40 @@ export default function SessioneLive({
                 );
               })}
             </div>
+          )}
+
+          {/* ── L'ESERCIZIO CHE AGGIUNGI TU ──
+              In una seduta libera e' da qui che si comincia: scrivi cosa hai
+              fatto e la disciplina la indovina il nome, come gia' fa con la
+              scheda del preparatore. Niente elenco da cui scegliere: l'imbuto
+              e' lo stesso campo per una corsa, una lezione o un video. */}
+          {libera && (
+            <div className="ask" style={{ marginTop: 12, cursor: "auto" }}>
+              <input
+                value={nuovo}
+                onChange={(e) => setNuovo(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") aggiungiEsercizio(); }}
+                placeholder="Cosa hai fatto? es. corsa, panca, nuoto"
+                aria-label="Aggiungi un esercizio"
+                style={{ flex: 1, minWidth: 0, background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+              />
+              <button
+                className="go tap"
+                onClick={aggiungiEsercizio}
+                disabled={!nuovo.trim()}
+                aria-label="Aggiungi"
+                style={{ border: 0, cursor: "pointer", opacity: nuovo.trim() ? 1 : 0.45 }}
+              >
+                {I.plus({ s: 14 })}
+              </button>
+            </div>
+          )}
+
+          {libera && tutti.length === 0 && (
+            <p className="rx" style={{ marginTop: 12 }}>
+              Scrivi il primo esercizio qui sopra. Non serve una scheda: questa
+              seduta e&apos; tua.
+            </p>
           )}
 
           {errore && (

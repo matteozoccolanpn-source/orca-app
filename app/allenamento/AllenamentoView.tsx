@@ -122,6 +122,14 @@ export default function AllenamentoView({
      ricaricamento o un «indietro» riaprirebbero la sessione per sempre. */
   const [live, setLive] = useState(false);
   const [liveIdx, setLiveIdx] = useState<number | null>(null);
+  /* LA SEDUTA LIBERA. La scheda e' un piano, le sedute sono fatti: chi corre
+     per conto suo, fa una lezione o segue un video non aveva dove metterlo, e
+     «A che punto sei» lo contava assente proprio i giorni in cui si era
+     allenato. `nomeLibera` e' come la chiami tu — «Corsa al parco», «Lezione
+     di nuoto» — al posto del titolo della scheda. */
+  const [libera, setLibera] = useState(false);
+  const [chiediNome, setChiediNome] = useState(false);
+  const [nomeLibera, setNomeLibera] = useState("");
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (new URLSearchParams(window.location.search).get("vai") !== "sessione") return;
@@ -261,7 +269,17 @@ export default function AllenamentoView({
   // mostra subito le serie appena registrate.
   function chiudiLive() {
     setLive(false);
+    setLibera(false);          // la prossima volta si riparte dalla scheda
     router.refresh();
+  }
+
+  /* Apre la seduta libera con il nome che le hai dato. Il nome non e'
+     obbligatorio: se lo salti si chiama «Allenamento libero», che e' vero. */
+  function apriLibera() {
+    setChiediNome(false);
+    setLibera(true);
+    setLiveIdx(null);
+    setLive(true);
   }
 
   function startEdit() {
@@ -371,6 +389,24 @@ export default function AllenamentoView({
             </div>
 
             <div className="stag">
+{/* ── L'ALLENAMENTO SENZA SCHEDA ──
+                  Sta qui, sotto la card del giorno, perche' e' un fatto
+                  come gli altri: una corsa, una lezione, un video. La
+                  scheda e' un piano; questo e' quello che hai fatto.
+                  La riga c'e' SEMPRE, anche nei giorni di riposo e anche
+                  senza scheda caricata — sono proprio i giorni in cui
+                  serviva di piu' e non c'era. */}
+              <div className="srf" style={{ marginTop: 12 }}>
+                <div className="row-act tap" role="button" onClick={() => { setNomeLibera(""); setChiediNome(true); }}>
+                  <span className="ic2">{I.plus({ s: 16 })}</span>
+                  <span className="in">
+                    <span className="t">Allenamento libero</span>
+                    <span className="m">Una corsa, una lezione, un video: lo registri lo stesso</span>
+                  </span>
+                  {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                </div>
+              </div>
+
               {hasPlan ? (
                 <>
                   {/* ── hero ── */}
@@ -638,11 +674,40 @@ export default function AllenamentoView({
           </div>
 
           {/* ── la sessione: schermo pieno, si chiude senza perdere niente ── */}
+          {/* Come si chiama questa seduta. Il nome si puo' saltare: se lo
+              salti si chiama «Allenamento libero», che e' vero e non e' un
+              segnaposto. */}
+          {chiediNome && (
+            <Sheet onClose={() => setChiediNome(false)}>
+              <div className="plain-head">
+                <h2>Che allenamento hai fatto?</h2>
+                <div className="status">Dagli un nome, o lascia stare</div>
+              </div>
+              <div className="pad">
+                <div className="ask" style={{ marginTop: 14, cursor: "auto" }}>
+                  <input
+                    autoFocus
+                    value={nomeLibera}
+                    onChange={(e) => setNomeLibera(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") apriLibera(); }}
+                    placeholder="es. Corsa al parco, Lezione di nuoto"
+                    aria-label="Nome dell'allenamento"
+                    style={{ flex: 1, minWidth: 0, background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+                  />
+                </div>
+                <button className="cta wide tap" style={{ marginTop: 14 }} onClick={apriLibera}>
+                  {I.tick({ s: 15 })}Comincia
+                </button>
+              </div>
+            </Sheet>
+          )}
+
           {live && (
             <SessioneLive
               day={todayIso}
-              titolo={todayDay?.titolo?.trim() || null}
-              esercizi={todayExercises}
+              titolo={libera ? (nomeLibera.trim() || "Allenamento libero") : (todayDay?.titolo?.trim() || null)}
+              libera={libera}
+              esercizi={libera ? [] : todayExercises}
               open={sessioneOggi}
               ultimaVolta={ultimaVolta}
               iniziale={liveIdx}
