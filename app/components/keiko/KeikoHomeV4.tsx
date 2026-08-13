@@ -21,6 +21,8 @@ import { I } from "@/app/components/v2/icons";
 import { Empty } from "@/app/components/v2/Empty";
 import { Sheet, K2_FOGLIO } from "@/app/components/v2/Sheet";
 import { SheetHero } from "@/app/components/v2/SheetHero";
+import { SchedaTitolo } from "@/app/components/v2/SchedaTitolo";
+import { chiediDettagli, chiediSimili, chiediPiattaforme, avanzaEpisodio as rottaAvanza } from "@/app/components/v2/watch-rotte";
 /* A6 · qui ds.css RESTA, e non per dimenticanza: `Ph` dipinge il fondo delle
    card senza foto con `var(--k-cat-<categoria>)`, e quei 17 gradienti sono
    definiti li' dentro. Toglierlo lascerebbe grigie tutte le card a cui manca
@@ -577,13 +579,11 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
     let vivo = true;
     setDett({ stato: "chiedo", d: null });
     setSimili({ stato: "chiedo", lista: [] });
-    fetch(`/api/watch/details?title=${encodeURIComponent(t)}&kind=${encodeURIComponent(k)}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => { if (vivo) setDett({ stato: "risposto", d: d?.details ?? null }); })
+    chiediDettagli(t, k)
+      .then((d) => { if (vivo) setDett({ stato: "risposto", d }); })
       .catch(() => { if (vivo) setDett({ stato: "risposto", d: null }); });
-    fetch(`/api/watch/similar?title=${encodeURIComponent(t)}&kind=${encodeURIComponent(k)}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => { if (vivo) setSimili({ stato: "risposto", lista: (d?.similar ?? []) as Simile[] }); })
+    chiediSimili(t, k)
+      .then((l) => { if (vivo) setSimili({ stato: "risposto", lista: l }); })
       .catch(() => { if (vivo) setSimili({ stato: "risposto", lista: [] }); });
     return () => { vivo = false; };
   }, [scheda?.titoloWatch, scheda?.kindWatch]);
@@ -594,17 +594,11 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
      voto: da qui no, perche' il voto e' una schermata e questo e' un pannello.
      Ci si limita a chiudere e ricaricare, e la serie sparisce dai «da vedere». */
   const [avanzo, setAvanzo] = useState(false);
-  async function avanzaEpisodio(id: string) {
+  async function avanza(id: string) {
     if (avanzo) return;
     setAvanzo(true);
     try {
-      const r = await fetch("/api/watch/progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id, avanza: true }),
-      });
-      if (!r.ok) throw new Error();
+      if (!(await rottaAvanza(id))) throw new Error();
       setScheda(null);
       router.refresh();
     } catch { /* resta aperto e ripremibile: un clic non sparisce in silenzio */ }
@@ -614,13 +608,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   async function chiediDove(titolo: string, kind: string) {
     setDove({ stato: "chiedo", piattaforme: [] });
     try {
-      const r = await fetch(`/api/watch/providers?title=${encodeURIComponent(titolo)}&kind=${encodeURIComponent(kind)}`, { credentials: "include" });
-      const d = await r.json();
-      const p = d?.providers ?? {};
-      // In abbonamento prima: e' l'unica risposta che non costa altri soldi.
-      const nomi = [...(p.flatrate ?? []), ...(p.rent ?? []), ...(p.buy ?? [])]
-        .map((x: { name?: string }) => x?.name).filter(Boolean) as string[];
-      setDove({ stato: "risposto", piattaforme: [...new Set(nomi)].slice(0, 6) });
+      setDove({ stato: "risposto", piattaforme: await chiediPiattaforme(titolo, kind) });
     } catch {
       setDove({ stato: "risposto", piattaforme: [] });
     }
@@ -1070,75 +1058,28 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                   spinner: uno scheletro ha la forma di quello che arriva.
                   Se la trama non c'è, la riga non c'è — non si scrive «nessuna
                   descrizione», che è rumore. */}
-              {scheda.k === "watch" && dett.stato === "chiedo" && (
-                <div style={{ marginTop: 14 }}>
-                  <span className="sk sk-line" style={{ display: "block", width: "40%" }} />
-                  <span className="sk sk-line" style={{ display: "block", width: "94%" }} />
-                  <span className="sk sk-line" style={{ display: "block", width: "72%" }} />
-                </div>
+              {/* LA SCHEDA DEL TITOLO, che adesso e' un componente suo
+                  (`app/components/v2/SchedaTitolo.tsx`): la montano anche la
+                  Guarda e i consigli. Qui dentro non ci sono chiamate — gli
+                  stati e le richieste restano di questa schermata, e le REGOLE
+                  delle chiamate stanno in `watch-rotte.ts`, uguali per tutte
+                  e tre. `Ph` gliela passiamo noi: e' l'unico modo perche' i
+                  titoli simili restino identici al pixel. */}
+              {scheda.k === "watch" && scheda.titoloWatch && scheda.kindWatch && (
+                <SchedaTitolo
+                  id={scheda.idWatch}
+                  season={scheda.season}
+                  episode={scheda.episode}
+                  dettaglio={dett}
+                  simili={simili}
+                  piattaforme={{ stato: dove.stato, lista: dove.piattaforme }}
+                  avanzo={avanzo}
+                  onAvanza={(id) => avanza(id)}
+                  onDove={() => chiediDove(scheda.titoloWatch!, scheda.kindWatch!)}
+                  onSimile={() => { setScheda(null); go("/guarda"); }}
+                  Foto={Ph}
+                />
               )}
-              {scheda.k === "watch" && dett.stato === "risposto" && dett.d && (
-                <div style={{ marginTop: 14 }}>
-                  {[dett.d.year, dett.d.genres?.slice(0, 2).join(" · ")].filter(Boolean).length > 0 && (
-                    <div className="status" style={{ marginTop: 0 }}>
-                      {[dett.d.year, dett.d.genres?.slice(0, 2).join(" · ")].filter(Boolean).join(" · ")}
-                    </div>
-                  )}
-                  {dett.d.overview && (
-                    <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--txt2)", margin: "8px 0 0" }}>
-                      {dett.d.overview}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {scheda.k === "watch" && scheda.titoloWatch && scheda.kindWatch && (() => {
-                /* CHI E' LA PRIMARIA, e lo decide il DATO.
-                   Se `season` ed `episode` ci sono, la serie l'hai cominciata
-                   e la domanda del momento e' «a che punto sono»: primaria
-                   «+1 episodio». Se non ci sono — serie mai aperta, o un film
-                   — la domanda e' «come lo guardo»: primaria «Dove vederlo».
-                   Nessuna ipotesi: e' la regola 3-quinquies risolta dal dato. */
-                const iniziata = scheda.idWatch && scheda.season != null && scheda.episode != null;
-                return (
-                <>
-                  {iniziata && (
-                    <button
-                      className="cta wide tap"
-                      style={{ marginTop: 14 }}
-                      onClick={() => avanzaEpisodio(scheda.idWatch!)}
-                      disabled={avanzo}
-                    >
-                      {avanzo ? "Segno…" : <>{I.tick({ s: 15 })}+1 episodio</>}
-                    </button>
-                  )}
-                  <div className="status" style={{ marginTop: iniziata ? 10 : 0 }}>
-                    {iniziata ? `Sei a S${scheda.season}E${scheda.episode}` : ""}
-                  </div>
-                  <button
-                    className={(iniziata ? "btn2" : "cta") + " wide tap"}
-                    style={{ marginTop: iniziata ? 4 : 14 }}
-                    onClick={() => chiediDove(scheda.titoloWatch!, scheda.kindWatch!)}
-                    disabled={dove.stato === "chiedo"}
-                  >
-                    {dove.stato === "chiedo" ? "Cerco…" : <>{I.play({ s: 15 })}Dove vederlo</>}
-                  </button>
-                  {dove.stato === "risposto" && (
-                    dove.piattaforme.length > 0 ? (
-                      <div className="srf" style={{ marginTop: 10 }}>
-                        {dove.piattaforme.map((n) => (
-                          <div className="row-act" key={n} style={{ cursor: "default" }}>
-                            <span className="ic2">{I.tv({ s: 16 })}</span>
-                            <span className="in"><span className="t">{n}</span></span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="status">Non risulta in streaming in Italia in questo momento.</p>
-                    )
-                  )}
-                </>
-                ); })()}
 
               {/* GLI ESERCIZI DI OGGI, con «l'ultima volta» per ognuno.
                   Il pannello dell'allenamento diceva «2 di 5»: un conteggio
@@ -1215,25 +1156,6 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
               {/* I titoli simili: il pezzo che rende il pannello «la cosa» e
                   non un menu. Toccarne uno porta nella Guarda, che è dove si
                   aggiunge — da qui non si aggiunge di nascosto. */}
-              {scheda.k === "watch" && simili.stato === "risposto" && simili.lista.length > 0 && (
-                <>
-                  <div className="status" style={{ marginTop: 18, marginBottom: 8 }}>Se ti è piaciuto</div>
-                  <div className="shelf">
-                    {simili.lista.slice(0, 8).map((s) => (
-                      <div
-                        className="rcard srf tap"
-                        key={s.title}
-                        onClick={() => { setScheda(null); go("/guarda"); }}
-                        role="button"
-                      >
-                        <Ph src={s.poster} cat="film" style={{ width: 74, flex: "none", alignSelf: "stretch" }} />
-                        <div className="in"><div className="t">{s.title}</div></div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
               {/* La pagina intera: in fondo, e si sceglie. */}
               <div className="srf" style={{ marginTop: 14 }}>
                 <div
