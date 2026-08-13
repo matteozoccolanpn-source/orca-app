@@ -52,7 +52,11 @@ export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab
      leggeva ne' spariva. Adesso chiude prima e c'e' una sfocatura sotto.
      Posizione e altezza della barra non cambiano: e' solo il fondo. */
   return (
-    <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: NAV_TOTALE, background: "linear-gradient(180deg,rgba(10,11,14,0) 0%,rgba(10,11,14,.72) 18%,rgba(10,11,14,.94) 34%,rgba(10,11,14,.99) 48%)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px", paddingBottom: "calc(18px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto", zIndex: 30 }}>
+    <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: NAV_TOTALE, background: "linear-gradient(180deg,rgba(10,11,14,0) 0%,rgba(10,11,14,.72) 18%,rgba(10,11,14,.94) 34%,rgba(10,11,14,.99) 48%)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 20px", paddingBottom: "calc(18px + env(safe-area-inset-bottom))", maxWidth: 440, margin: "0 auto", zIndex: 30,
+      /* Compensa il trascinamento laterale della pagina (vedi app/template.tsx):
+         la barra sta ferma mentre la sezione scorre sotto. Fuori dal gesto la
+         variabile non esiste e questo vale `translateX(0)`. */
+      transform: "translateX(calc(-1 * var(--scorrimento, 0px)))" }}>
       <NavItem label="Home" active={active === "home" || active === "viaggio"} icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => go("/")} />
       {/* La Cucina non si raggiungeva dalla barra: ci si arrivava solo da un
           link dentro /salute. La voce e' sua, e la Dieta si apre dalla riga
