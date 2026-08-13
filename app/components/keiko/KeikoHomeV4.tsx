@@ -17,6 +17,8 @@ import type { LiveHome, LiveEvent } from "./keikoLive";
 import type { Battito } from "@/lib/battiti";
 import { I } from "@/app/components/v2/icons";
 import { Empty } from "@/app/components/v2/Empty";
+import { Sheet, K2_FOGLIO } from "@/app/components/v2/Sheet";
+import { SheetHero } from "@/app/components/v2/SheetHero";
 /* A6 · qui ds.css RESTA, e non per dimenticanza: `Ph` dipinge il fondo delle
    card senza foto con `var(--k-cat-<categoria>)`, e quei 17 gradienti sono
    definiti li' dentro. Toglierlo lascerebbe grigie tutte le card a cui manca
@@ -458,10 +460,50 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
 
   /* «Oggi per te»: la riga larga è l'allenamento (ha il progresso e l'azione),
      le due card sotto sono quello che c'è fra dieta, guarda e viaggio. */
-  const oggiPerTe: { k: string; cat: ImageCategory; titolo: string; meta: string; img?: string | null; vai: () => void }[] = [];
-  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, vai: () => go("/salute") });
-  if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, vai: () => go("/guarda") });
-  if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, vai: () => go("/viaggio") });
+  /* ── C1 · DALLA HOME SI FA, NON SI SALTA ──
+     Toccare una card apriva un'altra sezione, e per segnare l'allenamento
+     fatto — un tocco — se ne facevano quattro e si perdeva il posto.
+     Adesso apre un PANNELLO sopra la Home con le azioni vere, e la pagina
+     intera resta una scelta esplicita, in fondo.
+     `dove` è dove porta la riga in fondo; `azione` c'è solo dove il codice sa
+     già fare qualcosa. Dove il dato non c'è, l'azione NON si inventa: le tre
+     che ho dovuto lasciare fuori sono elencate nel report d'ondata. */
+  type Scheda = {
+    k: string; cat: ImageCategory; titolo: string; meta: string; img?: string | null;
+    dove: string; doveTesto: string;
+  };
+  const oggiPerTe: Scheda[] = [];
+  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta" });
+  if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda" });
+  if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
+
+  /* Il pannello aperto: la card che stai guardando, o `null`. */
+  const [scheda, setScheda] = useState<Scheda | null>(null);
+  const [segnando, setSegnando] = useState(false);
+
+  /* «Segna fatto» dell'allenamento: la stessa chiamata che fa la pagina
+     Allenamento (`/api/workout/log` con il giorno di oggi). Ottimistica come
+     là: il pannello si chiude subito e il server insegue. */
+  async function segnaAllenamentoFatto() {
+    if (segnando || !todayKey) return;
+    setSegnando(true);
+    try {
+      const r = await fetch("/api/workout/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ day: todayKey, done: true }),
+      });
+      if (!r.ok) throw new Error();
+      setScheda(null);
+      router.refresh();
+    } catch {
+      /* Un clic non resta senza spiegazione: se non passa, il pannello
+         resta aperto e il tasto torna premibile. */
+    } finally {
+      setSegnando(false);
+    }
+  }
 
   const iniziale = (name.trim() || accountName || "").trim().charAt(0).toUpperCase() || "M";
 
@@ -692,7 +734,11 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
             {/* ── Oggi per te ── */}
             {(gym || oggiPerTe.length > 0) && <div className="sec">Oggi per te</div>}
             {gym && (
-              <div className="wide srf" onClick={() => go("/allenamento")}>
+              <div className="wide srf" onClick={() => setScheda({
+                k: "gym", cat: "sport", titolo: gym.title,
+                meta: gym.rest ? "oggi è riposo" : `${gym.done} di ${gym.total} esercizi`,
+                img: gym.image, dove: "/allenamento", doveTesto: "Apri l'allenamento",
+              })}>
                 <Ph src={gym.image} cat="sport" />
                 <div className="in">
                   <div className="k">
@@ -713,7 +759,7 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                 {oggiPerTe.map((c) => {
                   const fam = famigliaDi(c.cat);
                   return (
-                    <div className="content srf" key={c.k} onClick={c.vai}>
+                    <div className="content srf" key={c.k} onClick={() => setScheda(c)}>
                       <Ph src={c.img} cat={c.cat} />
                       <div className="t">{c.titolo}</div>
                       <div className="m">
@@ -777,6 +823,60 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
       <CaptureSheet open={capture} onClose={() => setCapture(false)} />
       {selEv && <EventSheet ev={selEv} onClose={closeEvent} demo={demo} onDelete={() => requestDelete("event", selEv.id)} />}
       {askOpen && <AskSheet onClose={() => setAskOpen(false)} />}
+
+      {/* ── C1 · il pannello della card ──
+          Sopra la Home, non al posto della Home. Dentro ci sono le azioni che
+          il codice sa gia' fare, e in fondo — staccata — la riga per andare
+          alla pagina intera, che resta una scelta esplicita.
+          `.k2` addosso perche' i fogli stanno fuori dalla pagina V2. */}
+      {scheda && (
+        <div className="k2" style={K2_FOGLIO}>
+          <Sheet onClose={() => setScheda(null)}>
+            <SheetHero
+              img={scheda.img ?? ""}
+              k={scheda.meta}
+              h2={scheda.titolo}
+              cold={scheda.k === "gym"}
+            />
+            <div className="pad">
+              {/* L'AZIONE VERA, dove esiste. Oggi ce n'e' una sola:
+                  l'allenamento segnato fatto, con la stessa chiamata della
+                  pagina Allenamento. Le altre card non hanno ancora un dato
+                  che permetta di fare qualcosa da qui, e un tasto che non sa
+                  cosa fare e' peggio di un tasto che non c'e'. */}
+              {scheda.k === "gym" && !gym?.trainedToday && !gym?.rest && (
+                <button
+                  className="cta wide tap"
+                  style={{ marginTop: 14 }}
+                  onClick={segnaAllenamentoFatto}
+                  disabled={segnando}
+                >
+                  {segnando ? "Segno…" : <>{I.tick({ s: 15 })}Segna fatto</>}
+                </button>
+              )}
+              {scheda.k === "gym" && gym?.trainedToday && (
+                <p className="status" style={{ marginTop: 14 }}>Oggi l&apos;hai gia&apos; fatto.</p>
+              )}
+
+              {/* La pagina intera: in fondo, e si sceglie. */}
+              <div className="srf" style={{ marginTop: 14 }}>
+                <div
+                  className="row-act tap"
+                  role="button"
+                  onClick={() => { const d = scheda.dove; setScheda(null); go(d); }}
+                >
+                  <span className="ic2">{I.right({ s: 16 })}</span>
+                  <span className="in">
+                    <span className="t">{scheda.doveTesto}</span>
+                    <span className="m">Esci dalla Home e vai alla sezione</span>
+                  </span>
+                  {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                </div>
+              </div>
+            </div>
+          </Sheet>
+        </div>
+      )}
       {selDay && (
         <DaySheet
           title={live.days[selDay]?.title ?? dayTitle(selDay)}
