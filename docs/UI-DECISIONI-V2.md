@@ -157,6 +157,27 @@
    - **La riga per la pagina intera resta sempre**, ultima e staccata. Il
      pannello non è una prigione.
 
+3-septies-bis. **Il pannello è la cosa singola, la pagina è il contesto**
+   (13 agosto 2026, dopo aver provato C1 dal telefono). Il pannello non è un
+   menu di azioni con un titolo sopra: è **la scheda della cosa**.
+   Il film con la sua trama e i titoli simili sta nel pannello; la tua lista
+   intera sta nella pagina. Il pasto con tutte le opzioni della nutrizionista
+   sta nel pannello; il piano della settimana sta nella pagina.
+   Serve a far smettere «vai alla pagina intera» di essere un ripiego — «qui
+   non c'è abbastanza, vattene» — e a farla diventare una scelta con un senso:
+   ci vai quando vuoi il **contesto**, non quando vuoi la cosa.
+   Due vincoli che vengono con la regola:
+   - **solo dati che il codice sa già prendere.** Dove il dato non c'è, la riga
+     non c'è, e si segnala: non si inventano campi e non si indovinano
+     collegamenti. «Come si cucina» manca perché fra il piano della dieta e il
+     ricettario non esiste nessun riferimento, e cercare la ricetta dal testo
+     del pasto sarebbe indovinare un legame che nessuno ha stabilito — la
+     prima volta che sbaglia, il pannello mente;
+   - **il pannello non si svuota mai.** Le chiamate partono insieme e si
+     mostrano appena arrivano, ognuna per conto suo: se la trama non risponde
+     restano i titoli simili, e viceversa. Durante l'attesa scheletri, mai lo
+     spinner.
+
 3-octies. **Le azioni rapide sono il TOCCO LUNGO, non lo swipe**
    (13 agosto 2026). E il motivo è tecnico, non di gusto: **lo scorrimento
    laterale è già del cambio pagina** (`app/template.tsx` lo usa per passare da

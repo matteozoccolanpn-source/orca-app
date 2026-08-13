@@ -474,9 +474,11 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
     /* Il titolo e il tipo servono a «Dove vederlo»: la rotta li vuole
        tutti e due. Ci sono solo sulla card della Guarda. */
     titoloWatch?: string | null; kindWatch?: string | null;
+    /* Le alternative del pasto, come le ha scritte la nutrizionista. */
+    opzioni?: string[];
   };
   const oggiPerTe: Scheda[] = [];
-  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta" });
+  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta", opzioni: live.diet.opzioni });
   if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda", titoloWatch: live.watch.title, kindWatch: live.watch.kind });
   if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
 
@@ -532,6 +534,34 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
      rimasto dal titolo di prima sarebbe una bugia. */
   const [dove, setDove] = useState<{ stato: "fermo" | "chiedo" | "risposto"; piattaforme: string[] }>({ stato: "fermo", piattaforme: [] });
   useEffect(() => { setDove({ stato: "fermo", piattaforme: [] }); }, [scheda?.k]);
+
+  /* ── CODA · IL PANNELLO È LA SCHEDA DELLA COSA ──
+     Era un menu di azioni: titolo, metadato, due righe. Adesso il titolo porta
+     dentro la sua scheda — trama, anno, genere, e i titoli simili.
+     Le rotte sono LE STESSE che usa la Guarda: qui si chiede e si mostra,
+     nessuna logica duplicata. Le due chiamate partono insieme e si mostrano
+     appena arrivano, ognuna per conto suo: se una non risponde, il pannello
+     resta utile con quello che ha invece di svuotarsi. */
+  type Simile = { title: string; poster?: string | null };
+  const [dett, setDett] = useState<{ stato: "fermo" | "chiedo" | "risposto"; d: { year: string | null; genres: string[]; overview: string | null } | null }>({ stato: "fermo", d: null });
+  const [simili, setSimili] = useState<{ stato: "fermo" | "chiedo" | "risposto"; lista: Simile[] }>({ stato: "fermo", lista: [] });
+
+  useEffect(() => {
+    const t = scheda?.titoloWatch, k = scheda?.kindWatch;
+    if (!t || !k) { setDett({ stato: "fermo", d: null }); setSimili({ stato: "fermo", lista: [] }); return; }
+    let vivo = true;
+    setDett({ stato: "chiedo", d: null });
+    setSimili({ stato: "chiedo", lista: [] });
+    fetch(`/api/watch/details?title=${encodeURIComponent(t)}&kind=${encodeURIComponent(k)}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (vivo) setDett({ stato: "risposto", d: d?.details ?? null }); })
+      .catch(() => { if (vivo) setDett({ stato: "risposto", d: null }); });
+    fetch(`/api/watch/similar?title=${encodeURIComponent(t)}&kind=${encodeURIComponent(k)}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (vivo) setSimili({ stato: "risposto", lista: (d?.similar ?? []) as Simile[] }); })
+      .catch(() => { if (vivo) setSimili({ stato: "risposto", lista: [] }); });
+    return () => { vivo = false; };
+  }, [scheda?.titoloWatch, scheda?.kindWatch]);
 
   async function chiediDove(titolo: string, kind: string) {
     setDove({ stato: "chiedo", piattaforme: [] });
@@ -985,6 +1015,32 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                   Le piattaforme arrivano da /api/watch/providers, la stessa
                   della Guarda: qui si chiede e si mostra, non si duplica
                   nessuna logica. */}
+              {/* LA SCHEDA DEL TITOLO. Durante l'attesa scheletri, non lo
+                  spinner: uno scheletro ha la forma di quello che arriva.
+                  Se la trama non c'è, la riga non c'è — non si scrive «nessuna
+                  descrizione», che è rumore. */}
+              {scheda.k === "watch" && dett.stato === "chiedo" && (
+                <div style={{ marginTop: 14 }}>
+                  <span className="sk sk-line" style={{ display: "block", width: "40%" }} />
+                  <span className="sk sk-line" style={{ display: "block", width: "94%" }} />
+                  <span className="sk sk-line" style={{ display: "block", width: "72%" }} />
+                </div>
+              )}
+              {scheda.k === "watch" && dett.stato === "risposto" && dett.d && (
+                <div style={{ marginTop: 14 }}>
+                  {[dett.d.year, dett.d.genres?.slice(0, 2).join(" · ")].filter(Boolean).length > 0 && (
+                    <div className="status" style={{ marginTop: 0 }}>
+                      {[dett.d.year, dett.d.genres?.slice(0, 2).join(" · ")].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                  {dett.d.overview && (
+                    <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--txt2)", margin: "8px 0 0" }}>
+                      {dett.d.overview}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {scheda.k === "watch" && scheda.titoloWatch && scheda.kindWatch && (
                 <>
                   <button
@@ -1009,6 +1065,51 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                       <p className="status">Non risulta in streaming in Italia in questo momento.</p>
                     )
                   )}
+                </>
+              )}
+
+              {/* IL PASTO. Le opzioni sono le parole della nutrizionista e si
+                  riportano come sono: qui non si interpreta niente.
+                  «Come si cucina» NON c'e', e non e' una dimenticanza: fra il
+                  piano e il ricettario non esiste nessun riferimento, e
+                  cercare la ricetta dal testo del pasto vorrebbe dire
+                  indovinare un legame che nessuno ha stabilito. Si agganciera'
+                  da solo quando nascera' il `ricetta_id` (blocco 7). */}
+              {scheda.k === "diet" && (scheda.opzioni?.length ?? 0) > 0 && (
+                <>
+                  <div className="status" style={{ marginTop: 16, marginBottom: 8 }}>
+                    {scheda.opzioni!.length === 1 ? "Dal tuo piano" : "Dal tuo piano, a scelta"}
+                  </div>
+                  <div className="srf">
+                    {scheda.opzioni!.map((o) => (
+                      <div className="row-act" key={o} style={{ cursor: "default" }}>
+                        <span className="ic2">{I.pot({ s: 16 })}</span>
+                        <span className="in"><span className="t">{o}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* I titoli simili: il pezzo che rende il pannello «la cosa» e
+                  non un menu. Toccarne uno porta nella Guarda, che è dove si
+                  aggiunge — da qui non si aggiunge di nascosto. */}
+              {scheda.k === "watch" && simili.stato === "risposto" && simili.lista.length > 0 && (
+                <>
+                  <div className="status" style={{ marginTop: 18, marginBottom: 8 }}>Se ti è piaciuto</div>
+                  <div className="shelf">
+                    {simili.lista.slice(0, 8).map((s) => (
+                      <div
+                        className="rcard srf tap"
+                        key={s.title}
+                        onClick={() => { setScheda(null); go("/guarda"); }}
+                        role="button"
+                      >
+                        <Ph src={s.poster} cat="film" style={{ width: 74, flex: "none", alignSelf: "stretch" }} />
+                        <div className="in"><div className="t">{s.title}</div></div>
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
 

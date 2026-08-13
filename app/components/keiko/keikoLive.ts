@@ -78,7 +78,11 @@ export type LiveHome = {
   upcoming: LiveEvent[];
   agenda: { label: string; events: LiveEvent[] }[];
   gym: { done: number; total: number; trainedToday: boolean; title: string; first: string | null; rest: boolean; week: { letter: string; on: boolean; today: boolean }[]; image?: string | null } | null;
-  diet: { nextPasto: string | null; nextOpt: string | null; done: string[]; image?: string | null } | null;
+  /* `opzioni` sono TUTTE le alternative che la nutrizionista ha scritto per
+     quel pasto: la Home ne mostra una, il pannello le mostra tutte — che e'
+     esattamente la differenza fra un metadato e una scheda. Il dato c'era
+     gia' e veniva troncato qui. */
+  diet: { nextPasto: string | null; nextOpt: string | null; opzioni: string[]; done: string[]; image?: string | null } | null;
   trip: { title: string; range: string; sub: string; image?: string | null } | null;
   /* `kind` viaggia con il titolo perche' /api/watch/providers lo vuole
      insieme al nome: senza, «Dove vederlo» dalla Home non si puo' chiamare
@@ -208,6 +212,7 @@ export function mapLive(data: {
     diet = {
       nextPasto: meals[idx]?.pasto ?? null,
       nextOpt: meals[idx]?.opzioni?.[0] ?? null,
+      opzioni: meals[idx]?.opzioni ?? [],
       done: meals.filter((_, i) => i !== idx).map((m) => m.pasto),
     };
   }

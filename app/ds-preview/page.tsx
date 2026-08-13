@@ -34,7 +34,7 @@ const SAMPLE: LiveHome = {
   ],
   agenda: [],
   gym: { done: 0, total: 0, trainedToday: false, title: "Riposo", first: null, rest: true, week: [] },
-  diet: { nextPasto: "Colazione", nextOpt: "Yogurt greco 0% 200g + mandorle 30g", done: [] },
+  diet: { nextPasto: "Colazione", nextOpt: "Yogurt greco 0% 200g + mandorle 30g", opzioni: ["Yogurt greco 0% 200g + mandorle 30g"], done: [] },
   trip: { title: "Weekend a Roma", range: "12–14 lug", sub: "" },
   watch: { count: 4, kind: "film", title: "Dune · Parte due", sub: "Sky · 21:15" },
 };
