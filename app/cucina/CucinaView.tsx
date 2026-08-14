@@ -485,6 +485,24 @@ export default function CucinaView({
     };
   }
 
+  /* ── COPIA LA LISTA ──
+     Davanti allo scaffale si guarda una lista, non si fa una ricerca. Il testo
+     e' per un essere umano — una voce per riga, la quantita' dove c'e' — e
+     funziona ovunque: negli appunti, in un messaggio, su un foglietto.
+     Sostituisce il tasto «Amazon Fresh» che univa tutta la lista in UNA
+     stringa e la mandava alla ricerca: Amazon cercava una frase che non
+     esiste — «pollo zucchine olio pane» — e non trovava niente. La ricerca
+     per singola voce, che e' l'unica che funziona, resta sulla riga. */
+  async function copia(voci: { nome: string; quantita?: string | null }[], cosa: string) {
+    const testo = voci.map((v) => (v.quantita ? `${v.nome} — ${v.quantita}` : v.nome)).join("\n");
+    try {
+      await navigator.clipboard.writeText(testo);
+      setMsg(`${cosa} negli appunti`);
+    } catch {
+      setMsg("Non sono riuscito a copiare");
+    }
+  }
+
   const scaffale = useMemo(() => (tutte ? lista : lista.slice(0, 8)), [lista, tutte]);
 
   /* La giornata in tre pezzi: quello che e' passato, quello che viene adesso,
@@ -1022,15 +1040,9 @@ export default function CucinaView({
                       In lista spesa ({daComprare.length})
                     </button>
                     {daComprare.length > 0 && (
-                      <a
-                        className="btn2 tap"
-                        href={amazonFresh(daComprare.map((i) => i.nome).join(" "))}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ textDecoration: "none" }}
-                      >
-                        Amazon Fresh{I.up({ s: 12 })}
-                      </a>
+                      <button className="btn2 tap" onClick={() => copia(daComprare, "Ingredienti")}>
+                        {I.copy({ s: 13 })}Copia
+                      </button>
                     )}
                   </div>
                 </>
@@ -1174,6 +1186,11 @@ export default function CucinaView({
                 <button className="cta tap" onClick={() => azioneSpesa({ azione: "dalPiano" }, "Presa dal piano")} disabled={spesaOccupata} style={{ opacity: spesaOccupata ? 0.6 : 1 }}>
                   Prendi dal piano
                 </button>
+                {spesa.some((v) => !v.spuntato) && (
+                  <button className="btn2 tap" onClick={() => copia(spesa.filter((v) => !v.spuntato), "Lista")}>
+                    {I.copy({ s: 13 })}Copia
+                  </button>
+                )}
                 {spesa.some((v) => v.spuntato) && (
                   <button className="btn2 tap" onClick={() => azioneSpesa({ azione: "svuotaFatti" }, "Via i fatti")} disabled={spesaOccupata} style={{ opacity: spesaOccupata ? 0.6 : 1 }}>
                     Via i fatti
