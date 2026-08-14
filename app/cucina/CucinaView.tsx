@@ -10,13 +10,14 @@ import { Sec } from "@/app/components/v2/Sec";
 import { Chip } from "@/app/components/v2/Chip";
 import { Check as CheckV2 } from "@/app/components/v2/Check";
 import { Content } from "@/app/components/v2/Content";
-import { Poster } from "@/app/components/v2/Poster";
 import { Feature } from "@/app/components/v2/Feature";
 import { DayCard } from "@/app/components/v2/DayCard";
 import { Sheet } from "@/app/components/v2/Sheet";
 import { Skeleton } from "@/app/components/v2/Skeleton";
 import { Empty } from "@/app/components/v2/Empty";
 import StoricoPasti from "./StoricoPasti";
+import Ricettario from "./Ricettario";
+import CucinaConKeiko from "./CucinaConKeiko";
 /* A6 · l'import di ds.css se n'e' andato da qui il 12 agosto 2026: i fogli che
    questa pagina apre sono passati al sistema nuovo, e in tutto il file non c'e'
    piu' nessuna classe `ds-*` ne' nessuna variabile `--k-*` (contate: zero).
@@ -183,7 +184,7 @@ export default function CucinaView({
     if (!id) return;
     window.history.replaceState(null, "", "/cucina");
     const r = ricette.find((x) => x.id === id);
-    if (r) apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted });
+    if (r) apriRicetta(r);
   }, [ricette]);
 
   useEffect(() => {
@@ -241,7 +242,15 @@ export default function CucinaView({
 
   const [lista, setLista] = useState<Recipe[]>(ricette);
   const [salvate, setSalvate] = useState<Set<string>>(new Set(ricette.map((r) => r.url)));
-  const [tutte, setTutte] = useState(false);
+  /* ── L'ASSAGGIO E IL CONTESTO (8.1) ──
+     Nella Cucina il ricettario e' un carosello e un campo piccolo; il posto
+     dove si cerca davvero e' la pagina intera. Prima «vedi tutte» apriva una
+     griglia QUI DENTRO, e una pagina che ha gia' il piano, la giornata pasto
+     per pasto e la domanda diventava lunga il doppio senza diventare piu'
+     utile. Vale la regola 3-septies-bis: il pannello (qui: l'assaggio) e' la
+     cosa, la pagina e' il contesto. */
+  const [filtroRicettario, setFiltroRicettario] = useState("");
+  const [ricettarioAperto, setRicettarioAperto] = useState(false);
   const [spesaAperta, setSpesaAperta] = useState(false);
   /* Presentazione e basta: la card del piano si apre e mostra tutta la
      giornata. Nessun dato, nessuna chiamata. */
@@ -249,6 +258,9 @@ export default function CucinaView({
 
   // ── V2: il foglio ricetta e la spesa ──────────────────────────────────
   const [aperta, setAperta] = useState<Aperta | null>(null);
+  /* La sequenza «Cucina con Keiko» (8.3). Il foglio ricetta resta montato
+     sotto: uscendo dai passi si torna alla ricetta, non alla Cucina. */
+  const [cucinoCon, setCucinoCon] = useState<Aperta | null>(null);
   const [estraggo, setEstraggo] = useState(false);
   /** Gli ingredienti che l'utente dice di avere già: NON vanno in lista. */
   const [inDispensa, setInDispensa] = useState<Set<number>>(new Set());
@@ -409,6 +421,58 @@ export default function CucinaView({
     }
   }
 
+  /* ── LA SPESA DELLA SETTIMANA (9.2) ──
+     Il piano di tutta la settimana → una lista sola, senza doppioni, con le
+     quantità della stessa cosa sommate (`spesaDalPiano`). Ogni voce resta
+     marcata `fonte: "piano"`, così davanti allo scaffale si sa da dove viene.
+
+     ⚠️ LA DOMANDA PRIMA DI CANCELLARE. Chi c'è già e l'hai già spuntato NON
+     torna da comprare: `addShoppingItems` usa `ignoreDuplicates`. Va bene al
+     supermercato — quello che hai nel carrello ci resta — ma la settimana dopo
+     è un buco: la cipolla comprata sette giorni fa risulta «presa», e la lista
+     nuova non te la richiede mai più. Toglierle prima risolve, però è una
+     cancellazione, e cancellare senza dirlo è peggio che chiedere una volta di
+     troppo. Quindi si chiede, e si dice QUANTE sono e cosa succede in tutt'e
+     due i casi. Niente `window.confirm` (regola 3-sexies): la domanda vive
+     dentro il foglio. */
+  const spuntate = spesa.filter((v) => v.spuntato).length;
+  const [chiedoSettimana, setChiedoSettimana] = useState(false);
+
+  async function spesaDellaSettimana(togliSpuntate: boolean) {
+    setChiedoSettimana(false);
+    setSpesaOccupata(true);
+    try {
+      let tolte = 0;
+      if (togliSpuntate) {
+        const r0 = await fetch("/api/cucina/spesa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ azione: "svuotaFatti" }),
+        });
+        const d0 = await r0.json();
+        if (!r0.ok) throw new Error(d0?.error);
+        tolte = (d0?.tolte as number) ?? 0;
+      }
+      const res = await fetch("/api/cucina/spesa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ azione: "dalPiano" }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error);
+      if (Array.isArray(d?.voci)) setSpesa(d.voci as ShoppingItem[]);
+      if (d?.nessuna) toast("Non c'è un piano da cui prendere");
+      else if (tolte === 1) toast("Settimana pronta · 1 già presa tolta");
+      else toast(tolte > 1 ? `Settimana pronta · ${tolte} già prese tolte` : "Settimana pronta");
+    } catch {
+      toast("Qualcosa non torna, riprova");
+    } finally {
+      setSpesaOccupata(false);
+    }
+  }
+
   /** Spunta al supermercato: subito a schermo, poi il server. */
   async function spunta(v: ShoppingItem) {
     setSpesa((s) => s.map((x) => (x.id === v.id ? { ...x, spuntato: !x.spuntato } : x)));
@@ -503,7 +567,25 @@ export default function CucinaView({
     }
   }
 
-  const scaffale = useMemo(() => (tutte ? lista : lista.slice(0, 8)), [lista, tutte]);
+  /** Aprire una ricetta del ricettario: la stessa cosa da quattro punti
+   *  diversi (il carosello, la pagina intera, «da rifare», `?ricetta=`), e
+   *  quattro copie della stessa riga si sfasano alla prima modifica. */
+  function apriRicetta(r: Recipe) {
+    apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted });
+  }
+
+  /* Il carosello: le prime dodici, filtrate da quello che stai scrivendo nel
+     campo piccolo. Il filtro e' LOCALE — `lista` ce l'ha gia' tutta in mano —
+     e non chiama nessuno: `/api/cucina/search` cerca sul web e costa un
+     credito, e pagare per cercare fra le proprie ricette sarebbe pagare per
+     cercare nel posto sbagliato. */
+  const filtrate = useMemo(() => {
+    const t = filtroRicettario.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!t) return lista;
+    const piatto = (s: string) => (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return lista.filter((r) => piatto(r.title).includes(t) || piatto(r.author ?? "").includes(t));
+  }, [lista, filtroRicettario]);
+  const scaffale = useMemo(() => filtrate.slice(0, 12), [filtrate]);
 
   /* La giornata in tre pezzi: quello che e' passato, quello che viene adesso,
      e quello che viene dopo. `passato` lo decide l'orologio ed e' gia' in
@@ -840,34 +922,23 @@ export default function CucinaView({
                 <span className="rx">La ricerca arriva presto. Il ricettario funziona già.</span>
               )}
 
-              {/* ③ IL RICETTARIO */}
+              {/* ③ IL RICETTARIO — l'assaggio (8.1)
+                  Un carosello che scorre, e sotto un campo piccolo per
+                  restringerlo. Chi vuole cercare davvero apre la pagina
+                  intera: li' ci stanno le copertine grandi e i filtri. */}
               {lista.length > 0 && (
                 <>
                   <Sec
-                    sm={`${lista.length} salvate`}
-                    more={lista.length > 8 ? (tutte ? "mostra meno" : "vedi tutte") : undefined}
-                    onMore={() => setTutte((t) => !t)}
+                    sm={filtroRicettario.trim() ? `${filtrate.length} di ${lista.length}` : `${lista.length} salvate`}
+                    more="vedi tutte"
+                    onMore={() => setRicettarioAperto(true)}
                   >
                     Il tuo ricettario
                   </Sec>
 
-                  {tutte ? (
-                    /* aperto: la griglia */
-                    <div className="g2">
-                      {scaffale.map((r) => (
-                        <Poster
-                          key={r.id}
-                          img={r.thumbnail}
-                          t={r.title}
-                          m={r.author || nomeFonte(r)}
-                          badge={r.platform === "tiktok" ? "TikTok" : r.platform === "youtube" ? "YouTube" : undefined}
-                          onClick={() => apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted })}
-                          ariaLabel={r.title}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    /* chiuso: lo scaffale che scorre */
+                  {/* Lo scaffale che scorre, con lo scroll-snap che `.shelf`
+                      ha gia': una card non resta mai tagliata a meta'. */}
+                  {scaffale.length > 0 && (
                     <div className="shelf">
                       {scaffale.map((r) => (
                         <div key={r.id} style={{ width: 150, flex: "none", position: "relative" }}>
@@ -876,7 +947,7 @@ export default function CucinaView({
                             t={r.title}
                             m={r.author || nomeFonte(r)}
                             dot="dieta"
-                            onClick={() => apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted })}
+                            onClick={() => apriRicetta(r)}
                           />
                           <button
                             className="tap"
@@ -890,6 +961,58 @@ export default function CucinaView({
                       ))}
                     </div>
                   )}
+
+                  {/* La ricerca piccola. Superficie neutra e una lente: non e'
+                      `.ask`, che col bordo teal e l'orca vuol dire «Keiko va a
+                      cercare fuori» — cioe' un credito. Questa filtra quello
+                      che hai gia' in casa e non chiama nessuno. */}
+                  <div
+                    className="srf"
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginTop: 10 }}
+                  >
+                    <span style={{ color: "var(--meta)", flex: "none", display: "flex" }}>{I.search({ s: 15 })}</span>
+                    <input
+                      value={filtroRicettario}
+                      onChange={(e) => setFiltroRicettario(e.target.value)}
+                      placeholder="Cerca fra le tue ricette"
+                      aria-label="Cerca fra le tue ricette"
+                      style={{ flex: 1, minWidth: 0, background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+                    />
+                    {filtroRicettario && (
+                      <button
+                        className="tap"
+                        onClick={() => setFiltroRicettario("")}
+                        aria-label="Cancella la ricerca"
+                        style={{ flex: "none", background: "none", border: 0, color: "var(--meta)", cursor: "pointer", display: "flex", padding: 0 }}
+                      >
+                        {I.close({ s: 13 })}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Il filtro non trova niente qui, ma la pagina intera cerca
+                      anche sull'autore e sulla piattaforma: la strada resta
+                      aperta invece di finire in un vuoto. */}
+                  {filtroRicettario.trim() && filtrate.length === 0 && (
+                    <span className="rx">
+                      Nessuna che si chiami così.{" "}
+                      <button
+                        className="tap"
+                        onClick={() => setRicettarioAperto(true)}
+                        style={{ background: "none", border: 0, padding: 0, color: "var(--teal-soft)", fontWeight: 600, fontSize: "inherit", fontFamily: "inherit", cursor: "pointer" }}
+                      >
+                        Cerca nel ricettario intero
+                      </button>
+                    </span>
+                  )}
+
+                  {/* Il carosello si ferma a dodici: e' un assaggio. Le altre
+                      stanno nel contesto, che e' la pagina. */}
+                  {!filtroRicettario.trim() && lista.length > scaffale.length && (
+                    <span className="rx">
+                      Ne vedi {scaffale.length} di {lista.length}. Le altre sono nel ricettario.
+                    </span>
+                  )}
                 </>
               )}
 
@@ -900,7 +1023,7 @@ export default function CucinaView({
                   <Sec>Da rifare</Sec>
                   <div
                     className="hint warm tap"
-                    onClick={() => { const r = lista.find((x) => x.id === rifare.id); if (r) apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted }); }}
+                    onClick={() => { const r = lista.find((x) => x.id === rifare.id); if (r) apriRicetta(r); }}
                     role="button"
                   >
                     {I.hist({ s: 14 })}
@@ -1029,9 +1152,16 @@ export default function CucinaView({
                     })}
                   </div>
 
+                  {/* ⚠️ `.btn2` e non `.cta`, dal 14 agosto 2026 (3-quinquies).
+                      Il foglio ricetta È UN CONTESTO SOLO: novanta pixel più
+                      giù c'è «Cucina con Keiko», e due terracotta dentro lo
+                      stesso sguardo l'occhio li mette in gara. Vince quella che
+                      riguarda il punto in cui sei — hai aperto una ricetta, stai
+                      per cucinarla — e questa resta, cambiando solo peso: la
+                      spesa la fai un altro giorno. */}
                   <div className="pactions" style={{ marginTop: 12 }}>
                     <button
-                      className="cta tap"
+                      className="btn2 tap"
                       onClick={mandaInSpesa}
                       disabled={daComprare.length === 0 || spesaOccupata}
                       style={{ opacity: daComprare.length === 0 || spesaOccupata ? 0.5 : 1 }}
@@ -1048,14 +1178,25 @@ export default function CucinaView({
                 </>
               )}
 
-              {/* I passi. Nel mock questa sarebbe la sotto-vista «modo cottura»,
-                  un passo per volta col numerone in `.giant`. Nel codice i passi
-                  sono un elenco e basta: non esiste un «a che passo sei», e
-                  inventarlo sarebbe una funzione nuova travestita da restyling.
-                  Quindi l'elenco resta un elenco, nel vestito nuovo. */}
+              {/* I passi. Dall'ondata 3 al blocco 8 qui c'era scritto che «un
+                  passo per volta» sarebbe stata una funzione nuova travestita
+                  da restyling, e che quindi l'elenco restava un elenco. Adesso
+                  la funzione c'e' davvero, ed e' una schermata sua: l'elenco
+                  resta per leggere tutto in un colpo, «Cucina con Keiko» e' per
+                  quando hai le mani in pasta.
+                  La primaria di QUESTO riquadro e' cucinare (3-quinquies: il
+                  contesto e' il blocco, e questo ha il suo titolo). */}
               {!estraggo && (aperta.estratta?.passi?.length ?? 0) > 0 && (
                 <>
                   <Sec sm="dalla descrizione del video">Come si fa</Sec>
+
+                  <button
+                    className="cta wide tap"
+                    onClick={() => setCucinoCon(aperta)}
+                    style={{ marginBottom: 12 }}
+                  >
+                    {I.pot({ s: 15 })}Cucina con Keiko
+                  </button>
                   <div className="srf list">
                     {aperta.estratta!.passi!.map((passo, i) => (
                       <div className="item" key={i}>
@@ -1182,9 +1323,38 @@ export default function CucinaView({
                 })
               )}
 
+              {/* La domanda, quando c'è qualcosa di già spuntato. Dice il
+                  numero e la conseguenza di TUTT'E DUE le risposte: non è una
+                  conferma, è una scelta. */}
+              {chiedoSettimana && (
+                <div className="srf" style={{ marginTop: 16, padding: "14px 12px" }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-.01em" }}>
+                    {spuntate} {spuntate === 1 ? "voce già presa" : "voci già prese"}
+                  </div>
+                  <p className="rx" style={{ marginTop: 6 }}>
+                    Se le lascio, quelle stesse cose non tornano nella lista nuova: risultano già
+                    prese. Se le tolgo, spariscono dalla lista e la settimana riparte pulita.
+                  </p>
+                  <div className="pactions" style={{ marginTop: 12 }}>
+                    <button className="cta tap" onClick={() => spesaDellaSettimana(true)} disabled={spesaOccupata}>
+                      Toglile e rifai
+                    </button>
+                    <button className="btn2 tap" onClick={() => spesaDellaSettimana(false)} disabled={spesaOccupata}>
+                      Lasciale dove sono
+                    </button>
+                    <button className="tert tap" onClick={() => setChiedoSettimana(false)}>Annulla</button>
+                  </div>
+                </div>
+              )}
+
               <div className="pactions" style={{ marginTop: 16 }}>
-                <button className="cta tap" onClick={() => azioneSpesa({ azione: "dalPiano" }, "Presa dal piano")} disabled={spesaOccupata} style={{ opacity: spesaOccupata ? 0.6 : 1 }}>
-                  Prendi dal piano
+                <button
+                  className="cta tap"
+                  onClick={() => (spuntate > 0 ? setChiedoSettimana(true) : spesaDellaSettimana(false))}
+                  disabled={spesaOccupata || chiedoSettimana}
+                  style={{ opacity: spesaOccupata || chiedoSettimana ? 0.6 : 1 }}
+                >
+                  La spesa della settimana
                 </button>
                 {spesa.some((v) => !v.spuntato) && (
                   <button className="btn2 tap" onClick={() => copia(spesa.filter((v) => !v.spuntato), "Lista")}>
@@ -1202,6 +1372,40 @@ export default function CucinaView({
         )}
 
         {storicoAperto && <StoricoPasti onClose={() => setStoricoAperto(false)} />}
+
+        {/* ════════ CUCINA CON KEIKO (8.3) ════════
+            La via d'uscita alla fine dei passi e' il giro del blocco 7: la
+            stessa `annota()` che usa la riga del pasto, con lo stesso stato
+            «altro» e lo stesso `ricettaId`. Non nasce un secondo modo di
+            registrare la stessa cosa. */}
+        {cucinoCon && (cucinoCon.estratta?.passi?.length ?? 0) > 0 && (
+          <CucinaConKeiko
+            titolo={cucinoCon.titolo}
+            passi={cucinoCon.estratta!.passi!}
+            ingredienti={cucinoCon.estratta?.ingredienti ?? []}
+            pasti={giornata}
+            onCucinataPer={cucinoCon.id ? async (p) => {
+              await annota(p, "altro", cucinoCon.titolo, cucinoCon.id);
+              setAperta(null);
+              setCollegoA(null);
+              setMsg(`Segnata per ${p.pasto}`);
+            } : undefined}
+            onClose={() => setCucinoCon(null)}
+          />
+        )}
+
+        {/* ════════ IL RICETTARIO INTERO (8.2) ════════
+            Si porta dietro quello che stavi scrivendo nel campo piccolo, e la
+            ricetta la apre chiamando lo stesso `apri` di qui: il foglio
+            ricetta e' uno solo, e l'estrazione gia' pagata resta pagata. */}
+        {ricettarioAperto && (
+          <Ricettario
+            ricette={lista}
+            queryIniziale={filtroRicettario}
+            onApri={(r) => { setRicettarioAperto(false); apriRicetta(r); }}
+            onClose={() => setRicettarioAperto(false)}
+          />
+        )}
 
         {/* toast piccolo, sparisce da solo (con Annulla per l'eliminazione) */}
         {msg && (
