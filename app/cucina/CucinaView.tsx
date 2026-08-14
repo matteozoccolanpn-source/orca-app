@@ -16,6 +16,7 @@ import { DayCard } from "@/app/components/v2/DayCard";
 import { Sheet } from "@/app/components/v2/Sheet";
 import { Skeleton } from "@/app/components/v2/Skeleton";
 import { Empty } from "@/app/components/v2/Empty";
+import StoricoPasti from "./StoricoPasti";
 /* A6 · l'import di ds.css se n'e' andato da qui il 12 agosto 2026: i fogli che
    questa pagina apre sono passati al sistema nuovo, e in tutto il file non c'e'
    piu' nessuna classe `ds-*` ne' nessuna variabile `--k-*` (contate: zero).
@@ -161,6 +162,15 @@ export default function CucinaView({
   const [scriviAltro, setScriviAltro] = useState<number | null>(null);
   const [testoAltro, setTestoAltro] = useState("");
   const [passatiAperti, setPassatiAperti] = useState(false);
+  /* ── IL LEGAME RICETTA ↔ PASTO ──
+     Quando e' valorizzato, stai scegliendo dal ricettario cosa hai cucinato
+     per QUEL pasto. Il legame nasce qui, e nasce da un tocco.
+     ⚠️ La ricerca NON si precompila col testo del pasto. «pollo e zucchine» →
+     cerca «pollo» e' la scorciatoia ovvia, ed e' indovinare un legame che
+     nessuno ha stabilito: la prima volta che sbaglia, l'app mente. La ricerca
+     la fa Matteo, la scelta la fa Matteo, Keiko registra. */
+  const [collegoA, setCollegoA] = useState<PastoDelGiorno | null>(null);
+  const [storicoAperto, setStoricoAperto] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -195,6 +205,9 @@ export default function CucinaView({
   }
 
   const [domanda, setDomanda] = useState("");
+  /** Il campo della domanda: serve a portarci il dito quando si cerca una
+   *  ricetta per un pasto. Il testo NON si precompila mai. */
+  const campoRef = useRef<HTMLInputElement | null>(null);
   const [scelte, setScelte] = useState<string[]>([]);
   const [risultati, setRisultati] = useState<Risultato[] | null>(null);
   const [interpretazione, setInterpretazione] = useState<Interpretazione | null>(null);
@@ -524,6 +537,13 @@ export default function CucinaView({
               onClick={() => { setScriviAltro(p.indice); setTestoAltro(a?.testo ?? ""); }} style={{ minHeight: 40 }}>ho mangiato altro</button>
             <button className={"chip tap" + (a?.stato === "saltato" ? " on" : "")} disabled={inCorso}
               onClick={() => annota(p, "saltato")} style={{ minHeight: 40 }}>saltato</button>
+            {/* La strada verso il ricettario. Porta alla ricerca col campo
+                VUOTO: quello che cerchi lo scrivi tu. */}
+            {evidenza && (
+              <button className="chip tap" disabled={inCorso}
+                onClick={() => { setCollegoA(p); setDomanda(""); campoRef.current?.focus(); campoRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
+                style={{ minHeight: 40 }}>{I.pot({ s: 12 })}l&apos;ho cucinata</button>
+            )}
           </div>
         )}
       </div>
@@ -705,6 +725,18 @@ export default function CucinaView({
                   guardando cosa mangi oggi e vuoi vedere la settimana intera.
                   E resta una LETTURA: di qui non si scrive niente. */}
               <div className="srf" style={{ marginTop: prossimo ? 12 : 0 }}>
+                {/* Lo storico sta FUORI dal ramo del piano: si annota solo con
+                    un piano, ma quello che hai gia' annotato resta da guardare
+                    anche il giorno che il piano non c'e' piu'. E' l'errore
+                    fatto due volte in Allenamento, non rifatto qui. */}
+                <div className="row-act tap" onClick={() => setStoricoAperto(true)} role="button">
+                  <span className="ic2">{I.hist({ s: 16 })}</span>
+                  <span className="in">
+                    <span className="t">Cosa hai mangiato</span>
+                    <span className="m">giorno per giorno, come l&apos;hai scritto tu</span>
+                  </span>
+                  {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                </div>
                 <div className="row-act tap" onClick={() => router.push("/salute")} role="button">
                   <span className="ic2">{I.doc({ s: 16 })}</span>
                   <span className="in">
@@ -715,6 +747,19 @@ export default function CucinaView({
                 </div>
               </div>
 
+              {/* Stai scegliendo cosa hai cucinato per un pasto. La fascia lo
+                  dice e si puo' annullare: senza, toccare una ricetta
+                  annoterebbe un pasto senza che tu te lo aspetti. */}
+              {collegoA && (
+                <div className="hint" style={{ marginTop: 12 }}>
+                  {I.pot({ s: 14 })}
+                  <p style={{ flex: 1 }}>
+                    Cerca la ricetta che hai fatto per <b>{collegoA.pasto}</b>, e aprila.
+                  </p>
+                  <button className="tert tap" style={{ flex: "none", padding: "0 2px" }} onClick={() => setCollegoA(null)}>Annulla</button>
+                </div>
+              )}
+
               {/* ② LA DOMANDA */}
               <Sec sm="dimmi la situazione, non solo gli ingredienti">Cosa mangiamo?</Sec>
 
@@ -724,6 +769,7 @@ export default function CucinaView({
               <div className="ask" style={{ cursor: "auto" }}>
                 <span style={{ color: "var(--teal)", flex: "none", display: "flex" }}>{I.orca(19)}</span>
                 <input
+                  ref={campoRef}
                   value={domanda}
                   onChange={(e) => setDomanda(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") cerca("nuova"); }}
@@ -885,6 +931,28 @@ export default function CucinaView({
               {/* Il link al video originale è SEMPRE visibile: la ricetta è di
                   chi l'ha girata, e da qui si va a dargli la visualizzazione.
                   Il video non si incorpora e non si copia. */}
+              {/* «L'HO CUCINATA PER…» — il legame nasce QUI, da questo tocco.
+                  Compare solo se stai collegando un pasto: fuori da quel giro
+                  una ricetta e' una ricetta e basta.
+                  Si registra come «ho mangiato altro» col titolo della ricetta
+                  e il suo id: e' un fatto («quel giorno ho cucinato questa»),
+                  non un confronto col piano. */}
+              {collegoA && aperta.id && (
+                <button
+                  className="cta wide tap"
+                  style={{ marginTop: 14 }}
+                  onClick={async () => {
+                    const p2 = collegoA;
+                    setAperta(null);
+                    setCollegoA(null);
+                    await annota(p2, "altro", aperta.titolo, aperta.id);
+                    setMsg(`Segnata per ${p2.pasto}`);
+                  }}
+                >
+                  {I.tick({ s: 15 })}L&apos;ho cucinata per {collegoA.pasto}
+                </button>
+              )}
+
               <a className="btn2 wide tap" href={aperta.url} target="_blank" rel="noreferrer"
                  style={{ marginTop: 14, textDecoration: "none", display: "flex" }}>
                 <LogoPiattaforma p={aperta.piattaforma} size={13} />
@@ -1101,6 +1169,8 @@ export default function CucinaView({
             </div>
           </Sheet>
         )}
+
+        {storicoAperto && <StoricoPasti onClose={() => setStoricoAperto(false)} />}
 
         {/* toast piccolo, sparisce da solo (con Annulla per l'eliminazione) */}
         {msg && (
