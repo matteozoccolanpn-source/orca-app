@@ -26,7 +26,14 @@ export function Content({
   return (
     <div className="srf content tap" onClick={onClick}>
       <div className="ph" data-tone={tone}>
-        <Img src={img} />
+        {/* Senza foto NON si monta l'<img>: `src=""` non è «niente foto», è un
+            indirizzo relativo che punta alla pagina stessa, e il browser si
+            riscarica tutta la pagina per provare a disegnarla. Il fondo di
+            `.ph` resta e la card sta in piedi lo stesso.
+            È la guardia che `Poster` ha da sempre; qui mancava, e si vedeva
+            solo con le ricette senza miniatura — cioè quelle salvate dal web,
+            e quelle a cui il link firmato di TikTok è scaduto. */}
+        {img && <Img src={img} />}
       </div>
       <span className="t">{t}</span>
       <span className="m">
