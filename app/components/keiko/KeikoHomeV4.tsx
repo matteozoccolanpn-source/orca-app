@@ -488,9 +488,11 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
        viene dopo nella giornata. */
     opzioni?: string[];
     prossimi?: { pasto: string; opzione: string | null }[];
+    /** La ricetta con cui hai fatto questo pasto, se l'hai collegata tu. */
+    cucinata?: { id: string; titolo: string } | null;
   };
   const oggiPerTe: Scheda[] = [];
-  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta", opzioni: live.diet.opzioni, prossimi: live.diet.prossimi });
+  if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta", opzioni: live.diet.opzioni, prossimi: live.diet.prossimi, cucinata: live.diet.cucinata });
   if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda", titoloWatch: live.watch.title, kindWatch: live.watch.kind, idWatch: live.watch.id, season: live.watch.season, episode: live.watch.episode });
   if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
 
@@ -1146,6 +1148,33 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
                         <span className="in"><span className="t">{o}</span></span>
                       </div>
                     ))}
+                  </div>
+                </>
+              )}
+
+              {/* ── COME SI CUCINA ──
+                  La riga che aspettava da tre giorni. Compare solo se HAI
+                  COLLEGATO tu una ricetta a questo pasto dalla Cucina: il
+                  dato viene dal registro, non dal piano, e non e' un
+                  confronto — e' il ricordo di cosa hai cucinato.
+                  Porta alla ricetta, che vive nella Cucina: il pannello dice
+                  cosa, la pagina intera ha gli ingredienti e i passaggi. */}
+              {scheda.k === "diet" && scheda.cucinata && (
+                <>
+                  <div className="status" style={{ marginTop: 16, marginBottom: 8 }}>L&apos;hai cucinata così</div>
+                  <div className="srf">
+                    <div
+                      className="row-act tap"
+                      role="button"
+                      onClick={() => { const r = scheda.cucinata!.id; setScheda(null); go(`/cucina?ricetta=${r}`); }}
+                    >
+                      <span className="ic2">{I.pot({ s: 16 })}</span>
+                      <span className="in">
+                        <span className="t">{scheda.cucinata.titolo}</span>
+                        <span className="m">Come si cucina: ingredienti e passaggi</span>
+                      </span>
+                      {I.chev({ c: "chev", st: { transform: "rotate(-90deg)" } })}
+                    </div>
                   </div>
                 </>
               )}

@@ -172,6 +172,20 @@ export default function CucinaView({
   const [collegoA, setCollegoA] = useState<PastoDelGiorno | null>(null);
   const [storicoAperto, setStoricoAperto] = useState(false);
 
+  /* `?ricetta=<id>` apre quella ricetta all'arrivo. E' il capolinea di «come
+     si cucina» nel pannello della Home: navigare va bene — la ricetta vive
+     qui — ma si deve atterrare DENTRO la ricetta, non davanti al ricettario.
+     Il parametro si toglie subito dall'indirizzo, o un ricaricamento la
+     riaprirebbe per sempre. (Stessa forma di `?vai=sessione`.) */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("ricetta");
+    if (!id) return;
+    window.history.replaceState(null, "", "/cucina");
+    const r = ricette.find((x) => x.id === id);
+    if (r) apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted });
+  }, [ricette]);
+
   useEffect(() => {
     let vivo = true;
     fetch(`/api/cucina/registro?giorno=${oggiIso}`, { credentials: "include" })

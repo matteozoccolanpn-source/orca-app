@@ -3,7 +3,7 @@ import KeikoPreview from "./components/keiko/KeikoPreview";
 import type { WorkoutSetRow } from "@/lib/supabase";
 import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
-import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt, getTicketsForBeats, saveBeatState, getLastPerformance } from "@/lib/supabase";
+import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt, getTicketsForBeats, saveBeatState, getLastPerformance, getPastiAnnotatiConRicetta } from "@/lib/supabase";
 import { battitoDiOggi, GIORNI_INDIETRO, GIORNI_AVANTI, type Battito } from "@/lib/battiti";
 import { immaginePerBattito } from "@/lib/event-image";
 import { posterFor } from "@/lib/tmdb";
@@ -90,6 +90,11 @@ export default async function Home({
   }
 
   // Default (e alias /?v2): home nuova con dati veri. Mapping in keikoLive.
+  /* Le annotazioni di OGGI, col titolo della ricetta dove c'e': servono a
+     «come si cucina» nel pannello del cibo. Una lettura sola, e le ricette si
+     chiedono solo se un pasto ne ha una. */
+  const annotazioniOggi = await getPastiAnnotatiConRicetta(new Date().toISOString().slice(0, 10));
+
   const live = mapLive({
     events,
     todos,
@@ -98,6 +103,7 @@ export default async function Home({
     trainedDays,
     trips,
     watch: watchlist,
+      annotazioni: annotazioniOggi,
   });
   // Arricchimento foto/meteo. RESILIENTE: se qualcosa va storto la home si
   // carica lo stesso (senza quelle foto) invece di dare errore/503.

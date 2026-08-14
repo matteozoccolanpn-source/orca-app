@@ -89,7 +89,12 @@ export type LiveHome = {
      della giornata. La Home mostra quello di adesso; il pannello mostra anche
      cosa viene dopo, che e' la domanda subito successiva. Impaginazione: il
      dato era gia' tutto qui e si fermava al pasto corrente. */
+  /* `cucinata` e' la ricetta con cui hai fatto QUESTO pasto, se l'hai
+     collegata tu dalla Cucina. Sblocca «come si cucina» nel pannello della
+     Home: il dato nasce dal registro (`diet_log`), non dal piano, e non e'
+     un confronto — e' il ricordo di cosa hai cucinato. */
   diet: { nextPasto: string | null; nextOpt: string | null; opzioni: string[];
+    cucinata: { id: string; titolo: string } | null;
     prossimi: { pasto: string; opzione: string | null }[]; done: string[]; image?: string | null } | null;
   trip: { title: string; range: string; sub: string; image?: string | null } | null;
   /* `kind` viaggia con il titolo perche' /api/watch/providers lo vuole
@@ -130,6 +135,9 @@ function toEvent(e: Ticket, today: Date): LiveEvent {
 export function mapLive(data: {
   events: Ticket[]; todos: Todo[]; diet: DietWeek | null; workout: WorkoutWeek | null;
   trainedDays: string[]; trips: TripPlanRow[]; watch: WatchItem[];
+  /* Le annotazioni di oggi, gia' lette da chi chiama. Vuote se non c'e'
+     niente: `mapLive` non parla col database. */
+  annotazioni?: { indice: number; ricettaId: string | null; ricettaTitolo: string | null }[];
 }): LiveHome {
   // rome(): "oggi" è l'oggi italiano anche se il server è in UTC (vedi sopra).
   const today = rome(new Date());
@@ -232,6 +240,12 @@ export function mapLive(data: {
       nextOpt: meals[idx]?.opzioni?.[0] ?? null,
       opzioni: meals[idx]?.opzioni ?? [],
       prossimi: meals.slice(idx + 1).map((m) => ({ pasto: m.pasto, opzione: m.opzioni?.[0] ?? null })),
+      /* L'annotazione di OGGI per il pasto in corso, se ha una ricetta.
+         `data.annotazioni` arriva da chi chiama: qui non si legge niente. */
+      cucinata: (() => {
+        const a = (data.annotazioni ?? []).find((x) => x.indice === idx && x.ricettaId && x.ricettaTitolo);
+        return a ? { id: a.ricettaId!, titolo: a.ricettaTitolo! } : null;
+      })(),
       done: meals.filter((_, i) => i !== idx).map((m) => m.pasto),
     };
   }

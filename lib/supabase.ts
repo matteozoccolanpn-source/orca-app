@@ -297,6 +297,21 @@ function mappaAnnotazione(r: Record<string, unknown>): PastoAnnotato {
   };
 }
 
+/* Le annotazioni di un giorno CON il titolo della ricetta, dove c'e'.
+ * Serve alla Home: «come si cucina» ha bisogno di un nome da mostrare, non
+ * di un uuid. Una lettura in piu' e solo se serve — se nessun pasto ha una
+ * ricetta, le ricette non si chiedono affatto. */
+export async function getPastiAnnotatiConRicetta(
+  giorno: string,
+): Promise<(PastoAnnotato & { ricettaTitolo: string | null })[]> {
+  const pasti = await getPastiAnnotati(giorno);
+  const ids = [...new Set(pasti.map((p) => p.ricettaId).filter(Boolean))] as string[];
+  if (ids.length === 0) return pasti.map((p) => ({ ...p, ricettaTitolo: null }));
+  const { data } = await (await db()).from("recipes").select("id, title").in("id", ids);
+  const titolo = new Map((data ?? []).map((r) => [r.id as string, r.title as string]));
+  return pasti.map((p) => ({ ...p, ricettaTitolo: p.ricettaId ? titolo.get(p.ricettaId) ?? null : null }));
+}
+
 /** Le annotazioni di un giorno. Vuoto se quel giorno non hai annotato niente. */
 export async function getPastiAnnotati(giorno: string): Promise<PastoAnnotato[]> {
   const { data, error } = await (await db())
