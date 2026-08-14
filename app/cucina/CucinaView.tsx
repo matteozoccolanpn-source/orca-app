@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Recipe, RicettaEstratta, ShoppingItem } from "@/lib/supabase";
+import type { Recipe, RicettaEstratta, ShoppingItem, PastoAnnotato, StatoPasto } from "@/lib/supabase";
 import { quandoDetto, daQuanto, amazonFresh, type PastoDelGiorno, type Rifare } from "@/lib/cucina";
 import KeikoNav, { PAGE_PB } from "@/app/components/keiko/KeikoNav";
 import { I } from "@/app/components/v2/icons";
@@ -149,6 +149,51 @@ export default function CucinaView({
   spesaIniziale: ShoppingItem[];
 }) {
   const router = useRouter();
+
+  /* ── IL REGISTRO ──
+     Le annotazioni di oggi, per indice di pasto. Si leggono all'apertura e si
+     riscrivono a ogni tocco: il server e' la verita', ma la riga cambia
+     subito sotto il dito e poi il server insegue.
+     🚫 Qui non si confronta niente col piano: si mostra cosa hai scritto tu. */
+  const oggiIso = new Date().toISOString().slice(0, 10);
+  const [annotazioni, setAnnotazioni] = useState<Record<number, PastoAnnotato>>({});
+  const [salvo, setSalvo] = useState<number | null>(null);
+  const [scriviAltro, setScriviAltro] = useState<number | null>(null);
+  const [testoAltro, setTestoAltro] = useState("");
+  const [passatiAperti, setPassatiAperti] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/cucina/registro?giorno=${oggiIso}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!vivo) return;
+        const per: Record<number, PastoAnnotato> = {};
+        for (const a of (d?.pasti ?? []) as PastoAnnotato[]) per[a.indice] = a;
+        setAnnotazioni(per);
+      })
+      .catch(() => { /* niente registro: le righe restano da annotare */ });
+    return () => { vivo = false; };
+  }, [oggiIso]);
+
+  async function annota(p: PastoDelGiorno, stato: StatoPasto, testo?: string, ricettaId?: string | null) {
+    setSalvo(p.indice);
+    try {
+      const r = await fetch("/api/cucina/registro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ giorno: oggiIso, indice: p.indice, pasto: p.pasto, stato, testo, ricettaId }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d?.pasto) throw new Error();
+      setAnnotazioni((a) => ({ ...a, [p.indice]: d.pasto as PastoAnnotato }));
+      setScriviAltro(null); setTestoAltro("");
+    } catch {
+      setMsg("Non sono riuscito a segnarlo. Riprova.");
+    } finally { setSalvo(null); }
+  }
+
   const [domanda, setDomanda] = useState("");
   const [scelte, setScelte] = useState<string[]>([]);
   const [risultati, setRisultati] = useState<Risultato[] | null>(null);
@@ -415,6 +460,76 @@ export default function CucinaView({
 
   const scaffale = useMemo(() => (tutte ? lista : lista.slice(0, 8)), [lista, tutte]);
 
+  /* La giornata in tre pezzi: quello che e' passato, quello che viene adesso,
+     e quello che viene dopo. `passato` lo decide l'orologio ed e' gia' in
+     `PastoDelGiorno`: qui e' impaginazione, non logica nuova. */
+  /* Il confronto e' su `indice`, NON sull'identita' dell'oggetto: `giornata` e
+     `prossimo` arrivano come due prop separate e attraversano il confine
+     server/client indipendentemente, quindi si serializzano in due istanze
+     diverse. Con `p !== prossimo` il pasto in corso finiva anche negli altri
+     due elenchi, e con `===` non ci sarebbe finito mai. `indice` e' un numero
+     e la serializzazione non lo tocca. */
+  const passati = giornata.filter((p) => p.indice !== prossimo?.indice && p.passato);
+  const successivi = giornata.filter((p) => p.indice !== prossimo?.indice && !p.passato);
+
+  /* ── UNA RIGA DI PASTO ──
+     Il pasto, e sotto le tre azioni. Quando e' gia' annotato la riga dice
+     cosa hai scritto, e le azioni restano: ri-annotare CORREGGE (il vincolo
+     sta in tabella, vedi docs/sql/cucina-registro.sql).
+     🚫 Nessun segno di merito: «seguito» e «saltato» hanno lo stesso peso
+     visivo, perche' qui non si dice se hai fatto bene. */
+  function RigaPasto({ p, evidenza = false }: { p: PastoDelGiorno; evidenza?: boolean }) {
+    const a = annotazioni[p.indice];
+    const inCorso = salvo === p.indice;
+    const detto = a?.stato === "seguito" ? "l'ho seguito"
+      : a?.stato === "saltato" ? "l'ho saltato"
+      : a?.stato === "altro" ? (a.testo || "ho mangiato altro")
+      : null;
+    return (
+      <div style={{ padding: "12px 12px", borderTop: evidenza ? undefined : "1px solid var(--line)" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontSize: evidenza ? 15 : 13.5, fontWeight: 600, letterSpacing: "-.01em", flex: 1, minWidth: 0 }}>
+            {p.pasto}
+          </span>
+          <span className="status" style={{ margin: 0, flex: "none" }}>{p.ora ?? "—"}</span>
+        </div>
+        <div className="status" style={{ marginTop: 2 }}>{p.testo || "dal tuo piano"}</div>
+
+        {detto && (
+          <div className="status" style={{ marginTop: 6, color: "var(--teal-soft)" }}>
+            {I.tick({ s: 12 })} {detto}
+          </div>
+        )}
+
+        {scriviAltro === p.indice ? (
+          <div className="ask" style={{ marginTop: 8, cursor: "auto" }}>
+            <input
+              autoFocus
+              value={testoAltro}
+              onChange={(e) => setTestoAltro(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") annota(p, "altro", testoAltro); }}
+              placeholder="Cosa hai mangiato?"
+              aria-label="Cosa hai mangiato"
+              style={{ flex: 1, minWidth: 0, background: "none", border: 0, outline: 0, color: "var(--txt)", fontSize: 16, fontFamily: "inherit", padding: 0 }}
+            />
+            <button className="go tap" onClick={() => annota(p, "altro", testoAltro)} disabled={!testoAltro.trim()} aria-label="Segna" style={{ border: 0, cursor: "pointer", opacity: testoAltro.trim() ? 1 : 0.45 }}>
+              {I.tick({ s: 14 })}
+            </button>
+          </div>
+        ) : (
+          <div className="chips" style={{ marginTop: 8, flexWrap: "wrap", overflow: "visible" }}>
+            <button className={"chip tap" + (a?.stato === "seguito" ? " on" : "")} disabled={inCorso}
+              onClick={() => annota(p, "seguito")} style={{ minHeight: 40 }}>l&apos;ho seguito</button>
+            <button className={"chip tap" + (a?.stato === "altro" ? " on" : "")} disabled={inCorso}
+              onClick={() => { setScriviAltro(p.indice); setTestoAltro(a?.testo ?? ""); }} style={{ minHeight: 40 }}>ho mangiato altro</button>
+            <button className={"chip tap" + (a?.stato === "saltato" ? " on" : "")} disabled={inCorso}
+              onClick={() => annota(p, "saltato")} style={{ minHeight: 40 }}>saltato</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="k2">
@@ -533,32 +648,53 @@ export default function CucinaView({
                     rows={giornata.map((p) => [p.ora ?? "—", p.testo || p.pasto])}
                   />
 
-                  {/* la giornata a pallini: dove sei, senza numeri inventati */}
-                  {giornata.filter((p) => p.ora).length > 1 && (
-                    <div style={{ display: "flex", alignItems: "center", margin: "12px 2px 0" }}>
-                      {giornata.filter((p) => p.ora).map((p, i, arr) => (
-                        <span key={`${p.pasto}-${p.indice}`} style={{ display: "contents" }}>
-                          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flex: 1, minWidth: 0 }} title={p.pasto}>
-                            <span
-                              style={{
-                                width: 11, height: 11, borderRadius: "50%",
-                                background: p.passato ? "var(--teal)" : "transparent",
-                                border: `2px solid ${p.passato ? "var(--teal)" : p === prossimo ? "var(--acc)" : "rgba(255,255,255,.22)"}`,
-                                /* L'alone del pasto che viene adesso: e' il
-                                   terracotta del sistema con la sua
-                                   trasparenza, non un rgba ricopiato a mano.
-                                   Scritto in cifre era un secondo posto dove
-                                   ricordarsi di cambiarlo. */
-                                boxShadow: p === prossimo ? "0 0 0 4px color-mix(in srgb, var(--acc) 16%, transparent)" : "none",
-                              }}
-                            />
-                            <small style={{ fontSize: 10, fontWeight: 500, color: p === prossimo ? "#E6A886" : "var(--meta)" }}>{p.ora}</small>
+                  {/* ── LA GIORNATA, PASTO PER PASTO ──
+                      Prima qui c'era una fila di pallini: diceva a che punto
+                      sei e nient'altro. Adesso ogni pasto e' una riga su cui
+                      si puo' ANNOTARE, senza aprire niente — «l'ho seguito»,
+                      «ho mangiato altro», «l'ho saltato».
+                      I passati stanno sopra, RACCOLTI e non spariti: la
+                      giornata si legge dall'inizio, e un pasto di stamattina
+                      si annota anche alle nove di sera.
+                      🚫 Nessun confronto col piano: la riga dice cosa hai
+                      scritto tu, non se hai fatto bene. Vedi 3-decies. */}
+                  {passati.length > 0 && (
+                    <div className="srf" style={{ marginTop: 12 }}>
+                      <div
+                        className="row-act tap"
+                        role="button"
+                        onClick={() => setPassatiAperti((v) => !v)}
+                        aria-expanded={passatiAperti}
+                      >
+                        <span className="ic2">{I.hist({ s: 16 })}</span>
+                        <span className="in">
+                          <span className="t">Prima di adesso</span>
+                          <span className="m">
+                            {passati.length} {passati.length === 1 ? "pasto" : "pasti"}
+                            {" · "}
+                            {passati.filter((p) => annotazioni[p.indice]).length} annotati
                           </span>
-                          {i < arr.length - 1 && <span style={{ flex: 1, height: 1.5, background: "rgba(255,255,255,.10)", marginBottom: 16, minWidth: 8 }} />}
                         </span>
-                      ))}
+                        {I.chev({ c: "chev", st: passatiAperti ? { transform: "rotate(180deg)" } : undefined })}
+                      </div>
+                      {passatiAperti && passati.map((p) => <RigaPasto key={p.indice} p={p} />)}
                     </div>
                   )}
+
+                  {/* Il prossimo, in evidenza: e' quello su cui stai per
+                      decidere qualcosa. */}
+                  {prossimo && (
+                    <div className="srf" style={{ marginTop: 12 }}>
+                      <RigaPasto p={prossimo} evidenza />
+                    </div>
+                  )}
+
+                  {successivi.length > 0 && (
+                    <div className="srf" style={{ marginTop: 12 }}>
+                      {successivi.map((p) => <RigaPasto key={p.indice} p={p} />)}
+                    </div>
+                  )}
+
                 </>
               )}
 
