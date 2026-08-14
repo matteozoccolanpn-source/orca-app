@@ -304,3 +304,23 @@ né «rifai quello di martedì». Mostrare cosa hai fatto è memoria; dire cosa
 dovresti fare è la scheda, e la scheda è del preparatore.
 
 Stessa distinzione della Cucina: registra la tua scelta, non la approva.
+
+---
+
+## BLOCCO 13 · Annotare gli allenamenti — dopo i Viaggi
+### aggiunto il 13 agosto 2026
+
+Usando la sezione Allenamento appena finita (blocco 6), Matteo ha visto
+**diverse cose da migliorare nel modo in cui si annota un allenamento**.
+
+⚠️ **Le voci vanno ancora raccolte.** Questo blocco esiste per non perdere la
+segnalazione; il contenuto lo scriverà Matteo quando avrà usato la sezione
+qualche giorno di più. Chi riprende il lavoro chieda a lui l'elenco prima di
+progettare qualsiasi cosa.
+
+Il contesto da cui parte: la seduta libera e «com'è andata» sono nate il 13
+agosto e sono state provate su un utente di prova con **una sola seduta**. Le
+prime cose che si rompono all'uso vero sono quasi sempre lì — nel gesto di
+annotare, non nella schermata che mostra.
+
+Va **dopo** il blocco 12 (i Viaggi), come deciso.

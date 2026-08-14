@@ -262,6 +262,151 @@ export interface DietPlan {
   updatedAt: string | null;
 }
 
+/* ═════════ IL REGISTRO DEI PASTI (diet_log) ═════════
+ * Cosa hai mangiato, e quando. Senza commento.
+ * ⚠️ Qui non si confronta niente col piano: `diet_plan` e `diet_log` sono due
+ * tabelle e due cose diverse — una prescrizione e un fatto. Vedi la regola
+ * 3-decies di docs/UI-DECISIONI-V2.md e i due file in docs/sql/. */
+export type StatoPasto = "seguito" | "altro" | "saltato";
+
+export interface PastoAnnotato {
+  id: string;
+  giorno: string;          // YYYY-MM-DD, la data vera
+  indice: number;          // la posizione del pasto in quel giorno del piano
+  pasto: string;           // il nome com'era quel giorno
+  stato: StatoPasto;
+  testo: string | null;    // cosa hai mangiato, parole tue (solo con 'altro')
+  ricettaId: string | null;
+  foto: string | null;
+  annotatoAt: string;
+}
+
+const CAMPI_LOG = "id, giorno, indice, pasto, stato, testo, ricetta_id, foto, annotato_at";
+
+function mappaAnnotazione(r: Record<string, unknown>): PastoAnnotato {
+  return {
+    id: r.id as string,
+    giorno: (r.giorno as string) ?? "",
+    indice: Number(r.indice ?? 0),
+    pasto: (r.pasto as string) ?? "",
+    stato: ((r.stato as string) ?? "seguito") as StatoPasto,
+    testo: (r.testo as string) ?? null,
+    ricettaId: (r.ricetta_id as string) ?? null,
+    foto: (r.foto as string) ?? null,
+    annotatoAt: (r.annotato_at as string) ?? "",
+  };
+}
+
+/** Le annotazioni di un giorno. Vuoto se quel giorno non hai annotato niente. */
+export async function getPastiAnnotati(giorno: string): Promise<PastoAnnotato[]> {
+  const { data, error } = await (await db())
+    .from("diet_log")
+    .select(CAMPI_LOG)
+    .eq("giorno", giorno)
+    .order("indice", { ascending: true });
+  if (error) {
+    console.error("Supabase: getPastiAnnotati:", error.message);
+    return [];
+  }
+  return (data ?? []).map(mappaAnnotazione);
+}
+
+/* Annota un pasto. RI-ANNOTARE CORREGGE: l'upsert va sul vincolo unico
+ * (user_id, giorno, indice), che vive in tabella e non qui — vedi
+ * docs/sql/cucina-registro.sql. Se il vincolo fosse solo nel codice, due
+ * tocchi vicini creerebbero due righe e lo storico direbbe che quel giorno
+ * hai pranzato due volte. */
+export async function annotaPasto(a: {
+  giorno: string;
+  indice: number;
+  pasto: string;
+  stato: StatoPasto;
+  testo?: string | null;
+  ricettaId?: string | null;
+  foto?: string | null;
+}): Promise<PastoAnnotato | null> {
+  const riga = {
+    user_id: await currentUserId(),
+    giorno: a.giorno,
+    indice: a.indice,
+    pasto: a.pasto,
+    stato: a.stato,
+    // Il testo ha senso solo con 'altro': su «seguito» e «saltato» resta
+    // vuoto, altrimenti un testo scritto e poi cambiato stato resterebbe li'
+    // a dire una cosa che non e' piu' vera.
+    testo: a.stato === "altro" ? (a.testo?.trim() || null) : null,
+    ricetta_id: a.ricettaId ?? null,
+    foto: a.foto ?? null,
+    annotato_at: new Date().toISOString(),
+  };
+  const { data, error } = await (await db())
+    .from("diet_log")
+    .upsert(riga, { onConflict: "user_id,giorno,indice" })
+    .select(CAMPI_LOG)
+    .single();
+  if (error) {
+    console.error("Supabase: annotaPasto:", error.message);
+    return null;
+  }
+  return mappaAnnotazione(data as Record<string, unknown>);
+}
+
+/** Toglie l'annotazione di un pasto: torna com'era, non annotato. */
+export async function togliAnnotazione(giorno: string, indice: number): Promise<void> {
+  const { error } = await (await db())
+    .from("diet_log")
+    .delete()
+    .eq("giorno", giorno)
+    .eq("indice", indice);
+  if (error) console.error("Supabase: togliAnnotazione:", error.message);
+}
+
+/* Lo storico, a pagine. Stesse due scelte di `getSessionPage`, e per gli
+ * stessi motivi: il cursore e' una DATA e non un numero di pagina (un indice
+ * slitterebbe appena annoti un pasto mentre scorri), e si chiede una riga in
+ * piu' del necessario perche' «ce n'e' ancora» sia un fatto e non una stima. */
+export async function getGiorniAnnotati(
+  prima?: string | null,
+  limit = 8,
+): Promise<{ giorni: { giorno: string; pasti: PastoAnnotato[] }[]; altri: boolean }> {
+  const client = await db();
+  /* Si pagina per GIORNO, non per riga: otto giorni, con dentro tutti i loro
+     pasti. Un taglio a righe spezzerebbe un giorno a meta' fra due pagine. */
+  let q = client
+    .from("diet_log")
+    .select("giorno")
+    .order("giorno", { ascending: false })
+    .limit(400);
+  if (prima) q = q.lt("giorno", prima);
+  const { data: gg, error } = await q;
+  if (error) {
+    console.error("Supabase: getGiorniAnnotati:", error.message);
+    return { giorni: [], altri: false };
+  }
+  const distinti: string[] = [];
+  for (const r of gg ?? []) {
+    const g = r.giorno as string;
+    if (distinti[distinti.length - 1] !== g) distinti.push(g);
+  }
+  const altri = distinti.length > limit;
+  const scelti = distinti.slice(0, limit);
+  if (scelti.length === 0) return { giorni: [], altri: false };
+
+  const { data: righe } = await client
+    .from("diet_log")
+    .select(CAMPI_LOG)
+    .in("giorno", scelti)
+    .order("giorno", { ascending: false })
+    .order("indice", { ascending: true });
+
+  const per = new Map<string, PastoAnnotato[]>();
+  for (const r of righe ?? []) {
+    const a = mappaAnnotazione(r);
+    per.set(a.giorno, [...(per.get(a.giorno) ?? []), a]);
+  }
+  return { giorni: scelti.map((g) => ({ giorno: g, pasti: per.get(g) ?? [] })), altri };
+}
+
 /** Legge il piano dieta salvato (la riga più recente). null se non c'è ancora. */
 export async function getDietPlan(): Promise<DietPlan | null> {
   const { data, error } = await (await db())

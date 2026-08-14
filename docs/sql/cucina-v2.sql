@@ -18,6 +18,21 @@
 -- le due provenienze nella stessa lista perché si compra insieme, non perché
 -- una sostituisca l'altra. Il piano è di un professionista (art. 348).
 --
+-- ── PRECISAZIONE del 14 agosto 2026, quando è nato `diet_log` ──────────────
+-- Il divieto qui sopra protegge `diet_plan`: il piano della nutrizionista, che
+-- Keiko non scrive e non modifica. Nessuna colonna lì dentro può legare una
+-- ricetta a un pasto, perché sarebbe Keiko che tocca una prescrizione.
+--
+-- `diet_log` (vedi `cucina-registro.sql`) è un'altra cosa: è un fatto su
+-- Matteo, non una prescrizione. Il suo `ricetta_id` non dice «questa
+-- sostituisce quel pasto», dice «quel giorno ho cucinato questa». Registrare
+-- quello che è successo non è prescrivere quello che deve succedere.
+--
+-- Due condizioni rendono sicura quella distinzione, e valgono sempre:
+--   1. il legame lo crea il dito di Matteo, mai una deduzione dal testo;
+--   2. niente, in nessun punto dell'app, confronta il registro col piano.
+-- Se una delle due cade, cade anche la distinzione.
+--
 -- Privacy: RLS per utente come tutte le tabelle personali.
 -- Idempotente, sicuro da rieseguire. Da incollare nell'editor SQL di Supabase.
 -- ============================================================================

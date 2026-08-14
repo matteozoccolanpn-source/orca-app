@@ -204,6 +204,31 @@
    l'altezza dello schermo: allineati. Due animazioni **quasi** uguali si
    notano proprio perché sono quasi uguali — sembra che l'app esiti.
 
+3-decies. **Registrare non è prescrivere** (14 agosto 2026, con il registro
+   dei pasti). È la distinzione che tiene in piedi tutta la Cucina che annota,
+   e va riletta ogni volta che qualcosa lì dentro sembra voler dire se hai
+   fatto bene o male.
+   - **`diet_plan` è il piano della nutrizionista**, e Keiko non lo scrive e
+     non lo modifica (art. 348 c.p.). Nessuna colonna lì dentro può legare una
+     ricetta a un pasto: sarebbe Keiko che tocca una prescrizione.
+   - **`diet_log` è un fatto su Matteo**, non una prescrizione. Il suo
+     `ricetta_id` non dice «questa sostituisce quel pasto», dice «quel giorno
+     ho cucinato questa». Registrare quello che è successo non è prescrivere
+     quello che deve succedere.
+
+   Due condizioni la rendono sicura, e vanno tenute **tutt'e due**:
+   1. **il legame lo crea il dito di Matteo**, mai una deduzione dal testo —
+      «Melone 150g» → cerca melone nel ricettario è la scorciatoia ovvia, ed è
+      indovinare un legame che nessuno ha stabilito: la prima volta che sbaglia,
+      l'app mente;
+   2. **niente, in nessun punto dell'app, confronta il registro col piano** —
+      nessuna aderenza, nessuna percentuale, nessun ✓ verde contro ✗ rosso,
+      nessun «hai seguito il piano al 70%».
+
+   Se una delle due cade, cade anche la distinzione, e si torna dalla parte
+   sbagliata del paletto. La versione lunga sta in `docs/sql/cucina-v2.sql` e
+   `docs/sql/cucina-registro.sql`, accanto alle tabelle che protegge.
+
 4. Contrasto sugli accenti: testo scuro su teal (`#08191E`); su terracotta
    testo chiaro caldo `#FFF3EC`.
 5. **Elevazione a 3 QUOTE**: fondo `#0F0F12` → card `#1A1B20` →
