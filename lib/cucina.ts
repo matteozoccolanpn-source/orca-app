@@ -220,10 +220,37 @@ export function ingredientiDaPasto(testo: string): VoceSpesa[] {
     .filter((v): v is VoceSpesa => v !== null);
 }
 
+/** Due quantità dello stesso ingrediente, sommate — o null.
+ *
+ *  «Pollo 90g» il lunedì e «Pollo 100g» il giovedì fanno 190 g: è aritmetica su
+ *  numeri che ha scritto la nutrizionista, ed è la cosa che serve davanti al
+ *  banco. Diverso sarebbe «per te ne servono 150g», che è un consiglio e non si
+ *  fa (blocco 9.2).
+ *
+ *  Si somma SOLO a unità identica. «2 cucchiaini» + «90 g» non fa niente, e
+ *  nemmeno «cucchiaino» + «cucchiaini»: in quel caso torna null, cioè la voce
+ *  resta senza quantità, esattamente com'era prima. Una somma sbagliata al
+ *  supermercato è peggio di nessuna somma. */
+export function sommaQuantita(a: string | null, b: string | null): string | null {
+  if (!a || !b) return null;
+  const pezzi = (s: string) => {
+    const m = s.trim().match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
+    return m ? { n: parseFloat(m[1].replace(",", ".")), u: m[2].trim().toLowerCase() } : null;
+  };
+  const x = pezzi(a), y = pezzi(b);
+  if (!x || !y || x.u !== y.u) return null;
+  const tot = x.n + y.n;
+  // 190 e non 190.0; 0,5 con la virgola, che è come si scrive in italiano.
+  const num = Number.isInteger(tot) ? String(tot) : String(Math.round(tot * 100) / 100).replace(".", ",");
+  return x.u ? `${num} ${x.u}` : num;
+}
+
 /** Tutta la settimana del piano → una lista senza doppioni.
- *  Due giorni con la cipolla fanno UNA voce (idea 209). La quantità si tiene
- *  solo se è la stessa: sommare 90g e 100g darebbe un numero che nessuno ha
- *  scritto, e questo file non inventa numeri. */
+ *  Due giorni con la cipolla fanno UNA voce (idea 209), e le quantità della
+ *  stessa cosa si sommano quando l'unità è la stessa (vedi `sommaQuantita`).
+ *  Prima qui la quantità si buttava via appena due giorni non combaciavano:
+ *  la lista diceva «pollo» e basta, e quanto pollo lo dovevi cercare tu nel
+ *  piano, giorno per giorno. */
 export function spesaDalPiano(week: DietWeek | null): VoceSpesa[] {
   if (!week) return [];
   const per = new Map<string, VoceSpesa>();
@@ -244,7 +271,12 @@ export function spesaDalPiano(week: DietWeek | null): VoceSpesa[] {
           const k = nome.toLowerCase();
           const gia = per.get(k);
           if (!gia) per.set(k, { ...v, nome });
-          else if (gia.quantita !== v.quantita) gia.quantita = null;
+          /* Anche quando sono UGUALI si somma, ed è il caso che conta: «pollo
+             200g» tre volte nella settimana fa 600 g, che è l'esempio con cui
+             il blocco 9.2 spiega cos'è aritmetica lecita. Prima due giorni
+             uguali lasciavano scritto «200 g», e uno andava a comprarne un
+             terzo di quello che gli serviva. */
+          else gia.quantita = sommaQuantita(gia.quantita, v.quantita);
         }
       }
     }
