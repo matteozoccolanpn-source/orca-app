@@ -231,9 +231,19 @@ export function spesaDalPiano(week: DietWeek | null): VoceSpesa[] {
     for (const pasto of giorno ?? []) {
       for (const opzione of (pasto.opzioni ?? []).slice(0, 1)) {   // solo l'opzione che si vede
         for (const v of ingredientiDaPasto(opzione)) {
-          const k = v.nome.toLowerCase();
+          /* GUARDIA: una voce senza contenuto non entra in lista, qualunque
+             sia la causa. Lo spezzettatore divide il testo del pasto sulla
+             « e » — «pollo e zucchine» → pollo, zucchine — e su un testo
+             scritto storto puo' produrre un pezzo vuoto o di soli spazi. Una
+             riga vuota nella lista della spesa non si puo' comprare e non si
+             puo' spuntare: e' solo rumore fra le mani, al supermercato.
+             Visto con un piano di collaudo, ma vale per il piano vero il
+             giorno che la nutrizionista scrive qualcosa di storto. */
+          const nome = v.nome.trim();
+          if (!nome) continue;
+          const k = nome.toLowerCase();
           const gia = per.get(k);
-          if (!gia) per.set(k, v);
+          if (!gia) per.set(k, { ...v, nome });
           else if (gia.quantita !== v.quantita) gia.quantita = null;
         }
       }

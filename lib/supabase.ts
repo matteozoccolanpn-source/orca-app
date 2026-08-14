@@ -1664,11 +1664,19 @@ export async function addShoppingItems(
     .filter((r) => r.nome.length > 0);
   if (righe.length === 0) return getShoppingItems();
 
-  // ignoreDuplicates: chi c'è già resta com'è (magari l'hai già spuntato, e
-  // riaggiungerlo non deve farlo tornare da comprare).
+  /* ignoreDuplicates: chi c'è già resta com'è (magari l'hai già spuntato, e
+     riaggiungerlo non deve farlo tornare da comprare).
+     `nome_key` e non `nome`: è la colonna generata `lower(nome)`, e il vincolo
+     unico è su quella. Prima qui c'era `nome`, e l'indice era un'espressione
+     `lower(nome)` — Postgres non aggancia un ON CONFLICT per colonne a un
+     indice su un'espressione, e PostgREST non sa scriverla. Non hanno MAI
+     combaciato: ogni aggiunta alla spesa rispondeva 500 da quando la spesa
+     esiste, e da fuori si vedeva solo «Qualcosa non torna, riprovo».
+     Il nome resta scritto come l'hai battuto tu; a fare la dedup è la colonna
+     generata, così «Cipolla» e «cipolla» restano una voce sola. */
   const { error } = await (await db())
     .from("shopping_items")
-    .upsert(righe, { onConflict: "user_id,nome,fonte", ignoreDuplicates: true });
+    .upsert(righe, { onConflict: "user_id,nome_key,fonte", ignoreDuplicates: true });
   if (error) throw new Error(error.message);
   return getShoppingItems();
 }
