@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { spendAi, claudeFetch, AiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 import { getRecipes, saveExtracted, type RicettaEstratta } from '@/lib/supabase'
+import { marcatoreDi, eVideo } from '../marcatore'
 
 /* CUCINA V2 — l'estrazione della ricetta (docs/SPEC-CUCINA.md §4).
  *
@@ -44,6 +45,7 @@ Se il testo è troppo povero (solo hashtag, solo un titolo, solo emoji, o niente
 Dettagli:
 - "quantita" va omessa o lasciata "" quando non è scritta. Non convertire le unità.
 - "tempo" e "porzioni" solo se scritti, altrimenti null.
+- OMETTI i campi vuoti invece di scriverli vuoti: meno scrivi, meglio è. Nessuna frase prima o dopo il JSON.
 - I passi sono frasi brevi, nell'ordine in cui li racconta l'autore, in italiano.
 - NON scrivere mai calorie, macronutrienti, valori nutrizionali o giudizi sulla salute, nemmeno se il testo li contiene: quei campi non esistono.`
 
@@ -117,6 +119,25 @@ export async function POST(req: NextRequest) {
     const mia = salvate.find((r) => r.id === ricettaId)
     if (!mia) ricettaId = null                       // non è sua, o non c'è più
     else if (mia.extracted) return NextResponse.json({ estratta: mia.extracted, daCache: true })
+  }
+
+  /* ── PRIMA IL MARCATORE, POI IL MODELLO (docs/PROMPT-CODE-14, parte 1) ──
+   *
+   * Se l'indirizzo è una pagina, quasi sempre la ricetta è già scritta lì
+   * dentro in `schema.org/Recipe`: ingredienti, passi, tempo e porzioni, messi
+   * dall'autore perché si vedano. Leggerli costa una richiesta HTTP e ZERO
+   * modelli — e sono i passi veri di chi l'ha scritta, non una ricostruzione.
+   * Misurato il 15 agosto: 6 pagine su 11 di una ricerca vera ce l'hanno.
+   *
+   * La lettura è già in cache dalla ricerca (`marcatoreDi`, 7 giorni): per una
+   * ricetta arrivata dai risultati questo pezzo non tocca nemmeno la rete.
+   * Se il marcatore non c'è o è povero si prosegue come sempre. */
+  if (!eVideo(url)) {
+    const { estratta } = await marcatoreDi(url)
+    if (estratta) {
+      if (ricettaId) await saveExtracted(ricettaId, estratta)
+      return NextResponse.json({ estratta, daMarcatore: true })
+    }
   }
 
   /* Il testo da leggere: la didascalia (per TikTok l'oEmbed restituisce la

@@ -14,7 +14,7 @@
 // ricetta "al posto di" qualcosa. Il piano è di un professionista (art. 348).
 // ────────────────────────────────────────────────────────────────────────────
 
-import type { DietMeal, DietWeek } from "./supabase";
+import type { DietMeal, DietWeek, RicettaEstratta } from "./supabase";
 
 /* ══════════════ ① IL PIANO: che ora è, cosa viene adesso ══════════════ */
 
@@ -289,6 +289,175 @@ export function spesaDalPiano(week: DietWeek | null): VoceSpesa[] {
  *  ricerca pubblico — e fingere che ce l'abbia sarebbe un link rotto. */
 export function amazonFresh(nome: string): string {
   return `https://www.amazon.it/s?k=${encodeURIComponent(nome)}&i=amazonfresh`;
+}
+
+/* ══════════════ ⑧ IL MARCATORE STANDARD — la ricetta già scritta ══════════════
+ *
+ * Quasi tutti i blog di cucina pubblicano `schema.org/Recipe` in JSON-LD: dentro
+ * ci sono ingredienti, passi, tempo e porzioni GIÀ STRUTTURATI, messi lì
+ * dall'autore perché Google li mostri. Leggerli non è capire una ricetta: è
+ * copiare dei campi. **Quando il marcatore c'è ed è completo, il modello non si
+ * chiama proprio** — costo zero, e nessun rischio che qualcuno riscriva un passo.
+ *
+ * MISURATO il 15 agosto 2026, su tre ricerche vere di Tavily senza domini
+ * scelti a mano (40 pagine in tutto):
+ *   «pasta zucchine»        → 4 complete su 13 pagine
+ *   «polpette al forno»     → 6 complete su 13
+ *   «cena veloce proteica»  → 0 complete su 14
+ * Cioè: quando si cerca un PIATTO il marcatore c'è su un terzo/metà dei
+ * risultati; quando si cerca una CATEGORIA tornano riviste e siti di
+ * integratori, e non c'è niente da leggere. Per quelle resta la strada di
+ * prima — il video e la sua didascalia.
+ *
+ * 🚫 NON CI SI FIDA ALLA CIECA. `recipeInstructions` a volte è una riga sola di
+ * prosa («Fate cuocere e servite»): non sono passi, e salvarla come tale
+ * riempirebbe «Cucina con Keiko» di passi finti. Meglio ricadere sul modello.
+ */
+
+/** Una durata ISO 8601 come la scrive schema.org (`PT1H20M`) → «1 h 20 min».
+ *  È una conversione di formato di un valore scritto, non un'invenzione: se non
+ *  è una durata riconoscibile torna null e il campo resta vuoto. */
+export function durataLeggibile(v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  const m = s.match(/^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?/i);
+  if (!m || (!m[1] && !m[2] && !m[3])) return null;
+  const giorni = Number(m[1] ?? 0), ore = Number(m[2] ?? 0), minuti = Number(m[3] ?? 0);
+  const tot = giorni * 1440 + ore * 60 + minuti;
+  if (tot <= 0) return null;
+  if (tot < 60) return `${tot} min`;
+  const h = Math.floor(tot / 60), r = tot % 60;
+  return r === 0 ? `${h} h` : `${h} h ${r} min`;
+}
+
+/** Una riga di `recipeIngredient` («320 g di pasta») nei due campi che il foglio
+ *  mostra. Si stacca SOLO una quantità in testa: quello che resta è il nome, per
+ *  intero. Niente si perde e niente si deduce — se non c'è un numero davanti,
+ *  la riga è tutta nome e la quantità resta vuota. */
+export function separaQuantita(riga: string): { nome: string; quantita?: string } {
+  const t = riga.replace(/\s+/g, " ").trim();
+  // numero (anche 1/2, 1,5, ½) + eventuale unità + eventuale "di"
+  const m = t.match(
+    new RegExp(`^((?:\\d+[.,]?\\d*|\\d*\\s*[½¼¾⅓⅔])(?:\\s*[-–/]\\s*\\d+[.,]?\\d*)?\\s*(?:${UNITA})?)\\s+(?:di\\s+|d'\\s*)?(.+)$`, "i")
+  );
+  if (!m) return { nome: t.slice(0, 120) };
+  const quantita = m[1].replace(/\s+/g, " ").trim();
+  const nome = m[2].trim();
+  // «2 uova» → nome «uova», quantità «2». Ma «500 g» da solo non è un nome:
+  // in quel caso si tiene la riga intera, che almeno si legge.
+  if (nome.length < 2) return { nome: t.slice(0, 120) };
+  return { nome: nome.slice(0, 120), quantita: quantita.slice(0, 60) };
+}
+
+/** I passi dentro `recipeInstructions`, in tutte le forme che schema.org
+ *  ammette: stringa, elenco di stringhe, `HowToStep`, `HowToSection` con dentro
+ *  gli step. Una stringa unica si spezza sui punti fermi e vale solo se ne
+ *  escono almeno due frasi vere — sennò è prosa, non procedimento. */
+export function passiDalMarcatore(v: unknown): string[] {
+  const senzaTag = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const dentro = (x: unknown): string[] => {
+    if (!x) return [];
+    if (typeof x === "string") {
+      const s = senzaTag(x);
+      if (!s) return [];
+      const frasi = s.split(/(?<=[.!?])\s+/).map((p) => p.trim()).filter((p) => p.length > 25);
+      return frasi.length >= 2 ? frasi : [s];
+    }
+    if (Array.isArray(x)) return x.flatMap(dentro);
+    const o = x as Record<string, unknown>;
+    if (o["@type"] === "HowToSection") return dentro(o.itemListElement ?? o.steps);
+    if (typeof o.text === "string") return dentro(o.text);
+    if (typeof o.name === "string") return dentro(o.name);
+    return [];
+  };
+  return dentro(v).map((p) => p.slice(0, 400)).filter(Boolean).slice(0, 30);
+}
+
+/** Gli oggetti JSON-LD di una pagina, srotolando `@graph`. */
+function oggettiJsonLd(html: string): Record<string, unknown>[] {
+  const fuori: Record<string, unknown>[] = [];
+  const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    try {
+      const d = JSON.parse(m[1].trim().replace(/^﻿/, ""));
+      for (const x of Array.isArray(d) ? d : [d]) {
+        const o = x as Record<string, unknown>;
+        if (Array.isArray(o?.["@graph"])) fuori.push(...(o["@graph"] as Record<string, unknown>[]));
+        else if (o) fuori.push(o);
+      }
+    } catch {
+      /* JSON-LD scritto storto: capita, e vale come «non c'è». */
+    }
+  }
+  return fuori;
+}
+
+/** La foto che l'autore ha messo NEL marcatore. È la stessa cosa che fa
+ *  l'oEmbed per i video: l'immagine che la pagina pubblica per essere mostrata
+ *  altrove. Nessuno scraping — è un campo dichiarato. */
+function immagineDa(r: Record<string, unknown>): string | null {
+  const primo = (v: unknown): string | null => {
+    if (!v) return null;
+    if (typeof v === "string") return v.startsWith("http") ? v : null;
+    if (Array.isArray(v)) { for (const x of v) { const u = primo(x); if (u) return u; } return null; }
+    const o = v as Record<string, unknown>;
+    return primo(o.url ?? o.contentUrl ?? null);
+  };
+  return primo(r.image)?.slice(0, 500) ?? null;
+}
+
+/** La pagina letta dal suo marcatore: la ricetta strutturata e la foto.
+ *
+ *  `estratta` ha la STESSA forma dell'estrazione col modello, così a valle
+ *  niente si accorge da dove viene: il foglio, la spesa e «Cucina con Keiko»
+ *  funzionano identici. Quello che cambia è che questa non è costata niente.
+ *
+ *  `estratta` è null anche quando il marcatore c'è ma è povero: sotto i tre
+ *  ingredienti o i due passi si ricade sul modello, che almeno legge la
+ *  didascalia. La foto invece si tiene lo stesso: serve alla card. */
+export function leggiPaginaRicetta(html: string): { estratta: RicettaEstratta | null; immagine: string | null } {
+  const eRicetta = (o: Record<string, unknown>) => {
+    const t = o?.["@type"];
+    return Array.isArray(t) ? t.includes("Recipe") : t === "Recipe";
+  };
+  const r = oggettiJsonLd(html).find(eRicetta);
+  if (!r) return { estratta: null, immagine: null };
+  const immagine = immagineDa(r);
+
+  const ingredienti = (Array.isArray(r.recipeIngredient) ? r.recipeIngredient : [])
+    .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+    .map((x) => separaQuantita(x.replace(/<[^>]+>/g, " ")))
+    .filter((i) => i.nome.length > 0)
+    .slice(0, 40);
+  const passi = passiDalMarcatore(r.recipeInstructions);
+
+  // La soglia è quella dell'estrazione: sotto, non è una ricetta.
+  if (ingredienti.length < 3 || passi.length < 2) return { estratta: null, immagine };
+
+  const porzioni = (() => {
+    const v = Array.isArray(r.recipeYield) ? r.recipeYield[0] : r.recipeYield;
+    const s = String(v ?? "").trim().slice(0, 40);
+    if (!s) return null;
+    // `recipeYield: "4"` vuol dire quattro porzioni: è il significato del campo,
+    // non una parola aggiunta da noi. Al singolare si scrive «1 porzione».
+    if (!/^\d+$/.test(s)) return s;
+    return s === "1" ? "1 porzione" : `${s} porzioni`;
+  })();
+
+  return {
+    estratta: {
+      ingredienti,
+      passi,
+      tempo: durataLeggibile(r.totalTime) ?? durataLeggibile(r.cookTime) ?? null,
+      porzioni,
+    },
+    immagine,
+  };
+}
+
+/** La sola ricetta, per chi non ha bisogno della foto. */
+export function leggiMarcatoreRicetta(html: string): RicettaEstratta | null {
+  return leggiPaginaRicetta(html).estratta;
 }
 
 /* ══════════════ ② L'INTERPRETE DELLA DOMANDA ══════════════ */

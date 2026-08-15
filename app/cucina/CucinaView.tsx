@@ -52,6 +52,9 @@ type Risultato = {
   dominio: string;
   /** L'estratto che Tavily ha già dato: non si mostra, serve all'estrazione. */
   contenuto?: string | null;
+  /** Il marcatore della pagina dice che ingredienti e passi sono già lì.
+   *  Verificato dalla rotta leggendo la pagina, non promesso. */
+  completa?: boolean;
 };
 
 /** Quel che serve al foglio ricetta, da una card dei risultati o da una del
@@ -65,6 +68,11 @@ type Aperta = {
   piattaforma: string;
   contenuto: string | null;
   estratta: RicettaEstratta | null;
+  /** Il sito, per le pagine: senza, il foglio scriveva «web» al posto del nome
+   *  di chi ha pubblicato la ricetta. Sui video non serve: c'è l'autore. */
+  dominio?: string | null;
+  /** La ricetta arriva dal marcatore della pagina (nessun modello chiamato). */
+  daMarcatore?: boolean;
 };
 
 type Interpretazione = { originale: string; cercato: string; viaAi: boolean };
@@ -128,7 +136,7 @@ function Miniatura({ src, emoji = "🍳", dimensione, subito = false }: { src: s
 }
 
 /** Il nome che si legge sotto il video: l'autore se c'è, sennò il posto. */
-function nomeFonte(r: { autore?: string | null; piattaforma?: string; platform?: string; dominio?: string; author?: string | null }) {
+function nomeFonte(r: { autore?: string | null; piattaforma?: string; platform?: string; dominio?: string | null; author?: string | null }) {
   const p = r.piattaforma ?? r.platform ?? "web";
   const chi = r.autore ?? r.author ?? null;
   const dove = p === "tiktok" ? "TikTok" : p === "youtube" ? "YouTube" : r.dominio || "web";
@@ -261,6 +269,37 @@ export default function CucinaView({
   /* La sequenza «Cucina con Keiko» (8.3). Il foglio ricetta resta montato
      sotto: uscendo dai passi si torna alla ricetta, non alla Cucina. */
   const [cucinoCon, setCucinoCon] = useState<Aperta | null>(null);
+  /* ── I PASSI SCRITTI A MANO ──
+     Per i video il procedimento non c'è: si dice a voce e resta lì. Invece di
+     un buco, la ricetta dice cosa fare — e questo è il campo dove si fa.
+     Una riga = un passo, come li detteresti a qualcuno. */
+  const [scrivoPassi, setScrivoPassi] = useState(false);
+  const [testoPassi, setTestoPassi] = useState("");
+  const [salvoPassi, setSalvoPassi] = useState(false);
+
+  async function salvaPassi() {
+    if (!aperta?.id) return;
+    const passi = testoPassi.split("\n").map((r) => r.trim()).filter(Boolean);
+    if (passi.length === 0) return;
+    setSalvoPassi(true);
+    try {
+      const res = await fetch("/api/cucina/passi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: aperta.id, passi }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d?.estratta) throw new Error();
+      const estratta = d.estratta as RicettaEstratta;
+      setAperta((a) => (a && a.id === aperta.id ? { ...a, estratta } : a));
+      setLista((l) => l.map((x) => (x.id === aperta.id ? { ...x, extracted: estratta } : x)));
+      setScrivoPassi(false); setTestoPassi("");
+      toast(passi.length === 1 ? "Un passo, salvato" : `${passi.length} passi, salvati`);
+    } catch {
+      toast("Non salvati, riprova");
+    } finally { setSalvoPassi(false); }
+  }
   const [estraggo, setEstraggo] = useState(false);
   /** Gli ingredienti che l'utente dice di avere già: NON vanno in lista. */
   const [inDispensa, setInDispensa] = useState<Set<number>>(new Set());
@@ -355,7 +394,7 @@ export default function CucinaView({
       const d = await res.json();
       if (res.status === 429) { toast(d?.error || "Per oggi mi fermo qui 🌙"); setEstraggo(false); return; }
       const estratta = (d?.estratta ?? { insufficiente: true }) as RicettaEstratta;
-      setAperta((a) => (a && a.url === r.url ? { ...a, estratta } : a));
+      setAperta((a) => (a && a.url === r.url ? { ...a, estratta, daMarcatore: !!d?.daMarcatore } : a));
       // Anche nel ricettario, così riaprirla da lì non ripassa dal modello.
       if (r.id && !estratta.insufficiente) {
         setLista((l) => l.map((x) => (x.id === r.id ? { ...x, extracted: estratta } : x)));
@@ -571,7 +610,8 @@ export default function CucinaView({
    *  diversi (il carosello, la pagina intera, «da rifare», `?ricetta=`), e
    *  quattro copie della stessa riga si sfasano alla prima modifica. */
   function apriRicetta(r: Recipe) {
-    apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, contenuto: null, estratta: r.extracted });
+    const dominio = (() => { try { return new URL(r.url).hostname.replace(/^www\./, ""); } catch { return null; } })();
+    apri({ id: r.id, titolo: r.title, url: r.url, miniatura: r.thumbnail, autore: r.author, piattaforma: r.platform, dominio, contenuto: null, estratta: r.extracted });
   }
 
   /* Il carosello: le prime dodici, filtrate da quello che stai scrivendo nel
@@ -708,12 +748,25 @@ export default function CucinaView({
 
               {!cerco && risultati?.map((r) => {
                 const salvato = salvate.has(r.url);
+                const video = r.piattaforma === "tiktok" || r.piattaforma === "youtube";
                 return (
                   <div key={r.url} style={{ marginTop: 12 }}>
                     <Feature
-                      k={<>{I.play({ s: 12 })}{nomeFonte(r)}</>}
+                      /* L'icona dice che cosa stai per aprire: un video si
+                         guarda, una pagina si legge. */
+                      k={<>{video ? I.play({ s: 12 }) : I.doc({ s: 12 })}{nomeFonte(r)}</>}
                       t={r.titolo}
-                      onClick={() => apri({ id: lista.find((x) => x.url === r.url)?.id ?? null, titolo: r.titolo, url: r.url, miniatura: r.miniatura, autore: r.autore, piattaforma: r.piattaforma, contenuto: r.contenuto ?? null, estratta: lista.find((x) => x.url === r.url)?.extracted ?? null })}
+                      /* ⚠️ SI DICE PRIMA DI APRIRE (docs/PROMPT-CODE-14 §1).
+                         Prima si scopriva dopo: aprivi, aspettavi l'estrazione,
+                         e trovavi gli ingredienti senza il procedimento. Adesso
+                         la riga lo dice sulla card, ed è verificata — «ricetta
+                         completa» compare solo dove il marcatore è stato letto
+                         davvero. Sui video la frase non è un difetto da
+                         nascondere: è com'è fatto un video. */
+                      m={r.completa
+                        ? <span style={{ color: "var(--teal-soft)" }}>{I.tick({ s: 11 })} ricetta completa — ingredienti e passi</span>
+                        : video ? "i passi sono nel video" : undefined}
+                      onClick={() => apri({ id: lista.find((x) => x.url === r.url)?.id ?? null, titolo: r.titolo, url: r.url, miniatura: r.miniatura, autore: r.autore, piattaforma: r.piattaforma, dominio: r.dominio, contenuto: r.contenuto ?? null, estratta: lista.find((x) => x.url === r.url)?.extracted ?? null })}
                       img={r.miniatura}
                     >
                       <div className="pactions">
@@ -1077,7 +1130,10 @@ export default function CucinaView({
                 <Miniatura src={aperta.miniatura} dimensione={64} subito />
               </div>
               <div className="in">
-                <div className="k">{I.play({ s: 12 })}{nomeFonte(aperta)}</div>
+                <div className="k">
+                  {aperta.piattaforma === "tiktok" || aperta.piattaforma === "youtube" ? I.play({ s: 12 }) : I.doc({ s: 12 })}
+                  {nomeFonte(aperta)}
+                </div>
                 <h2>{aperta.titolo}</h2>
               </div>
             </div>
@@ -1108,10 +1164,17 @@ export default function CucinaView({
                 </button>
               )}
 
+              {/* Un video si guarda, una pagina si apre: dal 15 agosto qui
+                  dentro arrivano anche i blog, e «Guarda il video originale»
+                  sopra una pagina di GialloZafferano era una bugia piccola.
+                  In tutt'e due i casi si esce di qui e si va da chi l'ha
+                  scritta: la visita è sua. */}
               <a className="btn2 wide tap" href={aperta.url} target="_blank" rel="noreferrer"
                  style={{ marginTop: 14, textDecoration: "none", display: "flex" }}>
                 <LogoPiattaforma p={aperta.piattaforma} size={13} />
-                Guarda il video originale
+                {aperta.piattaforma === "tiktok" || aperta.piattaforma === "youtube"
+                  ? "Guarda il video originale"
+                  : "Apri la ricetta originale"}
                 {I.up({ s: 13 })}
               </a>
 
@@ -1218,6 +1281,70 @@ export default function CucinaView({
                 </>
               )}
 
+              {/* ── QUANDO I PASSI NON CI SONO ──
+                  È il caso NORMALE dei video, non un'eccezione: misurato il 15
+                  agosto, 0 ricette su 4 avevano il procedimento. Chi gira un
+                  video lo dice a voce e sotto scrive la lista della spesa.
+                  Qui non si lascia un buco e non si constata il buco: si dice
+                  cosa fare. E quello che scrivi RESTA — da lì «Cucina con
+                  Keiko» funziona come per le ricette complete.
+                  🚫 Nessun tasto «ricavali dall'audio»: vedi il resoconto del
+                  15 agosto — YouTube dichiara la pista dei sottotitoli ma non
+                  la serve a nessuno che non sia il suo player, e i video di
+                  TikTok non si scaricano (è la stessa regola per cui non li
+                  incorporiamo). Un tasto che non sa cosa fare non si mette. */}
+              {!estraggo && aperta.estratta && !aperta.estratta.insufficiente
+                && (aperta.estratta.passi?.length ?? 0) === 0 && (
+                <>
+                  <Sec sm="questo video non li ha scritti">Come si fa</Sec>
+                  <div className="hint warm">
+                    {I.info({ s: 14 })}
+                    <p>
+                      <b>I passi sono nel video.</b> Chi l&apos;ha girato li dice a voce, e sotto ha
+                      scritto solo gli ingredienti. Scrivili tu mentre guardi — restano qui, e da
+                      qui si cucina un passo per volta.
+                    </p>
+                  </div>
+
+                  {!aperta.id ? (
+                    /* Senza un posto dove metterli, scriverli sarebbe buttarli:
+                       prima si salva la ricetta, poi si scrive. */
+                    <p className="rx">Salvala nel ricettario, così i passi che scrivi restano.</p>
+                  ) : scrivoPassi ? (
+                    <>
+                      <textarea
+                        autoFocus
+                        value={testoPassi}
+                        onChange={(e) => setTestoPassi(e.target.value)}
+                        placeholder={"Un passo per riga.\nMetti l'acqua a bollire.\nTaglia le zucchine a rondelle."}
+                        aria-label="I passi, uno per riga"
+                        rows={6}
+                        style={{
+                          width: "100%", marginTop: 12, padding: 12, borderRadius: "var(--r-card)",
+                          background: "var(--lv1)", border: "1px solid var(--line)", color: "var(--txt)",
+                          fontSize: 16, fontFamily: "inherit", lineHeight: 1.5, resize: "vertical", outline: 0,
+                        }}
+                      />
+                      <div className="pactions" style={{ marginTop: 10 }}>
+                        <button className="cta tap" onClick={salvaPassi} disabled={salvoPassi || !testoPassi.trim()}
+                          style={{ opacity: salvoPassi || !testoPassi.trim() ? 0.5 : 1 }}>
+                          {salvoPassi ? "Salvo…" : "Salva i passi"}
+                        </button>
+                        <button className="tert tap" onClick={() => { setScrivoPassi(false); setTestoPassi(""); }}>
+                          Annulla
+                        </button>
+                      </div>
+                      <span className="rx">Una riga, un passo. Li puoi correggere quando vuoi.</span>
+                    </>
+                  ) : (
+                    <button className="cta wide tap" style={{ marginTop: 12 }}
+                      onClick={() => { setScrivoPassi(true); setTestoPassi(""); }}>
+                      {I.pen({ s: 14 })}Scrivili tu
+                    </button>
+                  )}
+                </>
+              )}
+
               {/* caption povera: si dice, e non si inventa niente */}
               {!estraggo && aperta.estratta?.insufficiente && (
                 <>
@@ -1247,8 +1374,14 @@ export default function CucinaView({
                 </button>
               )}
 
+              {/* Da dove viene questa ricetta, detto per esteso. Le due strade
+                  non sono la stessa cosa e non si scrivono uguale: dal
+                  marcatore sono le parole dell'autore copiate, dalla
+                  didascalia sono le stesse parole rimesse in ordine. */}
               <p className="rx" style={{ textAlign: "center", marginTop: 18 }}>
-                Ricetta estratta dalla descrizione del creator, non modificata.
+                {aperta.daMarcatore
+                  ? "Ricetta presa da come l'ha pubblicata chi l'ha scritta, non modificata."
+                  : "Ricetta estratta dalla descrizione del creator, non modificata."}
                 <br />
                 Keiko non dà consigli nutrizionali.
               </p>

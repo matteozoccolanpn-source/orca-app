@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { currentUserId } from '@/lib/user'
 import { spendAi, claudeFetch, AiCapReached } from '@/lib/ai'
 import { bastaCosi, ripulisciTraduzione, type Interpretazione } from '@/lib/cucina'
+import { marcatoreDi, eVideo, eSocial } from '../marcatore'
 
 /* CUCINA — la ricerca (docs/SPEC-CUCINA.md, §2).
  *
@@ -41,6 +42,21 @@ const CHIP: Record<string, string> = {
 // operatori dentro la query: stesso posto, due grammatiche.
 const SITI = ['tiktok.com', 'youtube.com']
 
+/* I DUE GIRI (15 agosto 2026, docs/PROMPT-CODE-14).
+ *
+ * Fino a ieri si cercava SOLO su TikTok e YouTube, e il risultato era che
+ * nessuna ricetta salvata aveva i passi: misurato, 0 su 4. Il procedimento, nei
+ * video, si dice a voce — e a voce resta, a qualunque prezzo.
+ * Adesso i giri sono due: i video restano, perché è da lì che nasce la voglia
+ * di cucinare una cosa, e accanto si cerca il web aperto, dove i blog di cucina
+ * pubblicano la ricetta già scritta e già strutturata.
+ *
+ * ⚠️ Sono due ricerche, cioè DUE crediti Tavily invece di uno (il piano è di
+ * 1.000 al mese, e la cache di 7 giorni vale per tutt'e due). Un credito in più
+ * per avere il procedimento è il migliore affare di tutto questo blocco.
+ */
+type Dove = 'video' | 'web'
+
 type Risultato = {
   titolo: string
   url: string
@@ -53,6 +69,8 @@ type Risultato = {
    * per avere qualcosa da leggere. Gratis — è già dentro la risposta che
    * abbiamo pagato, e non chiederlo vorrebbe dire fare una seconda chiamata. */
   contenuto: string | null
+  /** Il marcatore dice che ingredienti e passi sono già scritti nella pagina. */
+  completa: boolean
 }
 
 /** Quel poco che serve a valle: un titolo e un link. Ogni fornitore risponde
@@ -102,7 +120,7 @@ async function anteprima(url: string, piattaforma: Risultato['piattaforma']) {
  * Se il fornitore sbaglia si LANCIA, non si torna una lista vuota: così il
  * fallimento non finisce in cache per una settimana. Chi chiama lo prende. */
 const cercaGrezzi = unstable_cache(
-  async (fornitore: 'tavily' | 'brave', query: string): Promise<Grezzo[]> => {
+  async (fornitore: 'tavily' | 'brave', query: string, dove: Dove = 'video'): Promise<Grezzo[]> => {
     if (fornitore === 'tavily') {
       // POST https://api.tavily.com/search — Authorization: Bearer.
       // max_results 16 e non 6: UNA ricerca costa 1 credito che ne torni sei o
@@ -116,7 +134,10 @@ const cercaGrezzi = unstable_cache(
           Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query, max_results: 16, include_domains: SITI }),
+        // `include_domains` SOLO per il giro dei video. Il giro del web va
+        // lasciato libero: appena si sceglie una lista di blog "buoni" si
+        // congela la rete a quello che conoscevo io il giorno che l'ho scritta.
+        body: JSON.stringify({ query, max_results: 16, ...(dove === 'video' ? { include_domains: SITI } : {}) }),
         signal: AbortSignal.timeout(8000),
         cache: 'no-store',   // la cache è quella qui fuori, non due strati
       })
@@ -260,11 +281,44 @@ export async function GET(req: NextRequest) {
     fornitore === 'brave'
       ? `${domanda} (${SITI.map((s) => `site:${s}`).join(' OR ')})`
       : domanda
+  // Il giro del web è la stessa domanda senza il vincolo dei due siti.
+  const queryWeb = domanda
 
   try {
-    const crudi = await cercaGrezzi(fornitore, query)
-    const buoni = crudi.filter((r) => typeof r.url === 'string' && r.url.startsWith('http'))
-    const grezzi = buoni.slice(da, da + PAGINA)
+    // I due giri partono insieme: aspettarli in fila raddoppierebbe l'attesa.
+    const [crudiVideo, crudiWeb] = await Promise.all([
+      cercaGrezzi(fornitore, query, 'video'),
+      cercaGrezzi(fornitore, queryWeb, 'web'),
+    ])
+
+    const visti = new Set<string>()
+    const buoni = [...crudiVideo, ...crudiWeb].filter((r) => {
+      if (typeof r.url !== 'string' || !r.url.startsWith('http')) return false
+      if (visti.has(r.url)) return false      // lo stesso link può tornare da tutt'e due
+      visti.add(r.url)
+      return true
+    })
+
+    /* CHI HA I PASSI STA SOPRA. Si guardano i marcatori delle prime pagine —
+     * non di tutte: sono già in ordine di pertinenza, e andare a prendere
+     * trenta pagine per ordinarne sei sarebbe tempo dell'utente speso per
+     * niente. Le letture vanno in parallelo e si fermano a 3 secondi l'una;
+     * misurato sull'app vera, undici pagine insieme in 1,9 secondi.
+     * `marcatoreDi` ricorda per 7 giorni, quindi «Mostrane altre» e le ricerche
+     * ripetute non ripagano niente. */
+    const DA_GUARDARE = 12
+    const pagine = buoni.filter((r) => !eVideo(r.url as string) && !eSocial(r.url as string)).slice(0, DA_GUARDARE)
+    const letti = new Map(
+      await Promise.all(pagine.map(async (r) => [r.url as string, await marcatoreDi(r.url as string)] as const))
+    )
+
+    const completa = (u: string) => !!letti.get(u)?.estratta
+    const ordinati = [
+      ...buoni.filter((r) => completa(r.url as string)),                                  // ricetta scritta: sopra
+      ...buoni.filter((r) => !completa(r.url as string) && eVideo(r.url as string)),       // poi i video
+      ...buoni.filter((r) => !completa(r.url as string) && !eVideo(r.url as string)),      // poi il resto
+    ]
+    const grezzi = ordinati.slice(da, da + PAGINA)
 
     // Le anteprime in parallelo: sei chiamate pubbliche, nessuna chiave.
     const risultati: Risultato[] = await Promise.all(
@@ -272,14 +326,22 @@ export async function GET(req: NextRequest) {
         const url = r.url as string
         const piattaforma = piattaformaDi(url)
         const ante = await anteprima(url, piattaforma)
+        const marc = letti.get(url)
         return {
           titolo: (ante?.titolo || r.title || url).slice(0, 200),
           url,
-          miniatura: ante?.miniatura ?? null,
+          /* Per le pagine la foto è quella dichiarata NEL marcatore: è la stessa
+             cosa che l'oEmbed fa per i video — l'immagine che la pagina pubblica
+             apposta per essere mostrata altrove. */
+          miniatura: ante?.miniatura ?? marc?.immagine ?? null,
           autore: ante?.autore ?? null,
           piattaforma,
           dominio: (() => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return '' } })(),
           contenuto: typeof r.content === 'string' ? r.content.slice(0, 1200) : null,
+          /* La card lo dice PRIMA che tu apra: «ricetta completa» quando i passi
+             sono già lì da leggere. Non è una promessa, è una cosa verificata —
+             questo campo è vero solo se il marcatore l'abbiamo letto davvero. */
+          completa: completa(url),
         }
       })
     )
@@ -290,8 +352,9 @@ export async function GET(req: NextRequest) {
       da,
       /* Ce ne sono altre già pagate da mostrare? Se no, la pagina passa da
        * «Mostrane altre» a «Cerca ancora», che è un credito vero. */
-      altrePronte: buoni.length > da + PAGINA,
-      totale: buoni.length,
+      altrePronte: ordinati.length > da + PAGINA,
+      totale: ordinati.length,
+      complete: buoni.filter((r) => completa(r.url as string)).length,
     })
   } catch (e) {
     console.error('[cucina] ricerca fallita:', e)
