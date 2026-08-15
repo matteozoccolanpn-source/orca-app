@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth, OWNER_EMAIL } from "@/auth"
+import { emailDiSviluppo } from "@/lib/dev-login"
 
 // Nessun "buttafuori" generale: come prima, il middleware NON rimanda a /login.
 // Le rotte che scrivono dati restano protette dai loro controlli interni.
@@ -11,9 +12,18 @@ import { auth, OWNER_EMAIL } from "@/auth"
 // "non esiste". Dal middleware il 404 è vero, come per /api/debug/* (K67).
 // La pagina tiene comunque il suo controllo: se un giorno cambiasse il matcher,
 // i numeri non uscirebbero lo stesso.
+// ⚠️ IL RIPIEGO DI SVILUPPO NON ARRIVA QUI DA SOLO, e va detto perché.
+// `auth.ts` mette la sessione finta solo quando `auth()` è chiamata SENZA
+// argomenti; qui invece è `auth((req) => …)`, la forma che avvolge il
+// middleware, e quella passa a NextAuth intatta — `req.auth` resta vuoto.
+// Risultato: con KEIKO_DEV_LOGIN acceso si vedeva tutta l'app tranne /numeri,
+// che rispondeva 404 anche col MIO indirizzo. Le due serrature sono le stesse
+// del login di sviluppo e stanno tutte dentro `emailDiSviluppo()`: variabile
+// locale E `NODE_ENV` diverso da production. Spenta la variabile, questa riga
+// vale `""` e il controllo è identico a prima, carattere per carattere.
 export default auth((req) => {
   if (req.nextUrl.pathname.startsWith("/numeri")) {
-    const email = (req.auth?.user?.email ?? "").trim().toLowerCase()
+    const email = (req.auth?.user?.email ?? emailDiSviluppo() ?? "").trim().toLowerCase()
     if (email !== OWNER_EMAIL) return new NextResponse(null, { status: 404 })
   }
 })
