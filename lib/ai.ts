@@ -409,6 +409,29 @@ export const PREZZI_AGGIORNATI_AL = "6 agosto 2026";
 const CACHE_LETTURA = 0.1;
 const CACHE_SCRITTURA = 1.25;
 
+/** Il listino di un modello, dal nome scritto nel registro.
+ *
+ *  ⚠️ Il confronto è per PREFISSO, e non è pignoleria. Nel registro i nomi
+ *  arrivano come li scrive chi chiama: l'estrazione manda `claude-sonnet-4-5`,
+ *  che qui c'è, ma l'interprete manda `claude-haiku-4-5-20251001` — la versione
+ *  datata — che con la ricerca per chiave esatta NON combaciava. Scattava il
+ *  ripiego «trattalo come Sonnet», e una chiamata a Haiku veniva contata TRE
+ *  VOLTE il suo prezzo: 0,082 centesimi invece di 0,027.
+ *  Trovato il 15 agosto 2026 misurando la Cucina. Un contatore che sbaglia è
+ *  peggio di nessun contatore, perché sopra ci si prendono decisioni — e quella
+ *  che stava per prendersi era «l'interprete costa troppo».
+ *  Chi non combacia nemmeno per prefisso resta Sonnet: un modello sconosciuto
+ *  si conta caro, non a sconto. */
+export function prezzoDelModello(modello: string | null | undefined): { in: number; out: number } {
+  const m = (modello ?? "").trim();
+  if (m) {
+    const esatto = PREZZI_PER_MTOK[m];
+    if (esatto) return esatto;
+    for (const [nome, p] of Object.entries(PREZZI_PER_MTOK)) if (m.startsWith(nome)) return p;
+  }
+  return PREZZI_PER_MTOK["claude-sonnet-4-5"];
+}
+
 /** Quanto è costata una riga del registro, in dollari.
  *
  *  `token_in` è il totale in entrata, ma dentro ci stanno tre cose che NON
@@ -423,7 +446,7 @@ function stimaDollari(r: {
   cacheLetti: number;
   cacheScritti: number;
 }): number {
-  const p = PREZZI_PER_MTOK[r.modello ?? ""] ?? PREZZI_PER_MTOK["claude-sonnet-4-5"];
+  const p = prezzoDelModello(r.modello);
   // Quel che resta è "nuovo". Il max(0) protegge dalle righe scritte prima che
   // esistessero le due colonne, dove i pezzi non tornano.
   const nuovi = Math.max(0, r.tokenIn - r.cacheLetti - r.cacheScritti);
