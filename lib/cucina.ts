@@ -291,6 +291,147 @@ export function amazonFresh(nome: string): string {
   return `https://www.amazon.it/s?k=${encodeURIComponent(nome)}&i=amazonfresh`;
 }
 
+/* ══════════════ ⑨ IL TITOLO CORTO — si tronca dove si disegna ══════════════
+ *
+ * LA STORIA, perché non si ripeta. La ricerca faceva `.slice(0, 200)` sul
+ * titolo, e per un video il titolo È LA DIDASCALIA INTERA. Quel testo tagliato
+ * era anche l'unico che arrivava al modello per estrarre la ricetta: i passi
+ * stavano dopo il duecentesimo carattere — «👉Procedimento: taglia il pollo a
+ * bocconcini…» comincia al 400° — e non li abbiamo mai visti. Misurato il 16
+ * agosto 2026: rimandando la didascalia intera, 5 video su 8 hanno i passi.
+ * Tutti i titoli salvati fino a ieri sono lunghi 194-199 caratteri: tranciati
+ * sullo stesso millimetro.
+ *
+ * LA REGOLA che ne esce, e vale oltre la Cucina: **si tronca dove si disegna,
+ * mai dove si scrive.** Un taglio a monte è una decisione di impaginazione
+ * scritta dentro il dato, e da lì non si torna indietro — il dato tagliato non
+ * si ricostruisce.
+ *
+ * Qui il taglio serve davvero (una didascalia di 717 caratteri come titolo di
+ * una card è illeggibile), ma fa una cosa sola: dà un nome corto alla card. La
+ * didascalia intera resta dov'è, alla fonte, e chi estrae se la va a prendere.
+ */
+
+/** Dove finisce il nome del piatto e comincia il resto della didascalia. */
+const FINE_TITOLO = [
+  "\n",
+  "🛒",
+  "Ingredienti:", "INGREDIENTI:", "ingredienti:",
+  "Procedimento", "PROCEDIMENTO",
+  // I pallini che i creator usano per aprire l'elenco. `●` e `•` senza spazi
+  // intorno perché si scrivono attaccati alla parola («●per uno stampo da
+  // 24cm»), e con gli spazi non li prendeva.
+  "●", "•", " · ", " | ",
+];
+
+/** Il nome corto da scrivere sulla card, da una didascalia qualsiasi.
+ *
+ *  Non «indovina» il piatto: taglia dove la didascalia stessa cambia discorso
+ *  (a capo, «🛒Ingredienti:», un elenco puntato) e poi si ferma a 90 caratteri
+ *  su una parola intera. Quello che resta è quasi sempre il nome del piatto,
+ *  perché è così che i creator scrivono la prima riga. */
+export function titoloCorto(testo: string, massimo = 90): string {
+  let t = (testo ?? "").replace(/\r/g, "").trim();
+  if (!t) return "";
+  let taglio = t.length;
+  for (const spia of FINE_TITOLO) {
+    const i = t.indexOf(spia);
+    // Non si taglia a due caratteri dall'inizio: una didascalia che comincia
+    // con «🛒» non deve produrre un titolo vuoto.
+    if (i > 12 && i < taglio) taglio = i;
+  }
+  t = t.slice(0, taglio).trim();
+  // Via gli hashtag in coda: sono etichette, non nome del piatto.
+  t = t.replace(/(?:\s+#[\p{L}\p{N}_]+)+\s*$/gu, "").trim();
+  if (t.length <= massimo) return t || testo.trim().slice(0, massimo);
+  const corto = t.slice(0, massimo);
+  const spazio = corto.lastIndexOf(" ");
+  return (spazio > massimo * 0.6 ? corto.slice(0, spazio) : corto).trim() + "…";
+}
+
+/* ══════════════ ⑩ C'È UN PROCEDIMENTO QUI DENTRO? ══════════════
+ *
+ * Serve al filtro della ricerca: si mostrano solo i risultati da cui i passi si
+ * riescono a tirare fuori, e per un video quel giudizio va dato **sulla
+ * didascalia, gratis**. Chiederlo a un modello per ogni risultato costerebbe
+ * mezzo centesimo a card, cioè più della ricetta stessa.
+ *
+ * TARATA il 16 agosto 2026 sugli otto video veri del ricettario, contro la
+ * verità data dal modello: **azzecca 8 su 8**.
+ *
+ * ⚠️ IL SUO ERRORE È PER DIFETTO, ed è quello che conta sapere: cinque positivi
+ * su cinque li ha presi la sola parola «procedimento». Una didascalia che i
+ * passi ce li ha ma non la scrive — «metto tutto in padella, poi aggiungo la
+ * panna» — qui risulta senza. Per questo il filtro non finisce qui: quello che
+ * questa regola scarta passa dalla ripesca (una chiamata sola a Haiku), che può
+ * solo RIMETTERE DENTRO. Un falso negativo, senza quella, sarebbe invisibile:
+ * chi cerca non sa cosa non gli è stato mostrato.
+ */
+
+/** Le RADICI dei verbi con cui comincia un'istruzione di cucina.
+ *
+ *  Radici e non parole intere, perché una ricetta italiana scrive la stessa
+ *  istruzione in tre modi — «monta il burro», «montare il burro», «montate il
+ *  burro» — e una lista di sole forme all'imperativo ne perde due su tre. È
+ *  successo davvero: la crostata alla Nutella ha nove passi scritti
+ *  all'infinito, e la prima versione di questa regola non ne vedeva nemmeno
+ *  uno. */
+const RADICI_CUCINA = [
+  "tagli", "cuoc", "mett", "aggiung", "mescol", "frull", "inforn", "scald", "vers", "sbatt",
+  "impast", "unisc", "unir", "cond", "sciogl", "mont", "spennell", "lasc", "cosparg", "serv",
+  "scol", "mantec", "farc", "pieg", "frigg", "rosol", "soffrigg", "sbucc", "trit", "grattug",
+  "stend", "arrotol", "dispon", "copr", "ammoll", "strizz", "form", "spolver", "decor",
+  "ripon", "raffredd", "marin", "amalgam", "emulsion", "guarn", "sform", "riscald", "abbass",
+  "bagn", "spegn", "accend", "trasfer", "avvolg", "lavor", "sal",
+];
+const VERBO_IN_TESTA = new RegExp(
+  `^(?:${RADICI_CUCINA.join("|")})(?:a|are|ate|i|ire|ite|isci|ete|ere|iamo)\\b`,
+  "i"
+);
+
+/** Le frasi di un testo, ripulite di quello che le precede.
+ *  Si spezza anche sui DUE PUNTI: «👉Procedimento: taglia il pollo» è una riga
+ *  sola, e senza quel taglio l'istruzione non si vede — comincia con l'emoji e
+ *  con la parola «procedimento», non con «taglia». */
+function frasiDi(testo: string): string[] {
+  return testo
+    .split(/[.!?\n·•/:;]+/)
+    .map((s) => s.replace(/^[^\p{L}]+/gu, "").trim())
+    .filter(Boolean);
+}
+
+/** La didascalia contiene un procedimento?
+ *
+ *  TARATA il 16-18 agosto 2026 su NOVE casi veri — gli otto video del
+ *  ricettario più i due falsi positivi trovati premendo — e li azzecca tutti.
+ *  I due casi che hanno insegnato qualcosa, e sono il motivo della forma
+ *  contorta qui sotto:
+ *
+ *  · «★ INGREDIENTI, DOSI e PROCEDIMENTO: https://…» — la parola c'è, ma è
+ *    l'etichetta di un link. Passi zero;
+ *  · «La preparazione della parmigiana richiede tempo e pazienza…» — un
+ *    articolo in prosa che RACCONTA la preparazione in terza persona. Da
+ *    leggere è bello, da cucinare è inservibile.
+ *
+ *  Da qui la regola: **la parola da sola non basta mai.** Vale un elenco
+ *  numerato, valgono due frasi che cominciano con un verbo di cucina, e vale
+ *  la parola SE accompagnata da almeno un'istruzione vera. */
+export function haPassi(testo: string): { ok: boolean; perche: string } {
+  const t = (testo ?? "").toLowerCase();
+  if (!t.trim()) return { ok: false, perche: "didascalia vuota" };
+
+  const numerate = (t.match(/(?:^|\n|\s)([1-9])[.)°]\s+\S/g) ?? []).length;
+  if (numerate >= 2) return { ok: true, perche: `${numerate} righe numerate` };
+
+  const istruzioni = frasiDi(t).filter((f) => VERBO_IN_TESTA.test(f)).length;
+  if (istruzioni >= 2) return { ok: true, perche: `${istruzioni} istruzioni` };
+
+  const parola = /\b(procedimento|preparazione|istruzioni|passaggi)\s*:/.test(t) || /come si (fa|prepara)/.test(t);
+  if (parola && istruzioni >= 1) return { ok: true, perche: "lo dice e lo fa vedere" };
+
+  return { ok: false, perche: parola ? "la parola c'è ma nessuna istruzione" : "solo ingredienti, o niente" };
+}
+
 /* ══════════════ ⑧ IL MARCATORE STANDARD — la ricetta già scritta ══════════════
  *
  * Quasi tutti i blog di cucina pubblicano `schema.org/Recipe` in JSON-LD: dentro

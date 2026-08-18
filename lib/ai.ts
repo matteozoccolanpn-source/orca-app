@@ -34,7 +34,8 @@ export type AiOperazione =
   | "piano"
   | "viaggio"
   | "interprete"
-  | "estrazione";
+  | "estrazione"
+  | "ripesca";
 
 const PESI: Record<AiOperazione, number> = {
   cattura: 1,
@@ -47,6 +48,12 @@ const PESI: Record<AiOperazione, number> = {
   //     nella vita: il risultato si salva, quindi riaprirla non ripaga.
   interprete: 1,
   estrazione: 1,
+  //   ripesca → il filtro della ricerca ha buttato dei video guardando solo il
+  //     testo; questa chiamata li rilegge tutti insieme e dice quali rimettere
+  //     dentro. Haiku, una sola volta per ricerca, poche centinaia di token in
+  //     uscita. Peso 1 come le altre due: costa meno di un'estrazione, e come
+  //     quelle scatta al massimo una volta per gesto dell'utente.
+  ripesca: 1,
   // Stesso peso della cattura, nome diverso: costa uguale ma è un'altra cosa, e
   // mescolata agli screenshot nel registro non si capirebbe più chi spende cosa.
   catalogo: 1,

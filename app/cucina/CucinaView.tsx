@@ -245,6 +245,12 @@ export default function CucinaView({
    *  serve saperlo, o «Mostrane altre» chiederebbe la finestra giusta della
    *  query sbagliata e tornerebbe a mani vuote. */
   const [variante, setVariante] = useState(false);
+  /* ── LA RICERCA È CADUTA ──
+     Non è lo stato vuoto, ed è la differenza che questo giro serve a fare:
+     «non ho trovato ricette con i passi» parla del mondo, «non sono riuscito a
+     cercare» parla di noi. Prima erano la stessa schermata, e quella sbagliata
+     era la prima. */
+  const [guasto, setGuasto] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const msgT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -327,7 +333,7 @@ export default function CucinaView({
     // gira; «nuova» riparte pulita.
     const giraLaDomanda = modo === "ancora" || (modo === "altre" && variante);
 
-    if (modo === "nuova") { setCerco(true); setRisultati(null); setInterpretazione(null); setVariante(false); }
+    if (modo === "nuova") { setCerco(true); setRisultati(null); setInterpretazione(null); setVariante(false); setGuasto(false); }
     else setAncora(true);
 
     try {
@@ -343,6 +349,13 @@ export default function CucinaView({
       setInterpretazione((d?.interpretazione ?? null) as Interpretazione | null);
       setAltrePronte(!!d?.altrePronte);
 
+      /* Il guasto si guarda PRIMA di tutto: una lista vuota che arriva da una
+         ricerca caduta non è una lista vuota, è una cosa che non sappiamo. */
+      if (d?.guasto || !res.ok) {
+        setGuasto(true);
+        setRisultati([]);
+        return;
+      }
       if (d?.senzaChiave) {
         setRisultati([]);
         toast("La ricerca arriva presto");
@@ -365,8 +378,12 @@ export default function CucinaView({
         else setMostrati((n) => n + nuovi.length);
       }
     } catch {
+      /* Anche qui: se la richiesta non è nemmeno partita, il fatto è lo stesso —
+         non abbiamo cercato. 🚫 Niente «Qualcosa non torna, riprovo»: è la
+         frase che ha tenuto nascosta la lista della spesa rotta per mesi,
+         perché minimizza e quindi nessuno la segnala. */
+      setGuasto(true);
       if (modo === "nuova") setRisultati([]);
-      toast("Qualcosa non torna, riprova");
     } finally {
       setCerco(false);
       setAncora(false);
@@ -722,7 +739,11 @@ export default function CucinaView({
                 </button>
                 <div className="col">
                   <h1>Ricette</h1>
-                  <div className="status">{cerco ? "sto cercando" : `${risultati?.length ?? 0} trovate`}</div>
+                  {/* Anche la riga piccola: con un guasto, «0 trovate» sarebbe
+                      la stessa bugia della schermata, scritta piu' piccola. */}
+                  <div className="status">
+                    {cerco ? "sto cercando" : guasto ? "ricerca non riuscita" : `${risultati?.length ?? 0} trovate`}
+                  </div>
                 </div>
               </div>
 
@@ -756,16 +777,14 @@ export default function CucinaView({
                          guarda, una pagina si legge. */
                       k={<>{video ? I.play({ s: 12 }) : I.doc({ s: 12 })}{nomeFonte(r)}</>}
                       t={r.titolo}
-                      /* ⚠️ SI DICE PRIMA DI APRIRE (docs/PROMPT-CODE-14 §1).
-                         Prima si scopriva dopo: aprivi, aspettavi l'estrazione,
-                         e trovavi gli ingredienti senza il procedimento. Adesso
-                         la riga lo dice sulla card, ed è verificata — «ricetta
-                         completa» compare solo dove il marcatore è stato letto
-                         davvero. Sui video la frase non è un difetto da
-                         nascondere: è com'è fatto un video. */
-                      m={r.completa
-                        ? <span style={{ color: "var(--teal-soft)" }}>{I.tick({ s: 11 })} ricetta completa — ingredienti e passi</span>
-                        : video ? "i passi sono nel video" : undefined}
+                      /* ⚠️ NIENTE ETICHETTA, dal 17 agosto 2026, ed è il senso
+                         del filtro: qui dentro ci sono SOLO ricette da cui i
+                         passi si riescono a tirare fuori. Prima c'era scritto
+                         «ricetta completa» o «i passi sono nel video» — cioè si
+                         marcava anche quello che non si poteva cucinare, e chi
+                         cercava doveva leggere e scartare. Quel lavoro adesso
+                         lo fa la rotta. Che sia un video o una pagina si vede
+                         già dall'icona e dalla fonte, qui sopra. */
                       onClick={() => apri({ id: lista.find((x) => x.url === r.url)?.id ?? null, titolo: r.titolo, url: r.url, miniatura: r.miniatura, autore: r.autore, piattaforma: r.piattaforma, dominio: r.dominio, contenuto: r.contenuto ?? null, estratta: lista.find((x) => x.url === r.url)?.extracted ?? null })}
                       img={r.miniatura}
                     >
@@ -796,12 +815,36 @@ export default function CucinaView({
                 </button>
               )}
 
-              {!cerco && risultati?.length === 0 && (
+              {/* ── LA RICERCA CADUTA ──
+                  Dice di chi è la colpa, e offre l'unica cosa che serve:
+                  riprovare. Sta prima dello stato vuoto perché quando c'è un
+                  guasto lo stato vuoto sarebbe una bugia. */}
+              {!cerco && guasto && (
+                <div style={{ marginTop: 14 }}>
+                  <Empty
+                    icon={I.info({ s: 24 })}
+                    t="Non sono riuscito a cercare"
+                    m="La ricerca non ha risposto. Non vuol dire che non ci siano ricette:<br/>vuol dire che non sono riuscito a guardare."
+                    cta="Riprova"
+                    onCta={() => cerca("nuova")}
+                  />
+                </div>
+              )}
+
+              {/* ── IL VUOTO DOPO IL FILTRO ──
+                  Non è un errore, è una risposta. Da quando la ricerca
+                  consegna solo quello che si cucina, «non ho trovato niente»
+                  sarebbe pure una bugia: i risultati c'erano, nessuno aveva i
+                  passi. Dirlo per intero serve anche a spiegare perché a volte
+                  la lista è corta. */}
+              {!cerco && !guasto && risultati?.length === 0 && (
                 <div style={{ marginTop: 14 }}>
                   <Empty
                     icon={I.pot({ s: 24 })}
-                    t={ricercaAttiva ? "Non ho trovato niente" : "La ricerca arriva presto"}
-                    m={ricercaAttiva ? "prova con altre parole, o dimmi la situazione<br/>invece degli ingredienti" : "il ricettario funziona già"}
+                    t={ricercaAttiva ? "Nessuna con i passi" : "La ricerca arriva presto"}
+                    m={ricercaAttiva
+                      ? "Di questa non ho trovato nessuna versione con il procedimento scritto.<br/>Prova con altre parole, o dimmi la situazione invece degli ingredienti."
+                      : "il ricettario funziona già"}
                   />
                 </div>
               )}

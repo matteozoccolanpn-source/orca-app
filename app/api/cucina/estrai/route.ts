@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { spendAi, claudeFetch, AiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 import { getRecipes, saveExtracted, type RicettaEstratta } from '@/lib/supabase'
 import { marcatoreDi, eVideo } from '../marcatore'
+import { didascaliaDi } from '../didascalia'
 
 /* CUCINA V2 — l'estrazione della ricetta (docs/SPEC-CUCINA.md §4).
  *
@@ -47,6 +48,7 @@ Dettagli:
 - "tempo" e "porzioni" solo se scritti, altrimenti null.
 - OMETTI i campi vuoti invece di scriverli vuoti: meno scrivi, meglio è. Nessuna frase prima o dopo il JSON.
 - I passi sono frasi brevi, nell'ordine in cui li racconta l'autore, in italiano.
+- Un elenco di capitoli col minutaggio ("00:45 – STESURA FROLLA", "1:20 cottura") NON sono passi: sono le tappe del video, e come istruzioni non dicono niente. Se il testo ha solo quelli, i passi sono vuoti.
 - NON scrivere mai calorie, macronutrienti, valori nutrizionali o giudizi sulla salute, nemmeno se il testo li contiene: quei campi non esistono.`
 
 /** Il filtro sulla risposta del modello. Meglio dichiarare "insufficiente" che
@@ -115,8 +117,11 @@ export async function POST(req: NextRequest) {
    * pensarci: la seconda volta non costa niente. */
   let ricettaId = (body.id ?? '').trim() || null
   if (ricettaId) {
+    // ⚠️ GUASTO NON GESTITO (giro finale): se la lettura è caduta, `salvate` è null e qui
+    // si finisce nel ramo «non è sua», cioè si estrae senza salvare. Il
+    // comportamento è quello di prima; adesso però il guasto si può distinguere.
     const salvate = await getRecipes()
-    const mia = salvate.find((r) => r.id === ricettaId)
+    const mia = (salvate ?? []).find((r) => r.id === ricettaId)
     if (!mia) ricettaId = null                       // non è sua, o non c'è più
     else if (mia.extracted) return NextResponse.json({ estratta: mia.extracted, daCache: true })
   }
@@ -140,11 +145,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  /* Il testo da leggere: la didascalia (per TikTok l'oEmbed restituisce la
-   * caption intera, che nei video di cucina contiene quasi sempre gli
-   * ingredienti) più l'estratto che Tavily ci ha già dato. Niente scraping:
-   * sono due cose che abbiamo già in mano. */
-  const fonte = [body.titolo ?? '', body.contenuto ?? '']
+  /* ── IL TESTO DA LEGGERE ──
+   *
+   * ⚠️ La didascalia si va a PRENDERE ALLA FONTE, non si usa quella che è
+   * arrivata dal client. Quella è il titolo di una card, e un titolo è tagliato
+   * per stare su una riga: fino al 16 agosto 2026 arrivava qui mozzato a 200
+   * caratteri, e i passi — che nelle didascalie stanno dopo l'elenco degli
+   * ingredienti — cadevano sempre oltre il taglio. Misurato: 5 video su 8
+   * hanno i passi, e non ne avevamo trovato nessuno.
+   *
+   * Quello che manda il client resta come RIPIEGO, per quando la fonte non
+   * risponde (video tolto, rete storta), e per le pagine web, dove la
+   * didascalia non esiste e l'estratto di Tavily è quello che abbiamo. */
+  const daFonte = await didascaliaDi(url)
+  const fonte = [daFonte || (body.titolo ?? ''), body.contenuto ?? '']
     .map((s) => s.trim())
     .filter(Boolean)
     .join('\n\n')

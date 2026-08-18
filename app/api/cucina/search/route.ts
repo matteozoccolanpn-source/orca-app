@@ -3,8 +3,9 @@ import { unstable_cache } from 'next/cache'
 import { auth } from '@/auth'
 import { currentUserId } from '@/lib/user'
 import { spendAi, claudeFetch, AiCapReached } from '@/lib/ai'
-import { bastaCosi, ripulisciTraduzione, type Interpretazione } from '@/lib/cucina'
+import { bastaCosi, ripulisciTraduzione, titoloCorto, haPassi, type Interpretazione } from '@/lib/cucina'
 import { marcatoreDi, eVideo, eSocial } from '../marcatore'
+import { didascaliaDi, descrizioniYouTube, idYouTube } from '../didascalia'
 
 /* CUCINA — la ricerca (docs/SPEC-CUCINA.md, §2).
  *
@@ -56,6 +57,29 @@ const SITI = ['tiktok.com', 'youtube.com']
  * per avere il procedimento è il migliore affare di tutto questo blocco.
  */
 type Dove = 'video' | 'web'
+
+/* La ripesca giudica un testo che c'è già: «qui dentro c'è un procedimento?».
+   È un compito da modello piccolo, e non decide cosa TOGLIERE — solo cosa
+   rimettere dentro. Sull'estrazione, dove sbagliare vuol dire scrivere un
+   passo storto, resta Sonnet. */
+const MODELLO_RIPESCA = 'claude-haiku-4-5-20251001'
+
+/* QUANDO LA RIPESCA NON SERVE (18 agosto 2026).
+ *
+ * Costa 0,26 centesimi a ricerca — misurato sul registro, non stimato — e
+ * partiva sempre, anche quando dalla regola erano già passati quattordici
+ * risultati. Ma se ce ne sono quattordici, rimetterne dentro altri due non
+ * cambia niente per nessuno: la pagina ne mostra sei per volta, e in fondo a
+ * quella lista non ci arriva nessuno.
+ *
+ * La soglia è DIECI, e viene dai numeri veri: sulle undici ricerche misurate i
+ * sopravvissuti erano 8, 9, 11, 11, 11, 13, 14, 14, 14, 17, 18 — così la
+ * ripesca parte su due, cioè il 18% delle volte, e il costo medio scende da
+ * 0,26 a 0,05 centesimi.
+ * Perché dieci e non dodici (che sarebbero due schermate piene): sotto i dieci
+ * la lista è corta abbastanza che uno la guarda tutta, e la ricetta che si
+ * perde è una che avrebbe visto. Sopra, no. */
+const SOGLIA_RIPESCA = 10
 
 type Risultato = {
   titolo: string
@@ -216,6 +240,74 @@ const traduci = unstable_cache(
   { revalidate: 604800 }   // 7 giorni
 )
 
+/* ══════════ LA RIPESCA ══════════
+ *
+ * `haPassi` sbaglia per difetto: butta una ricetta che i passi ce li ha ma li
+ * scrive in un modo che la regola non riconosce. E un falso negativo è
+ * INVISIBILE — chi cerca non sa cosa non gli è stato mostrato.
+ *
+ * Quindi Haiku gira SOLO sugli scarti, e può SOLO promuovere: quello che la
+ * regola ha già approvato non glielo facciamo nemmeno vedere. Un modello, qui
+ * dentro, non è in condizione di nascondere niente.
+ *
+ * In cache 7 giorni sulla lista degli indirizzi scartati: la stessa ricerca
+ * rifatta non ripaga (ed è l'unico pezzo che restava a pagamento quando tutto
+ * il resto veniva dalla memoria — misurato, 2,1 secondi su 2,2).
+ * `spendAi` sta DENTRO la cache, come per l'interprete: il tetto giornaliero
+ * si addebita solo quando la chiamata avviene per davvero.
+ */
+const ripescaDi = unstable_cache(
+  /* ⚠️ `chi` è `string`, NON `string | null`, ed è il punto 4 del giro sui
+     guasti travestiti. Se arrivasse null, `spendAi` → `risolviCtx`
+     (`lib/ai.ts:134`) andrebbe a cercarsi l'utente da solo con
+     `currentUserId()` → `auth()` → `headers()`, che dentro `unstable_cache`
+     lancia — e il `catch` qui sotto se lo mangerebbe, esattamente come è
+     successo il 18 agosto. Oggi non capita perché la rotta è protetta; col
+     tipo non capita nemmeno se un domani la rotta smettesse di esserlo. */
+  async (urls: string[], chi: string): Promise<{ ok: boolean; urls: string[] }> => {
+    const dentro: string[] = []
+    try {
+      await spendAi('ripesca', { userId: chi, origine: 'utente' })
+      const testi = await Promise.all(urls.map((u) => didascaliaDi(u)))
+      const elenco = testi
+        .map((t, i) => `[${i}] ${t.replace(/\s+/g, ' ').slice(0, 700)}`)
+        .join('\n\n')
+      const res = await claudeFetch(
+        {
+          model: MODELLO_RIPESCA,
+          max_tokens: 120,
+          system:
+            "Ricevi didascalie di video di cucina, numerate. Per ognuna dimmi solo se contiene un PROCEDIMENTO — cioè almeno due istruzioni su come si prepara il piatto, in qualunque forma siano scritte (imperativo o infinito). Un elenco di soli ingredienti NON è un procedimento. Un indice di capitoli col minutaggio NON è un procedimento. Un articolo che RACCONTA in terza persona come si prepara un piatto NON è un procedimento. Rispondi SOLO con i numeri di quelle che ce l'hanno, separati da virgola, senza altro testo. Se nessuna ce l'ha, rispondi: nessuna",
+          messages: [{ role: 'user', content: elenco.slice(0, 12000) }],
+        },
+        { userId: chi, origine: 'utente' },
+        { operazione: 'ripesca', modello: MODELLO_RIPESCA }
+      )
+      if (res.ok) {
+        const d = await res.json()
+        const testo = (d?.content ?? [])
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text ?? '')
+          .join('')
+        for (const n of testo.match(/\d+/g) ?? []) {
+          const u = urls[Number(n)]
+          if (u) dentro.push(u)
+        }
+      }
+    } catch (e) {
+      // Tetto finito o modello giù: si tengono solo quelle della regola. La
+      // ricerca non fallisce mai per la ripesca — ma il fallimento ESCE DI QUI
+      // (`ok: false`), perché una ripesca caduta e una ripesca che non ha
+      // trovato niente sono due fatti opposti e non devono somigliarsi.
+      if (!(e instanceof AiCapReached)) console.error('[cucina] ripesca fallita:', e)
+      return { ok: false, urls: [] }
+    }
+    return { ok: true, urls: dentro }
+  },
+  ['cucina-ripesca'],
+  { revalidate: 604800 }
+)
+
 /** Cosa si cerca davvero, e perché. Non lancia MAI: qualunque cosa vada storta
  *  si ripiega sulla domanda così com'è. */
 async function interpreta(domanda: string, userId: string | null): Promise<Interpretazione> {
@@ -285,12 +377,19 @@ export async function GET(req: NextRequest) {
   const queryWeb = domanda
 
   try {
+    /* I TEMPI, misurati e restituiti. La ricerca è la cosa più lenta dell'app e
+       ogni pezzo che le si aggiunge va pesato: senza questi numeri si
+       ottimizza a naso. Non li legge la pagina, li leggo io. */
+    const t0 = Date.now()
+    const tempi: Record<string, number> = {}
+
     // I due giri partono insieme: aspettarli in fila raddoppierebbe l'attesa.
     const [crudiVideo, crudiWeb] = await Promise.all([
       cercaGrezzi(fornitore, query, 'video'),
       cercaGrezzi(fornitore, queryWeb, 'web'),
     ])
 
+    tempi.ricerca = Date.now() - t0
     const visti = new Set<string>()
     const buoni = [...crudiVideo, ...crudiWeb].filter((r) => {
       if (typeof r.url !== 'string' || !r.url.startsWith('http')) return false
@@ -299,24 +398,104 @@ export async function GET(req: NextRequest) {
       return true
     })
 
-    /* CHI HA I PASSI STA SOPRA. Si guardano i marcatori delle prime pagine —
-     * non di tutte: sono già in ordine di pertinenza, e andare a prendere
-     * trenta pagine per ordinarne sei sarebbe tempo dell'utente speso per
-     * niente. Le letture vanno in parallelo e si fermano a 3 secondi l'una;
-     * misurato sull'app vera, undici pagine insieme in 1,9 secondi.
-     * `marcatoreDi` ricorda per 7 giorni, quindi «Mostrane altre» e le ricerche
-     * ripetute non ripagano niente. */
-    const DA_GUARDARE = 12
-    const pagine = buoni.filter((r) => !eVideo(r.url as string) && !eSocial(r.url as string)).slice(0, DA_GUARDARE)
-    const letti = new Map(
-      await Promise.all(pagine.map(async (r) => [r.url as string, await marcatoreDi(r.url as string)] as const))
+    /* ══════════ IL FILTRO: si consegna solo quello che si cucina ══════════
+     *
+     * Fino a ieri tornavano tutti e la card diceva se erano completi. Ma una
+     * card che dice «questa non si può cucinare» è comunque una card da
+     * leggere e da scartare: è lavoro che scarichiamo addosso a chi cerca,
+     * invece di farlo noi. Adesso chi non passa NON COMPARE.
+     *
+     * Il controllo dev'essere quello economico, e cambia col tipo:
+     *  · pagina → il marcatore standard, una lettura sola (`marcatoreDi`);
+     *  · video  → la didascalia, che si prende comunque, e la regola gratis
+     *             `haPassi`. Niente sito del creator, niente ricerca web,
+     *             niente audio: quelli sono i gradini della strada 2, dove è
+     *             Matteo ad aver chiesto quella ricetta lì.
+     *
+     * ⚠️ Si guardano TUTTI i risultati, non i primi dodici: su 84 misurati ne
+     * passa il 32%, ma guardandone solo 12 ne uscirebbero 4 — e la ricerca
+     * diventerebbe povera per davvero. Tutto in parallelo, ognuno col suo
+     * tetto di tempo, e tutto in cache per 7 giorni. */
+    const daGuardare = buoni.filter((r) => !eSocial(r.url as string))
+    const idVideoYt = daGuardare
+      .map((r) => (piattaformaDi(r.url as string) === 'youtube' ? idYouTube(r.url as string) : null))
+      .filter((x): x is string => !!x)
+    /* Le descrizioni di YouTube in UNA chiamata sola (50 id per volta, 1 unità
+       di quota su 10.000): sedici pagine da 1,1 MB diventano una richiesta
+       piccola. È quello che rende sostenibile guardare tutti i risultati. */
+    const descrizioni = await descrizioniYouTube(idVideoYt)
+
+    /* ⚠️ L'ORDINE QUI SOTTO È UNA SCELTA DI TEMPO, non di logica.
+       Prima le didascalie dei video (l'API di YouTube in blocco, gli oEmbed di
+       TikTok: roba veloce), poi si fa PARTIRE la ripesca senza aspettarla, e
+       intanto si vanno a prendere le pagine — che sono la parte lenta, fino a
+       tre secondi l'una. Misurato: la ripesca costa ~2 secondi fissi, e messa
+       in fila li aggiungeva tutti all'attesa; messa in parallelo con le pagine
+       spariscono quasi del tutto. */
+    const didascalie = new Map<string, string>()
+    const video = daGuardare.filter((r) => eVideo(r.url as string))
+    await Promise.all(
+      video.map(async (r) => {
+        const url = r.url as string
+        const id = idYouTube(url)
+        didascalie.set(url, (id && descrizioni[id]) || (await didascaliaDi(url)))
+      })
     )
 
+    /* ══════════ LA RIPESCA — un modello che può solo RIMETTERE DENTRO ══════════
+     *
+     * `haPassi` sbaglia per difetto: cinque positivi su cinque, nella taratura,
+     * li ha presi la sola parola «procedimento», e una didascalia che racconta i
+     * passi senza scriverla verrebbe buttata. Un falso negativo è invisibile —
+     * chi cerca non sa cosa non gli è stato mostrato.
+     *
+     * Quindi Haiku gira SOLO sugli scarti, e può SOLO promuovere: quello che la
+     * regola ha già approvato non glielo facciamo nemmeno vedere. Un modello,
+     * qui dentro, non è in condizione di nascondere niente.
+     * Una chiamata sola per ricerca, tutte le scartate insieme. */
+    // Le pagine: la parte lenta, mentre la ripesca sta già lavorando.
+    const letti = new Map<string, Awaited<ReturnType<typeof marcatoreDi>>>()
+    await Promise.all(
+      daGuardare
+        .filter((r) => !eVideo(r.url as string))
+        .map(async (r) => { letti.set(r.url as string, await marcatoreDi(r.url as string)) })
+    )
+    tempi.controlli = Date.now() - t0 - tempi.ricerca
+
     const completa = (u: string) => !!letti.get(u)?.estratta
+    const passaDaSola = (u: string) => (eVideo(u) ? haPassi(didascalie.get(u) ?? '').ok : completa(u))
+
+    /* ── LA RIPESCA, SE SERVE ──
+     * La decisione si prende QUI e non prima, e costa: prima la ripesca partiva
+     * insieme alle pagine e la sua attesa spariva dentro la loro. Ma per sapere
+     * se serve bisogna sapere quanti sono passati, e quel numero arriva solo
+     * quando le pagine hanno risposto. Meglio due secondi in più su una ricerca
+     * magra su cinque, che pagare sempre una cosa che nell'80% dei casi non
+     * cambia niente. */
+    const dallaRegola = daGuardare.filter((r) => passaDaSola(r.url as string))
+    const scartati = video.filter(
+      (r) => !passaDaSola(r.url as string) && (didascalie.get(r.url as string) ?? '').length > 80
+    )
+    /* Chi sta cercando: si legge QUI, fuori dalla cache, e se non c'è la
+       ripesca non parte proprio (vedi il commento sul tipo di `ripescaDi`). */
+    const chiCerca = await currentUserId()
+    const ripescaServe = dallaRegola.length < SOGLIA_RIPESCA && scartati.length > 0 && !!chiCerca
+    /* ⚠️ `userId` si passa come ARGOMENTO. Dentro `unstable_cache` i cookie non
+       esistono, e `currentUserId()` — che la sessione la legge da lì — fa
+       cadere tutta la funzione. È scritto tre metri più su, nel commento
+       dell'interprete, e l'ho rifatto lo stesso: la ripesca lanciava a ogni
+       ricerca, il `catch` se lo mangiava, e usciva un onestissimo «0
+       ripescati» che voleva dire «non ha mai girato». */
+    const esito = ripescaServe
+      ? await ripescaDi(scartati.map((r) => r.url as string).sort(), chiCerca as string)
+      : { ok: true, urls: [] as string[] }
+    const ripescati = new Set(esito.urls)
+    tempi.ripesca = Date.now() - t0 - tempi.ricerca - tempi.controlli
+    const passa = (u: string) => passaDaSola(u) || ripescati.has(u)
+    const cucinabili = daGuardare.filter((r) => passa(r.url as string))
     const ordinati = [
-      ...buoni.filter((r) => completa(r.url as string)),                                  // ricetta scritta: sopra
-      ...buoni.filter((r) => !completa(r.url as string) && eVideo(r.url as string)),       // poi i video
-      ...buoni.filter((r) => !completa(r.url as string) && !eVideo(r.url as string)),      // poi il resto
+      ...cucinabili.filter((r) => completa(r.url as string)),   // ricetta già scritta: sopra
+      ...cucinabili.filter((r) => !completa(r.url as string)),  // poi i video
     ]
     const grezzi = ordinati.slice(da, da + PAGINA)
 
@@ -328,7 +507,13 @@ export async function GET(req: NextRequest) {
         const ante = await anteprima(url, piattaforma)
         const marc = letti.get(url)
         return {
-          titolo: (ante?.titolo || r.title || url).slice(0, 200),
+          /* ⚠️ `titoloCorto` e non `.slice(0, 200)`. Per un video il titolo
+             dell'oEmbed È la didascalia intera, e tagliarla qui la tagliava
+             anche per il modello: i passi stanno dopo gli ingredienti, cioè
+             sempre oltre il duecentesimo carattere. Adesso qui si decide solo
+             come si CHIAMA la card; la didascalia intera resta alla fonte, e
+             chi estrae se la va a prendere (`didascalia.ts`). */
+          titolo: titoloCorto(ante?.titolo || r.title || url),
           url,
           /* Per le pagine la foto è quella dichiarata NEL marcatore: è la stessa
              cosa che l'oEmbed fa per i video — l'immagine che la pagina pubblica
@@ -346,18 +531,53 @@ export async function GET(req: NextRequest) {
       })
     )
 
+    tempi.anteprime = Date.now() - t0 - tempi.ricerca - tempi.controlli - tempi.ripesca
+    tempi.tutto = Date.now() - t0
+
     return NextResponse.json({
       risultati,
       interpretazione,
+      tempi,
       da,
       /* Ce ne sono altre già pagate da mostrare? Se no, la pagina passa da
        * «Mostrane altre» a «Cerca ancora», che è un credito vero. */
       altrePronte: ordinati.length > da + PAGINA,
       totale: ordinati.length,
-      complete: buoni.filter((r) => completa(r.url as string)).length,
+      /* I conti del filtro, che servono a Matteo e non alla pagina: quanti ne
+         ha scartati, e quanti ne ha rimessi dentro la ripesca. Il secondo è il
+         numero che dice quanto spesso la sola parola «procedimento» sbaglia —
+         senza registrarlo non lo sapremmo mai. */
+      esaminati: daGuardare.length,
+      scartati: daGuardare.length - ordinati.length,
+      /* ⚠️ «NON PARTITA» NON È «ZERO RIPESCATI», e la differenza non è
+         formale: `ripescati: 0` vuol dire «Haiku ha guardato gli scarti e non
+         ha trovato niente da salvare», cioè la regola aveva ragione. Se
+         scrivessimo zero anche quando la ripesca non è partita, fra un mese
+         quel numero direbbe che la regola sbaglia molto meno di quanto sbaglia
+         davvero — e misurarlo è tutto il motivo per cui la ripesca esiste. */
+      ripesca: !ripescaServe
+        ? { partita: false, perche: scartati.length === 0 ? 'nessuno scarto da guardare' : `già passati in ${dallaRegola.length}` }
+        : esito.ok
+          ? { partita: true, ripescati: ripescati.size, esaminate: scartati.length }
+          : { partita: true, caduta: true, esaminate: scartati.length },
     })
   } catch (e) {
+    /* ⚠️ QUI NON SI RISPONDE 200 CON UNA LISTA VUOTA.
+     *
+     * Prima sì: `{ risultati: [], errore: 'ricerca non disponibile' }` con
+     * stato 200, e `errore` non lo leggeva nessuno (zero occorrenze nella
+     * vista). Da fuori era indistinguibile da «non esiste nessuna ricetta», e
+     * col filtro nuovo la schermata arrivava a scrivere «di questa non ho
+     * trovato nessuna versione con il procedimento» — cioè Keiko affermava una
+     * cosa sul mondo mentre in realtà era Tavily a essere giù. Una regressione
+     * nostra, di questa settimana.
+     *
+     * Adesso: 503, e `guasto: true` in un campo che la vista guarda per primo.
+     * Lo stato vuoto e il guasto sono due schermate diverse. */
     console.error('[cucina] ricerca fallita:', e)
-    return NextResponse.json({ risultati: [], errore: 'ricerca non disponibile', interpretazione }, { status: 200 })
+    return NextResponse.json(
+      { guasto: true, risultati: [], interpretazione, dettaglio: String(e).slice(0, 200) },
+      { status: 503 }
+    )
   }
 }
