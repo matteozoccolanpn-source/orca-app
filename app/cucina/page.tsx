@@ -22,7 +22,14 @@ export default async function CucinaPage() {
 
   // Le tre letture in parallelo: sono indipendenti e nessuna deve far
   // aspettare le altre.
-  const [ricette, piano, spesa] = await Promise.all([getRecipes(), getDietPlan(), getShoppingItems()]);
+  const [ricetteLette, piano, spesaLetta] = await Promise.all([getRecipes(), getDietPlan(), getShoppingItems()]);
+  /* ⚠️ GUASTO NON GESTITO (giro finale): `null` vuol dire «non ho potuto
+     leggere», e qui diventa una lista vuota: la pagina scrive «il ricettario è
+     vuoto» e «la spesa è vuota» anche quando non lo sono. Sono due delle tre
+     schermate che il giro finale deve riscrivere — il dato per farlo adesso
+     c'è. */
+  const ricette = ricetteLette ?? [];
+  const spesa = spesaLetta ?? [];
 
   const giornata = giornataDiOggi(piano?.week ?? null);
   const prossimo = prossimoPasto(giornata);

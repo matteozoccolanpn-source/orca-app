@@ -35,7 +35,7 @@ export default async function Home({
   const v2 = "v2" in sp;   // paracadute: Home precedente
   // `onboardedAt` viaggia insieme al resto (K14b): niente chiamata di rete in
   // più dal telefono, è una query in parallelo alle altre.
-  const [events, diet, workout, trainedDays, trips, todos, watchlist, onboardedAt] = await Promise.all([
+  const [eventsLetti, diet, workout, trainedDays, trips, todos, watchlist, onboardedAt] = await Promise.all([
     getUpcomingTickets(),
     getDietPlan(),
     getWorkoutPlan(),
@@ -45,6 +45,12 @@ export default async function Home({
     getWatchlist(),
     getOnboardedAt(),
   ]);
+
+  /* ⚠️ GUASTO NON GESTITO (giro finale): `getUpcomingTickets()` torna `null`
+     quando la lettura cade, e qui diventa «nessun evento» — cioè la Home
+     scrive «giornata libera» a chi ha tre voli. È la terza delle schermate che
+     il giro finale deve riscrivere; il dato per distinguerle adesso c'è. */
+  const events = eventsLetti ?? [];
 
   /* «L'ultima volta» degli esercizi di oggi NON si legge qui.
      Misurato: cinque letture in fila costavano ~330ms sulla mediana di ogni

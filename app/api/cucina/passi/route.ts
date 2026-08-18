@@ -36,7 +36,11 @@ export async function POST(req: NextRequest) {
   /* La ricetta dev'essere SUA: `getRecipes` legge già solo le proprie (RLS), e
    * se l'id non è lì dentro non si scrive niente. Senza questo controllo un id
    * indovinato scriverebbe nel ricettario di un altro. */
-  const mia = (await getRecipes()).find((r) => r.id === id)
+  /* ⚠️ GUASTO NON GESTITO (giro finale): con la lettura caduta questa rotta
+     risponde «Ricetta non trovata» — una bugia: la ricetta c'è, è il database
+     che non risponde. Va separata in un 503 con la sua frase, e quello è il
+     giro finale; qui il dato è soltanto diventato distinguibile. */
+  const mia = ((await getRecipes()) ?? []).find((r) => r.id === id)
   if (!mia) return NextResponse.json({ error: 'Ricetta non trovata' }, { status: 404 })
 
   /* Quello che c'era resta: se l'estrazione aveva già tirato fuori gli

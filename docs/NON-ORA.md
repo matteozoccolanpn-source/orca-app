@@ -88,3 +88,67 @@ Non una data. Un numero, guardato al checkpoint di novembre:
 Se un gruppo di persone che non ti devono niente continua a usare Keiko dopo un mese,
 quella è la validazione che nessuna ricerca di mercato può produrre. Da lì si riapre
 questo file **da una posizione di forza**, non da una scommessa.
+
+---
+
+# Parte seconda · i difetti visti e rimandati
+
+> Aggiunta il **18 agosto 2026**. Sopra c'è quello che il progetto non fa per
+> scelta di strategia; qui sotto quello che il codice fa male e che si è deciso
+> di non correggere adesso. Stesso file per la stessa ragione: esistono senza
+> occupare posto.
+
+## I `catch` morbidi rimasti (ricognizione del 18 agosto 2026)
+
+Su 173 `catch` di `lib/` e `app/api/`, 51 restituiscono un valore che assomiglia
+a una risposta legittima. I **cinque gravi** sono chiusi (i due cron delle
+notifiche, la ricerca che diceva «nessuna», la mina di `unstable_cache`, le tre
+letture che mostravano il vuoto). Questi restano, in ordine di quanto pesano:
+
+- **`lib/supabase.ts` · `getOnboardedAt() → null`** — con la lettura caduta si
+  rifà l'onboarding a chi l'ha già fatto. La scelta è **dichiarata nel commento**
+  («meglio di una home muta») e regge: aspetta perché il rimedio vero è
+  distinguere «non letto» da «mai fatto», e cambia una schermata d'ingresso.
+- **`lib/supabase.ts:1385` · eventi dei battiti `→ []`** — nessun battito
+  compare. Un battito che non parte è invisibile per definizione, quindi non ci
+  si accorge della differenza fra «non c'era niente da dire» e «lettura caduta».
+- **`lib/event-enrich.ts:47/63/92` → null** — l'arricchimento salta in silenzio e
+  l'evento resta spoglio: sembra un evento povero, non un guasto.
+- **`lib/films.ts:197` → []` su JSON non valido** — il consiglio esce vuoto e
+  sembra «non ho trovato film».
+- **`lib/supabase.ts:1152` · `setWatchProgress() → false`** — il guasto arriva al
+  chiamante (`app/api/watch/progress/route.ts:91` lo guarda), ma `false` vuol
+  dire anche «riga non trovata»: due fatti, una risposta.
+
+🚫 **Non sono difetti** e non entrano in questo elenco: i venticinque `null` di
+foto e decorazioni (`unsplash`, `tmdb`, `spotify`, `google-places`, `sportsdb`,
+`wger`, `place-image`). Lì `null` significa onestamente «niente immagine» e
+l'interfaccia ha già il suo ripiego.
+
+---
+
+## Il giro finale dei tre vuoti
+
+`getRecipes`, `getShoppingItems` e `getUpcomingTickets` adesso tornano **`null`
+quando la lettura cade** e `[]` quando è vuoto davvero (18 agosto 2026). Il dato
+è distinguibile; **le frasi da mostrare non sono ancora scritte**. I punti dove
+il nuovo stato arriva e non viene gestito sono marcati nel codice con
+`⚠️ GUASTO NON GESTITO`, e si trovano con:
+
+    grep -rn "GUASTO NON GESTITO" app lib
+
+Sono sei, e vanno riscritti insieme perché sono la stessa frase detta in sei
+posti: la Home che direbbe «giornata libera», la Cucina che direbbe «il
+ricettario è vuoto» e «la spesa è vuota», la rotta dei passi che direbbe
+«ricetta non trovata», e le due che passano un'agenda vuota a chi deve
+consigliare.
+
+---
+
+## Il gradino ⑤ del ricettario
+
+L'audio dei video (`docs/SPEC-RICETTARIO.md` §3). Parcheggiato di proposito: la
+misura che dice quanto serve è stata fatta su un codice difettoso — con la
+didascalia tagliata a 200 caratteri arrivavano al video 2 video su 8, e con la
+didascalia intera il numero non lo sappiamo ancora. Si riprende quando ci sono
+venti ricette vere da guardare invece di otto.

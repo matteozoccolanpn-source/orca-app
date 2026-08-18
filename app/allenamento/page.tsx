@@ -99,7 +99,10 @@ export default async function AllenamentoPage() {
     eserciziOggi: eserciziOggi.map((e) => e.nome).filter(Boolean),
     serieFatteOggi: sessioneOggi?.sets.length ?? 0,
     trainedDays,
-    eventi: eventi.map((e) => ({ titolo: e.title, tipo: e.type, quando: e.datetime, luogo: e.location })),
+    // ⚠️ GUASTO NON GESTITO (giro finale): `eventi` null = lettura caduta; qui
+    // diventa «nessun impegno», e il consiglio sull'allenamento ne tiene conto
+    // come se la settimana fosse libera.
+    eventi: (eventi ?? []).map((e) => ({ titolo: e.title, tipo: e.type, quando: e.datetime, luogo: e.location })),
     ultimaVolta,
     stile: profile?.stile ?? null,
   });

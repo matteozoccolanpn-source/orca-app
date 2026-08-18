@@ -105,7 +105,19 @@ export function serviceDb() {
  *
  * Safe to call only from Server Components or Route Handlers.
  */
-export async function getUpcomingTickets(): Promise<Ticket[]> {
+/* ══════════ NULL VUOL DIRE «NON HO POTUTO LEGGERE» ══════════
+ *
+ * Queste tre letture tornavano `[]` quando la query cadeva, e `[]` è una
+ * risposta legittima: significa «non hai niente». Al supermercato, davanti allo
+ * scaffale, «non hai niente da comprare» e «il database non risponde» sono due
+ * frasi molto diverse, e chi guardava lo schermo leggeva sempre la prima.
+ *
+ * Da qui in poi: **`[]` = vuoto vero, `null` = guasto.** È la stessa forma del
+ * `-1` di `speseOggi` in `lib/ai.ts` — un valore che non si può confondere con
+ * un risultato — e come quello va CONTROLLATO da chi chiama.
+ * (18 agosto 2026, dopo il giro sui catch che si travestono da risposte.)
+ */
+export async function getUpcomingTickets(): Promise<Ticket[] | null> {
   try {
     const now = new Date().toISOString();
     // Prova col campo enrichment; se la colonna non esiste ancora, riprova senza,
@@ -146,7 +158,7 @@ export async function getUpcomingTickets(): Promise<Ticket[]> {
     }));
   } catch (err) {
     console.error("Supabase: failed to fetch upcoming tickets:", err);
-    return [];
+    return null;   // guasto, non «nessun biglietto»
   }
 }
 
@@ -1524,7 +1536,7 @@ function mappaRicetta(r: Record<string, unknown>): Recipe {
  *  non ci sono ancora, si rilegge senza. Chiedere una colonna che non esiste
  *  fa fallire TUTTA la select: senza questo secondo giro, il ricettario
  *  sparirebbe dalla pagina fino all'esecuzione di docs/sql/cucina-v2.sql. */
-export async function getRecipes(): Promise<Recipe[]> {
+export async function getRecipes(): Promise<Recipe[] | null> {
   try {
     const client = await db();
     const leggi = (campi: string) =>
@@ -1537,12 +1549,12 @@ export async function getRecipes(): Promise<Recipe[]> {
     }
     if (error) {
       console.warn("[cucina] lettura ricettario fallita (hai eseguito docs/sql/cucina.sql?):", error.message);
-      return [];
+      return null;   // guasto, non «ricettario vuoto»
     }
     return ((data ?? []) as unknown as Record<string, unknown>[]).map(mappaRicetta);
   } catch (e) {
     console.warn("[cucina] lettura ricettario fallita:", e);
-    return [];
+    return null;
   }
 }
 
@@ -1625,9 +1637,10 @@ function mappaSpesa(r: Record<string, unknown>): ShoppingItem {
 
 const CAMPI_SPESA = "id, nome, quantita, fonte, ref, spuntato, created_at";
 
-/** La lista: da comprare in alto, spuntati in fondo. [] se la tabella non c'è
- *  ancora — la pagina non si rompe per una SQL non ancora eseguita. */
-export async function getShoppingItems(): Promise<ShoppingItem[]> {
+/** La lista: da comprare in alto, spuntati in fondo.
+ *  `[]` = lista vuota. `null` = non sono riuscito a leggerla (vedi la regola
+ *  qui sopra): sono due cose diverse e non devono somigliarsi. */
+export async function getShoppingItems(): Promise<ShoppingItem[] | null> {
   try {
     const { data, error } = await (await db())
       .from("shopping_items")
@@ -1637,12 +1650,12 @@ export async function getShoppingItems(): Promise<ShoppingItem[]> {
       .limit(300);
     if (error) {
       console.warn("[cucina] lettura spesa fallita (hai eseguito docs/sql/cucina-v2.sql?):", error.message);
-      return [];
+      return null;   // guasto, non «spesa vuota»
     }
     return ((data ?? []) as unknown as Record<string, unknown>[]).map(mappaSpesa);
   } catch (e) {
     console.warn("[cucina] lettura spesa fallita:", e);
-    return [];
+    return null;
   }
 }
 
@@ -1651,7 +1664,7 @@ export async function getShoppingItems(): Promise<ShoppingItem[]> {
  *  Torna la lista aggiornata, così chi chiama non deve rileggere. */
 export async function addShoppingItems(
   voci: { nome: string; quantita?: string | null; fonte?: FonteSpesa; ref?: string | null }[]
-): Promise<ShoppingItem[]> {
+): Promise<ShoppingItem[] | null> {
   const userId = await currentUserId();
   const righe = voci
     .map((v) => ({

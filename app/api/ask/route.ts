@@ -31,7 +31,10 @@ export async function POST(req: NextRequest) {
     ])
 
     const context = {
-      eventi: events.map((e) => ({
+      // ⚠️ GUASTO NON GESTITO (giro finale): `events` null = lettura caduta; qui
+      // diventa «nessun evento», e Keiko risponde a una domanda sull'agenda
+      // come se l'agenda fosse vuota.
+      eventi: (events ?? []).map((e) => ({
         titolo: e.title,
         tipo: e.type,
         // Orario già convertito in ora di Roma, così l'AI non sbaglia il fuso.
