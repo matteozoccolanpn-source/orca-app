@@ -28,6 +28,36 @@ function romeParts(d: Date): string {
   return new Intl.DateTimeFormat("it-IT", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 }
 
+
+/* ══════════ QUANDO UNA SOTTOSCRIZIONE VA CANCELLATA DAVVERO ══════════
+ *
+ * SOLO 404 e 410. Sono i due stati con cui un servizio di push dice «questo
+ * indirizzo non esiste più»; `web-push` li porta in `WebPushError.statusCode`,
+ * quindi l'informazione l'abbiamo già e bastava guardarla.
+ *
+ * Fino al 18 agosto 2026 qui c'era un `catch` nudo che cancellava a ogni
+ * eccezione: una rete storta, un timeout, un 500 del servizio, una chiave VAPID
+ * sbagliata. Il commento accanto diceva «410/404 = scaduta → elimina» — il
+ * codice non l'ha mai controllato. Questa rotta gira in produzione ogni ora
+ * senza che nessuno la guardi: bastava una giornata storta delle variabili VAPID
+ * per disiscrivere tutti i dispositivi di tutti in una passata, e senza lasciare
+ * traccia.
+ *
+ * 🚫 Nessuna cancellazione «per sicurezza»: una notifica persa si recupera al
+ * giro dopo, una sottoscrizione cancellata no — l'utente deve riabilitare le
+ * notifiche a mano, e non lo fa nessuno.
+ *
+ * (La funzione è scritta uguale nei due cron invece che in `lib/push.ts`
+ * perché quel file non è fra quelli che questo giro può toccare.) */
+function sottoscrizioneMorta(e: unknown): boolean {
+  const stato = (e as { statusCode?: number } | null)?.statusCode
+  return stato === 404 || stato === 410
+}
+
+function statoDi(e: unknown): number | null {
+  return (e as { statusCode?: number } | null)?.statusCode ?? null
+}
+
 export async function GET(req: Request) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,7 +76,28 @@ export async function GET(req: Request) {
   // MULTI-UTENTE: sottoscrizioni raggruppate per utente. Ogni utente riceve solo
   // i propri promemoria, sui propri dispositivi. Con la service-role la RLS è
   // scavalcata, quindi ogni query filtra ESPLICITAMENTE per user_id.
-  const { data: subs } = await sb.from("push_subscriptions").select("user_id, endpoint, p256dh, auth");
+  const { data: subs, error: erroreSubs } = await sb
+    .from("push_subscriptions")
+    .select("user_id, endpoint, p256dh, auth");
+  /* ⚠️ L'ERRORE SI GUARDA. Prima era buttato via nella destrutturazione: se la
+     lettura falliva, `subs` era `undefined`, il ciclo non girava e la rotta
+     rispondeva 200 `{ ok: true }`. Un guasto totale — nessuna notifica a
+     nessuno — che nell'elenco delle esecuzioni sembrava una giornata
+     tranquilla. E l'elenco delle esecuzioni è l'unica cosa che qualcuno
+     guarderà mai, di una rotta che gira da sola. */
+  if (erroreSubs) {
+    console.error("[cron/tick] lettura delle sottoscrizioni fallita:", erroreSubs.message);
+    return NextResponse.json(
+      { ok: false, guasto: "lettura delle sottoscrizioni fallita", dettaglio: erroreSubs.message },
+      { status: 500 }
+    );
+  }
+  /* «Zero sottoscrizioni» e «non sono riuscito a leggerle» sono due fatti
+     opposti e non devono somigliarsi: il primo è un 200 che lo dice. */
+  if ((subs ?? []).length === 0) {
+    return NextResponse.json({ ok: true, hour: romeHour(now), sottoscrizioni: 0, nota: "nessun dispositivo iscritto" });
+  }
+
   const byUser = new Map<string, Sub[]>();
   for (const s of (subs ?? []) as Sub[]) {
     if (!s.user_id) continue;
@@ -55,14 +106,26 @@ export async function GET(req: Request) {
     byUser.set(s.user_id, list);
   }
 
+  let inviate = 0, scadute = 0, fallite = 0;
+
   for (const [userId, userSubs] of byUser) {
     // invia solo ai dispositivi di QUESTO utente
     const blast = async (title: string, body: string, url = "/") => {
       for (const s of userSubs) {
         try {
           await sendPush({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, { title, body, url });
-        } catch {
-          await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
+          inviate++;
+        } catch (e) {
+          if (sottoscrizioneMorta(e)) {
+            await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
+            scadute++;
+          } else {
+            // La sottoscrizione RESTA. Si scrive cosa è successo e a chi.
+            fallite++;
+            console.error("[cron/tick] invio fallito, la sottoscrizione resta:", {
+              endpoint: s.endpoint.slice(-24), stato: statoDi(e), errore: String(e).slice(0, 200),
+            });
+          }
         }
       }
     };
@@ -211,7 +274,7 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, hour });
+  return NextResponse.json({ ok: true, hour, sottoscrizioni: (subs ?? []).length, inviate, scadute, fallite });
 }
 
 /* Converte "giorno + orario" letti come ORA ITALIANA in un istante UTC.
