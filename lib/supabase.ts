@@ -1497,6 +1497,19 @@ export interface RicettaEstratta {
   tempo?: string | null;
   porzioni?: string | null;
   insufficiente?: boolean;
+  /** DA DOVE VENGONO I PASSI: l'indirizzo da cui sono stati letti.
+   *
+   *  Sta QUI dentro, e non nella risposta della rotta, perché la fonte deve
+   *  durare quanto la ricetta. Una riga che dice «presi da giallozafferano.it»
+   *  il giorno che la salvi e «dalla descrizione del video» quando la riapri è
+   *  una bugia che si riscrive da sola — la stessa forma di difetto dei `catch`
+   *  morbidi. Se non può essere permanente, non si mostra affatto.
+   *
+   *  Uguale all'indirizzo della ricetta = i passi stanno nella pagina che hai
+   *  aperto. Diverso = li ha portati un gradino (①bis, il link in didascalia).
+   *  Assente = sono usciti dalla didascalia stessa, o la riga è di prima che
+   *  questo campo esistesse. */
+  fonte?: string | null;
 }
 
 export interface Recipe {

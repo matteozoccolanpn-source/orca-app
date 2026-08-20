@@ -71,9 +71,47 @@ type Aperta = {
   /** Il sito, per le pagine: senza, il foglio scriveva «web» al posto del nome
    *  di chi ha pubblicato la ricetta. Sui video non serve: c'è l'autore. */
   dominio?: string | null;
-  /** La ricetta arriva dal marcatore della pagina (nessun modello chiamato). */
-  daMarcatore?: boolean;
 };
+
+/** «ricette.giallozafferano.it» da un indirizzo intero. */
+function dominioDi(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+/** DA DOVE VENGONO I PASSI, in una riga sola.
+ *
+ *  Si legge da `estratta.fonte`, che è salvato insieme alla ricetta: così la
+ *  riga dice la stessa cosa oggi e fra un mese. Tre casi, e il confronto fra la
+ *  fonte e l'indirizzo aperto basta a distinguerli — quando i passi arrivano da
+ *  un altro posto, quel posto si vede e si può aprire.
+ *
+ *  Le ricette salvate prima che questo campo esistesse non hanno fonte: lì si
+ *  dice quello che si sa per certo dalla piattaforma, e non si tira a indovinare. */
+function Fonte({ aperta }: { aperta: Aperta }) {
+  const fonte = aperta.estratta?.fonte ?? null;
+  const altrove = fonte && fonte !== aperta.url;
+  return (
+    <p className="rx" style={{ marginTop: -4, marginBottom: 12 }}>
+      {altrove ? (
+        <>
+          I passi vengono da{" "}
+          <a href={fonte!} target="_blank" rel="noreferrer">
+            {dominioDi(fonte!)}
+          </a>
+          , linkata dal creator in descrizione.
+        </>
+      ) : fonte || aperta.piattaforma === "web" ? (
+        <>I passi vengono da {dominioDi(fonte ?? aperta.url)}.</>
+      ) : (
+        <>I passi vengono dalla descrizione del video.</>
+      )}
+    </p>
+  );
+}
 
 type Interpretazione = { originale: string; cercato: string; viaAi: boolean };
 
@@ -411,7 +449,7 @@ export default function CucinaView({
       const d = await res.json();
       if (res.status === 429) { toast(d?.error || "Per oggi mi fermo qui 🌙"); setEstraggo(false); return; }
       const estratta = (d?.estratta ?? { insufficiente: true }) as RicettaEstratta;
-      setAperta((a) => (a && a.url === r.url ? { ...a, estratta, daMarcatore: !!d?.daMarcatore } : a));
+      setAperta((a) => (a && a.url === r.url ? { ...a, estratta } : a));
       // Anche nel ricettario, così riaprirla da lì non ripassa dal modello.
       if (r.id && !estratta.insufficiente) {
         setLista((l) => l.map((x) => (x.id === r.id ? { ...x, extracted: estratta } : x)));
@@ -1294,7 +1332,12 @@ export default function CucinaView({
                   contesto e' il blocco, e questo ha il suo titolo). */}
               {!estraggo && (aperta.estratta?.passi?.length ?? 0) > 0 && (
                 <>
-                  <Sec sm="dalla descrizione del video">Come si fa</Sec>
+                  {/* Da dove vengono i passi, detto QUI: è la riga attaccata a
+                      quello che poi si cucina. Prima diceva sempre «dalla
+                      descrizione del video», che era falso ogni volta che i
+                      passi arrivavano da una pagina. */}
+                  <Sec>Come si fa</Sec>
+                  <Fonte aperta={aperta} />
 
                   <button
                     className="cta wide tap"
@@ -1417,15 +1460,10 @@ export default function CucinaView({
                 </button>
               )}
 
-              {/* Da dove viene questa ricetta, detto per esteso. Le due strade
-                  non sono la stessa cosa e non si scrivono uguale: dal
-                  marcatore sono le parole dell'autore copiate, dalla
-                  didascalia sono le stesse parole rimesse in ordine. */}
+              {/* La provenienza sta attaccata ai passi (vedi `Fonte`), non qui:
+                  ripeterla in fondo, e per giunta con «non modificata» — che
+                  vale per ogni ricetta di Keiko — era rumore due volte. */}
               <p className="rx" style={{ textAlign: "center", marginTop: 18 }}>
-                {aperta.daMarcatore
-                  ? "Ricetta presa da come l'ha pubblicata chi l'ha scritta, non modificata."
-                  : "Ricetta estratta dalla descrizione del creator, non modificata."}
-                <br />
                 Keiko non dà consigli nutrizionali.
               </p>
             </div>

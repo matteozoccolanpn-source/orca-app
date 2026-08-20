@@ -4,6 +4,7 @@ import { spendAi, claudeFetch, AiCapReached, AI_CAP_MESSAGE } from '@/lib/ai'
 import { getRecipes, saveExtracted, type RicettaEstratta } from '@/lib/supabase'
 import { marcatoreDi, eVideo } from '../marcatore'
 import { didascaliaDi } from '../didascalia'
+import { linkDaDidascalia, haPassi } from '@/lib/cucina'
 
 /* CUCINA V2 — l'estrazione della ricetta (docs/SPEC-CUCINA.md §4).
  *
@@ -99,6 +100,28 @@ function ripulisci(grezzo: string): RicettaEstratta {
   return { ingredienti, passi, tempo: testo(o?.tempo), porzioni: testo(o?.porzioni) }
 }
 
+/* ── ①bis: LA RICETTA SCRITTA, LINKATA DALLA DIDASCALIA ──
+ *
+ * «★ INGREDIENTI, DOSI e PROCEDIMENTO: https://ricette.giallozafferano.it/…».
+ * Quel link sta in un testo che leggiamo già per intero e gratis, e la pagina
+ * dall'altra parte quasi sempre ha il marcatore: i passi arrivano scritti
+ * dall'autore, senza chiamare nessun modello.
+ *
+ * Gli indirizzi si provano TUTTI INSIEME e non uno dopo l'altro: sono al
+ * massimo tre, ognuno ha tre secondi di pazienza (`marcatoreDi`), e in fila
+ * indiana sarebbero nove secondi di attesa dentro un foglio che sta aprendosi.
+ * L'ordine di `linkDaDidascalia` decide comunque chi vince, quindi il risultato
+ * non dipende da chi risponde prima. */
+async function ricettaDaiLink(
+  didascalia: string
+): Promise<{ estratta: RicettaEstratta; fonte: string } | null> {
+  const link = linkDaDidascalia(didascalia)
+  if (link.length === 0) return null
+  const letti = await Promise.all(link.map(async (u) => ({ u, m: await marcatoreDi(u) })))
+  for (const { u, m } of letti) if (m.estratta) return { estratta: { ...m.estratta, fonte: u }, fonte: u }
+  return null
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -140,8 +163,11 @@ export async function POST(req: NextRequest) {
   if (!eVideo(url)) {
     const { estratta } = await marcatoreDi(url)
     if (estratta) {
-      if (ricettaId) await saveExtracted(ricettaId, estratta)
-      return NextResponse.json({ estratta, daMarcatore: true })
+      // La fonte è la pagina stessa: si scrive lo stesso, così la riga sotto ai
+      // passi dice la verità anche fra un mese (vedi `RicettaEstratta.fonte`).
+      const conFonte = { ...estratta, fonte: url }
+      if (ricettaId) await saveExtracted(ricettaId, conFonte)
+      return NextResponse.json({ estratta: conFonte, daMarcatore: true })
     }
   }
 
@@ -158,6 +184,33 @@ export async function POST(req: NextRequest) {
    * risponde (video tolto, rete storta), e per le pagine web, dove la
    * didascalia non esiste e l'estratto di Tavily è quello che abbiamo. */
   const daFonte = await didascaliaDi(url)
+
+  /* ── ①bis PRIMA DEL MODELLO, ma solo quando la didascalia i passi non li ha ──
+   *
+   * L'ordine della spec è ① la didascalia, ①bis il link che c'è dentro. Qui il
+   * confine fra i due gradini lo traccia `haPassi()`, che è gratis e sui casi
+   * veri azzecca 9 su 9:
+   *
+   *  · la didascalia i passi CE LI HA → sono i passi di QUESTO video, e sono
+   *    quelli giusti per definizione. Si legge quella (①), e non si va a
+   *    prendere una pagina che potrebbe essere un'altra ricetta dello stesso
+   *    creator;
+   *  · la didascalia i passi NON li ha → non c'è niente da perdere e c'è tutto
+   *    da guadagnare: la pagina linkata costa zero e i passi li ha scritti
+   *    l'autore. È il caso della crostata al pan di zenzero, dove la
+   *    didascalia elenca venti ingredienti e le tappe del video, e i passi veri
+   *    stanno su giallozafferano.it.
+   *
+   * ⚠️ Quando il controllo sugli ingredienti (PARTE C) ci sarà, questa guardia
+   * diventa la sua seconda linea, non l'unica. */
+  if (!haPassi(daFonte).ok) {
+    const dalLink = await ricettaDaiLink(daFonte)
+    if (dalLink) {
+      if (ricettaId) await saveExtracted(ricettaId, dalLink.estratta)
+      return NextResponse.json({ estratta: dalLink.estratta, daMarcatore: true })
+    }
+  }
+
   const fonte = [daFonte || (body.titolo ?? ''), body.contenuto ?? '']
     .map((s) => s.trim())
     .filter(Boolean)
@@ -189,6 +242,17 @@ export async function POST(req: NextRequest) {
       .map((b: { text?: string }) => b.text ?? '')
       .join('')
     const estratta = ripulisci(testo)
+
+    /* La didascalia diceva di avere i passi e poi non ne aveva: allora si
+       scende comunque a ①bis, che qui sopra era stato saltato apposta. Costa
+       una pagina e può salvare la ricetta. */
+    if (estratta.insufficiente) {
+      const dalLink = await ricettaDaiLink(daFonte)
+      if (dalLink) {
+        if (ricettaId) await saveExtracted(ricettaId, dalLink.estratta)
+        return NextResponse.json({ estratta: dalLink.estratta, daMarcatore: true })
+      }
+    }
 
     // Si salva solo se la ricetta è nel ricettario e l'estrazione è servita a
     // qualcosa: mettere in cache un "insufficiente" impedirebbe di riprovare

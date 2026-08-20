@@ -432,6 +432,115 @@ export function haPassi(testo: string): { ok: boolean; perche: string } {
   return { ok: false, perche: parola ? "la parola c'è ma nessuna istruzione" : "solo ingredienti, o niente" };
 }
 
+/* ══════ ①bis IL LINK ALLA RICETTA SCRITTA, DENTRO LA DIDASCALIA ══════
+ *
+ * Un creator che ha anche un sito lo mette in descrizione, e spessissimo ci
+ * mette proprio la ricetta per esteso:
+ *
+ *     ★ INGREDIENTI, DOSI e PROCEDIMENTO: https://ricette.giallozafferano.it/…
+ *
+ * Quel testo lo leggiamo già per intero e gratis (`app/api/cucina/didascalia.ts`).
+ * Cercarci dentro un indirizzo costa zero, e la pagina che sta dall'altra parte
+ * quasi sempre ha il marcatore standard: i passi arrivano SCRITTI DALL'AUTORE,
+ * senza chiamare nessun modello.
+ *
+ * Il lavoro vero di questa funzione è SCARTARE. Nella descrizione della crostata
+ * al pan di zenzero ci sono nove indirizzi: uno è la ricetta, gli altri otto
+ * sono l'iscrizione al canale (tre volte, accorciata), la home del sito e cinque
+ * social. Andarseli a prendere tutti sarebbe tempo buttato; prendere quello
+ * sbagliato sarebbe peggio, perché i passi finirebbero attaccati a una ricetta
+ * che non è quella.
+ *
+ * ⚠️ Questo dice solo QUALI INDIRIZZI PROVARE. Che la ricetta trovata sia
+ * davvero la stessa lo decide il controllo sugli ingredienti (PARTE C): finché
+ * quello non c'è, questa strada si percorre solo quando la didascalia i passi
+ * non ce li ha — vedi `app/api/cucina/estrai/route.ts`.
+ */
+
+/** Domini dove non c'è mai una ricetta scritta da andare a leggere. */
+const FUORI_STRADA_HOST = [
+  // dove la ricetta è parlata, non scritta — e dove il marcatore non c'è mai
+  "tiktok.com", "youtube.com", "youtu.be", "instagram.com", "facebook.com", "fb.watch",
+  "twitter.com", "x.com", "pinterest.", "threads.", "linkedin.com", "snapchat.com",
+  "twitch.tv", "reddit.com", "t.me", "whatsapp.com", "telegram.",
+  // negozi, affiliazioni, codici sconto
+  "amazon.", "amzn.", "ebay.", "aliexpress.", "paypal.", "gumroad.com", "patreon.com",
+  "shopify.com", "etsy.com", "awin1.com", "shrsl.com", "tidd.ly", "sponsor",
+  // le pagine-vetrina dei link: dentro c'è tutto tranne una ricetta
+  "linktr.ee", "beacons.ai", "bio.link", "linkin.bio", "campsite.bio",
+  /* Gli accorciatori: dietro c'è quasi sempre un'iscrizione o una promozione, e
+     per saperlo bisognerebbe seguirli uno a uno. Non vale il viaggio — e sono
+     esattamente i tre link che GialloZafferano mette prima di quello buono. */
+  "bit.ly", "tinyurl.com", "goo.gl", "ow.ly", "t.co", "rb.gy", "cutt.ly", "is.gd",
+  "buff.ly", "lnk.to", "shorturl.at", "rebrand.ly",
+];
+
+/** Pezzi di percorso che dicono «qui si compra o ci si iscrive, non si cucina». */
+const FUORI_STRADA_PEZZO = new Set([
+  "shop", "store", "negozio", "checkout", "carrello", "cart", "sconto", "sconti",
+  "coupon", "promo", "abbonati", "iscriviti", "newsletter", "corso", "corsi",
+  "ebook", "login", "signup", "registrati", "privacy", "cookie",
+]);
+
+/** Le parole che, nell'indirizzo o nella riga che lo introduce, dicono che di
+ *  là c'è una ricetta. */
+const SPIA_RICETTA = /ricett|recipe|preparazion|procediment|ingredient|dosi/i;
+
+/** Gli indirizzi da provare, dentro una didascalia — i più promettenti davanti.
+ *
+ *  Non torna «tutti i link»: torna al massimo tre, già ripuliti e già scartati
+ *  quelli che non possono essere una ricetta. Chi chiama li prova in quest'ordine
+ *  (o tutti insieme, e tiene il primo che risponde). */
+export function linkDaDidascalia(testo: string, massimo = 3): string[] {
+  const t = (testo ?? "").replace(/\r/g, "");
+  if (!t.trim()) return [];
+
+  const visti = new Set<string>();
+  const candidati: { url: string; punti: number }[] = [];
+
+  for (const m of t.matchAll(/https?:\/\/[^\s<>"'`\])}]+/gi)) {
+    // La punteggiatura di fine frase resta attaccata all'indirizzo: «…zenzero.html.»
+    const grezzo = m[0].replace(/[.,;:!?…»"')\]]+$/, "");
+    let u: URL;
+    try {
+      u = new URL(grezzo);
+    } catch {
+      continue;
+    }
+    const chiave = u.href.toLowerCase();
+    if (visti.has(chiave)) continue;
+    visti.add(chiave);
+
+    const host = u.hostname.toLowerCase();
+    if (FUORI_STRADA_HOST.some((h) => host.includes(h))) continue;
+
+    const pezzi = u.pathname.split("/").filter(Boolean);
+    // La sola home di un sito non è una ricetta: è il sito.
+    if (pezzi.length === 0) continue;
+    if (pezzi.some((p) => FUORI_STRADA_PEZZO.has(p.toLowerCase()))) continue;
+    // Immagini, PDF, fogli: non hanno marcatore e pesano.
+    if (/\.(jpe?g|png|gif|webp|pdf|zip|mp4|mp3)$/i.test(u.pathname)) continue;
+
+    /* I punti servono all'ORDINE, non a decidere chi entra: un blog con un
+       indirizzo strano («/2024/12/07/») resta in lista, va solo dopo. */
+    const ultimo = pezzi[pezzi.length - 1].replace(/\.\w{2,5}$/, "");
+    // Le ottanta battute che precedono il link: è lì che sta l'etichetta
+    // («★ INGREDIENTI, DOSI e PROCEDIMENTO:») quando c'è.
+    const prima = t.slice(Math.max(0, m.index - 80), m.index);
+    const punti =
+      (SPIA_RICETTA.test(host) || SPIA_RICETTA.test(u.pathname) ? 3 : 0) +
+      // uno slug fatto di parole: «Crostata-pan-di-zenzero», «torta_di_mele»
+      (/^[\p{L}\d]+([-_][\p{L}\d]+){1,}$/u.test(ultimo) ? 2 : 0) +
+      (SPIA_RICETTA.test(prima) ? 2 : 0);
+    candidati.push({ url: u.href, punti });
+  }
+
+  return candidati
+    .sort((a, b) => b.punti - a.punti)
+    .slice(0, massimo)
+    .map((c) => c.url);
+}
+
 /* ══════════════ ⑧ IL MARCATORE STANDARD — la ricetta già scritta ══════════════
  *
  * Quasi tutti i blog di cucina pubblicano `schema.org/Recipe` in JSON-LD: dentro
@@ -454,6 +563,37 @@ export function haPassi(testo: string): { ok: boolean; perche: string } {
  * prosa («Fate cuocere e servite»): non sono passi, e salvarla come tale
  * riempirebbe «Cucina con Keiko» di passi finti. Meglio ricadere sul modello.
  */
+
+/* Il marcatore è HTML: dentro i campi ci finiscono le entità così come stanno.
+ * «Cannella in polvere &frac12; cucchiaino» è la riga vera della crostata al pan
+ * di zenzero su GialloZafferano, e senza questo passaggio arrivava sullo schermo
+ * scritta proprio così — sette caratteri di spazzatura al posto di «½», in una
+ * dose, cioè nel punto dove chi cucina guarda. Le entità si sciolgono qui, dove
+ * si legge il marcatore: a valle nessuno deve più saperne niente. */
+const ENTITA: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", hellip: "…",
+  ndash: "–", mdash: "—", middot: "·", bull: "•", deg: "°", euro: "€",
+  frac12: "½", frac14: "¼", frac34: "¾", frac13: "⅓", frac23: "⅔",
+  rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", laquo: "«", raquo: "»",
+  agrave: "à", egrave: "è", eacute: "é", igrave: "ì", ograve: "ò", ugrave: "ù",
+};
+
+/** Il testo di un campo del marcatore: senza tag e con le entità sciolte. */
+function senzaHtml(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&(#x?[0-9a-f]+|[a-z][a-z0-9]{1,9});/gi, (intero, nome: string) => {
+      if (nome[0] === "#") {
+        const n = nome[1]?.toLowerCase() === "x" ? parseInt(nome.slice(2), 16) : parseInt(nome.slice(1), 10);
+        return Number.isFinite(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : intero;
+      }
+      // Un'entità che non conosciamo si lascia com'è: meglio «&hearts;» sullo
+      // schermo che un buco dentro una dose.
+      return ENTITA[nome.toLowerCase()] ?? intero;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 /** Una durata ISO 8601 come la scrive schema.org (`PT1H20M`) → «1 h 20 min».
  *  È una conversione di formato di un valore scritto, non un'invenzione: se non
@@ -494,11 +634,10 @@ export function separaQuantita(riga: string): { nome: string; quantita?: string 
  *  gli step. Una stringa unica si spezza sui punti fermi e vale solo se ne
  *  escono almeno due frasi vere — sennò è prosa, non procedimento. */
 export function passiDalMarcatore(v: unknown): string[] {
-  const senzaTag = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const dentro = (x: unknown): string[] => {
     if (!x) return [];
     if (typeof x === "string") {
-      const s = senzaTag(x);
+      const s = senzaHtml(x);
       if (!s) return [];
       const frasi = s.split(/(?<=[.!?])\s+/).map((p) => p.trim()).filter((p) => p.length > 25);
       return frasi.length >= 2 ? frasi : [s];
@@ -567,7 +706,7 @@ export function leggiPaginaRicetta(html: string): { estratta: RicettaEstratta | 
 
   const ingredienti = (Array.isArray(r.recipeIngredient) ? r.recipeIngredient : [])
     .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-    .map((x) => separaQuantita(x.replace(/<[^>]+>/g, " ")))
+    .map((x) => separaQuantita(senzaHtml(x)))
     .filter((i) => i.nome.length > 0)
     .slice(0, 40);
   const passi = passiDalMarcatore(r.recipeInstructions);
