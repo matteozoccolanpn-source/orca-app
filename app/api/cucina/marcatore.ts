@@ -40,8 +40,8 @@ export function eSocial(url: string): boolean {
   return u.includes('facebook.com') || u.includes('pinterest.') || u.includes('x.com/') || u.includes('reddit.com')
 }
 
-export type Marcatore = { estratta: RicettaEstratta | null; immagine: string | null }
-const VUOTO: Marcatore = { estratta: null, immagine: null }
+export type Marcatore = { estratta: RicettaEstratta | null; immagine: string | null; nome: string | null; autore: string | null }
+const VUOTO: Marcatore = { estratta: null, immagine: null, nome: null, autore: null }
 
 /* Un'intestazione da browser vero. Non è per travestirsi: parecchi siti
    rispondono 403 a chi non manda niente, e questa pagina la stiamo aprendo

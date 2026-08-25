@@ -54,4 +54,10 @@ due biglietti di prova, ne ha cancellati quattro veri.)
 
 Auto-verifica: dopo ogni sezione, screenshot dell'app (localhost:3000/?v2) accanto al mockup
 alla stessa larghezza + versione in scala di grigi: ogni card deve staccare dal fondo.
+
+**UNA VIA D'USCITA NON SI METTE MAI DENTRO IL RAMO DEL CASO CHE FUNZIONA.** Se una
+schermata ha un ramo «va tutto bene» e uno «manca qualcosa», la porta va nel secondo —
+o fuori da tutti e due. È la terza volta che succede (due porte in Allenamento, poi
+«Scrivili tu» nella Cucina, sparita per chi non aveva nemmeno gli ingredienti): `tsc`
+non lo vede, perché il tipo torna giusto lo stesso.
 <!-- END:keiko-redesign-rules -->

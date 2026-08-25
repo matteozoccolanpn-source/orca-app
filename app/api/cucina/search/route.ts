@@ -6,6 +6,7 @@ import { spendAi, claudeFetch, AiCapReached } from '@/lib/ai'
 import { bastaCosi, ripulisciTraduzione, titoloCorto, haPassi, type Interpretazione } from '@/lib/cucina'
 import { marcatoreDi, eVideo, eSocial } from '../marcatore'
 import { didascaliaDi, descrizioniYouTube, idYouTube } from '../didascalia'
+import { anteprima } from '../anteprima'
 
 /* CUCINA — la ricerca (docs/SPEC-CUCINA.md, §2).
  *
@@ -108,30 +109,13 @@ function piattaformaDi(url: string): Risultato['piattaforma'] {
   return 'web'
 }
 
-/** L'anteprima pubblica della piattaforma. Nessuna chiave, nessuno scraping.
- *  Se non risponde entro 2 secondi si tiene la card col dominio: meglio un
- *  risultato spoglio che una pagina che aspetta. */
-async function anteprima(url: string, piattaforma: Risultato['piattaforma']) {
+/** L'anteprima pubblica della piattaforma — se non risponde entro 2 secondi si
+ *  tiene la card col dominio: meglio un risultato spoglio che una pagina che
+ *  aspetta. La funzione vera sta in `../anteprima.ts`: la usa anche la PARTE D
+ *  del ricettario, per il link che Matteo incolla invece di cercare. */
+async function anteprimaSe(url: string, piattaforma: Risultato['piattaforma']) {
   if (piattaforma === 'web') return null
-  const endpoint =
-    piattaforma === 'tiktok'
-      ? `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`
-      : `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
-  try {
-    const res = await fetch(endpoint, {
-      signal: AbortSignal.timeout(2000),
-      next: { revalidate: 604800 },   // 7 giorni: un video non cambia titolo
-    })
-    if (!res.ok) return null
-    const d = await res.json()
-    return {
-      titolo: typeof d?.title === 'string' ? d.title : null,
-      miniatura: typeof d?.thumbnail_url === 'string' ? d.thumbnail_url : null,
-      autore: typeof d?.author_name === 'string' ? d.author_name : null,
-    }
-  } catch {
-    return null
-  }
+  return anteprima(url, piattaforma)
 }
 
 /* La ricerca vera, in cache 7 giorni sulla coppia (fornitore, query): la stessa
@@ -504,7 +488,7 @@ export async function GET(req: NextRequest) {
       grezzi.map(async (r) => {
         const url = r.url as string
         const piattaforma = piattaformaDi(url)
-        const ante = await anteprima(url, piattaforma)
+        const ante = await anteprimaSe(url, piattaforma)
         const marc = letti.get(url)
         return {
           /* ⚠️ `titoloCorto` e non `.slice(0, 200)`. Per un video il titolo

@@ -53,6 +53,12 @@ export async function POST(req: NextRequest) {
     passi,
     tempo: prima.tempo ?? null,
     porzioni: prima.porzioni ?? null,
+    /* `fonte: "utente"` — un valore che non è mai un URL — dice al foglio
+     * «questi li ha scritti Matteo», non «vengono dalla descrizione del
+     * video». Senza, la riga sotto ai passi mentiva: diceva sempre «dalla
+     * descrizione» anche quando la descrizione non c'entrava per niente
+     * (PARTE F, docs/PROMPT-CODE-18). */
+    fonte: 'utente',
   }
 
   try {

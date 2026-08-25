@@ -58,11 +58,19 @@ funziona**:
 
 **① La didascalia** — spesso solo ingredienti, ma è gratis e ci vuole un attimo.
 
-**② Il commento fissato in alto** — moltissimi creator ci mettono la ricetta
-completa, perché la didascalia è corta. Stessa pagina, stesso costo: zero.
+**①bis Il link alla ricetta scritta, dentro la didascalia** — «★ INGREDIENTI,
+DOSI e PROCEDIMENTO: https://…». Il testo lo leggiamo già per intero e gratis, e
+la pagina dall'altra parte quasi sempre ha il marcatore standard: i passi
+arrivano scritti dall'autore, senza chiamare nessun modello. **È il gradino che
+rende di più**: 6 su 16 nella misura del 20 agosto 2026.
+
+*(Il ② — il commento fissato sotto al video — è chiuso: 0 su 18, e per un
+motivo strutturale che non cambia con più dati. Il perché per esteso è in
+`docs/NON-ORA.md`. La scala salta da ①bis a ③ apposta.)*
 
 **③ Il sito del creator** — quasi tutti hanno il link in biografia. Se è un blog
 con il marcatore standard, i passi sono lì già in ordine, senza modello.
+**Declassato**: 0 su 3 nella misura, e su TikTok la biografia è dietro il login.
 
 **④ La ricerca sul web** — titolo più creator. Se esiste la versione scritta,
 la trova.
@@ -74,8 +82,8 @@ resto — i saluti, «iscrivetevi», la musica.
 
 **Il risultato è sempre una ricetta cucinabile.** È il senso di questa strada.
 
-**Il controllo che la rende onesta**: quando i passi arrivano da ② ③ ④, prima di
-attaccarli **gli ingredienti devono combaciare**. Se cercavi gli gnocchi alla
+**Il controllo che la rende onesta**: quando i passi arrivano da ①bis ③ ④, prima
+di attaccarli **gli ingredienti devono combaciare**. Se cercavi gli gnocchi alla
 sorrentina e trova gli gnocchi di un altro, quelli non sono i tuoi passi. In
 caso di dubbio si scende al punto ⑤ — il video **è** quello giusto per
 definizione.

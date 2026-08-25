@@ -468,6 +468,10 @@ const FUORI_STRADA_HOST = [
   "shopify.com", "etsy.com", "awin1.com", "shrsl.com", "tidd.ly", "sponsor",
   // le pagine-vetrina dei link: dentro c'è tutto tranne una ricetta
   "linktr.ee", "beacons.ai", "bio.link", "linkin.bio", "campsite.bio",
+  /* «Scarica la mia app»: un negozio di applicazioni ha il marcatore (di una
+     app, non di una ricetta) e ci si perde una richiesta a vuoto. Visto: quattro
+     video di Benedetta su sei linkano `apple.co`. */
+  "apps.apple.com", "apple.co", "play.google.com", "itunes.apple.com",
   /* Gli accorciatori: dietro c'è quasi sempre un'iscrizione o una promozione, e
      per saperlo bisognerebbe seguirli uno a uno. Non vale il viaggio — e sono
      esattamente i tre link che GialloZafferano mette prima di quello buono. */
@@ -672,6 +676,23 @@ function oggettiJsonLd(html: string): Record<string, unknown>[] {
   return fuori;
 }
 
+/** Chi ha scritto la ricetta secondo il marcatore (`author.name`). Serve al
+ *  cancello del gradino ④ (`creatorCoincide`): lì la pagina la troviamo noi, e
+ *  può essere di chiunque — sapere chi l'ha firmata è quello che permette di
+ *  distinguere «la versione scritta di QUESTO video» da «la stessa ricetta
+ *  fatta da un altro». */
+function autoreDa(r: Record<string, unknown>): string | null {
+  const nomeDi = (v: unknown): string | null => {
+    if (!v) return null;
+    if (typeof v === "string") return v;
+    if (Array.isArray(v)) { for (const x of v) { const n = nomeDi(x); if (n) return n; } return null; }
+    const o = v as Record<string, unknown>;
+    return typeof o.name === "string" ? o.name : null;
+  };
+  const n = nomeDi(r.author);
+  return n ? senzaHtml(n).slice(0, 120) : null;
+}
+
 /** La foto che l'autore ha messo NEL marcatore. È la stessa cosa che fa
  *  l'oEmbed per i video: l'immagine che la pagina pubblica per essere mostrata
  *  altrove. Nessuno scraping — è un campo dichiarato. */
@@ -694,15 +715,25 @@ function immagineDa(r: Record<string, unknown>): string | null {
  *
  *  `estratta` è null anche quando il marcatore c'è ma è povero: sotto i tre
  *  ingredienti o i due passi si ricade sul modello, che almeno legge la
- *  didascalia. La foto invece si tiene lo stesso: serve alla card. */
-export function leggiPaginaRicetta(html: string): { estratta: RicettaEstratta | null; immagine: string | null } {
+ *  didascalia. La foto invece si tiene lo stesso: serve alla card.
+ *
+ *  `nome` è il titolo che l'autore ha dato ALLA RICETTA (`recipeName`), e
+ *  `autore` chi l'ha firmata (`author.name`): servono ai due cancelli della
+ *  PARTE C (`nomeCombacia`, `creatorCoincide`), e solo a quello — non entrano
+ *  in `RicettaEstratta` e non si salvano da nessuna parte, perché chi chiama
+ *  decide PRIMA di salvare se questa è la ricetta giusta. */
+export function leggiPaginaRicetta(
+  html: string
+): { estratta: RicettaEstratta | null; immagine: string | null; nome: string | null; autore: string | null } {
   const eRicetta = (o: Record<string, unknown>) => {
     const t = o?.["@type"];
     return Array.isArray(t) ? t.includes("Recipe") : t === "Recipe";
   };
   const r = oggettiJsonLd(html).find(eRicetta);
-  if (!r) return { estratta: null, immagine: null };
+  if (!r) return { estratta: null, immagine: null, nome: null, autore: null };
   const immagine = immagineDa(r);
+  const nome = typeof r.name === "string" ? senzaHtml(r.name).slice(0, 200) || null : null;
+  const autore = autoreDa(r);
 
   const ingredienti = (Array.isArray(r.recipeIngredient) ? r.recipeIngredient : [])
     .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
@@ -712,7 +743,7 @@ export function leggiPaginaRicetta(html: string): { estratta: RicettaEstratta | 
   const passi = passiDalMarcatore(r.recipeInstructions);
 
   // La soglia è quella dell'estrazione: sotto, non è una ricetta.
-  if (ingredienti.length < 3 || passi.length < 2) return { estratta: null, immagine };
+  if (ingredienti.length < 3 || passi.length < 2) return { estratta: null, immagine, nome, autore };
 
   const porzioni = (() => {
     const v = Array.isArray(r.recipeYield) ? r.recipeYield[0] : r.recipeYield;
@@ -732,12 +763,158 @@ export function leggiPaginaRicetta(html: string): { estratta: RicettaEstratta | 
       porzioni,
     },
     immagine,
+    nome,
+    autore,
   };
 }
 
 /** La sola ricetta, per chi non ha bisogno della foto. */
 export function leggiMarcatoreRicetta(html: string): RicettaEstratta | null {
   return leggiPaginaRicetta(html).estratta;
+}
+
+/* ══════ PARTE C — IL CONTROLLO CHE RENDE ONESTI ①bis E ④ ══════
+ *
+ * Quando i passi arrivano da una pagina che NON è quella del video — un link
+ * in didascalia (①bis) o un risultato di ricerca (④) — prima di attaccarli
+ * bisogna sapere che sono la ricetta GIUSTA, non quella di un altro piatto o
+ * di un'altra ricetta dello stesso creator.
+ *
+ * LA PRIMA VERSIONE, SCARTATA il 20 agosto 2026: «gli ingredienti devono
+ * combaciare» — una percentuale di quanti ingredienti della pagina sono
+ * nominati nella didascalia. Misurata sui casi veri, le due distribuzioni si
+ * sovrappongono e non lasciano spazio a una soglia:
+ *
+ *  · la ricetta GIUSTA della crostata al pan di zenzero, presa dal link che il
+ *    creator stesso ha messo, fa 0%: la sua didascalia elenca solo le tappe
+ *    del video («00:45 – STESURA FROLLA»), non un ingrediente;
+ *  · due dolci DIVERSI dello stesso creator (ciambella e torta di mele di
+ *    Benedetta) fanno 81%: condividono uova, farina, zucchero, lievito — ogni
+ *    dolce li ha.
+ *
+ * Quello che separa davvero è il NOME DEL PIATTO. «Crostata pan di zenzero»
+ * combacia col titolo del suo video sulle parole «crostata» e «zenzero»;
+ * «Torta di mele» non combacia con «Ciambella soffice» su NESSUNA parola,
+ * anche se vengono dallo stesso canale.
+ *
+ * DUE DETTAGLI, ed erano quelli che rompevano il confronto ingenuo:
+ *  1. IL NOME DEL CREATOR SI TOGLIE da tutte e due le parti PRIMA di
+ *     confrontare. Senza, «Torta di mele di Benedetta» combacia con «…Fatto
+ *     in Casa da Benedetta» sulla parola «Benedetta» — cioè il caso più
+ *     pericoloso passerebbe sull'unica parola che non prova niente;
+ *  2. SI CONFRONTA LA RADICE a cinque lettere, non la parola intera:
+ *     «pomodorini» e «pomodori ciliegini» non sono la stessa parola ma sono lo
+ *     stesso ingrediente, e la radice `pomod` li fa combaciare.
+ *
+ * LA SOGLIA, misurata sugli otto casi veri (quattro coppie giuste, quattro
+ * sbagliate): le giuste stanno al 100%, le sbagliate a 50/0/0/0. Il 50% è
+ * «Chicken wrap» contro «Pollo al curry» — condividono «pollo», che è un
+ * ingrediente e non un piatto — e i DUE TERZI lo fermano senza toccare le
+ * giuste. */
+
+/** Parole che non caratterizzano nessun piatto: dire che due nomi le hanno in
+ *  comune non prova niente. Include i connettivi corti che il taglio a
+ *  quattro lettere lascerebbe passare («alla», «come», «alle»…). */
+const SERVIZIO_NOME = new Set([
+  "ricetta", "ricette", "facile", "facilissima", "veloce", "veloci", "semplice",
+  "senza", "fatto", "fatta", "casa", "come", "della", "delle", "degli", "dello",
+  "alla", "allo", "alle", "agli", "con", "del", "nel", "nella", "sulla", "sullo",
+  "buona", "buono", "originale", "originali", "classica", "classico", "video",
+  "light", "kcal", "perfetta", "perfetto", "nuova", "nuovo", "super", "vera",
+  "tutorial", "spiegazione", "spiegazioni",
+]);
+
+/** Le radici caratterizzanti di un testo — parole di almeno quattro lettere,
+ *  ripulite di quelle di servizio e di quelle passate in `escluse` (di solito
+ *  il nome del creator, vedi sopra). Confrontiamo il PREFISSO a cinque
+ *  lettere: è la stessa idea dello stemming, fatta con una riga invece che
+ *  con un dizionario. */
+function radiciCaratterizzanti(testo: string, escluse: Set<string> = new Set()): Set<string> {
+  return new Set(
+    (testo ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .split(/[^a-z]+/)
+      .filter((w) => w.length >= 4 && !SERVIZIO_NOME.has(w))
+      .map((w) => w.slice(0, 5))
+      .filter((w) => !escluse.has(w))
+  );
+}
+
+export type Combaciano = { ok: boolean; comuni: string[]; quota: number };
+
+/** IL CANCELLO: i passi trovati altrove sono di QUESTA ricetta?
+ *
+ *  `nomeRicetta` è il nome come lo dice la fonte dei passi (di solito
+ *  `recipeName` del marcatore); `titoloVideo` è il titolo o la didascalia del
+ *  video che si sta guardando; `creator` è chi ha pubblicato — si toglie da
+ *  tutte e due le parti prima del confronto, per il motivo spiegato sopra.
+ *
+ *  Se il nome della ricetta non ha nemmeno una parola caratterizzante (perché
+ *  la pagina ha un titolo generico, o vuoto) il cancello NON PASSA A SCATOLA
+ *  CHIUSA: senza niente da cui giudicare, l'onesto è dire che non si sa. */
+export function nomeCombacia(nomeRicetta: string, titoloVideo: string, creator?: string | null): Combaciano {
+  const escluse = creator ? radiciCaratterizzanti(creator) : new Set<string>();
+  const a = radiciCaratterizzanti(nomeRicetta, escluse);
+  const b = radiciCaratterizzanti(titoloVideo, escluse);
+  if (a.size === 0) return { ok: false, comuni: [], quota: 0 };
+  const comuni = [...a].filter((w) => b.has(w));
+  return { ok: comuni.length / a.size >= 2 / 3, comuni, quota: comuni.length / a.size };
+}
+
+/** IL SECONDO CANCELLO, solo per ④: il creator combacia?
+ *
+ *  Nel ①bis il link ce l'ha messo il creator stesso nella sua didascalia: il
+ *  rischio massimo è «un'altra ricetta sua», ed è quello che `nomeCombacia` da
+ *  solo governa. Nel ④ la pagina la troviamo NOI cercando sul web, e può
+ *  essere di chiunque cucini lo stesso piatto — quindi lì il nome del piatto
+ *  non basta: deve combaciare ANCHE chi l'ha scritta, perché ④ cerca *la
+ *  versione scritta di questo video*, non una versione qualsiasi.
+ *
+ *  Si accetta se il creator compare nella firma della pagina (`author.name`
+ *  del marcatore) o nel suo dominio: un blog personale porta quasi sempre il
+ *  nome nell'indirizzo. Senza un nome di creator con cui confrontare, NON SI
+ *  PASSA A SCATOLA CHIUSA — è la stessa scelta di `nomeCombacia`. */
+export function creatorCoincide(creatorVideo: string | null | undefined, autorePagina: string | null, urlPagina: string): boolean {
+  if (!creatorVideo) return false;
+  const a = radiciCaratterizzanti(creatorVideo);
+  if (a.size === 0) return false;
+  if (autorePagina && [...a].some((w) => radiciCaratterizzanti(autorePagina).has(w))) return true;
+  try {
+    const host = new URL(urlPagina).hostname.toLowerCase().replace(/^www\./, "");
+    if ([...a].some((w) => w.length >= 4 && host.includes(w))) return true;
+  } catch {
+    /* url storto: non si passa lo stesso */
+  }
+  return false;
+}
+
+/** Le radici che, sole, non distinguono niente: stanno in ogni ricetta e
+ *  contarle come le altre gonfierebbe il punteggio di qualunque pagina. */
+const INGREDIENTE_GENERICO = new Set([
+  "sale", "pepe", "olio", "acqua", "zucch", "farin", "uova", "uovo", "latte",
+  "lievi", "burro", "vanig", "semol", "bicar", "amido",
+]);
+
+/** Quanto una pagina «suona» come il testo del video, contando gli
+ *  ingredienti — SOLO PER ORDINARE quando ①bis o ④ hanno più candidati, MAI
+ *  per bocciare: misurato che la pagina GIUSTA può stare al 9%, quando il
+ *  creator scrive «ricetta completa qui» senza elencare nulla. Chi boccia è
+ *  sempre e solo `nomeCombacia`. */
+export function puntiIngredienti(ingredienti: string[], testoDaCercare: string): number {
+  const testo = radiciCaratterizzanti(testoDaCercare);
+  let peso = 0;
+  let trovato = 0;
+  for (const ing of ingredienti) {
+    const parole = [...radiciCaratterizzanti(ing)];
+    if (parole.length === 0) continue;
+    const generico = parole.every((w) => INGREDIENTE_GENERICO.has(w));
+    const p = generico ? 0.25 : 1;
+    peso += p;
+    if (parole.some((w) => testo.has(w))) trovato += p;
+  }
+  return peso > 0 ? trovato / peso : 0;
 }
 
 /* ══════════════ ② L'INTERPRETE DELLA DOMANDA ══════════════ */
@@ -816,6 +993,47 @@ export function bastaCosi(domanda: string): boolean {
   // Da due parole in su: bastano se sono TUTTE cibo. Una sola parola estranea
   // ("serata", "partita", "amici") e si chiama l'interprete.
   return parole.every((p) => CIBI.has(p));
+}
+
+/* ══════ PARTE E — IL LEGAME CON IL PIANO: PROPONE, NON DECIDE ══════
+ *
+ * Se una ricetta somiglia a un pasto del piano — «pollo al curry» ≈ «pollo e
+ * verdure» di giovedì — Keiko lo propone, non lo decide: il dito conferma
+ * sempre (docs/SPEC-RICETTARIO.md §1). Questa funzione fa solo la metà onesta
+ * del lavoro, il SUGGERIMENTO: dice QUALE pasto somiglia, non scrive niente
+ * nel registro — quello resta il giro del blocco 7 (`annotaPasto`).
+ *
+ * Riusa il vocabolario di `CIBI`, lo stesso di `bastaCosi`: due testi
+ * «somigliano» quando condividono almeno una parola che è cibo vero, non una
+ * parola di servizio. «Pollo al curry» e «pollo e verdure» condividono
+ * «pollo»; «pollo al curry» e «pasta al pomodoro» non condividono niente, e
+ * infatti non sono lo stesso pasto. Non è il cancello severo della PARTE C
+ * (lì un errore attacca i passi sbagliati a una ricetta; qui, nel peggiore
+ * dei casi, propone un pasto che poi non si tocca — il dito decide). */
+function paroleCibo(testo: string): Set<string> {
+  return new Set(
+    (testo ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .split(/[^a-z0-9]+/)
+      .filter((p) => CIBI.has(p))
+  );
+}
+
+/** Il pasto di oggi che più somiglia a questa ricetta, o null se nessuno
+ *  condivide un ingrediente. Fra più pasti a pari merito vince quello con più
+ *  parole in comune; a parità ulteriore, il primo della giornata. */
+export function pastoSomigliante<T extends { testo: string }>(titoloRicetta: string, giornata: T[]): T | null {
+  const a = paroleCibo(titoloRicetta);
+  if (a.size === 0) return null;
+  let migliore: T | null = null;
+  let punteggioMigliore = 0;
+  for (const p of giornata) {
+    const comuni = [...paroleCibo(p.testo)].filter((w) => a.has(w)).length;
+    if (comuni > punteggioMigliore) { migliore = p; punteggioMigliore = comuni; }
+  }
+  return migliore;
 }
 
 /** Il filtro sulla risposta del modello. Torna null se quello che è tornato

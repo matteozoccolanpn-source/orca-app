@@ -152,3 +152,32 @@ misura che dice quanto serve è stata fatta su un codice difettoso — con la
 didascalia tagliata a 200 caratteri arrivavano al video 2 video su 8, e con la
 didascalia intera il numero non lo sappiamo ancora. Si riprende quando ci sono
 venti ricette vere da guardare invece di otto.
+
+---
+
+## Il gradino ② del ricettario — il commento sotto al video
+
+**Chiuso per costruzione, non per mancanza di dati** (20 agosto 2026).
+
+L'idea era: molti creator mettono la ricetta completa nel commento fissato,
+perché la didascalia è corta. `commentThreads.list` funziona — chiave abilitata,
+HTTP 200, un elenco costa 1 unità su 10.000 al giorno. Misurato su **18 video**
+(i due del ricettario più sedici presi da due ricerche vere), guardando i primi
+venti commenti per rilevanza e cercando anche quelli del creator:
+
+- video senza passi in didascalia: **18**
+- di questi, con un commento del creator: **4**
+- con un commento che contiene i passi: **0**
+
+**Il perché, ed è il motivo per cui non migliorerà con più dati**: il commento
+fissato esiste perché su TikTok e Instagram la didascalia è corta. Su YouTube la
+descrizione è praticamente illimitata, quindi il creator ci mette la ricetta o il
+link al suo sito — e quel link lo prende già il gradino ①bis (6 su 16 nella
+stessa misura, zero modelli). Il ② si può chiamare **solo dove serve meno**: sulle
+due piattaforme dove servirebbe, la pagina non è servita a un server, e quello è
+già misurato e chiuso.
+
+Quindi la scala è **① → ①bis → ③ → ④**, e il ② non esiste. La chiave YouTube
+resta com'è: `videos.list` la usa per prendere cinquanta didascalie in una
+richiesta sola, ed è quella che rende sostenibile filtrare tutti i risultati
+invece dei primi dodici.

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { PastoDelGiorno } from "@/lib/cucina";
+import { pastoSomigliante, type PastoDelGiorno } from "@/lib/cucina";
 import { I } from "@/app/components/v2/icons";
 
 /* ═════════ «CUCINA CON KEIKO» — un passo per volta (blocco 8.3) ═════════
@@ -123,6 +123,9 @@ export default function CucinaConKeiko({
   const [ingredientiAperti, setIngredientiAperti] = useState(false);
   const [segno, setSegno] = useState(false);
   const corpo = useRef<HTMLDivElement | null>(null);
+  // PARTE E: quale pasto di oggi somiglia a questa ricetta — solo un
+  // suggerimento, calcolato una volta, mai scritto finché non è un tap.
+  const somigliante = useMemo(() => pastoSomigliante(titolo, pasti), [titolo, pasti]);
 
   useSchermoAcceso();
 
@@ -255,19 +258,32 @@ export default function CucinaConKeiko({
                   <div className="status" style={{ marginTop: 2 }}>
                     resta scritto nel registro di oggi, come l&apos;hai detto tu
                   </div>
+                  {/* PARTE E: Keiko PROPONE, non decide. Il pasto che somiglia
+                      per ingredienti si vede — un bordo, non una spunta — ma
+                      resta un tasto uguale agli altri: il dito conferma
+                      sempre, anche quando propone lei (docs/SPEC-RICETTARIO.md
+                      §1, «propone non decide»). */}
                   <div className="chips" style={{ marginTop: 10, flexWrap: "wrap", overflow: "visible" }}>
-                    {pasti.map((p) => (
-                      <button
-                        key={p.indice}
-                        className="chip tap"
-                        onClick={() => segnaPer(p)}
-                        disabled={segno}
-                        style={{ minHeight: 44 }}
-                      >
-                        {p.pasto}
-                      </button>
-                    ))}
+                    {pasti.map((p) => {
+                      const proposto = p === somigliante;
+                      return (
+                        <button
+                          key={p.indice}
+                          className="chip tap"
+                          onClick={() => segnaPer(p)}
+                          disabled={segno}
+                          style={proposto
+                            ? { minHeight: 44, borderColor: "var(--accent)", color: "var(--accent)" }
+                            : { minHeight: 44 }}
+                        >
+                          {p.pasto}
+                        </button>
+                      );
+                    })}
                   </div>
+                  {somigliante && (
+                    <p className="rx" style={{ marginTop: 8 }}>La colleghi al {somigliante.pasto.toLowerCase()}?</p>
+                  )}
                 </div>
               ) : (
                 <p className="rx" style={{ textAlign: "center", marginTop: 20 }}>
