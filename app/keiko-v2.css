@@ -457,6 +457,15 @@
 .k2 .sheet .plain-head{padding:22px 16px 0}
 .k2 .sheet .plain-head h2{font-family:var(--font-fraunces-v2),Fraunces,Georgia,serif;font-size:21px;font-weight:500;letter-spacing:-.01em}
 
+/* La foto grande del dettaglio di un fatto (Viaggi, PARTE 3 — 27 agosto
+   2026). Porta 1:1 da docs/mockups/viaggi-mock.html: stesso riquadro, stessa
+   sfumatura verso il testo sotto. Nel mock c'era un gradiente di categoria
+   sempre presente (.fbk, non portato); qui la foto è vera o il riquadro non
+   c'è affatto — vedi FattoSheet in app/viaggio/documenti/DocumentiView.tsx. */
+.k2 .sheet .shpic{height:150px;margin:6px 16px 0;border-radius:var(--r-card);position:relative;overflow:hidden;flex:none;background:#1E222A}
+.k2 .sheet .shpic .art{position:absolute;inset:0;filter:saturate(1.12) contrast(1.02)}
+.k2 .sheet .shpic:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 46%,rgba(26,27,32,.96))}
+
 /* ══ stepper (registrazione dati · D4) ══ */
 .k2 .fld{display:flex;align-items:center;gap:10px;margin-top:12px}
 .k2 .fld .fl{flex:1;font-size:12.5px;color:var(--txt2);font-weight:500}

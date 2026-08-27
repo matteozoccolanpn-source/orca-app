@@ -4,6 +4,7 @@ import type { WorkoutSetRow } from "@/lib/supabase";
 import KeikoHomeV4 from "./components/keiko/KeikoHomeV4";
 import { mapLive } from "./components/keiko/keikoLive";
 import { getUpcomingTickets, getDietPlan, getWorkoutPlan, getTrainedDays, getAllTripPlans, getTodos, getWatchlist, getOnboardedAt, getTicketsForBeats, saveBeatState, getLastPerformance, getPastiAnnotatiConRicetta } from "@/lib/supabase";
+import { listTripGroups } from "@/lib/trip-docs";
 import { battitoDiOggi, GIORNI_INDIETRO, GIORNI_AVANTI, type Battito } from "@/lib/battiti";
 import { immaginePerBattito } from "@/lib/event-image";
 import { posterFor } from "@/lib/tmdb";
@@ -35,7 +36,7 @@ export default async function Home({
   const v2 = "v2" in sp;   // paracadute: Home precedente
   // `onboardedAt` viaggia insieme al resto (K14b): niente chiamata di rete in
   // più dal telefono, è una query in parallelo alle altre.
-  const [eventsLetti, diet, workout, trainedDays, trips, todos, watchlist, onboardedAt] = await Promise.all([
+  const [eventsLetti, diet, workout, trainedDays, trips, todos, watchlist, onboardedAt, tripDocs] = await Promise.all([
     getUpcomingTickets(),
     getDietPlan(),
     getWorkoutPlan(),
@@ -44,6 +45,10 @@ export default async function Home({
     getTodos(),
     getWatchlist(),
     getOnboardedAt(),
+    // La voce Viaggi in Home (nav, 27 agosto 2026): un guasto qui non deve
+    // rompere la pagina più visitata dell'app, semplicemente quella voce non
+    // compare — stesso trattamento silenzioso di getWatchlist/getTodos sopra.
+    listTripGroups().catch(() => []),
   ]);
 
   /* ⚠️ GUASTO NON GESTITO (giro finale): `getUpcomingTickets()` torna `null`
@@ -175,5 +180,5 @@ export default async function Home({
   // Paracadute: la Home precedente resta raggiungibile su /?v2.
   if (v2) return <KeikoPreview live={live} logoutAction={logout} />;
   // Default: la nuova Home redesign.
-  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} onboardedAt={onboardedAt} battito={battito} chiediUltimaVolta={leggiUltimaVolta} />;
+  return <KeikoHomeV4 live={live} logoutAction={logout} accountName={session.user?.name ?? ""} onboardedAt={onboardedAt} battito={battito} chiediUltimaVolta={leggiUltimaVolta} tripDocs={tripDocs} />;
 }

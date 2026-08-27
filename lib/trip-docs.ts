@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { userDb } from "./supabase-user";
+import { placePhotoNameVerificato, placePhotoUrl, type LuogoAtteso } from "./google-places";
 
 /* VIAGGI — il viaggio caricato da fuori (docs/PROMPT-CODE-20-VIAGGI-DOCUMENTI.md).
  *
@@ -128,6 +129,14 @@ export interface TripFactRow {
   reference: string | null;
   raw_text: string;
   created_at: string;
+  /* PARTE 3 (27 agosto 2026) — vedi docs/sql/trip-facts-photo.sql. `null` +
+   * `photo_checked:false` = "non ancora cercata"; `null` + `true` = "cercata,
+   * e non c'era una foto di cui fidarsi" — la stessa distinzione di
+   * `EventEnrichment.placePhoto` in lib/supabase.ts, senza la quale un fatto
+   * senza foto ripagherebbe la ricerca a ogni apertura della linea del tempo.
+   * Opzionali: una riga scritta prima della migrazione non li ha ancora. */
+  photo_name?: string | null;
+  photo_checked?: boolean;
 }
 
 export type NuovoFatto = Omit<TripFactRow, "id" | "document_id" | "created_at">;
@@ -397,6 +406,19 @@ export interface TimelineItem {
    * 2026): non si fonde — resta una riga, ma non muta come se non ci fosse
    * nessun sospetto. Vedi `classificaSostanza`. */
   possibileDoppioneDi?: string;
+  /* PARTE 3: l'URL (proxy /api/place-photo, mai la chiave nel client) della
+   * foto vera del luogo — solo quando Google Places l'ha trovata E il tipo di
+   * posto trovato corrisponde a quello atteso (`placePhotoNameVerificato`).
+   * `null` per gli item nati da un biglietto (non hanno una riga in
+   * `trip_facts` su cui ricordare l'esito, quindi non si cercano — vedi
+   * `arricchisciFoto`) e per i fatti con più di un luogo in una riga sola
+   * (vedi `luogoSingolo`): una foto ne rappresenterebbe uno a caso. */
+  photo: string | null;
+  /* Lo stato grezzo della cache su `trip_facts`, letto una volta in
+   * `assembleTimeline` e consumato da `arricchisciFoto` — non serve alla UI,
+   * che guarda solo `photo`. */
+  photoChecked?: boolean;
+  photoName?: string | null;
 }
 
 interface TicketRow {
@@ -527,6 +549,9 @@ export async function assembleTimeline(tripKey: string): Promise<TimelineItem[]>
     reference: f.reference,
     provenienze: [{ tipo: "documento", fileName: fileNameById.get(f.document_id) ?? "documento", raw: f.raw_text }],
     conflitto: false,
+    photo: null,
+    photoChecked: f.photo_checked ?? false,
+    photoName: f.photo_name ?? null,
   }));
 
   /* FUSIONE FRA DOCUMENTI DELLO STESSO VIAGGIO (28 agosto 2026) — PRIMA dei
@@ -607,6 +632,7 @@ export async function assembleTimeline(tripKey: string): Promise<TimelineItem[]>
           provenienze: [{ tipo: "biglietto", ticketId: t.id, reference: t.reference }],
           conflitto: true,
           conflictGroup: gruppo,
+          photo: null,   // nato da un biglietto, non da trip_facts: niente riga su cui ricordare la foto
         });
       } else {
         match.provenienze.push({ tipo: "biglietto", ticketId: t.id, reference: t.reference });
@@ -623,6 +649,7 @@ export async function assembleTimeline(tripKey: string): Promise<TimelineItem[]>
         reference: t.reference,
         provenienze: [{ tipo: "biglietto", ticketId: t.id, reference: t.reference }],
         conflitto: false,
+        photo: null,
       });
     }
   }
@@ -632,4 +659,78 @@ export async function assembleTimeline(tripKey: string): Promise<TimelineItem[]>
     return (normalizzaOra(a.timeText) ?? "99:99").localeCompare(normalizzaOra(b.timeText) ?? "99:99");
   });
   return items;
+}
+
+/* ═════════ PARTE 3 — LA FOTO DEI FATTI CON UN LUOGO RICONOSCIBILE ═════════
+ *
+ * DA DOVE VIENE E QUANTO COSTA (chiesto prima di scrivere, non dopo).
+ * Stessa infrastruttura già in produzione per i Battiti (`lib/event-image.ts`
+ * → `lib/google-places.ts`): Google Places API (New), una ricerca testuale
+ * per fatto, e il "photo name" restituito si ricorda per sempre dentro
+ * `trip_facts` (docs/sql/trip-facts-photo.sql) — anche quando l'esito è
+ * "nessuna foto di cui fidarsi". Non ripaga MAI la ricerca a un'apertura
+ * successiva della linea del tempo: il costo è UNA volta per fatto, non per
+ * pagina vista. Sui 36 fatti del viaggio vero, quelli con un luogo singolo e
+ * riconoscibile (hotel + visite non composte, vedi sotto) sono una quindicina
+ * — dentro l'uso gratuito mensile di Google Places che copre già i Battiti,
+ * quindi a conti fatti zero in più da pagare per un viaggio di questa taglia.
+ * Il prezzo esatto per ricerca va verificato sul listino di Google se il
+ * volume dovesse crescere di ordini di grandezza: qui non è il caso.
+ *
+ * QUALI FATTI la ottengono. Solo `hotel` e `visita`: sono gli unici due tipi
+ * con un luogo fisico riconoscibile fra quelli che i documenti di viaggio
+ * raccontano (un volo è un aeroporto, un contatto è una persona). E dentro
+ * `visita`, SOLO quando il titolo nomina UN luogo solo: "Terracotta Army" va
+ * bene, ma "Forbidden City, Jingshan, Great Wall Mutianyu, Tiananmen Square"
+ * — una riga vera del documento cinese — no. Una foto ne mostrerebbe uno a
+ * caso spacciandolo per il fatto intero: esattamente l'immagine sbagliata che
+ * la regola vieta. Il taglio è sulla VIRGOLA, non su "e"/"and": "Tianmen
+ * Mountain and Glass Bridge" resta un luogo solo (il ponte è dentro la
+ * montagna), mentre "Heaven Temple and Lama temple" ne perderebbe la foto per
+ * eccesso di prudenza — accettabile, perché il fallback è una riga comunque
+ * pulita (`.fact.nopic`), mai un buco. */
+function luogoSingolo(titolo: string): string | null {
+  const pezzi = titolo.split(",").map((p) => p.trim()).filter(Boolean);
+  return pezzi.length === 1 ? pezzi[0] : null;
+}
+
+const ATTESO_PER_KIND: Partial<Record<FactKind, LuogoAtteso>> = { hotel: "hotel", visita: "attrazione" };
+
+/** Aggiorna una riga di `trip_facts` con l'esito della ricerca — SEMPRE, anche
+ *  il "niente": è quello che ferma la ricerca ripetuta. Non lancia mai: una
+ *  foto non salvata è un fatto che ripagherà la ricerca la prossima volta, non
+ *  un motivo per rompere la linea del tempo. */
+async function salvaFotoFatto(factId: string, name: string | null): Promise<void> {
+  try {
+    const client = await db();
+    const { error } = await client.from("trip_facts").update({ photo_name: name, photo_checked: true }).eq("id", factId);
+    if (error) console.warn("[viaggio] foto non salvata (hai eseguito docs/sql/trip-facts-photo.sql?):", error.message);
+  } catch (e) {
+    console.warn("[viaggio] foto non salvata:", e);
+  }
+}
+
+/** Arricchisce la linea del tempo con le foto vere, una ricerca sola a vita
+ *  per fatto. `destinazione` entra nella query per disambiguare (due hotel
+ *  con lo stesso nome in città diverse, un "Sun World Hotel" ovunque in Cina):
+ *  è il campo `destination` del gruppo di viaggio, non un'invenzione. */
+export async function arricchisciFoto(items: TimelineItem[], destinazione: string): Promise<TimelineItem[]> {
+  return Promise.all(
+    items.map(async (it) => {
+      const atteso = ATTESO_PER_KIND[it.kind];
+      // Niente riga in trip_facts su cui ricordare l'esito (nato da un
+      // biglietto): non si cerca. Vedi il commento su `photo` in TimelineItem.
+      if (!atteso || it.id.startsWith("ticket-")) return it;
+      const luogo = luogoSingolo(it.title);
+      if (!luogo) return it;
+
+      // Già cercata in passato — anche l'esito negativo si riusa.
+      if (it.photoChecked) return { ...it, photo: placePhotoUrl(it.photoName ?? null) };
+
+      const query = [luogo, it.place, destinazione].filter(Boolean).join(", ");
+      const name = await placePhotoNameVerificato(query, atteso);
+      await salvaFotoFatto(it.id, name);
+      return { ...it, photo: placePhotoUrl(name) };
+    })
+  );
 }

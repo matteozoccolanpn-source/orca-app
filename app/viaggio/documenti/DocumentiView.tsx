@@ -8,9 +8,13 @@ import type { TripGroup, TripDocumentRow, TimelineItem, FactKind } from "@/lib/t
 
 /* VIAGGI — il viaggio caricato da fuori (docs/PROMPT-CODE-20-VIAGGI-DOCUMENTI.md).
  * Pagina nuova, separata da ViaggioView.tsx: non tocca i suoi bottoni.
- * Visivamente sul mock docs/mockups/viaggi-mock.html (PARTI 1 e 2). Le foto
- * (PARTE 3) e la scheda-attività coi video (PARTE 4) non ci sono ancora:
- * questa ondata è caricamento + linea del tempo + doppioni + "chiedi".
+ *
+ * Questo componente è il DETTAGLIO di un viaggio (l'elenco vive in
+ * `../TripListView.tsx`, con un indirizzo `/viaggio/documenti/[tripKey]`
+ * per ciascuno — nav, 27 agosto 2026). La foto vera dei fatti (PARTE 3) è
+ * qui: `.fact .pic` con un'immagine confermata da Google Places, o niente
+ * (`.fact.nopic`) quando non c'è una foto di cui fidarsi — mai un buco, mai
+ * una foto a caso. La scheda-attività coi video (PARTE 4) resta per dopo.
  */
 
 type RisultatoFile = {
@@ -92,50 +96,93 @@ function provenienzaTesto(it: TimelineItem): string {
     .join(" · e ");
 }
 
-function FactRow({ it }: { it: TimelineItem }) {
+/* PARTE 3: `.fact .pic` solo quando c'è una foto verificata; altrimenti
+ * `.fact.nopic`, che il CSS disegna apposta per starci bene senza — non un
+ * riquadro grigio, non un buco (docs/mockups/viaggi-mock.html, stessa
+ * struttura, foto vera al posto del gradiente di categoria del mock). */
+function FactRow({ it, onOpen }: { it: TimelineItem; onOpen: (it: TimelineItem) => void }) {
   return (
-    <div className="fact nopic">
-      <div className="in">
-        <div className="h">{it.timeText || LABEL_KIND[it.kind]}</div>
-        <div className="col">
-          <div className="t">{it.title}</div>
-          {it.place && <div className="d">{it.place}</div>}
-          <div className="src">
+    <button className={`fact tap${it.photo ? "" : " nopic"}`} onClick={() => onOpen(it)}>
+      {it.photo && (
+        <span className="pic">
+          <span className="art" style={{ backgroundImage: `url(${it.photo})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+        </span>
+      )}
+      <span className="in">
+        <span className="h">{it.timeText || LABEL_KIND[it.kind]}</span>
+        <span className="col">
+          <span className="t">{it.title}</span>
+          {it.place && <span className="d">{it.place}</span>}
+          <span className="src">
             {provenienzaTesto(it)}
             {it.reference && <span className="cod"> · {it.reference}</span>}
             {it.possibileDoppioneDi && (
               <span style={{ color: "var(--meta)", fontStyle: "italic" }}> · forse già presente</span>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </span>
+        </span>
+      </span>
+    </button>
   );
 }
 
-function ConflictPair({ pair }: { pair: [TimelineItem, TimelineItem] }) {
+function ConflictPair({ pair, onOpen }: { pair: [TimelineItem, TimelineItem]; onOpen: (it: TimelineItem) => void }) {
   return (
     <div style={{ border: "1px solid rgba(201,106,69,.4)", borderRadius: "var(--r-card)", padding: 8, display: "grid", gap: 8 }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--acc)", padding: "0 4px" }}>
         ⚠️ Il documento e il biglietto non concordano
       </div>
-      <FactRow it={pair[0]} />
-      <FactRow it={pair[1]} />
+      <FactRow it={pair[0]} onOpen={onOpen} />
+      <FactRow it={pair[1]} onOpen={onOpen} />
     </div>
   );
 }
 
+/* Il dettaglio di un fatto (nav, punto 1): orario, luogo, codice, la fonte —
+ * più la foto grande quando c'è. `.shpic` è lo stesso riquadro usato per il
+ * documento originale, 150px, con la stessa regola: niente foto, niente
+ * riquadro. */
+function FattoSheet({ it, onClose }: { it: TimelineItem; onClose: () => void }) {
+  return (
+    <Sheet onClose={onClose}>
+      <div className="grab" />
+      {it.photo && (
+        <div className="shpic">
+          <span className="art" style={{ position: "absolute", inset: 0, backgroundImage: `url(${it.photo})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+        </div>
+      )}
+      <div className="plain-head">
+        <h2>{it.title}</h2>
+        <div className="status">{it.timeText || LABEL_KIND[it.kind]}</div>
+      </div>
+      <div className="pad" style={{ display: "grid", gap: 10, marginTop: 14 }}>
+        {it.place && <p style={{ fontSize: 14, fontWeight: 500, color: "var(--txt2)", margin: 0 }}>📍 {it.place}</p>}
+        {it.reference && (
+          <p style={{ fontSize: 14, fontWeight: 500, color: "var(--txt2)", margin: 0 }}>
+            Codice: <span style={{ fontWeight: 600 }}>{it.reference}</span>
+          </p>
+        )}
+        <p className="rx" style={{ marginTop: 0 }}>{provenienzaTesto(it)}</p>
+        {it.possibileDoppioneDi && (
+          <p className="rx" style={{ fontStyle: "italic" }}>
+            Somiglia a un altro fatto già segnato — forse è lo stesso raccontato due volte.
+          </p>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
 export default function DocumentiView({
-  gruppi,
-  tripKeyAttivo,
+  gruppo,
   documenti,
   timeline,
 }: {
-  gruppi: TripGroup[];
-  tripKeyAttivo: string | null;
+  gruppo: TripGroup;
   documenti: TripDocumentRow[];
   timeline: TimelineItem[];
 }) {
+  const tripKeyAttivo = gruppo.tripKey;
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [caricando, setCaricando] = useState(false);
@@ -143,6 +190,7 @@ export default function DocumentiView({
   const step = useUploadStep(caricando);
 
   const [apertoDoc, setApertoDoc] = useState<TripDocumentRow | null>(null);
+  const [apertoFatto, setApertoFatto] = useState<TimelineItem | null>(null);
   const [domanda, setDomanda] = useState("");
   const [chiedendo, setChiedendo] = useState(false);
   const [risposta, setRisposta] = useState<Risposta | null>(null);
@@ -173,10 +221,10 @@ export default function DocumentiView({
     try {
       const fd = new FormData();
       for (const f of Array.from(files)) fd.append("files", f);
-      // Un file che fallisce non ha destinazione/date da dedurre: se stai già
-      // guardando un viaggio, ci si attacca lì invece di finire in un
+      // Un file che fallisce non ha destinazione/date da dedurre: sei già
+      // dentro questo viaggio, ci si attacca qui invece di finire in un
       // "senza-viaggio" che nessuno riapre più.
-      if (tripKeyAttivo) fd.append("tripKeyHint", tripKeyAttivo);
+      fd.append("tripKeyHint", tripKeyAttivo);
       const res = await fetch("/api/trip/docs/upload", { method: "POST", body: fd, credentials: "include" });
       const data = (await res.json().catch(() => null)) as { risultati?: RisultatoFile[]; error?: string } | null;
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
@@ -184,7 +232,7 @@ export default function DocumentiView({
       setRisultati(elenco);
       const primoOk = elenco.find((r) => r.status === "ok" && r.tripKey);
       if (primoOk?.tripKey && primoOk.tripKey !== tripKeyAttivo) {
-        router.push(`/viaggio/documenti?trip=${encodeURIComponent(primoOk.tripKey)}`);
+        router.push(`/viaggio/documenti/${encodeURIComponent(primoOk.tripKey)}`);
       } else {
         router.refresh();
       }
@@ -234,18 +282,18 @@ export default function DocumentiView({
     }
   }
 
-  const attivo = gruppi.find((g) => g.tripKey === tripKeyAttivo) ?? null;
   const perGiorno = raggruppaPerGiorno(timeline);
 
   return (
     <div className="k2">
       <div className="screen tripdoc" style={{ paddingBottom: PAGE_PB }}>
         <div className="head" style={{ padding: "6px 2px 14px" }}>
+          <a className="back" href="/viaggio/documenti" aria-label="Torna ai viaggi">‹</a>
           <div className="col">
-            <h1>{attivo?.destination ?? "Il viaggio caricato da fuori"}</h1>
+            <h1>{gruppo.destination || "Viaggio"}</h1>
             <div className="status">
-              {attivo
-                ? `${fmtGiorno(attivo.minDay)} – ${fmtGiorno(attivo.maxDay)} · ${documenti.length} document${documenti.length === 1 ? "o" : "i"}`
+              {gruppo.minDay
+                ? `${fmtGiorno(gruppo.minDay)} – ${fmtGiorno(gruppo.maxDay)} · ${documenti.length} document${documenti.length === 1 ? "o" : "i"}`
                 : "Carica il programma, un voucher o un biglietto per cominciare"}
             </div>
           </div>
@@ -256,21 +304,6 @@ export default function DocumentiView({
           // salvata quando c'era rete, non un dato fresco (§1.3).
           <div className="attach" style={{ marginBottom: 8 }}>
             📡 Sei offline — questa è l&apos;ultima versione salvata. Caricare o chiedere richiede rete.
-          </div>
-        )}
-
-        {gruppi.length > 1 && (
-          <div className="chips" style={{ marginBottom: 4 }}>
-            {gruppi.map((g) => (
-              <button
-                key={g.tripKey}
-                className="chip tap"
-                style={g.tripKey === tripKeyAttivo ? { background: "var(--teal)", borderColor: "var(--teal)", color: "var(--on-teal)" } : undefined}
-                onClick={() => router.push(`/viaggio/documenti?trip=${encodeURIComponent(g.tripKey)}`)}
-              >
-                {g.destination}
-              </button>
-            ))}
           </div>
         )}
 
@@ -379,18 +412,14 @@ export default function DocumentiView({
                 </div>
                 <div className="stack">
                   {raggruppaConflitti(voci).map((v, i) =>
-                    Array.isArray(v) ? <ConflictPair key={i} pair={v} /> : <FactRow key={v.id} it={v} />
+                    Array.isArray(v)
+                      ? <ConflictPair key={i} pair={v} onOpen={setApertoFatto} />
+                      : <FactRow key={v.id} it={v} onOpen={setApertoFatto} />
                   )}
                 </div>
               </div>
             ))}
           </>
-        )}
-
-        {!tripKeyAttivo && documenti.length === 0 && (
-          <div style={{ marginTop: 24, textAlign: "center", color: "var(--meta)", fontSize: 13 }}>
-            Nessun viaggio ancora. Il primo documento che carichi lo crea.
-          </div>
         )}
       </div>
 
@@ -411,6 +440,8 @@ export default function DocumentiView({
           </div>
         </Sheet>
       )}
+
+      {apertoFatto && <FattoSheet it={apertoFatto} onClose={() => setApertoFatto(null)} />}
 
       <KeikoNav active="viaggio" />
     </div>

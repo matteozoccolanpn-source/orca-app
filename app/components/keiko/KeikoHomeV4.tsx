@@ -154,11 +154,17 @@ function Ph({ src, cat, className, style, children }: {
   );
 }
 
-export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt, battito, chiediUltimaVolta }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null; battito?: Battito | null;
+export default function KeikoHomeV4({ live, demo = false, logoutAction, accountName, onboardedAt, battito, chiediUltimaVolta, tripDocs }: { live: LiveHome; demo?: boolean; logoutAction?: () => Promise<void>; accountName?: string; onboardedAt?: string | null; battito?: Battito | null;
   /* «L'ultima volta» degli esercizi, chiesta QUANDO SERVE. E' una server
      action: si legge all'apertura del pannello dell'allenamento, non a ogni
      apertura della Home — vedi il commento in app/page.tsx, col numero. */
-  chiediUltimaVolta?: (nomi: string[]) => Promise<Record<string, WorkoutSetRow[]>> }) {
+  chiediUltimaVolta?: (nomi: string[]) => Promise<Record<string, WorkoutSetRow[]>>;
+  /* I viaggi caricati da fuori (PROMPT-CODE-20), per la voce Viaggi in Home
+     (nav, 27 agosto 2026). Prima si vedeva SOLO `live.trip`, che è il vecchio
+     itinerario AI e compare solo per un viaggio "vicino" per data — senza un
+     itinerario generato, Viaggi non si vedeva da nessuna parte e ci si
+     arrivava solo scrivendo l'indirizzo a mano. */
+  tripDocs?: { tripKey: string; destination: string; minDay: string | null; maxDay: string | null }[] }) {
   const router = useRouter();
   const [capture, setCapture] = useState(false);
   // Il battito chiuso sparisce subito, senza aspettare il giro del server.
@@ -494,7 +500,21 @@ export default function KeikoHomeV4({ live, demo = false, logoutAction, accountN
   const oggiPerTe: Scheda[] = [];
   if (live.diet) oggiPerTe.push({ k: "diet", cat: "dieta", titolo: live.diet.nextPasto ?? "Dieta", meta: live.diet.nextOpt ?? "dal tuo piano", img: live.diet.image, dove: "/salute", doveTesto: "Apri la Dieta", opzioni: live.diet.opzioni, prossimi: live.diet.prossimi, cucinata: live.diet.cucinata });
   if (live.watch) oggiPerTe.push({ k: "watch", cat: "film", titolo: live.watch.title ?? "Da guardare", meta: live.watch.sub || `${live.watch.count} titoli`, img: live.watch.poster, dove: "/guarda", doveTesto: "Apri la Guarda", titoloWatch: live.watch.title, kindWatch: live.watch.kind, idWatch: live.watch.id, season: live.watch.season, episode: live.watch.episode });
-  if (live.trip) oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
+  if (live.trip) {
+    oggiPerTe.push({ k: "trip", cat: "viaggio", titolo: live.trip.title, meta: live.trip.range, img: live.trip.image, dove: "/viaggio", doveTesto: "Apri il viaggio" });
+  } else if (tripDocs && tripDocs.length > 0) {
+    // Nessun itinerario AI "vicino": il viaggio caricato da fuori resta
+    // comunque una voce sola, non serve scriverne di più — il posto giusto
+    // per la scelta è l'elenco (nav, 27 agosto 2026).
+    const g = [...tripDocs].sort((a, b) => (a.minDay ?? "9999") < (b.minDay ?? "9999") ? -1 : 1)[0];
+    const dove = tripDocs.length > 1 ? "/viaggio/documenti" : `/viaggio/documenti/${encodeURIComponent(g.tripKey)}`;
+    oggiPerTe.push({
+      k: "trip", cat: "viaggio",
+      titolo: tripDocs.length > 1 ? "I tuoi viaggi" : g.destination || "Viaggio",
+      meta: g.minDay ? `${g.minDay.slice(8, 10)}/${g.minDay.slice(5, 7)} – ${(g.maxDay ?? g.minDay).slice(8, 10)}/${(g.maxDay ?? g.minDay).slice(5, 7)}` : "documenti caricati",
+      img: null, dove, doveTesto: "Apri il viaggio",
+    });
+  }
 
   /* ── C2 · LE AZIONI RAPIDE SONO IL TOCCO LUNGO, NON LO SWIPE ──
      Lo scorrimento laterale sulla Home è già preso: `app/template.tsx` lo usa
