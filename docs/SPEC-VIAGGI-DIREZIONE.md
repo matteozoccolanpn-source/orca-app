@@ -98,14 +98,24 @@ definizione.
 
 ---
 
-## 4 · Nota di navigazione
+## 4 · Nota di navigazione — **superata il 27 agosto 2026**
 
-Viaggi oggi non è un tab: `KeikoNav.tsx` ha cinque voci e il commento dice che
-«viaggio non ha un'icona sua in barra: è una sotto-pagina della Home». Ci si
-arriva da una tessera quadrata dentro «Oggi per te», grande come Dieta e
-Allenamento. Nella direzione scelta la cosa regge — Viaggi è una schermata che
-si accende quando c'è un viaggio, non una sezione sempre presente — ma va
-deciso esplicitamente prima del mock, non lasciato com'è per inerzia.
+Viaggi non era un tab: si apriva da una tessera dentro «Oggi per te», grande
+come Dieta e Allenamento, e quella tessera esisteva solo quando un viaggio già
+c'era. Qui sotto si diceva che «nella direzione scelta la cosa regge — Viaggi
+è una schermata che si accende quando c'è un viaggio, non una sezione sempre
+presente» — ed era vero, finché era vero il resto del §1: tre bottoni su
+quattro mentivano, e la sezione era in pausa.
+
+**Il giorno che Matteo ha aperto l'app col suo account vero** (che allora non
+aveva ancora un viaggio caricato), quella premessa si è vista da dentro:
+Home non mostrava niente, e Viaggi non si raggiungeva in nessun modo se non
+scrivendo l'indirizzo a mano. I Viaggi caricati da fuori (PROMPT-CODE-20) non
+sono più bottoni che mentono — sono fatti veri con la loro fonte — e un
+ingresso che dipende dai dati per esistere è sbagliato per una sezione vera,
+non solo per una in pausa. **Viaggi ha adesso la sua icona in barra**
+(`KeikoNav.tsx`), sempre presente, verso `/viaggio/documenti` — non verso
+`/viaggio`, che resta il vecchio itinerario, ancora in pausa.
 
 ---
 

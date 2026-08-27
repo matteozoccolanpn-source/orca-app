@@ -29,12 +29,23 @@ export const NAV_TOTALE = `calc(${NAV_H}px + env(safe-area-inset-bottom))`;
    Unico valore per tutta l'app: KeikoShell, KeikoHomeV4, GuardaView, CucinaView. */
 export const PAGE_PB = `calc(${NAV_H + 24 + 20}px + env(safe-area-inset-bottom))`;
 
-/* "viaggio" non ha un'icona sua in barra (il viaggio si apre dalle card della
-   Home): è una sotto-pagina della Home, quindi accende "Home" invece di
-   lasciare la barra tutta spenta.
-   Da quando la voce e' "Cucina", "dieta" (/salute) e' nella stessa posizione:
-   ci si arriva dalla riga dentro la Cucina, quindi accende "Cucina". Senza
-   questa riga /salute lasciava la barra tutta spenta. */
+/* "viaggio" AVEVA un'icona sua tolta apposta l'11 agosto 2026
+   (docs/SPEC-VIAGGI-DIREZIONE.md §4-5): allora era «una schermata che si
+   accende quando c'è un viaggio, non una sezione sempre presente» — tre
+   bottoni su quattro non facevano quello che dicevano, e vestire di
+   bello quei bottoni sarebbe stato consolidare una bugia. Si apriva solo
+   da una card della Home, e quella card esisteva solo quando un viaggio
+   già c'era: su un account senza viaggi, Viaggi non si raggiungeva in
+   nessun modo (trovato in produzione il 27 agosto 2026, sull'account vero
+   di Matteo).
+   La premessa che giustificava l'esclusione non vale più: i Viaggi caricati
+   da fuori (PROMPT-CODE-20) sono fatti veri con la loro fonte, non più
+   bottoni che mentono. Se l'ingresso deve esistere ANCHE a viaggio zero — ed
+   è la richiesta di Matteo — il posto giusto è la barra, non una card che
+   dai dati dipende per definizione. Icona sua, da qui in avanti.
+   "dieta" (/salute) resta invece nella posizione di "Cucina": ci si arriva
+   dalla riga dentro la Cucina, quindi accende "Cucina". Senza questa riga
+   /salute lasciava la barra tutta spenta. */
 type Tab = "home" | "cucina" | "dieta" | "sport" | "guarda" | "viaggio";
 
 export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab; onAdd?: () => void; demo?: boolean }) {
@@ -57,7 +68,7 @@ export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab
          la barra sta ferma mentre la sezione scorre sotto. Fuori dal gesto la
          variabile non esiste e questo vale `translateX(0)`. */
       transform: "translateX(calc(-1 * var(--scorrimento, 0px)))" }}>
-      <NavItem label="Home" active={active === "home" || active === "viaggio"} icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => go("/")} />
+      <NavItem label="Home" active={active === "home"} icon={<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></>} onClick={() => go("/")} />
       {/* La Cucina non si raggiungeva dalla barra: ci si arrivava solo da un
           link dentro /salute. La voce e' sua, e la Dieta si apre dalla riga
           che sta dentro la Cucina, nella sezione del piano.
@@ -70,6 +81,11 @@ export default function KeikoNav({ active, onAdd, demo = false }: { active?: Tab
       <button onClick={add} aria-label="Aggiungi" style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--k-accent)", color: "var(--k-accent-ink)", border: 0, display: "grid", placeItems: "center", fontSize: 30, lineHeight: 1, paddingBottom: 2, boxShadow: "0 8px 20px rgba(255,184,77,.28), 0 2px 6px rgba(0,0,0,.4)", marginTop: -24, cursor: "pointer" }}>+</button>
       <NavItem label="Allenamento" active={active === "sport"} icon={<><path d="M6 12h12M4 9v6M20 9v6M8 8v8M16 8v8" /></>} onClick={() => go("/allenamento")} />
       <NavItem label="Guarda" active={active === "guarda"} icon={<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10 9l5 3-5 3z" /></>} onClick={() => go("/guarda")} />
+      {/* La valigia: stessa forma ovunque compaia "Viaggi" nell'app (vedi
+          l'icona della card in TripListView.tsx). L'indirizzo è quello vero,
+          non /viaggio (il vecchio itinerario, in pausa dall'11 agosto 2026 —
+          SPEC-VIAGGI-DIREZIONE.md §5). */}
+      <NavItem label="Viaggi" active={active === "viaggio"} icon={<><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></>} onClick={() => go("/viaggio/documenti")} />
     </nav>
   );
 }
