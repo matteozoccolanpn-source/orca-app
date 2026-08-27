@@ -8,8 +8,13 @@ import {
   markTripDocumentError,
   assegnaTripKey,
   resolveGiorno,
+  hashFile,
+  hashTesto,
+  trovaPerFileHash,
+  trovaPerTextHash,
   type FactKind,
   type NuovoFatto,
+  type DocumentoTrovato,
 } from "@/lib/trip-docs";
 
 /* VIAGGI — il viaggio caricato da fuori, PARTE 1.1/1.2/1.4
@@ -91,13 +96,26 @@ Regole:
 
 interface RisultatoElaborazione {
   fileName: string;
-  status: "ok" | "error";
+  status: "ok" | "error" | "duplicato";
   error?: string;
   tripKey?: string;
   nuovo?: boolean;
   destinazione?: string;
   fattiSalvati?: number;
   avvisi?: string[];
+  // Solo con status "duplicato" (28 agosto 2026): il file, o il suo testo, è
+  // già in un documento esistente — non se ne crea uno nuovo, non si scrive
+  // niente. Vedi hashFile/hashTesto in lib/trip-docs.ts.
+  duplicatoDi?: { fileName: string; uploadedAt: string };
+}
+
+function risultatoDuplicato(fileName: string, esistente: DocumentoTrovato, nota: string): RisultatoElaborazione {
+  return {
+    fileName,
+    status: "duplicato",
+    error: `${nota} "${esistente.fileName}" (caricato il ${new Date(esistente.uploadedAt).toLocaleString("it-IT")}). Non ho aggiunto nulla di nuovo.`,
+    duplicatoDi: { fileName: esistente.fileName, uploadedAt: esistente.uploadedAt },
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -152,25 +170,39 @@ async function erroreFile(file: File, tripKeyHint: string | null, messaggio: str
 
 async function elaboraFile(file: File, tripKeyHint: string | null): Promise<RisultatoElaborazione> {
   const fileName = file.name;
+  const buf = Buffer.from(await file.arrayBuffer());
+
+  /* HASH DEL FILE — prima di tutto, per QUALUNQUE formato: ferma l'esatto
+   * incidente del 27 agosto (lo stesso file caricato due volte, "(1).docx"
+   * compreso) senza spendere nulla. Confronta su TUTTI i documenti
+   * dell'utente, non sul viaggio: il trip_key di questo file non si conosce
+   * ancora — si saprà solo dopo aver letto i fatti. */
+  const fileHash = hashFile(buf);
+  const stessoFile = await trovaPerFileHash(fileHash);
+  if (stessoFile) return risultatoDuplicato(fileName, stessoFile, "Questo file è identico, byte per byte, a");
+
   let extractedText = "";
+  let textHash = "";
   let content: object[] = [];
   let serveTrascrizione = false;
 
   if (isDocx(file)) {
-    const buf = Buffer.from(await file.arrayBuffer());
     const estratto = await mammoth.extractRawText({ buffer: buf });
     extractedText = estratto.value.trim();
     if (!extractedText) return erroreFile(file, tripKeyHint, "Il documento sembra vuoto: non ci ho trovato testo leggibile.");
+    // Il testo di un .docx è gratis (mammoth): il controllo del doppione per
+    // CONTENUTO arriva anche lui prima di Claude, non solo quello per file.
+    textHash = hashTesto(extractedText);
+    const stessoTesto = await trovaPerTextHash(textHash);
+    if (stessoTesto) return risultatoDuplicato(fileName, stessoTesto, "Il testo di questo documento è lo stesso di");
     content = [{ type: "text", text: extractedText }];
   } else if (file.type === "application/pdf") {
     if (file.size > 20 * 1024 * 1024) return erroreFile(file, tripKeyHint, "PDF troppo grande (max 20MB)");
-    const b64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-    content = [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }];
+    content = [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: buf.toString("base64") } }];
     serveTrascrizione = true;
   } else if (file.type.startsWith("image/")) {
     if (file.size > 10 * 1024 * 1024) return erroreFile(file, tripKeyHint, "Immagine troppo grande (max 10MB)");
-    const b64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-    content = [{ type: "image", source: { type: "base64", media_type: file.type, data: b64 } }];
+    content = [{ type: "image", source: { type: "base64", media_type: file.type, data: buf.toString("base64") } }];
     serveTrascrizione = true;
   } else {
     return erroreFile(file, tripKeyHint, "Formato non riconosciuto: serve un PDF, un'immagine o un .docx");
@@ -207,7 +239,19 @@ async function elaboraFile(file: File, tripKeyHint: string | null): Promise<Risu
     return erroreFile(file, tripKeyHint, "La lettura non ha prodotto una struttura valida.");
   }
 
-  if (serveTrascrizione) extractedText = (parsed.testo_completo ?? "").trim() || "(nessun testo leggibile trovato)";
+  if (serveTrascrizione) {
+    extractedText = (parsed.testo_completo ?? "").trim() || "(nessun testo leggibile trovato)";
+    textHash = hashTesto(extractedText);
+    // Qui il controllo arriva DOPO la chiamata: per un PDF/immagine il testo
+    // esiste solo dopo la trascrizione di Claude, quindi la spesa AI non si
+    // evita — ma il contenuto duplicato non finisce comunque nella timeline.
+    const stessoTesto = await trovaPerTextHash(textHash);
+    if (stessoTesto) {
+      const r = risultatoDuplicato(fileName, stessoTesto, "Il testo di questo documento (letto adesso) è lo stesso di");
+      r.error += " La lettura era già partita: la spesa AI di questo giro resta, ma non si è aggiunto altro.";
+      return r;
+    }
+  }
 
   const destinazione = (parsed.destinazione ?? "").trim() || "Viaggio";
   const caricatoIl = new Date();
@@ -243,6 +287,8 @@ async function elaboraFile(file: File, tripKeyHint: string | null): Promise<Risu
     mimeType: file.type || (isDocx(file) ? DOCX_MIME : "text/plain"),
     extractedText,
     status: "ok",
+    fileHash,
+    textHash,
   });
   try {
     await saveTripFacts(

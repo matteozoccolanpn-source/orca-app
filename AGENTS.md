@@ -45,6 +45,17 @@ premere**: si mette solo quando serve vedere una schermata piena di roba vera, e
 `prova@keiko.local` prima di toccare qualunque comando. Vale anche qui la regola dei DATI
 DI PROVA qui sotto.
 
+**LA SCORCIATOIA VINCE ANCHE PER MATTEO, NON SOLO PER CHI SCRIVE CODICE.** `auth()` sceglie
+la sessione vera SOLO se c'è già un login Google nel browser; altrimenti — e questo vale
+anche per Matteo che apre l'app in locale senza aver fatto login — la sessione finta di
+`prova@keiko.local` vince di default. «Guardare l'app con i miei dati» richiede un login
+Google esplicito in quel browser: senza, si guardano i dati di prova credendo di guardare
+i propri. Non è sfortuna: è il terzo incidente di identità in due giorni (la sessione Google
+rimasta attiva in un browser di prova, poi questo al contrario — un browser senza sessione
+che doveva mostrare dati veri) — la scorciatoia non lo diceva. (Scritta il 28 agosto 2026,
+dopo un documento di viaggio caricato "nel mio account" che era in realtà finito sotto
+`prova@keiko.local`.)
+
 **DATI DI PROVA**: ogni riga di prova si crea con prefisso `PROVA-` nel titolo e si cancella
 SOLO per elenco di id salvati alla creazione. MAI una DELETE con pattern (`ilike`/`like`/`%`)
 su tabelle vere. Se una DELETE potrebbe toccare dati non di prova: prima la SELECT delle righe,

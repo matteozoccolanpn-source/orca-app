@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { userDb } from "./supabase-user";
 
 /* VIAGGI — il viaggio caricato da fuori (docs/PROMPT-CODE-20-VIAGGI-DOCUMENTI.md).
@@ -33,6 +34,86 @@ export interface TripDocumentRow {
   uploaded_at: string;
   status: "ok" | "error";
   error_message: string | null;
+  file_hash: string | null;
+  text_hash: string | null;
+}
+
+/* ═════════ DOPPIONI FRA DOCUMENTI (28 agosto 2026) ═════════
+ * Due hash, due garanzie diverse — vedi docs/sql/trip-documents-hash.sql:
+ *   file_hash — i byte grezzi. Sempre prima di Claude, per ogni formato.
+ *   text_hash — il testo estratto normalizzato. Gratis prima di Claude SOLO
+ *     per un .docx (mammoth); per PDF/immagine il testo esiste solo dopo la
+ *     trascrizione, quindi lì il controllo arriva dopo la spesa AI — evita
+ *     il doppione nella linea del tempo, non evita il costo della chiamata. */
+export function hashFile(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+/* SOLO PER IL CONFRONTO — mai per quello che si salva o si mostra.
+ * `extractedText` (la fonte conservata, PARTE 1.2) non passa MAI da qui:
+ * questa funzione esiste solo dentro hashTesto(), il cui risultato va in
+ * `text_hash`, non in `extracted_text`. "Shanghai - Doha" nella fonte resta
+ * "Shanghai - Doha".
+ *
+ * Un apostrofo tipografico contro uno dritto su 7132 caratteri identici
+ * cambia il digest per intero -- trovato collaudando il 27 agosto 2026:
+ * mammoth scrive "what\u2019s", Claude trascrive "what's". Il secondo giro
+ * (28 agosto) ha aggiunto lo spazio intorno al trattino: mammoth conserva
+ * l'a capo di un "...FENGHUANG\n-CHONGQING..." (diventa uno spazio dopo la
+ * riduzione), Claude lo trascrive come sequenza continua, senza spazio.
+ * Provata contro i due testi veri (mammoth e trascrizione di Claude dello
+ * stesso documento) DOPO ogni aggiunta, con un diff ad allineamento (non a
+ * posizione fissa, che con un solo inserimento sembra migliaia di
+ * differenze): stesso digest.
+ *
+ * Il text_hash fra mammoth e una trascrizione resta comunque BEST-EFFORT per
+ * natura -- vedi docs/NON-ORA.md: non e' una promessa di scovare ogni
+ * doppione, sotto c'e' la fusione di sostanza. */
+function normalizzaPerHash(testo: string): string {
+  return testo
+    .trim()
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u02BC\u2032]/g, "'") // apostrofi tipografici -> dritto
+    .replace(/[\u201C\u201D\u2033]/g, '"') // virgolette tipografiche -> dritte
+    .replace(/[\u2013\u2014\u2212]/g, "-") // trattini lunghi/meno -> trattino
+    .replace(/\u2026/g, "...") // ellissi tipografica -> tre punti
+    .replace(/[\u00A0\u2000-\u200A\u202F\u205F]/g, " ") // spazi unicode -> spazio normale
+    .replace(/\s+/g, " ")
+    .replace(/\s*-\s*/g, "-"); // spazi intorno al trattino: un a-capo a meta' di un composto li mette solo da un lato
+}
+
+export function hashTesto(testo: string): string {
+  return createHash("sha256").update(normalizzaPerHash(testo)).digest("hex");
+}
+
+export interface DocumentoTrovato {
+  id: string;
+  fileName: string;
+  uploadedAt: string;
+  tripKey: string;
+}
+
+async function trovaDocumentoUguale(campo: "file_hash" | "text_hash", hash: string): Promise<DocumentoTrovato | null> {
+  const client = await db();
+  const { data, error } = await client
+    .from("trip_documents")
+    .select("id, file_name, uploaded_at, trip_key")
+    .eq(campo, hash)
+    .eq("status", "ok")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const d = data as { id: string; file_name: string; uploaded_at: string; trip_key: string };
+  return { id: d.id, fileName: d.file_name, uploadedAt: d.uploaded_at, tripKey: d.trip_key };
+}
+
+/** Confronta su TUTTI i documenti dell'utente (RLS fa già lo scoping): al
+ *  momento del controllo il trip_key del file nuovo non si conosce ancora. */
+export async function trovaPerFileHash(hash: string): Promise<DocumentoTrovato | null> {
+  return trovaDocumentoUguale("file_hash", hash);
+}
+export async function trovaPerTextHash(hash: string): Promise<DocumentoTrovato | null> {
+  return trovaDocumentoUguale("text_hash", hash);
 }
 
 export interface TripFactRow {
@@ -205,6 +286,8 @@ export async function createTripDocument(fields: {
   extractedText: string;
   status: "ok" | "error";
   errorMessage?: string | null;
+  fileHash?: string | null;
+  textHash?: string | null;
 }): Promise<{ id: string }> {
   const client = await db();
   const { data, error } = await client
@@ -217,6 +300,8 @@ export async function createTripDocument(fields: {
       extracted_text: fields.extractedText,
       status: fields.status,
       error_message: fields.errorMessage ?? null,
+      file_hash: fields.fileHash ?? null,
+      text_hash: fields.textHash ?? null,
     })
     .select("id")
     .single();
@@ -307,6 +392,11 @@ export interface TimelineItem {
    * silenzio è la cosa peggiore che questa schermata possa fare (§1.4). */
   conflitto: boolean;
   conflictGroup?: string;
+  /* Stesso giorno+tipo+luogo di un altro fatto-documento, ma le parole del
+   * titolo non bastano a dire con certezza che è la stessa cosa (28 agosto
+   * 2026): non si fonde — resta una riga, ma non muta come se non ci fosse
+   * nessun sospetto. Vedi `classificaSostanza`. */
+  possibileDoppioneDi?: string;
 }
 
 interface TicketRow {
@@ -337,13 +427,96 @@ function codiceIn(testo: string): string | null {
   return m ? m[1] : null;
 }
 
+/* ═════════ DOPPIONI FRA DOCUMENTI DELLO STESSO VIAGGIO (28 agosto 2026) ═════════
+ * Un secondo documento (o lo stesso file ricaricato, se l'hash non l'ha già
+ * fermato in upload — vedi trovaPerFileHash/trovaPerTextHash) descrive lo
+ * stesso fatto con parole diverse: "Terracotta Army visit" contro "...
+ * visiting". Il confronto testuale non basta perché l'AI riformula ogni
+ * volta; qui si guarda la SOSTANZA. */
+
+const RIEMPITIVI = new Set([
+  // italiano
+  "il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "di", "da", "in", "con", "su", "per",
+  "tra", "fra", "e", "o", "ma", "che", "del", "della", "dei", "delle", "al", "allo", "alla",
+  "ai", "agli", "alle", "visita", "referente", "locale",
+  // inglese (i titoli spesso arrivano non tradotti)
+  "the", "a", "an", "of", "to", "on", "with", "and", "or", "at", "by", "from", "tour",
+  "guided", "visit", "visiting", "contact",
+]);
+
+function paroleNormali(testo: string): string[] {
+  return testo
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function normPlace(place: string | null): string {
+  return paroleNormali(place ?? "").join(" ");
+}
+
+/* Le parole che DECIDONO se due fatti sono la stessa cosa: quelle del
+ * titolo meno il tipo, meno il luogo, meno i riempitivi generici. Senza
+ * questa pulizia "visita" + "Xian" basterebbero a fondere due visite
+ * DIVERSE nella stessa città lo stesso giorno — l'obiezione di Matteo del
+ * 28 agosto, verificata a mano contro i 37 fatti veri del documento cinese
+ * prima di scrivere questa funzione. */
+function paroleDecisive(titolo: string, kind: string, place: string | null): Set<string> {
+  const daTogliere = new Set([...paroleNormali(kind), ...paroleNormali(place ?? ""), ...RIEMPITIVI]);
+  return new Set(paroleNormali(titolo).filter((p) => p.length > 2 && !daTogliere.has(p)));
+}
+
+type FattoConfrontabile = { day: string | null; kind: FactKind; place: string | null; title: string };
+type Relazione = "stesso" | "forse" | "estranei";
+
+/* Il TETTO DI FIDUCIA (29 agosto 2026): "stesso" richiede giorno certo E
+ * luogo uguale, oltre al resto. Quando manca uno dei due — un luogo scritto
+ * con specificità diversa, o un contatto senza un giorno vero — il massimo
+ * possibile è "forse": un avviso, mai una fusione. Allargare i CRITERI DI
+ * FUSIONE per inseguire questi residui sarebbe il modo di finire a fondere
+ * cose davvero diverse (l'obiezione di Matteo, stessa data): qui si allarga
+ * solo COSA SI FA VEDERE quando non si è sicuri, non quando si fonde. */
+function classificaSostanza(a: FattoConfrontabile, b: FattoConfrontabile): Relazione {
+  if (a.kind !== b.kind) return "estranei";
+
+  /* Un contatto non è un evento: il giorno in cui il documento lo nomina è
+   * un dettaglio di trascrizione, non del fatto (Bilin compariva sia in
+   * testa sia in fondo al documento, in due giorni diversi). Per gli altri
+   * tipi il giorno resta un cancello duro, come sempre. */
+  const eContatto = a.kind === "contatto";
+  const giornoUguale = a.day === b.day;
+  if (!eContatto && !giornoUguale) return "estranei";
+  const giornoCerto = giornoUguale;
+
+  /* Il codice (G351, MU2431...) prima del luogo: per un treno/volo il luogo
+   * è spesso un percorso scritto diverso da due estrazioni pur essendo LO
+   * STESSO treno — trovato collaudando il 28 agosto 2026. */
+  const codA = codiceIn(a.title);
+  const codB = codiceIn(b.title);
+  if (codA || codB) {
+    if (codA !== codB) return "estranei";
+    return giornoCerto ? "stesso" : "forse";
+  }
+
+  const luogoUguale = normPlace(a.place) === normPlace(b.place);
+  const wa = paroleDecisive(a.title, a.kind, a.place);
+  const wb = paroleDecisive(b.title, b.kind, b.place);
+  const comuni = [...wa].filter((p) => wb.has(p)).length;
+  const soglia = Math.min(wa.size, wb.size) <= 1 ? 1 : 2;
+  if (comuni < soglia) return "estranei";
+  return giornoCerto && luogoUguale ? "stesso" : "forse";
+}
+
 export async function assembleTimeline(tripKey: string): Promise<TimelineItem[]> {
   const facts = await getTripFacts(tripKey);
   const docs = await getTripDocuments(tripKey);
   const fileNameById = new Map(docs.map((d) => [d.id, d.file_name]));
 
   const giorni = facts.map((f) => f.day).filter((d): d is string => !!d);
-  const items: TimelineItem[] = facts.map((f) => ({
+  const grezzi: TimelineItem[] = facts.map((f) => ({
     id: f.id,
     day: f.day,
     timeText: f.time_text,
@@ -355,6 +528,27 @@ export async function assembleTimeline(tripKey: string): Promise<TimelineItem[]>
     provenienze: [{ tipo: "documento", fileName: fileNameById.get(f.document_id) ?? "documento", raw: f.raw_text }],
     conflitto: false,
   }));
+
+  /* FUSIONE FRA DOCUMENTI DELLO STESSO VIAGGIO (28 agosto 2026) — PRIMA dei
+   * biglietti: due documenti che raccontano lo stesso fatto con parole
+   * diverse non devono raddoppiare la linea del tempo. Si fonde SOLO qui,
+   * alla lettura: `trip_facts` non perde mai una riga, per costruzione — se
+   * la regola si rivelasse sbagliata domani, i dati sono tutti ancora lì. */
+  const items: TimelineItem[] = [];
+  for (const it of grezzi) {
+    const gemello = items.find((x) => classificaSostanza(it, x) === "stesso");
+    if (gemello) {
+      gemello.provenienze.push(...it.provenienze);
+      continue;
+    }
+    const sospetto = items.find((x) => classificaSostanza(it, x) === "forse");
+    if (sospetto) {
+      const gruppo = sospetto.possibileDoppioneDi ?? sospetto.id;
+      sospetto.possibileDoppioneDi = gruppo;
+      it.possibileDoppioneDi = gruppo;
+    }
+    items.push(it);
+  }
 
   if (giorni.length === 0) return items;
   const minDay = giorni.reduce((a, b) => (b < a ? b : a));

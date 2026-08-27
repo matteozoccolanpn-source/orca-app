@@ -15,7 +15,7 @@ import type { TripGroup, TripDocumentRow, TimelineItem, FactKind } from "@/lib/t
 
 type RisultatoFile = {
   fileName: string;
-  status: "ok" | "error";
+  status: "ok" | "error" | "duplicato";
   error?: string;
   tripKey?: string;
   nuovo?: boolean;
@@ -103,6 +103,9 @@ function FactRow({ it }: { it: TimelineItem }) {
           <div className="src">
             {provenienzaTesto(it)}
             {it.reference && <span className="cod"> · {it.reference}</span>}
+            {it.possibileDoppioneDi && (
+              <span style={{ color: "var(--meta)", fontStyle: "italic" }}> · forse già presente</span>
+            )}
           </div>
         </div>
       </div>
@@ -295,9 +298,9 @@ export default function DocumentiView({
           <div className="stack" style={{ marginTop: 8 }}>
             {risultati.map((r, i) => (
               <div key={i} className={`attach${r.status === "error" ? " err" : ""}`}>
-                {r.status === "ok"
-                  ? `✓ ${r.fileName} — attaccato a ${r.destinazione} (${r.nuovo ? "nuovo viaggio" : "viaggio esistente"}), ${r.fattiSalvati} fatti trovati`
-                  : `✗ ${r.fileName} — ${r.error}`}
+                {r.status === "ok" && `✓ ${r.fileName} — attaccato a ${r.destinazione} (${r.nuovo ? "nuovo viaggio" : "viaggio esistente"}), ${r.fattiSalvati} fatti trovati`}
+                {r.status === "duplicato" && `↺ ${r.fileName} — ${r.error}`}
+                {r.status === "error" && `✗ ${r.fileName} — ${r.error}`}
               </div>
             ))}
           </div>
