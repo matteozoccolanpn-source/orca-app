@@ -181,3 +181,10 @@ Quindi la scala è **① → ①bis → ③ → ④**, e il ② non esiste. La c
 resta com'è: `videos.list` la usa per prendere cinquanta didascalie in una
 richiesta sola, ed è quella che rende sostenibile filtrare tutti i risultati
 invece dei primi dodici.
+
+---
+
+## Due limiti di Viaggi · il documento caricato da fuori (27 agosto 2026)
+
+- **Il verbatim del PDF/immagine è provato su ~1100 parole, non su un documento lungo**: non sappiamo se a 5000 parole il modello inizia a tagliare invece di trascrivere tutto.
+- **L'offline (PARTE 1.3) funziona perché nel collaudo JS e CSS erano già nella cache HTTP normale del browser**: non c'è un precache degli asset — dopo giorni offline la pagina potrebbe aprirsi dalla cache del service worker ma restare senza interattività.

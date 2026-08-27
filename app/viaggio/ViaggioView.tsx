@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import KeikoShell, { useKeikoToast } from "@/app/components/keiko/KeikoShell";
 import type { TripPlanRow, TicketDetail } from "@/lib/supabase";
 
@@ -63,6 +64,11 @@ export default function ViaggioView({ trips, tickets, heroImages }: { trips: Tri
   const title = trips.length > 0 ? trips[0].city : "Itinerario";
   return (
     <KeikoShell title={title} badge={trips.length > 0 ? "PRONTO ✓" : undefined} backHref="/" active="viaggio">
+      {/* Roba nuova, che non passa da qui (docs/PROMPT-CODE-20-VIAGGI-DOCUMENTI.md):
+          solo un collegamento, i bottoni sopra e sotto restano quelli di sempre. */}
+      <Link href="/viaggio/documenti" className="chipA" style={{ display: "inline-block", marginTop: 14 }}>
+        📄 Il viaggio caricato da fuori
+      </Link>
       {trips.length === 0 ? <EmptyState /> : trips.map((t, i) => <TripBlock key={t.id} trip={t} tickets={tickets} image={heroImages[i] ?? null} />)}
     </KeikoShell>
   );

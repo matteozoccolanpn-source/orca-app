@@ -42,12 +42,19 @@ Un programma scritto da un tour operator, una lista che ti hanno fatto degli
 amici, un itinerario che ti sei fatto scrivere altrove. Lo incolli, e Keiko lo
 **struttura**: giorni, orari, luoghi, e i link dove ci sono.
 
-È la funzione più forte di tutte e la più economica, perché la macchina esiste
-già — è `/api/cucina/estrai` applicato ai viaggi. E soprattutto è **dentro la
-dottrina**: il viaggio te lo fa qualcun altro, Keiko lo rende usabile. Zero
+È la funzione più forte di tutte e la più economica. E soprattutto è **dentro
+la dottrina**: il viaggio te lo fa qualcun altro, Keiko lo rende usabile. Zero
 promesse che non può mantenere.
 
 **Da fare per prima.**
+
+> **Correzione del 27 agosto 2026** — non è `/api/cucina/estrai` applicato ai
+> viaggi: quella rotta è cucita apposta sulle didascalie dei video di ricette
+> (marcatori `schema.org/Recipe`, ricerca Tavily sul video preciso, verifica
+> del creator) e non prende file. La macchina davvero riusabile è il pattern
+> di `app/api/diet/upload` e `app/api/workout/upload`: multipart (immagini +
+> PDF + testo) → blocchi `document`/`image` per Claude → un prompt che chiede
+> solo JSON. Vedi `docs/PROMPT-CODE-20-VIAGGI-DOCUMENTI.md`, PARTE 0.
 
 ## 3 · I buchi
 Le ore vuote si vedono come vuote: «giovedì dalle 14 alle 19 non hai niente».

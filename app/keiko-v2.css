@@ -736,6 +736,105 @@
   }
 }
 
+/* ══ VIAGGI · DOCUMENTI · dal mock docs/mockups/viaggi-mock.html (BLOCCO 2) ══
+   Solo le classi NUOVE del mock (BLOCCO 1 era già copiato da qui: .hero, .sec,
+   .chip, .cta, .btn2, .tert, .btn-teal esistevano tutti prima di questa
+   ondata). Scope sotto .tripdoc, come .home per la Home: sono nomi corti
+   (.doc, .fact, .hole, .qa) che altrove potrebbero voler dire altro.
+   Il `.ring` del mock NON è qui: esiste già un `.ring` reale (Ring.tsx),
+   portato da cucina-v2-mock.html con un'altra geometria — si riusa quello,
+   non se ne porta un secondo. */
+.k2 .tripdoc .doc{display:flex;align-items:flex-start;gap:11px;width:100%;background:var(--lv1);
+  border:1px solid var(--line);border-radius:var(--r-card);padding:12px;cursor:pointer;
+  box-shadow:inset 0 1px 0 var(--hl);text-align:left;color:var(--txt)}
+.k2 .tripdoc .doc .ic{width:34px;height:34px;flex:none;border-radius:var(--r-in);background:var(--lv3);
+  display:grid;place-items:center;color:var(--c-viaggi)}
+.k2 .tripdoc .doc.tick .ic{color:var(--teal-soft)}
+.k2 .tripdoc .doc .col{flex:1;min-width:0}
+.k2 .tripdoc .doc .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k2 .tripdoc .doc .rd{font-size:12px;font-weight:500;color:var(--meta);margin-top:3px;line-height:1.45}
+.k2 .tripdoc .doc .st{font-size:12px;font-weight:500;color:var(--teal-soft);margin-top:5px;display:flex;align-items:center;gap:5px}
+
+.k2 .tripdoc .fact{display:flex;gap:10px;width:100%;background:var(--lv1);border:1px solid var(--line);
+  border-radius:var(--r-card);padding:0;cursor:pointer;box-shadow:inset 0 1px 0 var(--hl);
+  text-align:left;color:var(--txt);align-items:stretch;overflow:hidden}
+.k2 .tripdoc .fact .pic{width:76px;flex:none;position:relative;background:#1E222A}
+.k2 .tripdoc .fact .pic .art{position:absolute;inset:0;filter:saturate(1.12) contrast(1.02)}
+.k2 .tripdoc .fact .pic:after{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 55%,rgba(26,27,32,.9))}
+.k2 .tripdoc .fact .pic .fbk{position:absolute;inset:0;display:grid;place-items:center;
+  font-family:var(--font-fraunces-v2),Fraunces,Georgia,serif;font-size:30px;font-weight:500;color:#fff;opacity:.24}
+.k2 .tripdoc .fact .in{flex:1;min-width:0;padding:12px 12px 12px 0;display:flex;gap:10px}
+.k2 .tripdoc .fact.nopic .in{padding-left:12px}
+.k2 .tripdoc .fact .h{font-size:12.5px;font-weight:600;color:var(--txt);width:42px;flex:none;padding-top:1px}
+.k2 .tripdoc .fact .col{flex:1;min-width:0}
+.k2 .tripdoc .fact .t{font-size:14px;font-weight:600;line-height:1.3}
+.k2 .tripdoc .fact .d{font-size:12.5px;font-weight:500;color:var(--txt2);margin-top:4px;line-height:1.5}
+.k2 .tripdoc .fact .src{font-size:12px;font-weight:500;color:var(--meta);margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.k2 .tripdoc .fact .cod{font-weight:600;color:var(--txt2)}
+
+.k2 .tripdoc .hole{width:100%;background:none;border:1px dashed rgba(255,255,255,.14);border-radius:var(--r-card);
+  padding:13px 12px;cursor:pointer;text-align:left;color:var(--txt2);display:flex;align-items:center;gap:10px}
+.k2 .tripdoc .hole .h{font-size:12.5px;font-weight:600;color:var(--meta);width:42px;flex:none}
+.k2 .tripdoc .hole .col{flex:1;min-width:0}
+.k2 .tripdoc .hole .t{font-size:13.5px;font-weight:500;color:var(--txt2)}
+.k2 .tripdoc .hole .s{font-size:12px;font-weight:500;color:var(--meta);margin-top:3px;line-height:1.45}
+.k2 .tripdoc .hole .go{color:var(--teal-soft);flex:none}
+
+/* .incl — cosa è incluso e cosa no */
+.k2 .tripdoc .incl{display:flex;flex-wrap:wrap;gap:6px;padding:2px 2px 0}
+.k2 .tripdoc .incl span{font-size:11.5px;font-weight:500;color:var(--meta);
+  border:1px solid var(--line);border-radius:var(--r-chip);padding:5px 9px;background:var(--lv1)}
+.k2 .tripdoc .incl span.yes{color:var(--txt2)}
+.k2 .tripdoc .incl span.yes b{color:#57B96E;font-weight:600}
+.k2 .tripdoc .incl span.no b{color:var(--acc);font-weight:600}
+
+/* .contact — chi chiami adesso */
+.k2 .tripdoc .contact{background:var(--lv1);border:1px solid rgba(61,165,196,.28);border-radius:var(--r-card);
+  padding:13px;box-shadow:inset 0 1px 0 var(--hl)}
+.k2 .tripdoc .contact .lb{font-size:11.5px;font-weight:600;color:var(--teal-soft);display:flex;align-items:center;gap:6px}
+.k2 .tripdoc .contact .nm{font-size:16px;font-weight:600;margin-top:7px}
+.k2 .tripdoc .contact .mt{font-size:12.5px;font-weight:500;color:var(--meta);margin-top:3px}
+.k2 .tripdoc .contact .r{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+.k2 .tripdoc .contact .src{font-size:12px;font-weight:500;color:var(--meta);margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--line);display:flex;align-items:center;gap:5px}
+
+.k2 .tripdoc .qa{background:var(--lv1);border:1px solid rgba(61,165,196,.28);border-radius:var(--r-card);
+  padding:14px;margin-top:12px;box-shadow:inset 0 1px 0 var(--hl)}
+.k2 .tripdoc .qa .q{font-size:12.5px;font-weight:500;color:var(--meta);margin-bottom:8px}
+.k2 .tripdoc .qa .a{font-size:15px;font-weight:500;line-height:1.5}
+.k2 .tripdoc .qa .a b{font-weight:600}
+.k2 .tripdoc .qa .from{margin-top:11px;padding-top:11px;border-top:1px solid var(--line);
+  font-size:12px;font-weight:500;color:var(--meta);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.k2 .tripdoc .qa.nope{border-color:rgba(255,255,255,.09)}
+.k2 .tripdoc .qa.nope .a{color:var(--txt2)}
+.k2 .tripdoc .qa.web{border-color:rgba(201,106,69,.34)}
+.k2 .tripdoc .qa.web .from{color:var(--acc)}
+
+/* .field — il campo "Chiedi al viaggio" (PARTE 2). Non era nel BLOCCO
+   condiviso: nel mock vive nel telaio del finto-telefono, qui si scopa. */
+.k2 .tripdoc .field{position:relative;margin-top:2px}
+.k2 .tripdoc .field textarea{width:100%;min-height:72px;resize:none;background:var(--lv1);
+  border:1px solid rgba(61,165,196,.34);border-radius:var(--r-card);color:var(--txt);
+  font:400 16px/1.5 var(--font-inter),Inter,sans-serif;padding:13px 13px 52px;box-shadow:inset 0 1px 0 var(--hl)}
+.k2 .tripdoc .field textarea::placeholder{color:#6E757E}
+.k2 .tripdoc .field textarea:focus{outline:0;border-color:rgba(61,165,196,.62)}
+.k2 .tripdoc .field .cta{position:absolute;right:8px;bottom:8px;min-height:44px}
+.k2 .tripdoc .field .cta:disabled{opacity:.5;cursor:default}
+
+/* upload: lo stato "sto leggendo" a tre righe che si sostituiscono (§1.1) */
+.k2 .tripdoc .upstep{font-size:12.5px;font-weight:500;color:var(--teal-soft);display:flex;align-items:center;gap:8px;padding:10px 2px}
+.k2 .tripdoc .upstep .dotpulse{width:6px;height:6px;border-radius:3px;background:var(--teal-soft);flex:none;animation:k2-pulse 1.1s ease-in-out infinite}
+.k2 .tripdoc .updrop{width:100%;border:1px dashed rgba(255,255,255,.18);border-radius:var(--r-card);
+  padding:22px 14px;text-align:center;color:var(--meta);font-size:13px;font-weight:500;background:none;cursor:pointer}
+.k2 .tripdoc .updrop b{color:var(--teal-soft);font-weight:600}
+.k2 .tripdoc .attach{display:flex;align-items:center;gap:8px;background:var(--lv2);border:1px solid var(--line);
+  border-radius:var(--r-chip);padding:6px 10px;font-size:12px;font-weight:500;color:var(--txt2)}
+.k2 .tripdoc .attach.err{color:var(--acc);border-color:rgba(201,106,69,.4)}
+.k2 .tripdoc .doc.err{opacity:.7;cursor:default}
+.k2 .tripdoc .stack{display:grid;gap:8px}
+.k2 .tripdoc .lab{font-size:11.5px;font-weight:600;color:var(--meta)}
+
 /* ══ LA HOME · dal mock congelato home-v2-final-mock.html ══
    Tutto sotto .k2 .home: vince per specificita' senza toccare il condiviso.
    4 regole non sono qui perche' la condivisa fa gia' la stessa cosa:

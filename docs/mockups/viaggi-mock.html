@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Viaggi · Cina · mock V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   KEIKO · Viaggi — il viaggio caricato da fuori
+   Simulazione su un documento vero: TRAVEL PLAN 553 · Cina, 15 giorni
+   BLOCCO 1 : token e componenti COPIATI da app/keiko-v2.css
+   BLOCCO 2 : AGGIUNTE — .ring .doc .fact .hole .qa .contact .incl
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ══════════ BLOCCO 1 · V2 VERBATIM ══════════ */
+:root, .k2{
+  --bg:#0D0D10; --lv1:#1A1B20; --lv2:#212228; --lv3:#282A31;
+  --hl:rgba(255,255,255,.08); --line:rgba(255,255,255,.05);
+  --txt:#F1F4FA; --txt2:#C4CCD6; --meta:#9BA0A8;
+  --teal:#3DA5C4; --teal-soft:#86CCE0; --on-teal:#08191E;
+  --acc:#C96A45; --acc-btn:#AB5A3B; --on-acc:#FFF3EC;
+  --c-viaggi:#5B9BDB;
+  --r-hero:16px; --r-card:12px; --r-in:9px; --r-chip:8px;
+  color-scheme:dark;
+}
+.k2,.k2 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+.k2{font-family:Inter,-apple-system,system-ui,sans-serif;color:var(--txt);
+  background:var(--bg);line-height:normal;font-variant-numeric:tabular-nums}
+
+.k2 .ph{position:relative;overflow:hidden;background:#1E222A;border-radius:var(--r-in)}
+.k2 .ph .art{position:absolute;inset:0;filter:saturate(1.12) contrast(1.02)}
+.k2 .ph:after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,transparent 52%,rgba(10,10,13,.58)),
+             radial-gradient(130% 130% at 50% 45%, transparent 58%, rgba(0,0,0,.28))}
+
+.k2 .head{display:flex;align-items:flex-start;gap:12px}
+.k2 .head .col{flex:1;min-width:0}
+.k2 .head h1{font-family:Fraunces,Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.01em}
+.k2 .status{font-size:12.5px;color:var(--meta);font-weight:500;margin-top:4px;line-height:1.45}
+
+.k2 .sec{font-family:Fraunces,Georgia,serif;font-size:16.5px;font-weight:500;color:var(--txt);
+  letter-spacing:-.01em;margin:28px 2px 8px;display:flex;align-items:baseline;gap:8px}
+.k2 .sec .sm{font-family:Inter,sans-serif;font-size:12px;font-weight:500;color:var(--meta);flex:1;min-width:0}
+.k2 .sec .more{font-family:Inter,sans-serif;font-size:12.5px;color:var(--teal-soft);
+  font-weight:600;cursor:pointer;flex:none;margin-left:auto;background:none;border:0}
+
+.k2 .cta{font-size:12.5px;font-weight:600;background:var(--acc-btn);color:var(--on-acc);border:none;
+  border-radius:var(--r-chip);padding:12px 16px;white-space:nowrap;cursor:pointer;
+  box-shadow:0 2px 8px rgba(139,68,40,.26)}
+.k2 .cta.wide{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13.5px}
+.k2 .btn2{font-size:12.5px;font-weight:600;background:var(--lv1);color:var(--txt);
+  border:1px solid rgba(255,255,255,.09);border-radius:var(--r-chip);padding:12px 14px;
+  white-space:nowrap;box-shadow:inset 0 1px 0 var(--hl);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.k2 .btn2.wide{width:100%}
+.k2 .btn-teal{font-size:12px;font-weight:600;background:none;color:var(--teal-soft);
+  border:1px solid rgba(61,165,196,.5);border-radius:var(--r-chip);padding:9px 12px;
+  white-space:nowrap;cursor:pointer;min-height:44px}
+.k2 .tert{font-size:12.5px;font-weight:600;color:var(--teal-soft);cursor:pointer;background:none;border:none;
+  padding:8px 2px;display:inline-flex;align-items:center;gap:6px;min-height:44px}
+.k2 .tap{transition:filter .14s ease, background-color .14s ease, transform .1s ease}
+.k2 .tap:active{filter:brightness(1.16);transform:scale(.995)}
+
+.k2 .chips{display:flex;gap:8px;overflow-x:auto;margin:8px -16px 0;padding:4px 16px;scrollbar-width:none}
+.k2 .chips::-webkit-scrollbar{display:none}
+.k2 .chip{flex:none;font-size:12px;font-weight:600;color:#C6CBD3;background:var(--lv1);
+  border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:9px 14px;cursor:pointer;
+  box-shadow:inset 0 1px 0 var(--hl);display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
+  transition:all .16s ease;min-height:44px}
+.k2 .dchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--txt);
+  background:var(--lv1);border:1px solid rgba(255,255,255,.09);border-radius:var(--r-chip);
+  padding:6px 10px;box-shadow:inset 0 1px 0 var(--hl)}
+
+@keyframes sh{0%{background-position:-260px 0}100%{background-position:260px 0}}
+.k2 .sk{border-radius:var(--r-in);background:linear-gradient(90deg,rgba(255,255,255,.04) 0,rgba(255,255,255,.09) 40%,rgba(255,255,255,.04) 80%);
+  background-size:260px 100%;animation:sh 1.2s linear infinite}
+.k2 .sk-line{height:12px;margin:8px 0}
+
+.k2 .hero{position:relative;border-radius:var(--r-hero);overflow:hidden;
+  background:var(--lv2);border:1px solid rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 16px 44px rgba(61,165,196,.10)}
+.k2 .hero .bg{position:absolute;inset:0;overflow:hidden}
+.k2 .hero .bg .art{position:absolute;inset:0;filter:saturate(1.10) contrast(1.02) brightness(.9)}
+.k2 .hero .bg:after{content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(13,13,16,.28) 0%,rgba(13,13,16,.80) 46%,rgba(10,10,13,.97) 100%)}
+.k2 .hero .body{position:relative;z-index:2;padding:104px 16px 16px}
+.k2 .hero .toprow{display:flex;align-items:center;gap:10px}
+.k2 .hero .k{font-size:11.5px;color:var(--teal-soft);font-weight:600;display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.k2 .hero .t{font-family:Fraunces,Georgia,serif;font-size:24px;font-weight:500;letter-spacing:-.015em;
+  line-height:1.12;margin-top:8px;text-shadow:0 1px 14px rgba(8,9,12,.75)}
+.k2 .hero .m{font-size:12.5px;color:#CBD3DD;font-weight:500;margin-top:6px;text-shadow:0 1px 10px rgba(8,9,12,.8)}
+.k2 .hero .prog{height:5px;border-radius:3px;background:rgba(255,255,255,.16);overflow:hidden;margin-top:13px}
+.k2 .hero .prog i{display:block;height:100%;background:var(--teal);border-radius:3px}
+.k2 .hero .row{display:flex;align-items:center;gap:10px;margin-top:14px}
+
+/* ══════════ BLOCCO 2 · AGGIUNTE DI QUESTA ONDATA ══════════ */
+.k2 .ring{width:46px;height:46px;flex:none;position:relative;display:grid;place-items:center}
+.k2 .ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.k2 .ring .track{stroke:rgba(255,255,255,.16)}
+.k2 .ring .prg{stroke:var(--teal);stroke-linecap:round}
+.k2 .ring b{font-size:14px;font-weight:600;line-height:1}
+.k2 .ring i{display:block;font-style:normal;font-size:9px;font-weight:500;color:var(--meta);text-align:center;margin-top:1px}
+
+.k2 .doc{display:flex;align-items:flex-start;gap:11px;width:100%;background:var(--lv1);
+  border:1px solid var(--line);border-radius:var(--r-card);padding:12px;cursor:pointer;
+  box-shadow:inset 0 1px 0 var(--hl);text-align:left;color:var(--txt)}
+.k2 .doc .ic{width:34px;height:34px;flex:none;border-radius:var(--r-in);background:var(--lv3);
+  display:grid;place-items:center;color:var(--c-viaggi)}
+.k2 .doc.tick .ic{color:var(--teal-soft)}
+.k2 .doc .col{flex:1;min-width:0}
+.k2 .doc .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k2 .doc .rd{font-size:12px;font-weight:500;color:var(--meta);margin-top:3px;line-height:1.45}
+.k2 .doc .st{font-size:12px;font-weight:500;color:var(--teal-soft);margin-top:5px;display:flex;align-items:center;gap:5px}
+
+.k2 .fact{display:flex;gap:10px;width:100%;background:var(--lv1);border:1px solid var(--line);
+  border-radius:var(--r-card);padding:0;cursor:pointer;box-shadow:inset 0 1px 0 var(--hl);
+  text-align:left;color:var(--txt);align-items:stretch;overflow:hidden}
+.k2 .fact .pic{width:76px;flex:none;position:relative;background:#1E222A}
+.k2 .fact .pic .art{position:absolute;inset:0;filter:saturate(1.12) contrast(1.02)}
+.k2 .fact .pic:after{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 55%,rgba(26,27,32,.9))}
+.k2 .fact .pic .fbk{position:absolute;inset:0;display:grid;place-items:center;
+  font-family:Fraunces,Georgia,serif;font-size:30px;font-weight:500;color:#fff;opacity:.24}
+.k2 .fact .in{flex:1;min-width:0;padding:12px 12px 12px 0;display:flex;gap:10px}
+.k2 .fact.nopic .in{padding-left:12px}
+.k2 .fact .h{font-size:12.5px;font-weight:600;color:var(--txt);width:42px;flex:none;padding-top:1px}
+.k2 .fact .col{flex:1;min-width:0}
+.k2 .fact .t{font-size:14px;font-weight:600;line-height:1.3}
+.k2 .fact .d{font-size:12.5px;font-weight:500;color:var(--txt2);margin-top:4px;line-height:1.5}
+.k2 .fact .src{font-size:12px;font-weight:500;color:var(--meta);margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.k2 .fact .cod{font-weight:600;color:var(--txt2)}
+
+.k2 .hole{width:100%;background:none;border:1px dashed rgba(255,255,255,.14);border-radius:var(--r-card);
+  padding:13px 12px;cursor:pointer;text-align:left;color:var(--txt2);display:flex;align-items:center;gap:10px}
+.k2 .hole .h{font-size:12.5px;font-weight:600;color:var(--meta);width:42px;flex:none}
+.k2 .hole .col{flex:1;min-width:0}
+.k2 .hole .t{font-size:13.5px;font-weight:500;color:var(--txt2)}
+.k2 .hole .s{font-size:12px;font-weight:500;color:var(--meta);margin-top:3px;line-height:1.45}
+.k2 .hole .go{color:var(--teal-soft);flex:none}
+
+/* .incl — cosa è incluso e cosa no, che in viaggio è la domanda vera */
+.k2 .incl{display:flex;flex-wrap:wrap;gap:6px;padding:2px 2px 0}
+.k2 .incl span{font-size:11.5px;font-weight:500;color:var(--meta);
+  border:1px solid var(--line);border-radius:var(--r-chip);padding:5px 9px;background:var(--lv1)}
+.k2 .incl span.yes{color:var(--txt2)}
+.k2 .incl span.yes b{color:#57B96E;font-weight:600}
+.k2 .incl span.no b{color:var(--acc);font-weight:600}
+
+/* .contact — chi chiami adesso, che è la cosa che cerchi col telefono in mano */
+.k2 .contact{background:var(--lv1);border:1px solid rgba(61,165,196,.28);border-radius:var(--r-card);
+  padding:13px;box-shadow:inset 0 1px 0 var(--hl)}
+.k2 .contact .lb{font-size:11.5px;font-weight:600;color:var(--teal-soft);display:flex;align-items:center;gap:6px}
+.k2 .contact .nm{font-size:16px;font-weight:600;margin-top:7px}
+.k2 .contact .mt{font-size:12.5px;font-weight:500;color:var(--meta);margin-top:3px}
+.k2 .contact .r{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+.k2 .contact .src{font-size:12px;font-weight:500;color:var(--meta);margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--line);display:flex;align-items:center;gap:5px}
+
+.k2 .qa{background:var(--lv1);border:1px solid rgba(61,165,196,.28);border-radius:var(--r-card);
+  padding:14px;margin-top:12px;box-shadow:inset 0 1px 0 var(--hl)}
+.k2 .qa .q{font-size:12.5px;font-weight:500;color:var(--meta);margin-bottom:8px}
+.k2 .qa .a{font-size:15px;font-weight:500;line-height:1.5}
+.k2 .qa .a b{font-weight:600}
+.k2 .qa .from{margin-top:11px;padding-top:11px;border-top:1px solid var(--line);
+  font-size:12px;font-weight:500;color:var(--meta);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.k2 .qa.nope{border-color:rgba(255,255,255,.09)}
+.k2 .qa.nope .a{color:var(--txt2)}
+.k2 .qa.web{border-color:rgba(201,106,69,.34)}
+.k2 .qa.web .from{color:var(--acc)}
+
+/* telaio */
+body{background:#0a0a0c;display:flex;flex-direction:column;align-items:center;
+  padding:32px 16px 64px;gap:28px;min-height:100vh;font-family:Inter,sans-serif;margin:0}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:38px;
+  border:1px solid #26272e;box-shadow:0 30px 80px rgba(0,0,0,.6);
+  overflow:hidden;position:relative;display:flex;flex-direction:column}
+.sb{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;font-size:13px;font-weight:600;color:var(--txt)}
+.sb .bar{width:16px;height:9px;border:1px solid var(--meta);border-radius:2px;position:relative;display:inline-block}
+.sb .bar:after{content:"";position:absolute;inset:1.5px;right:5px;background:var(--txt);border-radius:1px}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 16px 128px;scroll-behavior:smooth}
+.screen::-webkit-scrollbar{width:0}
+.stack{display:grid;gap:8px}
+.daybar{display:flex;gap:7px;overflow-x:auto;margin:0 -16px;padding:2px 16px 6px;scrollbar-width:none}
+.daybar::-webkit-scrollbar{display:none}
+.daybar button{flex:none;min-height:52px;min-width:46px;padding:0 10px;border-radius:var(--r-card);cursor:pointer;
+  background:var(--lv1);border:1px solid rgba(255,255,255,.16);color:#C6CBD3;
+  box-shadow:inset 0 1px 0 var(--hl);font:600 13px/1 Inter,sans-serif;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.daybar button span{font-size:10.5px;font-weight:500;color:var(--meta)}
+.daybar button.on{background:var(--teal);border-color:var(--teal);color:var(--on-teal)}
+.daybar button.on span{color:rgba(8,25,30,.7)}
+.daybar button.today{border-color:rgba(61,165,196,.6)}
+.field{position:relative;margin-top:2px}
+.field textarea{width:100%;min-height:72px;resize:none;background:var(--lv1);
+  border:1px solid rgba(61,165,196,.34);border-radius:var(--r-card);color:var(--txt);
+  font:400 16px/1.5 Inter,sans-serif;padding:13px 13px 52px;box-shadow:inset 0 1px 0 var(--hl)}
+.field textarea::placeholder{color:#6E757E}
+.field textarea:focus{outline:0;border-color:rgba(61,165,196,.62)}
+.field .cta{position:absolute;right:8px;bottom:8px;min-height:44px}
+.dock{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
+.nav{pointer-events:auto;height:64px;background:rgba(13,13,16,.92);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr)}
+.nav button{background:none;border:0;color:#6E757E;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:5px;font:600 11px/1 Inter,sans-serif;min-height:44px}
+.nav button.on{color:var(--txt)}
+.nav .dt{width:5px;height:5px;border-radius:50%;background:transparent}
+.nav button.on .dt{background:var(--c-viaggi)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.62);opacity:0;pointer-events:none;
+  transition:opacity .25s;z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:50;background:var(--lv1);
+  border-radius:var(--r-hero) var(--r-hero) 0 0;border-top:1px solid rgba(255,255,255,.09);
+  transform:translateY(102%);transition:transform .3s cubic-bezier(.32,.72,0,1);
+  max-height:88%;display:flex;flex-direction:column;box-shadow:0 -20px 60px rgba(0,0,0,.55)}
+.sheet.on{transform:translateY(0)}
+.sheet .grab{width:34px;height:4px;border-radius:2px;background:var(--lv3);margin:9px auto 2px;flex:none}
+.sheet .shpic{height:150px;margin:6px 16px 0;border-radius:var(--r-card);position:relative;overflow:hidden;flex:none;background:#1E222A}
+.sheet .shpic .art{position:absolute;inset:0;filter:saturate(1.12) contrast(1.02)}
+.sheet .shpic:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 46%,rgba(26,27,32,.96))}
+.sheet .shpic .fbk{position:absolute;inset:0;display:grid;place-items:center;
+  font-family:Fraunces,Georgia,serif;font-size:52px;font-weight:500;color:#fff;opacity:.22}
+.sheet .sh-h{padding:10px 16px 12px;display:flex;align-items:baseline;gap:10px;flex:none}
+.sheet .sh-h h4{font-family:Fraunces,Georgia,serif;font-size:19px;font-weight:500;line-height:1.15}
+.sheet .sh-h .hh{font-size:12.5px;font-weight:500;color:var(--meta);flex:none}
+.sheet .sh-h .cl{margin-left:auto;width:44px;height:44px;border:0;background:none;color:var(--meta);
+  cursor:pointer;display:grid;place-items:center;align-self:center;flex:none}
+.sheet .sh-b{overflow-y:auto;padding:0 16px 20px}
+.sheet .sh-b::-webkit-scrollbar{width:0}
+.blk{background:var(--lv2);border:1px solid var(--line);border-radius:var(--r-card);padding:12px;
+  margin-bottom:8px;box-shadow:inset 0 1px 0 var(--hl)}
+.blk .t{font-size:13.5px;font-weight:600;line-height:1.35}
+.blk .d{font-size:12.5px;font-weight:500;color:var(--txt2);margin-top:5px;line-height:1.55}
+.blk .m{font-size:12px;font-weight:500;color:var(--meta);margin-top:6px;display:flex;align-items:center;gap:5px}
+.lab{font-size:11.5px;font-weight:600;color:var(--meta);margin:16px 0 8px}
+.toast{position:absolute;left:16px;right:16px;bottom:88px;z-index:90;background:var(--lv3);
+  border:1px solid rgba(255,255,255,.09);border-radius:var(--r-card);padding:12px 13px;
+  box-shadow:inset 0 1px 0 var(--hl),0 12px 34px rgba(0,0,0,.55);
+  opacity:0;transform:translateY(8px);pointer-events:none;transition:.22s;font-size:12.5px;font-weight:500}
+.toast.on{opacity:1;transform:none}
+@keyframes pz{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+
+.legend{width:860px;max-width:100%;color:var(--txt2);font-family:Inter,sans-serif}
+.legend h2{font-family:Fraunces,Georgia,serif;font-size:24px;font-weight:500;color:var(--txt);margin-bottom:6px}
+.legend h3{font-family:Fraunces,Georgia,serif;font-size:17px;font-weight:500;color:var(--txt);margin:26px 0 10px}
+.legend .lead{font-size:13.5px;color:var(--meta);margin-bottom:18px;line-height:1.65}
+.legend ol{list-style:none;counter-reset:l;display:grid;gap:10px;padding:0}
+.legend li{counter-increment:l;background:var(--lv1);border:1px solid var(--line);border-radius:var(--r-card);
+  padding:13px 15px 13px 44px;position:relative;font-size:13px;line-height:1.6}
+.legend li:before{content:counter(l,decimal-leading-zero);position:absolute;left:15px;top:14px;
+  font-size:11px;font-weight:600;color:var(--c-viaggi)}
+.legend li b{color:var(--txt);font-weight:600}
+.legend li em{font-style:normal;color:var(--teal-soft)}
+.legend .no{border-left:2px solid var(--acc)}
+.legend code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--teal-soft)}
+@media(max-width:430px){.phone{height:780px}}
+</style>
+</head>
+<body>
+
+<div class="phone k2">
+  <div class="sb"><span>14:38</span><span style="display:flex;gap:6px;align-items:center;font-size:11px;color:var(--meta)">CN · roaming <span class="bar"></span></span></div>
+
+  <div class="screen" id="screen">
+
+    <div class="head" style="padding:6px 2px 14px">
+      <div class="col">
+        <h1>Cina</h1>
+        <div class="status">29 ago – 12 set · giorno 8 di 15 · Fenghuang</div>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="bg"><div class="art" id="heroart"></div></div>
+      <div class="body">
+        <div class="toprow">
+          <div class="ring">
+            <svg width="46" height="46" viewBox="0 0 46 46">
+              <circle class="track" cx="23" cy="23" r="20" fill="none" stroke-width="3"/>
+              <circle class="prg" cx="23" cy="23" r="20" fill="none" stroke-width="3" stroke-dasharray="125.7" stroke-dashoffset="31"/>
+            </svg>
+            <span style="text-align:center"><b>48</b><i>min</i></span>
+          </div>
+          <div class="k">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span>La prossima cosa vera</span>
+          </div>
+        </div>
+        <div class="t">Treno D3970 · Fenghuang Gucheng → Chongqing Dong</div>
+        <div class="m">Oggi 5 set · 15:26 → 19:37 · seconda classe · biglietto elettronico</div>
+        <div class="prog"><i style="width:50%"></i></div>
+        <div class="row">
+          <button class="btn2 tap" onclick="toast('Apre TRAVEL PLAN 553, giorno 8')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+            Il documento</button>
+          <button class="tert tap" onclick="toast('Per il treno serve il passaporto originale — canale manuale 人工通道')">Cosa serve al controllo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHI CHIAMI -->
+    <div class="sec">Chi chiami all'arrivo <span class="sm">Chongqing</span></div>
+    <div class="contact">
+      <div class="lb">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>
+        Referente locale
+      </div>
+      <div class="nm">Yang Ms.</div>
+      <div class="mt">Ti prende alla stazione Chongqing Dong alle 19:37</div>
+      <div class="r">
+        <button class="btn-teal tap" onclick="toast('Chiama 152 2343 1294')">152 2343 1294</button>
+        <button class="btn-teal tap" onclick="toast('Emergenza CBTravel · Ms Bilin · 139 1651 1660')">Emergenza · Ms Bilin</button>
+      </div>
+      <div class="src">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+        da TRAVEL PLAN 553.docx · giorno 8
+      </div>
+    </div>
+
+    <!-- CHIEDI -->
+    <div class="sec">Chiedi al viaggio <span class="sm">risponde dai tuoi documenti</span></div>
+    <div class="field">
+      <textarea id="q" placeholder="la cena di stasera è inclusa?"></textarea>
+      <button class="cta tap" id="go">Chiedi</button>
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip tap" data-q="la cena di stasera è inclusa?">la cena di stasera è inclusa?</button>
+      <button class="chip tap" data-q="dove dormo stanotte?">dove dormo stanotte?</button>
+      <button class="chip tap" data-q="quante volte prendo il treno in tutto?">quante volte prendo il treno?</button>
+      <button class="chip tap" data-q="serve il visto per la Cina?">serve il visto per la Cina?</button>
+    </div>
+    <div id="qaslot"></div>
+
+    <!-- DOCUMENTI -->
+    <div class="sec">I documenti <span class="sm">2</span><button class="more" onclick="toast('Aggiungi un documento')">aggiungi</button></div>
+    <div class="stack" id="docs"></div>
+
+    <!-- LINEA DEL TEMPO -->
+    <div class="sec">La linea del tempo <span class="sm" id="dayhint">giorno 8 · 5 settembre</span></div>
+    <div class="daybar" id="daybar"></div>
+    <div id="citylab" class="lab" style="margin:2px 2px 8px"></div>
+    <div class="stack" id="timeline"></div>
+    <div class="incl" id="incl" style="margin-top:10px"></div>
+
+  </div>
+
+  <div class="dock">
+    <nav class="nav">
+      <button><span class="dt"></span>Home</button>
+      <button><span class="dt"></span>Cucina</button>
+      <button><span class="dt"></span>Allenamento</button>
+      <button class="on"><span class="dt"></span>Viaggio</button>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="sheet" id="sh-att">
+    <div class="grab"></div>
+    <div class="shpic" id="apic"></div>
+    <div class="sh-h"><h4 id="at">—</h4><span class="hh" id="ah"></span>
+      <button class="cl" data-close><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="sh-b" id="ab"></div>
+  </div>
+
+  <div class="sheet" id="sh-doc">
+    <div class="grab"></div>
+    <div class="sh-h"><h4 id="dt">—</h4>
+      <button class="cl" data-close><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="sh-b" id="db"></div>
+  </div>
+</div>
+
+<!-- ═══ LEGENDA ═══ -->
+<div class="legend k2" style="background:none">
+  <h2>Viaggi · simulazione sul TRAVEL PLAN 553</h2>
+  <p class="lead">
+    Un documento vero: <b style="color:var(--txt)">15 giorni in Cina, 8 hotel, 4 treni ad alta velocità,
+    3 voli interni, un referente diverso in ogni città</b> — oggi tutto dentro un file Word da
+    scorrere col pollice mentre sei in stazione. Qui diventa una linea del tempo.
+    CSS: <code>app/keiko-v2.css</code> copiato. Classi nuove: <code>.ring</code> <code>.doc</code>
+    <code>.fact</code> <code>.hole</code> <code>.qa</code> <code>.contact</code> <code>.incl</code>.
+  </p>
+
+  <h3>Le cinque cose che questo documento rende evidenti</h3>
+  <ol>
+    <li><b>«Chi chiami all'arrivo» è la schermata più utile del viaggio.</b> Nel Word ci sono sette referenti diversi — Shirley a Pechino, Cathy a Xi'an, Jeffrey a Zhangjiajie, Yang a Chongqing, Lisa a Guilin — ognuno sepolto nel suo giorno. Keiko ti mostra <em>quello di adesso</em>, con il numero pronto e l'emergenza CBTravel accanto. Nessuna app può farlo, perché nessun'altra ha il tuo programma.</li>
+    <li><b>«Incluso / non incluso» è la domanda vera.</b> Ogni giorno del documento la ripete e ogni giorno cambia: al giorno 8 la guida non c'è, al 9 sì; il pranzo in crociera al giorno 11 è incluso, la cena mai. Alle 19:37 in stazione è l'unica cosa che vuoi sapere, ed è un fatto — sta scritto lì.</li>
+    <li><b>I fatti si scrivono come sono.</b> «G351, 07:55 → 12:05, uscita sud, punto d'incontro 1 南出口1» non diventa «prendi il treno del mattino». Un punto d'incontro parafrasato è un punto d'incontro perso.</li>
+    <li><b>Il volo di ritorno era già in Keiko.</b> Il QR869 del 12 settembre l'avevi caricato col «+» a luglio. Compare <em>una volta sola</em>, con tutte e due le provenienze — il biglietto e il programma. Se gli orari non concordassero, mostrerebbe tutti e due invece di sceglierne uno in silenzio.</li>
+    <li><b>Le foto sono dei luoghi veri</b> — la Città Proibita, Tianmen, Hongya Cave — e sono la ragione per cui la schermata sembra un viaggio. Un treno e un check-out non ce l'hanno: non sono luoghi, e una foto decorativa di una stazione è riempimento.</li>
+  </ol>
+
+  <h3>Le due provenienze, che è la regola che tiene tutto</h3>
+  <ol>
+    <li><b>Dai tuoi documenti</b> — orario, codice, nome del file. Sono fatti e stanno in cima.</li>
+    <li><b>Trovato adesso sul web</b> — orari di apertura, prezzi, video. Hanno la fonte e <em>l'ora in cui sono stati presi</em>, e si vedono diversi a colpo d'occhio.<br>
+    Davanti al gate, «il tuo treno parte alle 15:26» e «di solito i treni per Chongqing…» devono distinguersi in mezzo secondo.</li>
+    <li class="no"><b>E quello che non si sa, si dice.</b> Prova «serve il visto per la Cina?»: la risposta giusta è <em>non lo so, non è scritto in nessuno dei documenti che mi hai dato</em>. Una risposta plausibile su un visto è il modo migliore per far restare qualcuno a terra.</li>
+  </ol>
+
+  <h3>La scheda dell'attività</h3>
+  <ol>
+    <li><b>Le domande di seguito dipendono dal tipo di cosa</b>, non le genera un modello: un treno chiede «da che binario?», un hotel «da che ora posso entrare?», una visita «a che ora chiude?». Costo zero.</li>
+    <li><b>Se la risposta è nel documento, si ferma lì.</b> Se non c'è, <em>offre di cercarla</em> — e cerca solo se tocchi. Aprire una cosa non costa mai niente: in roaming la banda è tua.</li>
+    <li><b>TikTok e YouTube portano a una ricerca</b>, non a un video preciso: quel video può sparire o non essere di quel posto. Il video non si incorpora e non si scarica — è la stessa decisione già presa per il ricettario.</li>
+  </ol>
+
+  <h3>Cosa provare</h3>
+  <p class="lead" style="margin-top:0">
+    I quattro chip — «serve il visto?» è quello che conta · i giorni sulla barra (il 4 e il 13 sono i più fitti) ·
+    una visita, per la scheda con foto, domande e video · i due documenti ·
+    e il giorno 15, dove il volo di ritorno porta due provenienze.
+  </p>
+</div>
+
+<script>
+(function(){
+"use strict";
+function $(s,r){return (r||document).querySelector(s)}
+function $$(s,r){return [].slice.call((r||document).querySelectorAll(s))}
+
+/* immagini generate — al posto della foto vera di Google Places */
+var PAL={
+ muraglia:["#8FA86A","#4E6B3C","#8AA0B8","#2A3428","#141A16"],
+ citta:["#C4553C","#E0A24E","#8A3A2C","#2A1C16","#150E0B"],
+ tempio:["#D0764A","#E8B25E","#9A4A2C","#2B1D14","#150E09"],
+ montagna:["#7E97B4","#B9C9D8","#4E6480","#1D2733","#0E141B"],
+ fiume:["#5E9AA8","#9FC8CE","#3E6E7E","#182A30","#0D181C"],
+ grattacieli:["#6E86B8","#C9A86A","#3E4E78","#1A2030","#0D1119"],
+ acqua:["#7FA8A0","#C3D6C0","#4E7068","#1C2A26","#0E1614"],
+ borgo:["#B08A5A","#D8B87E","#7A5A34","#241A11","#120D08"],
+ giardino:["#7E9C58","#C0CE86","#4E6A38","#1E2818","#0F140C"]
+};
+function art(p){
+  return [
+   "radial-gradient(42% 34% at 30% 40%, "+p[0]+"d9, transparent 72%)",
+   "radial-gradient(32% 26% at 66% 56%, "+p[1]+"c4, transparent 74%)",
+   "radial-gradient(26% 22% at 46% 74%, "+p[2]+"b3, transparent 72%)",
+   "radial-gradient(120% 90% at 20% 0%, rgba(255,255,255,.13), transparent 58%)",
+   "linear-gradient(162deg,"+p[3]+","+p[4]+")"
+  ].join(",");
+}
+$("#heroart").style.backgroundImage=art(PAL.borgo);
+
+var DOCS=[
+ {n:"TRAVEL PLAN 553.docx",tick:0,
+  r:"Il programma dell'agenzia: 15 giorni, 8 hotel, 4 treni, 3 voli interni.",
+  st:"41 cose ferme · 7 referenti locali",
+  d:["Programma 553 · CBT 9384 · ZOCCOLAN/MATTEO, SUBBA/FEDERICA",
+     "29 ago → 12 set · 15 giorni, 14 notti · 1 camera, hotel 4 stelle",
+     "Pechino – Xi'an – Zhangjiajie – Furong – Fenghuang – Chongqing – Guilin – Hangzhou – Shanghai",
+     "Guida in inglese dove indicato · niente mezza pensione",
+     "Biglietti di treno e aereo elettronici, riconfermati 14 giorni prima",
+     "Al controllo in stazione serve il passaporto originale · canale manuale 人工通道",
+     "Emergenza CBTravel · Ms Bilin · 139 1651 1660 · WeChat Bilin-ChinaBase"]},
+ {n:"Volo QR869 · dal «+»",tick:1,
+  r:"L'avevi caricato a luglio. È lo stesso volo di ritorno del programma.",
+  st:"1 cosa ferma · unita al giorno 15",
+  d:["12 set · QR869 · Shanghai PVG 18:50","Caricato il 14 luglio dal «+»",
+     "⚠️ Lo stesso volo è anche nel TRAVEL PLAN. Compare una volta sola, con tutte e due le provenienze."]}
+];
+
+/* giorni · dal documento vero */
+var G=[
+ {n:1,d:"29 ago",city:"Pechino",it:[
+  {t:"fact",h:"12:10",ti:"Volo CA750 · arrivo a Pechino PKX",dd:"Ti aspettano all'uscita · trasferimento in hotel",src:"p",pic:null,kind:"volo"},
+  {t:"fact",h:"",ti:"Sun World Hotel Beijing",dd:"3 notti · check-in dalle 14:00",src:"p",pic:"citta",kind:"hotel",place:"Sun World Hotel Beijing"},
+  {t:"fact",h:"",ti:"Shirley Zhu Ms. · referente a Pechino",dd:"137 1799 8897 · WeChat tourchinaguide",src:"p",pic:null,kind:"contatto"}],
+  inc:["Trasferimento"],exc:["Pranzo","Cena","Guida"]},
+ {n:2,d:"30 ago",city:"Pechino",it:[
+  {t:"fact",h:"",ti:"Città Proibita e Jingshan",dd:"Visita guidata in inglese",src:"p",pic:"tempio",kind:"visita",place:"Città Proibita"},
+  {t:"fact",h:"",ti:"Grande Muraglia · Mutianyu",dd:"Con guida e biglietti d'ingresso",src:"p",pic:"muraglia",kind:"visita",place:"Muraglia di Mutianyu"},
+  {t:"fact",h:"",ti:"Piazza Tienanmen",dd:"In transito, senza sosta",src:"p",pic:"citta",kind:"visita",place:"Tienanmen"}],
+  inc:["Trasferimento","Ingressi","Guida in inglese"],exc:["Pranzo","Cena"]},
+ {n:3,d:"31 ago",city:"Pechino",it:[
+  {t:"fact",h:"",ti:"Tempio del Cielo",dd:"Con autista e biglietti",src:"p",pic:"tempio",kind:"visita",place:"Tempio del Cielo"},
+  {t:"fact",h:"",ti:"Tempio dei Lama",dd:"Con autista e biglietti",src:"p",pic:"tempio",kind:"visita",place:"Tempio dei Lama"},
+  {t:"hole",h:"sera",ti:"La sera è vuota",s:"Terza sera a Pechino · nessuna cena in programma"}],
+  inc:["Trasferimento","Ingressi"],exc:["Pranzo","Cena","Guida"]},
+ {n:4,d:"1 set",city:"Xi'an, poi Zhangjiajie",it:[
+  {t:"fact",h:"07:55",ti:"Treno G351 · Pechino Xi → Xi'an Bei",dd:"Arrivo 12:05 · alta velocità",src:"p",pic:null,kind:"treno"},
+  {t:"fact",h:"12:05",ti:"Ti prendono a Xi'an Bei",dd:"Uscita SUD, punto d'incontro 1 · 南出口1 · Cathy Ms · 138 9192 0796",src:"p",pic:null,kind:"contatto"},
+  {t:"fact",h:"",ti:"Esercito di Terracotta",dd:"Con autista e biglietti",src:"p",pic:"tempio",kind:"visita",place:"Esercito di Terracotta"},
+  {t:"fact",h:"20:20",ti:"Volo MU2431 · Xi'an → Zhangjiajie",dd:"Arrivo 21:45 · classe economica",src:"p",pic:null,kind:"volo"},
+  {t:"fact",h:"21:45",ti:"Zhangjiajie Pullman Hotel",dd:"3 notti · ti prende Jeffrey · 188 0744 2626",src:"p",pic:"montagna",kind:"hotel",place:"Zhangjiajie Pullman Hotel"}],
+  inc:["Trasferimenti","Volo","Ingressi a Xi'an"],exc:["Pranzo","Cena"]},
+ {n:5,d:"2 set",city:"Zhangjiajie",it:[
+  {t:"fact",h:"",ti:"Parco Forestale di Zhangjiajie",dd:"Le montagne di Avatar · visita guidata in inglese",src:"p",pic:"montagna",kind:"visita",place:"Zhangjiajie Forest Park"}],
+  inc:["Trasferimento","Guida","Ingressi"],exc:["Pranzo","Cena"]},
+ {n:6,d:"3 set",city:"Zhangjiajie",it:[
+  {t:"fact",h:"",ti:"Monte Tianmen e Ponte di Vetro",dd:"Visita guidata in inglese",src:"p",pic:"montagna",kind:"visita",place:"Tianmen Mountain"}],
+  inc:["Trasferimento","Guida","Ingressi"],exc:["Pranzo","Cena"]},
+ {n:7,d:"4 set",city:"Furong e Fenghuang",it:[
+  {t:"fact",h:"",ti:"Borgo antico di Furong",dd:"In libertà, senza guida",src:"p",pic:"borgo",kind:"visita",place:"Furong Ancient Town"},
+  {t:"fact",h:"",ti:"Fenghuang Lotus Boutique",dd:"1 notte · borgo antico di Fenghuang, giornata libera",src:"p",pic:"borgo",kind:"hotel",place:"Fenghuang Ancient Town"},
+  {t:"hole",h:"sera",ti:"Sera libera a Fenghuang",s:"Il documento la lascia vuota apposta"}],
+  inc:["Trasferimento"],exc:["Pranzo","Cena","Guida"]},
+ {n:8,d:"5 set",city:"Chongqing",today:1,it:[
+  {t:"fact",h:"15:26",ti:"Treno D3970 · Fenghuang Gucheng → Chongqing Dong",dd:"Arrivo 19:37 · seconda classe · al controllo serve il passaporto originale",src:"p",pic:null,kind:"treno",now:1},
+  {t:"fact",h:"19:37",ti:"Ti prende Yang Ms. in stazione",dd:"152 2343 1294 · trasferimento in hotel",src:"p",pic:null,kind:"contatto"},
+  {t:"fact",h:"",ti:"Chongqing SSAW Boutique Hotel",dd:"2 notti",src:"p",pic:"grattacieli",kind:"hotel",place:"Chongqing SSAW Boutique Hotel"},
+  {t:"hole",h:"sera",ti:"Dopo le 19:37 non hai niente",s:"È sabato: il documento dice che c'è lo spettacolo dei droni, se il tempo lo permette"}],
+  inc:["Trasferimento","Treno in seconda classe"],exc:["Pranzo","Cena","Guida"]},
+ {n:9,d:"6 set",city:"Chongqing",it:[
+  {t:"fact",h:"",ti:"Hongya Cave",dd:"Visita guidata in inglese",src:"p",pic:"grattacieli",kind:"visita",place:"Hongya Cave"},
+  {t:"fact",h:"",ti:"Funivia sullo Yangtze",dd:"Vista sulla città e sul fiume",src:"p",pic:"fiume",kind:"visita",place:"Yangtze River Cable Car"},
+  {t:"fact",h:"",ti:"Liziba · la metro che passa dentro il palazzo",dd:"E Jiefangbei, la via pedonale",src:"p",pic:"grattacieli",kind:"visita",place:"Liziba Light Rail"}],
+  inc:["Trasferimento","Guida","Ingressi"],exc:["Pranzo","Cena"]},
+ {n:10,d:"7 set",city:"Guilin",it:[
+  {t:"fact",h:"12:21",ti:"Treno G1575 · Chongqing Xi → Guilin Xi",dd:"Arrivo 16:14 · alta velocità",src:"p",pic:null,kind:"treno"},
+  {t:"fact",h:"16:14",ti:"Ti prende Lisa Ms. a Guilin Xi",dd:"136 0773 9548",src:"p",pic:null,kind:"contatto"},
+  {t:"fact",h:"sera",ti:"Battello notturno",dd:"Biglietto incluso",src:"p",pic:"fiume",kind:"visita",place:"Guilin night cruise"},
+  {t:"fact",h:"",ti:"Guilin Bravo Hotel",dd:"1 notte",src:"p",pic:"fiume",kind:"hotel",place:"Guilin Bravo Hotel"}],
+  inc:["Trasferimento","Battello"],exc:["Pranzo","Cena","Guida"]},
+ {n:11,d:"8 set",city:"Yangshuo",it:[
+  {t:"fact",h:"",ti:"Crociera sul fiume Li fino a Yangshuo",dd:"Battello 4 stelle · pranzo a bordo incluso",src:"p",pic:"fiume",kind:"visita",place:"Li River Cruise"},
+  {t:"fact",h:"",ti:"Yangshuo Resort",dd:"1 notte",src:"p",pic:"fiume",kind:"hotel",place:"Yangshuo Resort"},
+  {t:"hole",h:"sera",ti:"Spettacolo Impression Sanjie Liu",s:"Facoltativo · 372 CNY a testa, si paga sul posto"}],
+  inc:["Trasferimento","Crociera","Pranzo a bordo"],exc:["Cena","Guida"]},
+ {n:12,d:"9 set",city:"Hangzhou",it:[
+  {t:"fact",h:"alba",ti:"Alba dal monte Xianggong",dd:"Poi trasferimento all'aeroporto di Guilin",src:"p",pic:"montagna",kind:"visita",place:"Xianggong Mountain"},
+  {t:"fact",h:"10:30",ti:"Volo MF8808 · Guilin → Hangzhou",dd:"Arrivo 12:35 · classe economica · o volo simile",src:"p",pic:null,kind:"volo"},
+  {t:"fact",h:"12:35",ti:"Lake View Hotel Hangzhou",dd:"1 notte · ti prendono in aeroporto",src:"p",pic:"acqua",kind:"hotel",place:"Lake View Hotel Hangzhou"}],
+  inc:["Trasferimento","Volo"],exc:["Pranzo","Cena"]},
+ {n:13,d:"10 set",city:"Shanghai",it:[
+  {t:"fact",h:"",ti:"Lago dell'Ovest, in barca",dd:"Visita guidata in inglese",src:"p",pic:"acqua",kind:"visita",place:"West Lake Hangzhou"},
+  {t:"fact",h:"",ti:"Tempio Lingyin e le colline del tè Longjing",dd:"Con guida e ingressi",src:"p",pic:"giardino",kind:"visita",place:"Lingyin Temple"},
+  {t:"fact",h:"17:06",ti:"Treno G7792 · Hangzhou Dong → Shanghai Hongqiao",dd:"Arrivo 18:14 · seconda classe",src:"p",pic:null,kind:"treno"},
+  {t:"fact",h:"18:14",ti:"Shanghai Broadway Mansion Hotel",dd:"2 notti · ti prendono in stazione",src:"p",pic:"grattacieli",kind:"hotel",place:"Broadway Mansion Shanghai"}],
+  inc:["Trasferimento","Treno","Guida","Ingressi a Hangzhou"],exc:["Pranzo","Cena"]},
+ {n:14,d:"11 set",city:"Shanghai",it:[
+  {t:"fact",h:"",ti:"Zhujiajiao, il borgo sull'acqua",dd:"Visita guidata in inglese",src:"p",pic:"acqua",kind:"visita",place:"Zhujiajiao"},
+  {t:"fact",h:"",ti:"Giardino Yuyuan e Tempio del Buddha di Giada",dd:"Con guida e ingressi",src:"p",pic:"giardino",kind:"visita",place:"Yuyuan Garden"},
+  {t:"fact",h:"sera",ti:"Crociera notturna",dd:"Sul Huangpu",src:"p",pic:"grattacieli",kind:"visita",place:"Huangpu night cruise"}],
+  inc:["Trasferimento","Guida","Ingressi"],exc:["Pranzo","Cena"]},
+ {n:15,d:"12 set",city:"Rientro",it:[
+  {t:"fact",h:"12:00",ti:"Check-out · Broadway Mansion",dd:"Entro le 12:00",src:"p",pic:null,kind:"hotel"},
+  {t:"hole",h:"12:00",ti:"Dalle 12:00 alle 14:50 non hai niente",s:"Quasi tre ore con le valigie · l'hotel di solito le tiene"},
+  {t:"fact",h:"14:50",ti:"Trasferimento a Shanghai Pudong PVG",dd:"",src:"p",pic:null,kind:"treno"},
+  {t:"fact",h:"18:50",ti:"Volo QR869 · Shanghai PVG → casa",dd:"Volo di rientro",src:"both",pic:null,kind:"volo"},
+  {t:"note",ti:"Nella tua lista ci sono tre film che stanno dentro il volo di ritorno",s:"Te lo ricordo il giorno prima · la durata ce l'ho già"}],
+  inc:["Trasferimento"],exc:["Pranzo","Cena"]}
+];
+
+var RISP={
+ "la cena di stasera è inclusa?":{k:"doc",
+  a:"<b>No.</b> Per il giorno 8 il programma dice: incluso il trasferimento e il biglietto del treno in seconda classe — <b>non</b> pranzo, cena e guida.<br><br>Vale per quasi tutti i giorni: nel documento c'è scritto <b>«no DBB»</b>, niente mezza pensione. L'unico pasto incluso in quindici giorni è il pranzo a bordo della crociera sul fiume Li, l'8 settembre.",
+  from:["TRAVEL PLAN 553.docx"]},
+ "dove dormo stanotte?":{k:"doc",
+  a:"<b>Chongqing SSAW Boutique Hotel</b>, due notti.<br>Ti ci porta Yang Ms., che ti prende alla stazione Chongqing Dong alle <b>19:37</b>.",
+  from:["TRAVEL PLAN 553.docx"]},
+ "quante volte prendo il treno in tutto?":{k:"doc",
+  a:"<b>Quattro volte</b>, tutti ad alta velocità:<br><br>· 1 set · <b>G351</b> Pechino Xi → Xi'an Bei, 07:55<br>· 5 set · <b>D3970</b> Fenghuang → Chongqing Dong, 15:26<br>· 7 set · <b>G1575</b> Chongqing Xi → Guilin Xi, 12:21<br>· 10 set · <b>G7792</b> Hangzhou Dong → Shanghai, 17:06<br><br>Tutti in seconda classe. Al controllo serve il <b>passaporto originale</b>, canale manuale 人工通道.",
+  from:["TRAVEL PLAN 553.docx"]},
+ "serve il visto per la Cina?":{k:"no",
+  a:"<b>Non lo so: non è scritto in nessuno dei documenti che mi hai dato.</b><br><br>Nel programma si parla del passaporto solo per i controlli in stazione. Di visti non parla nessun documento — e su una cosa così non tiro a indovinare.",
+  from:[]}
+};
+
+var tt=null;
+function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");
+  clearTimeout(tt);tt=setTimeout(function(){t.classList.remove("on")},2600)}
+window.toast=toast;
+
+var ICO={
+ volo:'<path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a1 1 0 0 0-.9 1.7L9 11l-2 3H4l2 3 3 2 1-3 3-2 3.1 5.1a1 1 0 0 0 1.7-.9z"/>',
+ treno:'<rect x="5" y="3" width="14" height="13" rx="3"/><path d="M9 20l-2 2M15 20l2 2M5 12h14"/><circle cx="9" cy="9" r=".6"/><circle cx="15" cy="9" r=".6"/>',
+ hotel:'<path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/>',
+ visita:'<path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+ contatto:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>'
+};
+var FOLLOW={
+ volo:["quando apre il check-in?","quanto bagaglio ho?","è incluso nel prezzo?"],
+ treno:["da che binario parte?","cosa serve al controllo?","che classe ho?"],
+ hotel:["da che ora posso entrare?","quante notti?","la colazione è inclusa?"],
+ visita:["a che ora chiude?","il biglietto è incluso?","c'è la guida?"],
+ contatto:["a che ora mi prende?","dove ci troviamo?"]
+};
+
+function docs(){
+  var c=$("#docs");c.innerHTML="";
+  DOCS.forEach(function(d){
+    var b=document.createElement("button");b.className="doc tap"+(d.tick?" tick":"");
+    b.innerHTML='<span class="ic">'+(d.tick
+      ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M13 6v10"/></svg>'
+      : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>')+'</span>'+
+      '<span class="col"><span class="nm">'+d.n+'</span><span class="rd">'+d.r+'</span>'+
+      '<span class="st"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'+d.st+'</span></span>';
+    b.addEventListener("click",function(){
+      $("#dt").textContent=d.n;
+      $("#db").innerHTML='<p style="font-size:12.5px;font-weight:500;color:var(--meta);line-height:1.55;margin-bottom:12px">Questo è quello che Keiko ci ha letto dentro. Niente è stato riscritto.</p>'+
+        d.d.map(function(x){return '<div class="blk"><div class="d" style="margin:0">'+x+'</div></div>'}).join("")+
+        '<button class="btn2 wide tap" style="margin-top:6px" onclick="toast(\'Apre l\\\'originale\')">Apri l\'originale</button>';
+      open("#sh-doc");
+    });
+    c.appendChild(b);
+  });
+}
+docs();
+
+var gi=7;
+function daybar(){
+  var c=$("#daybar");c.innerHTML="";
+  G.forEach(function(g,i){
+    var b=document.createElement("button");
+    b.className="tap"+(i===gi?" on":"")+(g.today?" today":"");
+    b.innerHTML=g.n+'<span>'+g.d.split(" ")[0]+'</span>';
+    b.addEventListener("click",function(){gi=i;daybar();tl()});
+    c.appendChild(b);
+  });
+  var g=G[gi];
+  $("#dayhint").textContent="giorno "+g.n+" · "+g.d;
+  $("#citylab").textContent=g.city+(g.today?" · oggi":"");
+}
+function tl(){
+  var c=$("#timeline");c.innerHTML="";
+  var g=G[gi];
+  g.it.forEach(function(x){
+    if(x.t==="fact"){
+      var b=document.createElement("button");b.className="fact tap"+(x.pic?"":" nopic");
+      var pic=x.pic
+        ? '<span class="pic"><span class="art" style="background-image:'+art(PAL[x.pic])+'"></span></span>'
+        : '';
+      var src = x.src==="both"
+        ? 'dal biglietto <b class="cod">QR869</b> e dal TRAVEL PLAN'
+        : 'TRAVEL PLAN 553.docx';
+      b.innerHTML=pic+'<span class="in"><span class="h">'+(x.h||"")+'</span>'+
+        '<span class="col"><span class="t">'+x.ti+'</span>'+
+        (x.dd?'<span class="d">'+x.dd+'</span>':'')+
+        '<span class="src"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+ICO[x.kind]+'</svg>'+src+'</span></span></span>';
+      b.addEventListener("click",function(){apri(x)});
+      c.appendChild(b);
+    } else if(x.t==="hole"){
+      var h=document.createElement("button");h.className="hole tap";
+      h.innerHTML='<span class="h">'+x.h+'</span><span class="col"><span class="t">'+x.ti+'</span><span class="s">'+x.s+'</span></span>'+
+        '<span class="go"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>';
+      h.addEventListener("click",function(){toast("Le proposte per i buchi arrivano dopo — non servono a partire")});
+      c.appendChild(h);
+    } else {
+      var n=document.createElement("div");n.className="blk";
+      n.innerHTML='<div class="t">'+x.ti+'</div><div class="m">'+x.s+'</div>';
+      c.appendChild(n);
+    }
+  });
+  var inc=$("#incl");
+  inc.innerHTML=g.inc.map(function(v){return '<span class="yes"><b>✓</b> '+v+'</span>'}).join("")+
+    g.exc.map(function(v){return '<span class="no"><b>×</b> '+v+'</span>'}).join("");
+}
+daybar();tl();
+
+function apri(x){
+  var p=x.pic;
+  $("#apic").style.display=p?"":"none";
+  if(p){$("#apic").innerHTML='<span class="art" style="background-image:'+art(PAL[p])+'"></span>'}
+  $("#at").textContent=x.ti; $("#ah").textContent=x.h||"";
+  var f=FOLLOW[x.kind]||[];
+  var html='<div class="blk"><div class="d" style="margin:0">'+(x.dd||"—")+'</div>'+
+    '<div class="m"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>'+
+    (x.src==="both"?'dal biglietto QR869 e dal TRAVEL PLAN 553':'da TRAVEL PLAN 553.docx · giorno '+G[gi].n)+'</div></div>';
+  if(f.length){
+    html+='<div class="lab">Domande su questa cosa</div><div style="display:grid;gap:6px">'+
+      f.map(function(q){return '<button class="btn2 wide tap" style="justify-content:flex-start" onclick="fq(\''+q.replace(/'/g,"\\'")+'\')">'+q+'</button>'}).join("")+'</div>';
+  }
+  if(x.place){
+    html+='<div class="lab">Guardalo prima di andarci</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button class="btn-teal tap" onclick="toast(\'Cerca «'+x.place+'» su TikTok\')">Su TikTok</button>'+
+      '<button class="btn-teal tap" onclick="toast(\'Cerca «'+x.place+'» su YouTube\')">Su YouTube</button>'+
+      '<button class="btn-teal tap" onclick="toast(\'Apre la mappa\')">Sulla mappa</button></div>'+
+      '<p style="font-size:11.5px;font-weight:500;color:var(--meta);line-height:1.55;margin-top:8px">Porta a una ricerca, non a un video preciso: un video può sparire, o non essere di questo posto.</p>';
+  }
+  html+='<div id="fqslot"></div>';
+  $("#ab").innerHTML=html;
+  open("#sh-att");
+}
+window.fq=function(q){
+  var s=$("#fqslot");
+  s.innerHTML='<div class="qa"><div class="q">'+q+'</div><div class="a" style="font-size:13px;color:var(--txt2)">…</div></div>';
+  setTimeout(function(){
+    if(q==="cosa serve al controllo?"||q==="da che ora posso entrare?"||q==="che classe ho?"||q==="quante notti?"){
+      var m={"cosa serve al controllo?":"Il <b>passaporto originale</b>, e si passa dal canale manuale — 人工通道.",
+             "da che ora posso entrare?":"Dalle <b>14:00</b>. Il check-out è entro le 12:00.",
+             "che classe ho?":"<b>Seconda classe</b>, come su tutti e quattro i treni del programma.",
+             "quante notti?":"<b>Due notti</b> a Chongqing."};
+      s.innerHTML='<div class="qa"><div class="q">'+q+'</div><div class="a">'+m[q]+'</div>'+
+        '<div class="from"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>da <span class="dchip">TRAVEL PLAN 553.docx</span></div></div>';
+    } else {
+      s.innerHTML='<div class="qa nope"><div class="q">'+q+'</div>'+
+        '<div class="a">Questo nei tuoi documenti non c\'è.</div>'+
+        '<div class="from" style="justify-content:space-between">Vuoi che lo cerchi adesso?'+
+        '<button class="btn-teal tap" onclick="cerca(this)">Cercalo</button></div></div>';
+    }
+  },600);
+};
+window.cerca=function(b){
+  var qa=b.closest(".qa");
+  qa.className="qa web";
+  qa.querySelector(".a").innerHTML='<b>Apre tutti i giorni 8:30–17:00</b>, ultimo ingresso alle 16:00.';
+  qa.querySelector(".from").innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>trovato adesso sul web · oggi 14:41 · sito ufficiale';
+};
+
+$$("#chips .chip").forEach(function(b){b.addEventListener("click",function(){
+  $("#q").value=b.dataset.q; chiedi(b.dataset.q);});});
+$("#go").addEventListener("click",function(){
+  var v=$("#q").value.trim();
+  if(!v){toast("Chiedimi qualcosa del viaggio");$("#q").focus();return}
+  chiedi(v);});
+
+function chiedi(q){
+  var slot=$("#qaslot");
+  slot.innerHTML='<div class="qa"><div class="q">'+q+'</div>'+
+    '<div style="display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:500;color:var(--txt2);min-height:20px">'+
+    '<span style="width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pz 1.2s ease-in-out infinite"></span>'+
+    '<span>Rileggo i tuoi documenti</span></div></div>';
+  slot.scrollIntoView({block:"center"});
+  setTimeout(function(){
+    var r=RISP[q]||{k:"no",a:"<b>Non lo so: non è scritto in nessuno dei documenti che mi hai dato.</b><br><br>Posso rispondere su quello che c'è nel TRAVEL PLAN e nel biglietto che avevi già caricato.",from:[]};
+    slot.innerHTML='<div class="qa'+(r.k==="no"?" nope":"")+'"><div class="q">'+q+'</div><div class="a">'+r.a+'</div>'+
+      (r.from.length
+        ? '<div class="from"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>da '+
+          r.from.map(function(f){return '<span class="dchip">'+f+'</span>'}).join(" ")+'</div>'
+        : '<div class="from">Se ce l\'hai da qualche parte, caricalo: da lì in poi te lo so dire.</div>')+
+      '</div>';
+  },1300);
+}
+
+function open(sel){$("#scrim").classList.add("on");$(sel).classList.add("on")}
+function close(){$("#scrim").classList.remove("on");$$(".sheet").forEach(function(s){s.classList.remove("on")})}
+$("#scrim").addEventListener("click",close);
+$$("[data-close]").forEach(function(b){b.addEventListener("click",close)});
+})();
+</script>
+</body>
+</html>

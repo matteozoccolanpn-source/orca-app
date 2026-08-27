@@ -50,6 +50,10 @@ next-env.d.ts
 # lavora, non al repo.
 scratchpad/
 
+# documenti di prova veri (nomi, telefoni, PNR reali): mai nel repo, mai nei
+# messaggi di commit. Vedi AGENTS.md.
+docs/prove/
+
 # il cestino di sessione: ci finisce quello che sta per sparire. Non deve mai
 # entrare nel repo, nemmeno per sbaglio.
 _to_delete/
